@@ -1,0 +1,71 @@
+"""Application configuration models."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class APIConfig(BaseModel):
+    """HTTP API settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    host: str = Field(default="0.0.0.0", min_length=1)
+    port: int = Field(default=8080, ge=1, le=65535)
+    enable_cors: bool = True
+    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
+    max_request_bytes: int = Field(default=1_000_000, ge=1024)
+    enable_auth: bool = False
+    rate_limit_per_minute: int = Field(default=60, ge=1)
+
+
+class LoggingConfig(BaseModel):
+    """Structured logging settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    level: str = Field(default="INFO", min_length=4)
+    json_logs: bool = True
+    service_name: str = Field(default="quantum-coordinator", min_length=1)
+
+
+class DatabaseConfig(BaseModel):
+    """SQLite settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(default="./data/quantum_coordinator.db", min_length=1)
+    enable_wal_mode: bool = True
+
+
+class DiscoveryConfig(BaseModel):
+    """Discovery refresh and staleness thresholds."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh_interval_seconds: int = Field(default=30, ge=1)
+    stale_timeout_seconds: int = Field(default=120, ge=1)
+    service_ad_topic: str = Field(default="/quantum-coordinator/service-ads/v1", min_length=1)
+
+
+class RuntimeConfig(BaseModel):
+    """Runtime retry and timeout settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_retries: int = Field(default=3, ge=0)
+    base_timeout_seconds: float = Field(default=5.0, gt=0)
+    backoff_multiplier: float = Field(default=2.0, ge=1.0)
+
+
+class AppConfig(BaseModel):
+    """Top-level app configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    environment: str = Field(default="development", min_length=1)
+    api: APIConfig = Field(default_factory=APIConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)
+    runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
