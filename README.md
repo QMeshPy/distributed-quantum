@@ -72,6 +72,31 @@ make format    # ruff format
 make run       # run FastAPI app
 ```
 
+## py-libp2p Adapter (Real Transport)
+
+The project now includes real py-libp2p adapters in
+`src/quantum_coordinator/infra/libp2p/pylibp2p.py`.
+
+Quick sketch:
+
+```python
+import trio
+
+from quantum_coordinator.infra.libp2p import build_libp2p_node, run_libp2p_services
+
+
+async def main() -> None:
+    node = build_libp2p_node(listen_addrs=["/ip4/0.0.0.0/tcp/9000"])
+    async with run_libp2p_services(node.host, node.pubsub):
+        await node.pubsub_adapter.subscribe("/quantum-coordinator/service-ads/v1")
+        # publish / receive / request stream calls here
+
+
+trio.run(main)
+```
+
+Note: py-libp2p services are Trio-native; the real adapter requires a Trio backend.
+
 ## Project Structure
 
 ```text

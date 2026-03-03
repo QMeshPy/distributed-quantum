@@ -11,6 +11,16 @@ from quantum_coordinator.infra.libp2p.interfaces import (
     PubSubMessage,
     StreamAdapter,
 )
+from quantum_coordinator.infra.libp2p.pylibp2p import (
+    PyLibp2pNode,
+    PyLibp2pPeerAdapter,
+    PyLibp2pPubSubAdapter,
+    PyLibp2pStreamAdapter,
+    build_libp2p_node,
+    create_gossipsub,
+    create_libp2p_host,
+    run_libp2p_services,
+)
 
 __all__ = [
     "InMemoryPeerAdapter",
@@ -20,4 +30,12 @@ __all__ = [
     "PubSubAdapter",
     "PubSubMessage",
     "StreamAdapter",
+    "PyLibp2pNode",
+    "PyLibp2pPeerAdapter",
+    "PyLibp2pPubSubAdapter",
+    "PyLibp2pStreamAdapter",
+    "build_libp2p_node",
+    "create_gossipsub",
+    "create_libp2p_host",
+    "run_libp2p_services",
 ]
