@@ -47,6 +47,7 @@ class ServiceResponse(BaseModel):
     """Service registry item."""
 
     node_id: str
+    listen_addrs: list[str]
     service_type: str
     fidelity: float
     qubit_min: int

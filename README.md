@@ -97,6 +97,10 @@ trio.run(main)
 
 Note: py-libp2p services are Trio-native; the real adapter requires a Trio backend.
 
+Application behavior:
+- `libp2p.enabled: true` (default) attempts real py-libp2p coordinator + embedded service nodes.
+- If libp2p startup fails in a restricted environment, app logs the failure and falls back to in-memory gate execution.
+
 ## Project Structure
 
 ```text

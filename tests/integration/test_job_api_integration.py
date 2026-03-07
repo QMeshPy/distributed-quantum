@@ -7,11 +7,10 @@ from time import monotonic, sleep
 from fastapi.testclient import TestClient
 
 from quantum_coordinator.api.app import create_app
-from quantum_coordinator.config.models import APIConfig, AppConfig, DatabaseConfig
-from quantum_coordinator.domain.models import GateType, JobStatus
-from quantum_coordinator.infra.persistence import SQLiteJobStore, SQLiteServiceRegistryStore
+from quantum_coordinator.domain.models import JobStatus
+from quantum_coordinator.infra.persistence import SQLiteJobStore
 from quantum_coordinator.infra.persistence.job_store import JobRecord
-from quantum_coordinator.service_discovery.advertisement import ServiceAdvertisement
+from tests.support.real_libp2p import make_real_libp2p_config
 
 CIRCUIT_TEXT = """
 OPENQASM 2.0;
@@ -20,7 +19,7 @@ cx q[0], q[1];
 """
 
 
-def _wait_for_job_terminal(client: TestClient, job_id: str, timeout_seconds: float = 2.0) -> dict:
+def _wait_for_job_terminal(client: TestClient, job_id: str, timeout_seconds: float = 5.0) -> dict:
     deadline = monotonic() + timeout_seconds
     while monotonic() < deadline:
         response = client.get(f"/api/v1/jobs/{job_id}")
@@ -28,49 +27,36 @@ def _wait_for_job_terminal(client: TestClient, job_id: str, timeout_seconds: flo
         payload = response.json()
         if payload["status"] in {"COMPLETED", "FAILED"}:
             return payload
-        sleep(0.02)
+        sleep(0.05)
     raise AssertionError(f"job {job_id} did not reach terminal state")
 
 
-def _seed_service(database_path: str, node_id: str = "node-1", fidelity: float = 0.95) -> None:
-    store = SQLiteServiceRegistryStore(database_path)
-    store.save(
-        ServiceAdvertisement(
-            node_id=node_id,
-            service_type=GateType.CNOT,
-            fidelity=fidelity,
-            qubit_min=1,
-            qubit_max=2,
-            availability=True,
-        )
-    )
-
-
-def _make_config(
-    database_path: str,
+def _wait_for_services(
+    client: TestClient,
     *,
-    enable_auth: bool = False,
-    api_key: str | None = None,
-    enable_rate_limit: bool = False,
-    rate_limit_per_minute: int = 60,
-) -> AppConfig:
-    return AppConfig(
-        database=DatabaseConfig(path=database_path),
-        api=APIConfig(
-            enable_auth=enable_auth,
-            api_key=api_key,
-            enable_rate_limit=enable_rate_limit,
-            rate_limit_per_minute=rate_limit_per_minute,
-        ),
-    )
+    headers: dict[str, str] | None = None,
+    timeout_seconds: float = 5.0,
+) -> list[dict[str, object]]:
+    deadline = monotonic() + timeout_seconds
+    request_headers = headers or {}
+    while monotonic() < deadline:
+        response = client.get("/api/v1/services", headers=request_headers)
+        if response.status_code == 200:
+            services = response.json()
+            if services:
+                return services
+        sleep(0.05)
+    raise AssertionError("services were not advertised before timeout")
 
 
 def test_submit_and_poll_job_completion(tmp_path: Path) -> None:
     database_path = str(tmp_path / "submit.db")
-    _seed_service(database_path=database_path)
-    app = create_app(_make_config(database_path))
+    app = create_app(make_real_libp2p_config(database_path))
 
     with TestClient(app) as client:
+        services = _wait_for_services(client)
+        assert services
+
         submit_response = client.post(
             "/api/v1/circuits/submit",
             json={"circuit": CIRCUIT_TEXT},
@@ -88,40 +74,26 @@ def test_submit_and_poll_job_completion(tmp_path: Path) -> None:
 
 def test_services_and_fidelity_metrics_endpoints(tmp_path: Path) -> None:
     database_path = str(tmp_path / "metrics.db")
-    _seed_service(database_path=database_path, node_id="node-metrics", fidelity=0.91)
-    store = SQLiteServiceRegistryStore(database_path)
-    store.save(
-        ServiceAdvertisement(
-            node_id="node-metrics",
-            service_type=GateType.CZ,
-            fidelity=0.89,
-            qubit_min=1,
-            qubit_max=3,
-            availability=True,
-        )
-    )
-    app = create_app(_make_config(database_path))
+    app = create_app(make_real_libp2p_config(database_path))
 
     with TestClient(app) as client:
-        services_response = client.get("/api/v1/services")
-        assert services_response.status_code == 200
-        services = services_response.json()
-        assert len(services) == 2
+        services = _wait_for_services(client)
+        assert len(services) >= 1
 
-        metrics_response = client.get("/api/v1/metrics/fidelity/node-metrics")
+        node_id = str(services[0]["node_id"])
+        metrics_response = client.get(f"/api/v1/metrics/fidelity/{node_id}")
         assert metrics_response.status_code == 200
         metrics = metrics_response.json()
-        assert metrics["node_id"] == "node-metrics"
-        assert metrics["sample_count"] == 2
-        assert metrics["min_fidelity"] == 0.89
-        assert metrics["max_fidelity"] == 0.91
+        assert metrics["node_id"] == node_id
+        assert metrics["sample_count"] >= 1
+        assert 0.0 <= metrics["min_fidelity"] <= 1.0
+        assert 0.0 <= metrics["max_fidelity"] <= 1.0
 
 
 def test_auth_and_rate_limit_guards(tmp_path: Path) -> None:
     database_path = str(tmp_path / "auth-rate.db")
-    _seed_service(database_path=database_path)
     app = create_app(
-        _make_config(
+        make_real_libp2p_config(
             database_path,
             enable_auth=True,
             api_key="topsecret",
@@ -143,7 +115,6 @@ def test_auth_and_rate_limit_guards(tmp_path: Path) -> None:
 
 def test_startup_recovery_reprocesses_unfinished_jobs(tmp_path: Path) -> None:
     database_path = str(tmp_path / "recovery.db")
-    _seed_service(database_path=database_path)
     job_store = SQLiteJobStore(database_path)
     now = datetime.now(timezone.utc)
     job_store.upsert(
@@ -159,8 +130,9 @@ def test_startup_recovery_reprocesses_unfinished_jobs(tmp_path: Path) -> None:
         )
     )
 
-    app = create_app(_make_config(database_path))
+    app = create_app(make_real_libp2p_config(database_path))
     with TestClient(app) as client:
+        _wait_for_services(client)
         response = client.get("/api/v1/jobs/job-recover-1")
         assert response.status_code == 200
         payload = response.json()

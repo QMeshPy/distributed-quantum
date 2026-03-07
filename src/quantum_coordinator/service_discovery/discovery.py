@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from contextlib import suppress
 from datetime import timedelta
+from typing import Any
 
-from quantum_coordinator.infra.libp2p import PubSubAdapter
+import anyio
+
+from quantum_coordinator.infra.libp2p.interfaces import PubSubAdapter
 from quantum_coordinator.service_discovery.advertisement import (
     ServiceAdvertisement,
     validate_advertisement_payload,
@@ -31,7 +32,8 @@ class ServiceDiscovery:
         self._registry = registry
         self._refresh_interval = refresh_interval
         self._topic = topic
-        self._task: asyncio.Task[None] | None = None
+        self._task_group: anyio.abc.TaskGroup | None = None
+        self._task_group_cm: Any | None = None
         self._logger = logging.getLogger(__name__)
 
     @property
@@ -41,18 +43,25 @@ class ServiceDiscovery:
 
     async def start(self) -> None:
         """Subscribe to discovery topic and start background processing."""
+        if self._task_group is not None:
+            return
+
         await self._pubsub.subscribe(self._topic)
-        self._task = asyncio.create_task(self._run(), name=f"service-discovery-{self.peer_id}")
+        task_group_cm = anyio.create_task_group()
+        task_group = await task_group_cm.__aenter__()
+        task_group.start_soon(self._run)
+        self._task_group_cm = task_group_cm
+        self._task_group = task_group
 
     async def stop(self) -> None:
         """Stop background processing task."""
-        if self._task is None:
+        if self._task_group is None or self._task_group_cm is None:
             return
 
-        self._task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self._task
-        self._task = None
+        self._task_group.cancel_scope.cancel()
+        await self._task_group_cm.__aexit__(None, None, None)
+        self._task_group = None
+        self._task_group_cm = None
 
     async def advertise_service(self, advertisement: ServiceAdvertisement) -> None:
         """Publish local advertisement and update local registry."""

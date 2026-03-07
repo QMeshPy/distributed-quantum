@@ -1,25 +1,12 @@
-"""Gate execution adapter contracts and in-memory test adapter."""
+"""Gate execution adapter contracts for remote libp2p invocation."""
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
-from dataclasses import dataclass
-from enum import Enum
-
-import anyio
+import json
+from typing import Protocol
 
 from quantum_coordinator.planning.models import CircuitFragment
 from quantum_coordinator.runtime.models import GateExecutionResult
-
-
-class InjectedFailure(str, Enum):
-    """Failure modes used by integration tests."""
-
-    TIMEOUT = "TIMEOUT"
-    REJECT = "REJECT"
-    NODE_DROP = "NODE_DROP"
-    QUALITY_DEGRADED = "QUALITY_DEGRADED"
-    SUCCESS = "SUCCESS"
 
 
 class GateExecutionAdapter:
@@ -35,24 +22,19 @@ class GateExecutionAdapter:
         raise NotImplementedError
 
 
-@dataclass(frozen=True)
-class NodeExecutionProfile:
-    """Default behavior of a node in the in-memory adapter."""
+class Libp2pGateInvoker(Protocol):
+    """Minimal gate invocation transport used by libp2p adapter."""
 
-    fidelity: float
-    latency_seconds: float = 0.0
+    async def invoke_gate(self, node_id: str, payload: bytes) -> bytes:
+        """Invoke gate protocol on remote node."""
 
 
-class InMemoryGateExecutionAdapter(GateExecutionAdapter):
-    """In-memory execution adapter with programmable failure injection."""
+class Libp2pGateExecutionAdapter(GateExecutionAdapter):
+    """Gate adapter that invokes remote service nodes over py-libp2p streams."""
 
-    def __init__(self, profiles: dict[str, NodeExecutionProfile]) -> None:
-        self._profiles = profiles
-        self._injections: dict[str, deque[InjectedFailure]] = defaultdict(deque)
-
-    def inject(self, node_id: str, *failures: InjectedFailure) -> None:
-        """Inject ordered failure/success outcomes for a node."""
-        self._injections[node_id].extend(failures)
+    def __init__(self, invoker: Libp2pGateInvoker, min_fidelity: float = 0.8) -> None:
+        self._invoker = invoker
+        self._min_fidelity = min_fidelity
 
     async def execute(
         self,
@@ -60,32 +42,32 @@ class InMemoryGateExecutionAdapter(GateExecutionAdapter):
         node_id: str,
         timeout_seconds: float,
     ) -> GateExecutionResult:
-        profile = self._profiles.get(node_id)
-        if profile is None:
-            raise ConnectionError(f"Unknown node {node_id!r}")
+        request = {
+            "fragment_id": fragment.fragment_id,
+            "service_type": fragment.service_type.value,
+            "qubits": list(fragment.qubits),
+            "timeout_seconds": timeout_seconds,
+            "min_fidelity": self._min_fidelity,
+        }
+        raw_response = await self._invoker.invoke_gate(
+            node_id=node_id,
+            payload=json.dumps(request, separators=(",", ":"), sort_keys=True).encode("utf-8"),
+        )
 
-        if profile.latency_seconds > 0.0:
-            await anyio.sleep(profile.latency_seconds)
-
-        queue = self._injections[node_id]
-        outcome = queue.popleft() if queue else InjectedFailure.SUCCESS
-
-        if outcome == InjectedFailure.TIMEOUT:
-            await anyio.sleep(timeout_seconds + 0.05)
-            return GateExecutionResult(success=False, observed_fidelity=0.0, error="timeout")
-
-        if outcome == InjectedFailure.REJECT:
-            return GateExecutionResult(success=False, observed_fidelity=0.0, error="rejected")
-
-        if outcome == InjectedFailure.NODE_DROP:
-            raise ConnectionError(f"Node {node_id} dropped")
-
-        if outcome == InjectedFailure.QUALITY_DEGRADED:
+        try:
+            payload = json.loads(raw_response.decode("utf-8"))
+            success = bool(payload.get("success", False))
+            observed_fidelity = float(payload.get("observed_fidelity", 0.0))
+            error_raw = payload.get("error")
+            error = None if error_raw is None else str(error_raw)
             return GateExecutionResult(
-                success=True,
-                observed_fidelity=max(0.0, profile.fidelity - 0.4),
-                error=None,
+                success=success,
+                observed_fidelity=observed_fidelity,
+                error=error,
             )
-
-        _ = fragment
-        return GateExecutionResult(success=True, observed_fidelity=profile.fidelity, error=None)
+        except Exception:
+            return GateExecutionResult(
+                success=False,
+                observed_fidelity=0.0,
+                error="invalid_gate_response",
+            )

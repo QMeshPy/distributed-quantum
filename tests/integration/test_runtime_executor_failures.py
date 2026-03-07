@@ -10,15 +10,14 @@ from quantum_coordinator.domain.models import GateType
 from quantum_coordinator.infra.persistence import SQLiteRuntimeEventStore
 from quantum_coordinator.planning import CircuitPlanner, PlannerConfig, PlannerWeights
 from quantum_coordinator.reservation.protocol import ReservationProtocol
-from quantum_coordinator.runtime import (
+from quantum_coordinator.runtime import RuntimeExecutor, RuntimePolicy
+from quantum_coordinator.service_discovery.advertisement import ServiceAdvertisement
+from quantum_coordinator.service_discovery.registry import ServiceRegistry
+from tests.support.runtime_test_adapter import (
     InjectedFailure,
     InMemoryGateExecutionAdapter,
     NodeExecutionProfile,
-    RuntimeExecutor,
-    RuntimePolicy,
 )
-from quantum_coordinator.service_discovery.advertisement import ServiceAdvertisement
-from quantum_coordinator.service_discovery.registry import ServiceRegistry
 
 
 def _make_registry() -> ServiceRegistry:

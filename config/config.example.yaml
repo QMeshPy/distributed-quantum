@@ -30,3 +30,13 @@ runtime:
   max_retries: 3
   base_timeout_seconds: 5.0
   backoff_multiplier: 2.0
+
+libp2p:
+  enabled: true
+  enable_mdns: false
+  coordinator_listen_addrs:
+    - /ip4/127.0.0.1/tcp/9100
+  gate_protocol_id: /quantum-coordinator/gate-exec/1.0.0
+  embedded_service_count: 3
+  embedded_service_base_port: 9200
+  embedded_ad_interval_seconds: 2.0

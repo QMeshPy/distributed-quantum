@@ -60,6 +60,23 @@ class RuntimeConfig(BaseModel):
     backoff_multiplier: float = Field(default=2.0, ge=1.0)
 
 
+class Libp2pConfig(BaseModel):
+    """Real py-libp2p transport settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    enable_mdns: bool = False
+    coordinator_listen_addrs: tuple[str, ...] = ("/ip4/127.0.0.1/tcp/9100",)
+    gate_protocol_id: str = Field(
+        default="/quantum-coordinator/gate-exec/1.0.0",
+        min_length=1,
+    )
+    embedded_service_count: int = Field(default=3, ge=1, le=10)
+    embedded_service_base_port: int = Field(default=9200, ge=1024, le=65535)
+    embedded_ad_interval_seconds: float = Field(default=2.0, gt=0.1, le=60.0)
+
+
 class AppConfig(BaseModel):
     """Top-level app configuration."""
 
@@ -71,3 +88,4 @@ class AppConfig(BaseModel):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
+    libp2p: Libp2pConfig = Field(default_factory=Libp2pConfig)

@@ -14,14 +14,12 @@ from quantum_coordinator.infra.persistence.runtime_store import RuntimeEventStor
 from quantum_coordinator.planning import CircuitPlanner, PlanningError
 from quantum_coordinator.reservation.protocol import ReservationProtocol
 from quantum_coordinator.runtime import (
-    InMemoryGateExecutionAdapter,
-    NodeExecutionProfile,
+    GateExecutionAdapter,
     RuntimeExecutionError,
     RuntimeExecutionResult,
     RuntimeExecutor,
     RuntimePolicy,
 )
-from quantum_coordinator.service_discovery.registry import ServiceRegistry
 
 TERMINAL_STATUSES = {JobStatus.COMPLETED, JobStatus.FAILED}
 
@@ -36,14 +34,14 @@ class JobManager:
         runtime_policy: RuntimePolicy,
         runtime_store: RuntimeEventStore,
         job_store: JobStore,
-        registry: ServiceRegistry,
+        gate_adapter: GateExecutionAdapter,
     ) -> None:
         self._planner = planner
         self._reservation_protocol = reservation_protocol
         self._runtime_policy = runtime_policy
         self._runtime_store = runtime_store
         self._job_store = job_store
-        self._registry = registry
+        self._gate_adapter = gate_adapter
         self._inflight_jobs: set[str] = set()
         self._inflight_lock = anyio.Lock()
 
@@ -97,10 +95,9 @@ class JobManager:
                 error=None,
             )
 
-            adapter = self._build_gate_adapter()
             runtime = RuntimeExecutor(
                 reservation_protocol=self._reservation_protocol,
-                gate_adapter=adapter,
+                gate_adapter=self._gate_adapter,
                 policy=self._runtime_policy,
                 store=self._runtime_store,
             )
@@ -162,21 +159,6 @@ class JobManager:
     async def _release(self, job_id: str) -> None:
         async with self._inflight_lock:
             self._inflight_jobs.discard(job_id)
-
-    def _build_gate_adapter(self) -> InMemoryGateExecutionAdapter:
-        fidelities: dict[str, float] = {}
-        for entry in self._registry.all_entries():
-            ad = entry.advertisement
-            if not ad.availability:
-                continue
-            previous = fidelities.get(ad.node_id, 0.0)
-            fidelities[ad.node_id] = max(previous, ad.fidelity)
-
-        profiles = {
-            node_id: NodeExecutionProfile(fidelity=fidelity)
-            for node_id, fidelity in fidelities.items()
-        }
-        return InMemoryGateExecutionAdapter(profiles=profiles)
 
 
 def _serialize_runtime_result(result: RuntimeExecutionResult) -> str:

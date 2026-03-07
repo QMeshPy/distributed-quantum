@@ -18,6 +18,7 @@ class ServiceAdvertisement(BaseModel):
 
     protocol_version: str = Field(default=SUPPORTED_PROTOCOL_VERSION)
     node_id: str = Field(min_length=1)
+    listen_addrs: tuple[str, ...] = Field(default_factory=tuple)
     service_type: GateType
     fidelity: float = Field(ge=0.0, le=1.0)
     qubit_min: int = Field(ge=1)

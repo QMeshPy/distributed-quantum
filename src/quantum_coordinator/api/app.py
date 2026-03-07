@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import time
+from contextlib import suppress
 from datetime import timedelta
 
 import anyio
@@ -33,6 +36,8 @@ from quantum_coordinator.api.models import (
 from quantum_coordinator.application.job_manager import JobManager
 from quantum_coordinator.config.models import AppConfig
 from quantum_coordinator.domain.models import JobStatus
+from quantum_coordinator.infra.libp2p.fabric import PyLibp2pFabric
+from quantum_coordinator.infra.libp2p.protocols import SERVICE_AD_TOPIC_DEFAULT
 from quantum_coordinator.infra.persistence import (
     SQLiteJobStore,
     SQLiteRuntimeEventStore,
@@ -41,8 +46,13 @@ from quantum_coordinator.infra.persistence import (
 )
 from quantum_coordinator.planning import CircuitPlanner, PlannerConfig
 from quantum_coordinator.reservation.protocol import ReservationProtocol
-from quantum_coordinator.runtime import RuntimePolicy
+from quantum_coordinator.runtime import (
+    Libp2pGateExecutionAdapter,
+    RuntimePolicy,
+)
 from quantum_coordinator.service_discovery.registry import ServiceRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class InMemoryRateLimiter:
@@ -97,18 +107,33 @@ def create_app(config: AppConfig) -> FastAPI:
         timeout_seconds=config.runtime.base_timeout_seconds,
         backoff_multiplier=config.runtime.backoff_multiplier,
     )
+    if not config.libp2p.enabled:
+        raise ValueError("py-libp2p is the only supported transport; set libp2p.enabled=true")
+
+    libp2p_fabric = PyLibp2pFabric(
+        coordinator_listen_addrs=config.libp2p.coordinator_listen_addrs,
+        topic=config.discovery.service_ad_topic or SERVICE_AD_TOPIC_DEFAULT,
+        gate_protocol_id=config.libp2p.gate_protocol_id,
+        embedded_service_count=config.libp2p.embedded_service_count,
+        embedded_service_base_port=config.libp2p.embedded_service_base_port,
+        embedded_ad_interval_seconds=config.libp2p.embedded_ad_interval_seconds,
+        enable_mdns=config.libp2p.enable_mdns,
+    )
+    gate_adapter = Libp2pGateExecutionAdapter(invoker=libp2p_fabric)
     job_manager = JobManager(
         planner=planner,
         reservation_protocol=reservation,
         runtime_policy=runtime_policy,
         runtime_store=runtime_store,
         job_store=job_store,
-        registry=registry,
+        gate_adapter=gate_adapter,
     )
     app.state.job_manager = job_manager
     app.state.job_store = job_store
     app.state.runtime_store = runtime_store
     app.state.registry = registry
+    app.state.libp2p_fabric = libp2p_fabric
+    app.state.discovery_task = None
 
     rate_limiter = InMemoryRateLimiter(config.api.rate_limit_per_minute)
 
@@ -162,9 +187,31 @@ def create_app(config: AppConfig) -> FastAPI:
                 return False
         return True
 
+    async def ingest_discovery_ads() -> None:
+        while True:
+            advertisement = await libp2p_fabric.next_advertisement(timeout_seconds=1.0)
+            if advertisement is None:
+                continue
+            registry.upsert(advertisement)
+
     @app.on_event("startup")
     async def startup_recovery() -> None:
+        await libp2p_fabric.start()
+        for advertisement in libp2p_fabric.available_advertisements():
+            registry.upsert(advertisement)
+        app.state.discovery_task = asyncio.create_task(ingest_discovery_ads())
         await job_manager.recover_unfinished_jobs()
+
+    @app.on_event("shutdown")
+    async def shutdown_libp2p() -> None:
+        discovery_task = app.state.discovery_task
+        if discovery_task is not None:
+            discovery_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await discovery_task
+            app.state.discovery_task = None
+
+        await app.state.libp2p_fabric.stop()
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     async def health() -> HealthResponse:
@@ -230,6 +277,7 @@ def create_app(config: AppConfig) -> FastAPI:
         return [
             ServiceResponse(
                 node_id=ad.node_id,
+                listen_addrs=list(ad.listen_addrs),
                 service_type=ad.service_type.value,
                 fidelity=ad.fidelity,
                 qubit_min=ad.qubit_min,

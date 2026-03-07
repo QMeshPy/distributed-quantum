@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-import anyio
 import sniffio
 
 from quantum_coordinator.infra.libp2p.interfaces import (
@@ -34,11 +33,14 @@ def create_libp2p_host(
 ) -> Any:
     """Create a py-libp2p host with explicit listen addresses."""
     from libp2p import new_host
-    return new_host(
-        listen_addrs=[_to_multiaddr(addr) for addr in listen_addrs],
+
+    multi_addrs = tuple(_to_multiaddr(addr) for addr in listen_addrs)
+    host = new_host(
         enable_mDNS=enable_mdns,
         bootstrap=list(bootstrap) if bootstrap else None,
     )
+    host._quantum_listen_addrs = multi_addrs  # type: ignore[attr-defined]
+    return host
 
 
 def create_gossipsub(
@@ -71,13 +73,34 @@ async def run_libp2p_services(host: Any, pubsub: Any) -> Any:
     """Run host + pubsub services for the duration of the context.
 
     py-libp2p services are Trio-native; this context must run in a Trio backend.
+    Uses nested async with (no AsyncExitStack) so Trio cancel scopes nest correctly.
     """
     _ensure_trio_backend()
     from libp2p.tools.async_service.trio_service import background_trio_service
 
-    async with background_trio_service(host), background_trio_service(pubsub):
-        await pubsub.wait_until_ready()
-        yield
+    listen_addrs = getattr(host, "_quantum_listen_addrs", None)
+    if listen_addrs is None:
+        listen_addrs = tuple(host.get_transport_addrs())
+    router = getattr(pubsub, "router", None)
+
+    import trio
+
+    async with host.run(listen_addrs):
+        if router is not None:
+            async with background_trio_service(router):
+                async with background_trio_service(pubsub):
+                    await _wait_for_host_listen_addrs(host)
+                    with trio.move_on_after(2.0):
+                        await pubsub.wait_until_ready()
+                    await trio.sleep(0.2)
+                    yield
+        else:
+            async with background_trio_service(pubsub):
+                await _wait_for_host_listen_addrs(host)
+                with trio.move_on_after(2.0):
+                    await pubsub.wait_until_ready()
+                await trio.sleep(0.2)
+                yield
 
 
 @dataclass(frozen=True)
@@ -95,7 +118,19 @@ class PyLibp2pNode:
         return str(self.host.get_id())
 
     def listen_addrs(self) -> tuple[str, ...]:
-        return tuple(str(addr) for addr in self.host.get_addrs())
+        addrs = tuple(str(addr) for addr in self.host.get_addrs())
+        if addrs:
+            return addrs
+
+        configured = tuple(str(addr) for addr in getattr(self.host, "_quantum_listen_addrs", ()))
+        if not configured:
+            return ()
+
+        peer_suffix = f"/p2p/{self.peer_id}"
+        return tuple(
+            addr if addr.endswith(peer_suffix) else f"{addr}{peer_suffix}"
+            for addr in configured
+        )
 
 
 def build_libp2p_node(
@@ -198,6 +233,8 @@ class PyLibp2pStreamAdapter(StreamAdapter):
         from libp2p.peer.peerinfo import info_from_p2p_addr
 
         info = info_from_p2p_addr(_to_multiaddr(peer_addr))
+        if info.peer_id in self._host.get_connected_peers():
+            return
         await self._host.connect(info)
 
     async def request(self, peer_id: str, protocol_id: str, payload: bytes) -> bytes:
@@ -243,7 +280,7 @@ def _ensure_trio_backend() -> None:
     if backend != "trio":
         raise RuntimeError(
             "py-libp2p adapter requires Trio backend. "
-            "Run under Trio (for example: trio.run(...)) or use in-memory adapters."
+            "Run under Trio (for example: trio.run(...))."
         )
 
 
@@ -251,15 +288,14 @@ async def _next_subscription_message(
     subscription: Any,
     timeout_seconds: float | None,
 ) -> Any | None:
+    import trio
+
     if timeout_seconds is None:
         return await subscription.get()
 
-    message: Any | None = None
-    with anyio.move_on_after(timeout_seconds) as scope:
-        message = await subscription.get()
-    if scope.cancel_called:
-        return None
-    return message
+    with trio.move_on_after(timeout_seconds):
+        return await subscription.get()
+    return None
 
 
 def _decode_sender_peer_id(raw_sender: bytes) -> str:
@@ -278,3 +314,19 @@ def _to_multiaddr(raw: str) -> Any:
     multiaddr_module = importlib.import_module("multiaddr")
     multiaddr_cls = multiaddr_module.Multiaddr
     return multiaddr_cls(raw)
+
+
+async def _wait_for_host_listen_addrs(
+    host: Any,
+    attempts: int = 100,
+    delay_seconds: float = 0.1,
+) -> None:
+    import trio
+
+    for _ in range(attempts):
+        if host.get_addrs():
+            return
+        await trio.sleep(delay_seconds)
+
+    listen_addrs = tuple(str(addr) for addr in getattr(host, "_quantum_listen_addrs", ()))
+    raise RuntimeError(f"Host failed to expose listen addresses for {listen_addrs!r}")

@@ -1,15 +1,15 @@
-"""Libp2p adapter interfaces and test adapters."""
+"""Libp2p adapter interfaces and concrete py-libp2p implementations."""
 
-from quantum_coordinator.infra.libp2p.inmemory import (
-    InMemoryPeerAdapter,
-    InMemoryPubSubAdapter,
-    InMemoryPubSubBus,
-)
+from quantum_coordinator.infra.libp2p.fabric import PyLibp2pFabric
 from quantum_coordinator.infra.libp2p.interfaces import (
     PeerAdapter,
     PubSubAdapter,
     PubSubMessage,
     StreamAdapter,
+)
+from quantum_coordinator.infra.libp2p.protocols import (
+    GATE_EXEC_PROTOCOL_ID_DEFAULT,
+    SERVICE_AD_TOPIC_DEFAULT,
 )
 from quantum_coordinator.infra.libp2p.pylibp2p import (
     PyLibp2pNode,
@@ -23,13 +23,13 @@ from quantum_coordinator.infra.libp2p.pylibp2p import (
 )
 
 __all__ = [
-    "InMemoryPeerAdapter",
-    "InMemoryPubSubAdapter",
-    "InMemoryPubSubBus",
+    "PyLibp2pFabric",
     "PeerAdapter",
     "PubSubAdapter",
     "PubSubMessage",
     "StreamAdapter",
+    "GATE_EXEC_PROTOCOL_ID_DEFAULT",
+    "SERVICE_AD_TOPIC_DEFAULT",
     "PyLibp2pNode",
     "PyLibp2pPeerAdapter",
     "PyLibp2pPubSubAdapter",
