@@ -110,7 +110,7 @@ class JobManager:
                 error=None,
                 result_json=_serialize_runtime_result(result),
             )
-        except (PlanningError, RuntimeExecutionError, ValueError) as exc:
+        except Exception as exc:
             failed = self._job_store.get(job_id)
             if failed is not None:
                 self._set_status(

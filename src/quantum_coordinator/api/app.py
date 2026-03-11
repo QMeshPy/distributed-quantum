@@ -47,7 +47,9 @@ from quantum_coordinator.infra.persistence import (
 from quantum_coordinator.planning import CircuitPlanner, PlannerConfig
 from quantum_coordinator.reservation.protocol import ReservationProtocol
 from quantum_coordinator.runtime import (
+    GateExecutionAdapter,
     Libp2pGateExecutionAdapter,
+    LocalGateExecutionAdapter,
     RuntimePolicy,
 )
 from quantum_coordinator.service_discovery.registry import ServiceRegistry
@@ -107,19 +109,25 @@ def create_app(config: AppConfig) -> FastAPI:
         timeout_seconds=config.runtime.base_timeout_seconds,
         backoff_multiplier=config.runtime.backoff_multiplier,
     )
-    if not config.libp2p.enabled:
-        raise ValueError("py-libp2p is the only supported transport; set libp2p.enabled=true")
 
-    libp2p_fabric = PyLibp2pFabric(
-        coordinator_listen_addrs=config.libp2p.coordinator_listen_addrs,
-        topic=config.discovery.service_ad_topic or SERVICE_AD_TOPIC_DEFAULT,
-        gate_protocol_id=config.libp2p.gate_protocol_id,
-        embedded_service_count=config.libp2p.embedded_service_count,
-        embedded_service_base_port=config.libp2p.embedded_service_base_port,
-        embedded_ad_interval_seconds=config.libp2p.embedded_ad_interval_seconds,
-        enable_mdns=config.libp2p.enable_mdns,
-    )
-    gate_adapter = Libp2pGateExecutionAdapter(invoker=libp2p_fabric)
+    libp2p_fabric: PyLibp2pFabric | None = None
+    gate_adapter: GateExecutionAdapter
+    if config.libp2p.enabled:
+        libp2p_fabric = PyLibp2pFabric(
+            coordinator_listen_addrs=config.libp2p.coordinator_listen_addrs,
+            topic=config.discovery.service_ad_topic or SERVICE_AD_TOPIC_DEFAULT,
+            gate_protocol_id=config.libp2p.gate_protocol_id,
+            embedded_service_count=config.libp2p.embedded_service_count,
+            embedded_service_base_port=config.libp2p.embedded_service_base_port,
+            embedded_ad_interval_seconds=config.libp2p.embedded_ad_interval_seconds,
+            enable_mdns=config.libp2p.enable_mdns,
+        )
+        gate_adapter = Libp2pGateExecutionAdapter(invoker=libp2p_fabric)
+    else:
+        logger.warning(
+            "libp2p.enabled is false; starting coordinator with local in-process gate execution"
+        )
+        gate_adapter = LocalGateExecutionAdapter()
     job_manager = JobManager(
         planner=planner,
         reservation_protocol=reservation,
@@ -189,6 +197,9 @@ def create_app(config: AppConfig) -> FastAPI:
 
     async def ingest_discovery_ads() -> None:
         while True:
+            if libp2p_fabric is None:
+                await anyio.sleep(1.0)
+                continue
             advertisement = await libp2p_fabric.next_advertisement(timeout_seconds=1.0)
             if advertisement is None:
                 continue
@@ -196,10 +207,18 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.on_event("startup")
     async def startup_recovery() -> None:
-        await libp2p_fabric.start()
-        for advertisement in libp2p_fabric.available_advertisements():
-            registry.upsert(advertisement)
-        app.state.discovery_task = asyncio.create_task(ingest_discovery_ads())
+        if libp2p_fabric is not None:
+            try:
+                await libp2p_fabric.start()
+            except Exception as exc:  # pragma: no cover - defensive for restricted envs
+                logger.warning(
+                    "py-libp2p startup failed; continuing without network fabric: %s", exc
+                )
+                app.state.libp2p_fabric = None
+            else:
+                for advertisement in libp2p_fabric.available_advertisements():
+                    registry.upsert(advertisement)
+                app.state.discovery_task = asyncio.create_task(ingest_discovery_ads())
         await job_manager.recover_unfinished_jobs()
 
     @app.on_event("shutdown")
@@ -211,7 +230,9 @@ def create_app(config: AppConfig) -> FastAPI:
                 await discovery_task
             app.state.discovery_task = None
 
-        await app.state.libp2p_fabric.stop()
+        fabric = app.state.libp2p_fabric
+        if fabric is not None:
+            await fabric.stop()
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     async def health() -> HealthResponse:

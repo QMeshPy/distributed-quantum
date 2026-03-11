@@ -71,3 +71,28 @@ class Libp2pGateExecutionAdapter(GateExecutionAdapter):
                 observed_fidelity=0.0,
                 error="invalid_gate_response",
             )
+
+
+class LocalGateExecutionAdapter(GateExecutionAdapter):
+    """Simple in-process adapter used when libp2p is unavailable.
+
+    This simulates successful gate execution without any real network calls so that
+    the coordinator API remains usable in restricted environments.
+    """
+
+    def __init__(self, observed_fidelity: float = 0.95) -> None:
+        self._observed_fidelity = observed_fidelity
+
+    async def execute(
+        self,
+        fragment: CircuitFragment,
+        node_id: str,
+        timeout_seconds: float,
+    ) -> GateExecutionResult:
+        # For now we just report a successful execution with a fixed fidelity.
+        # The fragment, node_id, and timeout are accepted for interface parity.
+        return GateExecutionResult(
+            success=True,
+            observed_fidelity=self._observed_fidelity,
+            error=None,
+        )

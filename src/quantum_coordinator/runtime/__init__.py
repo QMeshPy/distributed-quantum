@@ -4,6 +4,7 @@ from quantum_coordinator.runtime.executor import RuntimeExecutor, RuntimePolicy
 from quantum_coordinator.runtime.gate_execution import (
     GateExecutionAdapter,
     Libp2pGateExecutionAdapter,
+    LocalGateExecutionAdapter,
 )
 from quantum_coordinator.runtime.models import (
     FragmentExecutionResult,
@@ -19,6 +20,7 @@ __all__ = [
     "GateExecutionAdapter",
     "GateExecutionResult",
     "Libp2pGateExecutionAdapter",
+    "LocalGateExecutionAdapter",
     "RuntimeExecutionError",
     "RuntimeExecutionResult",
     "RuntimeExecutor",
