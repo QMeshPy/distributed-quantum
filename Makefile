@@ -1,4 +1,4 @@
-.PHONY: install lint format test run demo demo-clean clean
+.PHONY: install lint format test run demo demo-clean clean help
 
 install:
 	uv sync --extra dev
@@ -25,3 +25,15 @@ demo-clean:
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov .venv
+
+help:
+	@echo "Usage: make <target>"
+	@echo "Targets:"
+	@echo "  install    Install dependencies"
+	@echo "  lint       Run linting checks and type checking"
+	@echo "  format     Format code with ruff"
+	@echo "  test       Run tests with pytest"
+	@echo "  run        Run the application in development mode with uvicorn"
+	@echo "  demo       Start the demo server with demo-start.sh"
+	@echo "  demo-clean Clean the demo server with demo-start.sh --clean"
+	@echo "  clean      Clean the project"
