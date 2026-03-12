@@ -320,3 +320,7 @@ Current semantics:
 - `syndrome_extraction` and `distillation` are treated as orchestration-level steps because the current DSL does not yet encode ancillas and full classical feedback semantics
 
 That means the coordinator, planning, libp2p transport, persistence, and orchestration logic are real, while some higher-level quantum service semantics are intentionally simplified for the proof of concept.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [`LICENSE`](LICENSE).
