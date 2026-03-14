@@ -84,6 +84,11 @@ export interface JobQuantumResult {
   top_basis_states: TopBasisState[] | null
 }
 
+export interface JobRequestOptions {
+  detail?: "full" | "summary"
+  signal?: AbortSignal
+}
+
 export interface JobResult {
   job_id: string
   fragment_results: FragmentResult[]
@@ -229,8 +234,16 @@ export function submitCircuit(circuit: string, signal?: AbortSignal) {
   })
 }
 
-export function getJob(jobId: string, signal?: AbortSignal) {
-  return request<JobStatusResponse>(`/api/v1/jobs/${jobId}`, { signal })
+export function getJob(jobId: string, options?: JobRequestOptions) {
+  const params = new URLSearchParams()
+  if (options?.detail) {
+    params.set("result_detail", options.detail)
+  }
+
+  const suffix = params.size > 0 ? `?${params.toString()}` : ""
+  return request<JobStatusResponse>(`/api/v1/jobs/${jobId}${suffix}`, {
+    signal: options?.signal,
+  })
 }
 
 export function getPlan(planId: string, signal?: AbortSignal) {

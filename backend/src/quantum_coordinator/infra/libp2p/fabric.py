@@ -50,7 +50,7 @@ class PyLibp2pFabric:
         gate_protocol_id: str = GATE_EXEC_PROTOCOL_ID_DEFAULT,
         embedded_service_count: int = 3,
         embedded_service_base_port: int = 9200,
-        embedded_ad_interval_seconds: float = 2.0,
+        embedded_ad_interval_seconds: float = 5.0,
         enable_mdns: bool = False,
         registry: ServiceRegistry | None = None,
     ) -> None:
@@ -235,6 +235,9 @@ class PyLibp2pFabric:
             self._coordinator = coordinator
             self._services = services
             self._service_addrs = service_addrs
+            # Embedded services are local to this coordinator, so seed the
+            # registry directly instead of blasting a startup pubsub burst.
+            self._seed_registry_with_embedded_services(services)
 
             async with trio.open_nursery() as nursery:
                 for idx in range(len(services)):
@@ -256,12 +259,52 @@ class PyLibp2pFabric:
         import trio
 
         service = self._services[service_index]
+        advertisement_count = len(service.advertisements)
+        if advertisement_count == 0:
+            await trio.sleep_forever()
+
+        stagger_seconds = (
+            self._embedded_ad_interval_seconds / max(len(self._services), 1)
+        ) * service_index
+        await trio.sleep(self._embedded_ad_interval_seconds + stagger_seconds)
+
+        next_advertisement_index = service_index % advertisement_count
         while True:
-            now = datetime.now(timezone.utc)
-            for advertisement in service.advertisements:
-                refreshed = advertisement.model_copy(update={"updated_at": now})
-                await service.node.pubsub_adapter.publish(self._topic, refreshed.to_wire_bytes())
+            # Refresh one capability at a time to avoid pubsub rate-limit bursts.
+            advertisement = service.advertisements[next_advertisement_index]
+            await self._publish_service_advertisements(service, (advertisement,))
+            next_advertisement_index = (
+                next_advertisement_index + 1
+            ) % advertisement_count
             await trio.sleep(self._embedded_ad_interval_seconds)
+
+    def _seed_registry_with_embedded_services(
+        self,
+        services: list[_EmbeddedService],
+    ) -> None:
+        if self._registry is None:
+            return
+
+        now = datetime.now(timezone.utc)
+        for service in services:
+            for advertisement in service.advertisements:
+                self._registry.upsert(
+                    advertisement.model_copy(update={"updated_at": now}),
+                )
+
+    async def _publish_service_advertisements(
+        self,
+        service: _EmbeddedService,
+        advertisements: tuple[ServiceAdvertisement, ...] | None = None,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        ads_to_publish = advertisements or service.advertisements
+        for advertisement in ads_to_publish:
+            refreshed = advertisement.model_copy(update={"updated_at": now})
+            await service.node.pubsub_adapter.publish(
+                self._topic,
+                refreshed.to_wire_bytes(),
+            )
 
     def _next_advertisement_sync(
         self,

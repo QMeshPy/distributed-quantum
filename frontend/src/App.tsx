@@ -1,4 +1,7 @@
 import {
+  Suspense,
+  lazy,
+  memo,
   startTransition,
   useDeferredValue,
   useEffect,
@@ -85,7 +88,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { BlochSphere } from "@/components/BlochSphere"
 import { cn } from "@/lib/utils"
 import {
   getHealth,
@@ -97,6 +99,7 @@ import {
   submitCircuit,
   type CircuitSubmitResponse,
   type FidelityMetricsResponse,
+  type JobQuantumResult,
   type JobStatus,
   type JobStatusResponse,
   type JobUpdateResponse,
@@ -219,6 +222,7 @@ const JOB_PHASES: JobStatus[] = [
   "COMPLETED",
 ]
 const JOB_POLL_INTERVAL_MS = 1000
+const OVERVIEW_REFRESH_INTERVAL_MS = 20000
 
 const nodeChartConfig = {
   fidelity: { label: "Fidelity", color: "#0f766e" },
@@ -242,6 +246,92 @@ const BLOCH_PAGE_SIZE = 4
 const ENTROPY_PAGE_SIZE = 8
 const STATEVECTOR_PAGE_SIZE = 24
 const DENSITY_MATRIX_PAGE_SIZE = 4
+const ANALYSIS_CHART_PAGE_SIZE = 24
+const WORKSPACE_STORAGE_KEY = "quantum-fabric-workspace-v1"
+
+const LazyBlochSphere = lazy(() =>
+  import("@/components/BlochSphere").then((module) => ({
+    default: module.BlochSphere,
+  }))
+)
+
+interface PersistedWorkspace {
+  circuitText: string
+  trackedJobId: string | null
+  currentJob: JobStatusResponse | null
+  currentPlan: PlanResponse | null
+  selectedFragmentId: string | null
+  statusHistory: StatusLogEntry[]
+  selectedNodeId: string | null
+  fragmentListPage: number
+  fabricNodePage: number
+  countsPage: number
+  measuredProbabilityPage: number
+  blochPage: number
+  entropyPage: number
+  statevectorPage: number
+  densityMatrixPage: number
+  analysisSurface: "measurements" | "geometry" | "deep"
+  deepDataView: "metadata" | "statevector" | "density"
+}
+
+let cachedWorkspace: PersistedWorkspace | null | undefined
+let cachedWorkspaceSerialized: string | null | undefined
+
+function readPersistedWorkspace(): PersistedWorkspace | null {
+  if (cachedWorkspace !== undefined) {
+    return cachedWorkspace
+  }
+
+  if (typeof window === "undefined") {
+    cachedWorkspace = null
+    cachedWorkspaceSerialized = null
+    return cachedWorkspace
+  }
+
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY)
+    if (!raw) {
+      cachedWorkspace = null
+      cachedWorkspaceSerialized = null
+      return cachedWorkspace
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object") {
+      cachedWorkspace = null
+      cachedWorkspaceSerialized = null
+      return cachedWorkspace
+    }
+
+    cachedWorkspace = parsed as PersistedWorkspace
+    cachedWorkspaceSerialized = raw
+    return cachedWorkspace
+  } catch {
+    cachedWorkspace = null
+    cachedWorkspaceSerialized = null
+    return cachedWorkspace
+  }
+}
+
+function persistWorkspace(workspace: PersistedWorkspace) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    const serialized = JSON.stringify(workspace)
+    if (serialized === cachedWorkspaceSerialized) {
+      return
+    }
+
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, serialized)
+    cachedWorkspace = workspace
+    cachedWorkspaceSerialized = serialized
+  } catch {
+    // Ignore storage failures so the app keeps running normally.
+  }
+}
 
 interface NodeServiceGroup {
   node: NetworkNode
@@ -283,6 +373,7 @@ function buildPaginationItems(currentPage: number, pageCount: number) {
 }
 
 function App() {
+  const persistedWorkspace = readPersistedWorkspace()
   const { theme, setTheme } = useTheme()
   const [health, setHealth] = useState<Awaited<ReturnType<typeof getHealth>> | null>(
     null
@@ -293,7 +384,9 @@ function App() {
   const [metricsByNode, setMetricsByNode] = useState<
     Record<string, FidelityMetricsResponse>
   >({})
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
+    () => persistedWorkspace?.selectedNodeId ?? null
+  )
   const [overviewError, setOverviewError] = useState<string | null>(null)
   const [isOverviewLoading, setIsOverviewLoading] = useState(true)
   const [isOverviewRefreshing, setIsOverviewRefreshing] = useState(false)
@@ -301,31 +394,80 @@ function App() {
     null
   )
 
-  const [circuitText, setCircuitText] = useState(SAMPLE_PIPELINE_CIRCUIT)
+  const [circuitText, setCircuitText] = useState(
+    () => persistedWorkspace?.circuitText ?? SAMPLE_PIPELINE_CIRCUIT
+  )
   const deferredCircuit = useDeferredValue(circuitText)
   const circuitInsights = useMemo(
     () => analyzeCircuitText(deferredCircuit),
     [deferredCircuit]
   )
 
-  const [trackedJobId, setTrackedJobId] = useState<string | null>(null)
-  const [currentJob, setCurrentJob] = useState<JobStatusResponse | null>(null)
-  const [currentPlan, setCurrentPlan] = useState<PlanResponse | null>(null)
-  const [selectedFragmentId, setSelectedFragmentId] = useState<string | null>(null)
-  const [statusHistory, setStatusHistory] = useState<StatusLogEntry[]>([])
+  const [trackedJobId, setTrackedJobId] = useState<string | null>(
+    () => persistedWorkspace?.trackedJobId ?? null
+  )
+  const [currentJob, setCurrentJob] = useState<JobStatusResponse | null>(
+    () => persistedWorkspace?.currentJob ?? null
+  )
+  const [currentPlan, setCurrentPlan] = useState<PlanResponse | null>(
+    () => persistedWorkspace?.currentPlan ?? null
+  )
+  const [selectedFragmentId, setSelectedFragmentId] = useState<string | null>(
+    () => persistedWorkspace?.selectedFragmentId ?? null
+  )
+  const [statusHistory, setStatusHistory] = useState<StatusLogEntry[]>(
+    () => persistedWorkspace?.statusHistory ?? []
+  )
   const [jobError, setJobError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isJobSyncing, setIsJobSyncing] = useState(false)
   const [jobConnectionState, setJobConnectionState] = useState<
     "idle" | "connecting" | "live" | "polling"
   >("idle")
-  const [fragmentListPage, setFragmentListPage] = useState(1)
-  const [fabricNodePage, setFabricNodePage] = useState(1)
-  const [blochPage, setBlochPage] = useState(1)
-  const [entropyPage, setEntropyPage] = useState(1)
-  const [statevectorPage, setStatevectorPage] = useState(1)
-  const [densityMatrixPage, setDensityMatrixPage] = useState(1)
+  const [fragmentListPage, setFragmentListPage] = useState(
+    () => persistedWorkspace?.fragmentListPage ?? 1
+  )
+  const [fabricNodePage, setFabricNodePage] = useState(
+    () => persistedWorkspace?.fabricNodePage ?? 1
+  )
+  const [countsPage, setCountsPage] = useState(
+    () => persistedWorkspace?.countsPage ?? 1
+  )
+  const [measuredProbabilityPage, setMeasuredProbabilityPage] = useState(
+    () => persistedWorkspace?.measuredProbabilityPage ?? 1
+  )
+  const [blochPage, setBlochPage] = useState(() => persistedWorkspace?.blochPage ?? 1)
+  const [entropyPage, setEntropyPage] = useState(
+    () => persistedWorkspace?.entropyPage ?? 1
+  )
+  const [statevectorPage, setStatevectorPage] = useState(
+    () => persistedWorkspace?.statevectorPage ?? 1
+  )
+  const [densityMatrixPage, setDensityMatrixPage] = useState(
+    () => persistedWorkspace?.densityMatrixPage ?? 1
+  )
+  const [analysisSurface, setAnalysisSurface] = useState<
+    "measurements" | "geometry" | "deep"
+  >(() => persistedWorkspace?.analysisSurface ?? "measurements")
+  const [deepDataView, setDeepDataView] = useState<
+    "metadata" | "statevector" | "density"
+  >(() => persistedWorkspace?.deepDataView ?? "metadata")
+  const [deepQuantumResult, setDeepQuantumResult] = useState<JobQuantumResult | null>(
+    null
+  )
+  const [deepQuantumResultJobId, setDeepQuantumResultJobId] = useState<string | null>(
+    null
+  )
+  const [isDeepResultLoading, setIsDeepResultLoading] = useState(false)
+  const [deepResultError, setDeepResultError] = useState<string | null>(null)
   const activeJobSyncAbortRef = useRef<AbortController | null>(null)
+  const deepResultAbortRef = useRef<AbortController | null>(null)
+  const queuedJobSyncRef = useRef<{
+    jobId: string
+    source: "poll" | "stream"
+    signal?: AbortSignal
+  } | null>(null)
+  const jobSyncInFlightRef = useRef(false)
 
   const networkNodes = useMemo(
     () => groupServicesByNode(services, metricsByNode),
@@ -379,9 +521,11 @@ function App() {
     fabricNodePage,
     FABRIC_NODE_PAGE_SIZE
   )
-  const dagModel = useMemo(() => buildDagModel(currentPlan, currentJob), [
-    currentPlan,
-    currentJob,
+  const deferredPlan = useDeferredValue(currentPlan)
+  const deferredJob = useDeferredValue(currentJob)
+  const dagModel = useMemo(() => buildDagModel(deferredPlan, deferredJob), [
+    deferredPlan,
+    deferredJob,
   ])
 
   const resolvedFragmentId = selectedFragmentId ?? currentPlan?.fragment_order[0] ?? null
@@ -391,12 +535,25 @@ function App() {
   const selectedAssignment = selectedFragment
     ? currentPlan?.assignments[selectedFragment.fragment_id] ?? null
     : null
+  const fragmentResultsById = useMemo(
+    () =>
+      new Map(
+        (currentJob?.result?.fragment_results ?? []).map((result) => [
+          result.fragment_id,
+          result,
+        ])
+      ),
+    [currentJob?.result?.fragment_results]
+  )
   const selectedResult =
-    currentJob?.result?.fragment_results.find(
-      (result) => result.fragment_id === selectedFragment?.fragment_id
-    ) ?? null
+    selectedFragment?.fragment_id
+      ? fragmentResultsById.get(selectedFragment.fragment_id) ?? null
+      : null
 
-  const quantumResult = currentJob?.result?.quantum_result ?? null
+  const quantumResult =
+    deferredJob?.result?.quantum_result ?? currentJob?.result?.quantum_result ?? null
+  const deepResult =
+    deepQuantumResultJobId === trackedJobId ? deepQuantumResult : null
   const fragmentProgress = currentJob?.progress ?? null
   const lifecycleStatus = currentJob?.status ?? statusHistory[statusHistory.length - 1]?.status
   const isTerminalJob =
@@ -461,7 +618,7 @@ function App() {
           : currentPlan
             ? `${health.service} is tracking ${currentPlan.fragment_order.length} routed fragments across ${serviceGroups.length} visible peers.`
             : `${health.service} is tracking ${shortId(trackedJobId, 10, 5)} and preparing the execution surfaces.`
-        : `${health.service} is online with ${serviceGroups.length} visible peers and refreshes the fabric view every 12 seconds.`
+        : `${health.service} is online with ${serviceGroups.length} visible peers and refreshes the fabric view every ${Math.round(OVERVIEW_REFRESH_INTERVAL_MS / 1000)} seconds.`
 
   const refreshOverview = async (intent: "initial" | "background") => {
     if (intent === "initial") {
@@ -518,10 +675,22 @@ function App() {
         return
       }
 
+      if (jobSyncInFlightRef.current) {
+        const queuedSync = queuedJobSyncRef.current
+        if (source === "stream" || queuedSync?.source !== "stream") {
+          queuedJobSyncRef.current = { jobId, source, signal }
+        }
+        return
+      }
+
+      jobSyncInFlightRef.current = true
       setIsJobSyncing(true)
 
       try {
-        const nextJob = await getJob(jobId, signal)
+        const nextJob = await getJob(jobId, {
+          detail: "summary",
+          signal,
+        })
         if (signal?.aborted || trackedJobId !== jobId) {
           return
         }
@@ -576,6 +745,15 @@ function App() {
         setJobError(getErrorMessage(error))
         setJobConnectionState("polling")
       } finally {
+        jobSyncInFlightRef.current = false
+
+        const queuedSync = queuedJobSyncRef.current
+        queuedJobSyncRef.current = null
+        if (queuedSync && !queuedSync.signal?.aborted) {
+          void syncJob(queuedSync.jobId, queuedSync.source, queuedSync.signal)
+          return
+        }
+
         if (!signal?.aborted) {
           setIsJobSyncing(false)
         }
@@ -588,10 +766,17 @@ function App() {
 
     const intervalId = window.setInterval(() => {
       void refreshOverview("background")
-    }, 12000)
+    }, OVERVIEW_REFRESH_INTERVAL_MS)
 
     return () => {
       window.clearInterval(intervalId)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      activeJobSyncAbortRef.current?.abort()
+      deepResultAbortRef.current?.abort()
     }
   }, [])
 
@@ -706,6 +891,117 @@ function App() {
     }
   }, [trackedJobId, isTerminalJob])
 
+  const loadDeepQuantumResult = useEffectEvent(async (jobId: string) => {
+    if (deepQuantumResultJobId === jobId && deepQuantumResult) {
+      return
+    }
+
+    deepResultAbortRef.current?.abort()
+    const abortController = new AbortController()
+    deepResultAbortRef.current = abortController
+    setIsDeepResultLoading(true)
+    setDeepResultError(null)
+
+    try {
+      const fullJob = await getJob(jobId, {
+        detail: "full",
+        signal: abortController.signal,
+      })
+      if (abortController.signal.aborted || trackedJobId !== jobId) {
+        return
+      }
+
+      startTransition(() => {
+        setDeepQuantumResult(fullJob.result?.quantum_result ?? null)
+        setDeepQuantumResultJobId(jobId)
+        setDeepResultError(null)
+      })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return
+      }
+
+      setDeepResultError(getErrorMessage(error))
+    } finally {
+      if (deepResultAbortRef.current === abortController) {
+        deepResultAbortRef.current = null
+      }
+      if (!abortController.signal.aborted) {
+        setIsDeepResultLoading(false)
+      }
+    }
+  })
+
+  useEffect(() => {
+    if (
+      analysisSurface !== "deep" ||
+      deepDataView === "metadata" ||
+      currentJob?.status !== "COMPLETED" ||
+      !trackedJobId
+    ) {
+      return
+    }
+
+    if (deepQuantumResultJobId === trackedJobId && deepQuantumResult) {
+      return
+    }
+
+    void loadDeepQuantumResult(trackedJobId)
+  }, [
+    analysisSurface,
+    currentJob?.status,
+    deepDataView,
+    deepQuantumResult,
+    deepQuantumResultJobId,
+    trackedJobId,
+  ])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      persistWorkspace({
+        circuitText,
+        trackedJobId,
+        currentJob,
+        currentPlan,
+        selectedFragmentId,
+        statusHistory: statusHistory.slice(-24),
+        selectedNodeId,
+        fragmentListPage,
+        fabricNodePage,
+        countsPage,
+        measuredProbabilityPage,
+        blochPage,
+        entropyPage,
+        statevectorPage,
+        densityMatrixPage,
+        analysisSurface,
+        deepDataView,
+      })
+    }, 160)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [
+    analysisSurface,
+    blochPage,
+    circuitText,
+    countsPage,
+    currentJob,
+    currentPlan,
+    deepDataView,
+    densityMatrixPage,
+    entropyPage,
+    fabricNodePage,
+    fragmentListPage,
+    measuredProbabilityPage,
+    selectedFragmentId,
+    selectedNodeId,
+    statevectorPage,
+    statusHistory,
+    trackedJobId,
+  ])
+
   const handleSubmit = async () => {
     if (!circuitText.trim()) {
       setJobError("Add a circuit before launching a job.")
@@ -727,11 +1023,20 @@ function App() {
 
   const applySubmittedJob = (response: CircuitSubmitResponse) => {
     activeJobSyncAbortRef.current?.abort()
+    deepResultAbortRef.current?.abort()
     setFragmentListPage(1)
+    setCountsPage(1)
+    setMeasuredProbabilityPage(1)
     setBlochPage(1)
     setEntropyPage(1)
     setStatevectorPage(1)
     setDensityMatrixPage(1)
+    setAnalysisSurface("measurements")
+    setDeepDataView("metadata")
+    setDeepQuantumResult(null)
+    setDeepQuantumResultJobId(null)
+    setDeepResultError(null)
+    setIsDeepResultLoading(false)
 
     startTransition(() => {
       setTrackedJobId(response.job_id)
@@ -749,57 +1054,105 @@ function App() {
     })
   }
 
-  const countsData = Object.entries(quantumResult?.counts ?? {}).map(([state, count]) => ({
-    state,
-    value: count,
-  }))
-  const measuredProbabilityData = Object.entries(
-    quantumResult?.measured_probabilities ?? {}
-  ).map(([state, value]) => ({
-    state,
-    value,
-  }))
-  const observableData = Object.entries(
-    quantumResult?.observable_expectations ?? {}
-  ).map(([observable, value]) => ({
-    observable,
-    value,
-  }))
-  const topBasisData = (quantumResult?.top_basis_states ?? []).map((state) => ({
-    state: state.basis_state,
-    value: state.probability,
-  }))
-  const blochData = Object.entries(quantumResult?.bloch_vectors ?? {})
-    .map(([qubit, vector]) => {
-      const raw = vector as Record<string, unknown>
-      const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0)
-      return {
-        qubit,
-        x: num(raw.x ?? raw.X ?? 0),
-        y: num(raw.y ?? raw.Y ?? 0),
-        z: num(raw.z ?? raw.Z ?? 0),
-      }
-    })
-    .sort((a, b) => {
-      const idxA = parseInt(a.qubit.replace(/^q/, ""), 10)
-      const idxB = parseInt(b.qubit.replace(/^q/, ""), 10)
-      if (!Number.isNaN(idxA) && !Number.isNaN(idxB)) return idxA - idxB
-      return String(a.qubit).localeCompare(String(b.qubit))
-    })
-  const entropyRaw = quantumResult?.entanglement_entropy ?? {}
-  const entropyData = Object.entries(entropyRaw)
-    .map(([label, value]) => ({
-      label,
-      value: typeof value === "number" && !Number.isNaN(value) ? value : 0,
-    }))
-    .sort((a, b) => String(a.label).localeCompare(String(b.label)))
+  const countsData = useMemo(
+    () =>
+      Object.entries(quantumResult?.counts ?? {})
+        .map(([state, count]) => ({
+          state,
+          value: count,
+        }))
+        .sort((left, right) => right.value - left.value),
+    [quantumResult?.counts]
+  )
+  const countsPageCount = getPageCount(countsData.length, ANALYSIS_CHART_PAGE_SIZE)
+  const visibleCountsData = getPageSlice(
+    countsData,
+    countsPage,
+    ANALYSIS_CHART_PAGE_SIZE
+  )
+  const measuredProbabilityData = useMemo(
+    () =>
+      Object.entries(quantumResult?.measured_probabilities ?? {})
+        .map(([state, value]) => ({
+          state,
+          value,
+        }))
+        .sort((left, right) => right.value - left.value),
+    [quantumResult?.measured_probabilities]
+  )
+  const measuredProbabilityPageCount = getPageCount(
+    measuredProbabilityData.length,
+    ANALYSIS_CHART_PAGE_SIZE
+  )
+  const visibleMeasuredProbabilityData = getPageSlice(
+    measuredProbabilityData,
+    measuredProbabilityPage,
+    ANALYSIS_CHART_PAGE_SIZE
+  )
+  useEffect(() => {
+    setCountsPage((currentPage) => Math.min(currentPage, countsPageCount))
+  }, [countsPageCount])
+  useEffect(() => {
+    setMeasuredProbabilityPage((currentPage) =>
+      Math.min(currentPage, measuredProbabilityPageCount)
+    )
+  }, [measuredProbabilityPageCount])
+  const observableData = useMemo(
+    () =>
+      Object.entries(quantumResult?.observable_expectations ?? {}).map(
+        ([observable, value]) => ({
+          observable,
+          value,
+        })
+      ),
+    [quantumResult?.observable_expectations]
+  )
+  const topBasisData = useMemo(
+    () =>
+      (quantumResult?.top_basis_states ?? []).map((state) => ({
+        state: state.basis_state,
+        value: state.probability,
+      })),
+    [quantumResult?.top_basis_states]
+  )
+  const blochData = useMemo(
+    () =>
+      Object.entries(quantumResult?.bloch_vectors ?? {})
+        .map(([qubit, vector]) => {
+          const raw = vector as Record<string, unknown>
+          const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0)
+          return {
+            qubit,
+            x: num(raw.x ?? raw.X ?? 0),
+            y: num(raw.y ?? raw.Y ?? 0),
+            z: num(raw.z ?? raw.Z ?? 0),
+          }
+        })
+        .sort((a, b) => {
+          const idxA = parseInt(a.qubit.replace(/^q/, ""), 10)
+          const idxB = parseInt(b.qubit.replace(/^q/, ""), 10)
+          if (!Number.isNaN(idxA) && !Number.isNaN(idxB)) return idxA - idxB
+          return String(a.qubit).localeCompare(String(b.qubit))
+        }),
+    [quantumResult?.bloch_vectors]
+  )
+  const entropyData = useMemo(
+    () =>
+      Object.entries(quantumResult?.entanglement_entropy ?? {})
+        .map(([label, value]) => ({
+          label,
+          value: typeof value === "number" && !Number.isNaN(value) ? value : 0,
+        }))
+        .sort((a, b) => String(a.label).localeCompare(String(b.label))),
+    [quantumResult?.entanglement_entropy]
+  )
   const allEntropyZero =
     entropyData.length > 0 && entropyData.every((e) => e.value === 0)
   const blochPageCount = getPageCount(blochData.length, BLOCH_PAGE_SIZE)
   const visibleBlochData = getPageSlice(blochData, blochPage, BLOCH_PAGE_SIZE)
   const entropyPageCount = getPageCount(entropyData.length, ENTROPY_PAGE_SIZE)
   const visibleEntropyData = getPageSlice(entropyData, entropyPage, ENTROPY_PAGE_SIZE)
-  const statevectorValues = quantumResult?.statevector ?? []
+  const statevectorValues = deepResult?.statevector ?? []
   const statevectorPageCount = getPageCount(statevectorValues.length, STATEVECTOR_PAGE_SIZE)
   const statevectorStartIndex = (statevectorPage - 1) * STATEVECTOR_PAGE_SIZE
   const statevectorRows = useMemo(() => {
@@ -815,7 +1168,10 @@ function App() {
         amplitude,
       }))
   }, [statevectorStartIndex, statevectorValues])
-  const densityMatrixEntries = Object.entries(quantumResult?.reduced_density_matrices ?? {})
+  const densityMatrixEntries = useMemo(
+    () => Object.entries(deepResult?.reduced_density_matrices ?? {}),
+    [deepResult?.reduced_density_matrices]
+  )
   const densityMatrixPageCount = getPageCount(
     densityMatrixEntries.length,
     DENSITY_MATRIX_PAGE_SIZE
@@ -1467,7 +1823,7 @@ function App() {
 
               <Separator />
 
-              <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
+              <div className="flex flex-col gap-4">
                 <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
                   <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                     <GitBranch className="size-4 text-primary" />
@@ -1814,9 +2170,7 @@ function App() {
               <CardContent className="grid gap-3">
                 {visibleFragmentIds.map((fragmentId) => {
                   const fragment = currentPlan?.fragments[fragmentId]
-                  const result = currentJob?.result?.fragment_results.find(
-                    (entry) => entry.fragment_id === fragmentId
-                  )
+                  const result = fragmentResultsById.get(fragmentId)
 
                   if (!fragment) {
                     return null
@@ -1967,388 +2321,479 @@ function App() {
         </section>
 
         <section id="analysis" className="flex flex-col gap-6">
-          <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
-            <Card className="glass-panel border-white/60 bg-white/78 dark:border-white/10 dark:bg-[#09121f]/78">
-              <CardHeader>
-                <SectionTitle
-                  icon={Gauge}
-                  eyebrow="Analysis"
-                  title="Measurement Landscape"
-                  description="Counts and basis probabilities are separated into their own surfaces so the quantum output stays readable."
-                />
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <ChartCard
-                    title="Counts"
-                    subtitle="Shot distribution"
-                    data={countsData}
-                    emptyMessage="Counts appear when the circuit includes a measurement."
-                    config={measurementChartConfig}
-                    dataKey="value"
-                    labelKey="state"
-                    fill="#c2410c"
-                    valueFormatter={(value) => `${value}`}
-                  />
-                  <ChartCard
-                    title="Measured probabilities"
-                    subtitle="Normalized outcome weights"
-                    data={measuredProbabilityData.map((entry) => ({
-                      ...entry,
-                      value: Number((entry.value * 100).toFixed(2)),
-                    }))}
-                    emptyMessage="Measured probabilities will appear after execution."
-                    config={measurementChartConfig}
-                    dataKey="value"
-                    labelKey="state"
-                    fill="#0f766e"
-                    valueFormatter={(value) => `${value}%`}
-                  />
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <ChartCard
-                    title="Top basis states"
-                    subtitle="Dominant amplitudes"
-                    data={topBasisData.map((entry) => ({
-                      ...entry,
-                      value: Number((entry.value * 100).toFixed(2)),
-                    }))}
-                    emptyMessage="Top basis states appear when the quantum result is available."
-                    config={measurementChartConfig}
-                    dataKey="value"
-                    labelKey="state"
-                    fill="#1d4ed8"
-                    valueFormatter={(value) => `${value}%`}
-                  />
-                  <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
-                    <div className="mb-4">
-                      <p className="text-sm font-medium">Fidelity envelope</p>
-                      <p className="text-sm text-muted-foreground">
-                        Target vs estimated execution quality.
-                      </p>
-                    </div>
-                    <div className="space-y-5">
-                      <ProgressStat
-                        label="Target fidelity"
-                        value={quantumResult?.fidelity?.fidelity_to_target_state ?? null}
-                      />
-                      <ProgressStat
-                        label="Estimated execution fidelity"
-                        value={quantumResult?.fidelity?.estimated_execution_fidelity ?? null}
-                      />
-                      <div className="rounded-2xl border border-white/50 bg-white/70 p-4 text-sm dark:border-white/8 dark:bg-white/6">
-                        <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                          Target state
-                        </div>
-                        <div className="mt-2 font-medium">
-                          {quantumResult?.fidelity?.target_state ?? "--"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-panel border-white/60 bg-white/78 dark:border-white/10 dark:bg-[#09121f]/78">
-              <CardHeader>
-                <SectionTitle
-                  icon={Sparkles}
-                  eyebrow="State"
-                  title="Observables and Qubit Geometry"
-                  description="Expectation values, Bloch vectors, and entanglement are broken apart for cleaner interpretation."
-                />
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
-                  <div className="mb-4">
-                    <p className="text-sm font-medium">Observable expectations</p>
-                    <p className="text-sm text-muted-foreground">
-                      Signed values after the distributed circuit is reconstructed.
-                    </p>
-                  </div>
-                  <ChartContainer className="h-[17rem] w-full" config={observableChartConfig}>
-                    <BarChart
-                      data={observableData}
-                      margin={{ left: 8, right: 12, top: 8 }}
-                      layout="vertical"
-                    >
-                      <CartesianGrid horizontal={false} strokeDasharray="3 6" />
-                      <XAxis type="number" domain={[-1, 1]} />
-                      <YAxis
-                        type="category"
-                        dataKey="observable"
-                        width={84}
-                        tickLine={false}
-                      />
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="line" />}
-                      />
-                      <Bar dataKey="value" radius={[10, 10, 10, 10]}>
-                        {observableData.map((entry) => (
-                          <Cell
-                            key={entry.observable}
-                            fill={entry.value >= 0 ? "#15803d" : "#be123c"}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ChartContainer>
-                  {observableData.length === 0 ? (
-                    <div className="pt-3">
-                      <EmptyHint
-                        icon={Gauge}
-                        title="Waiting for observable data"
-                        description="Observable expectations will show up after the quantum result lands."
-                      />
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
-                    <div className="mb-4">
-                      <p className="text-sm font-medium">Bloch vectors</p>
-                      <p className="text-sm text-muted-foreground">
-                        Each qubit axis component rendered independently. The Bloch sphere shows the qubit state on the unit sphere (X, Y, Z axes).
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-start gap-6">
-                      {visibleBlochData.map((qubit) => (
-                        <div key={qubit.qubit} className="flex flex-col items-center gap-3">
-                          <BlochSphere
-                            vector={[qubit.x, qubit.y, qubit.z]}
-                            label={qubit.qubit}
-                            size={200}
-                          />
-                          <div className="w-full space-y-2 rounded-2xl border border-white/50 bg-white/70 p-3 dark:border-white/8 dark:bg-white/5">
-                            <AxisMeter label="X" value={qubit.x} color="#1d4ed8" />
-                            <AxisMeter label="Y" value={qubit.y} color="#c2410c" />
-                            <AxisMeter label="Z" value={qubit.z} color="#15803d" />
-                          </div>
-                        </div>
-                      ))}
-                      {blochData.length === 0 ? (
-                        <div className="w-full">
-                          <EmptyHint
-                            icon={Orbit}
-                            title="Bloch vectors will appear here"
-                            description="Run a circuit to render x, y, and z components for each measured qubit."
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                    <SectionPagination
-                      page={blochPage}
-                      pageCount={blochPageCount}
-                      pageSize={BLOCH_PAGE_SIZE}
-                      totalItems={blochData.length}
-                      itemLabel="qubits"
-                      onPageChange={setBlochPage}
-                    />
-                  </div>
-
-                  <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
-                    <div className="mb-4">
-                      <p className="text-sm font-medium">Entanglement entropy</p>
-                      <p className="text-sm text-muted-foreground">
-                        Bipartition summary for each qubit against the rest of the system.
-                      </p>
-                    </div>
-                    <div className="space-y-4">
-                      {visibleEntropyData.map(({ label, value }) => (
-                        <div key={label} className="space-y-2">
-                          <div className="flex items-center justify-between gap-3 text-sm">
-                            <span className="font-medium">{label}</span>
-                            <span className="font-mono">
-                              {value.toFixed(4)}
-                            </span>
-                          </div>
-                          <Progress
-                            value={Math.max(0, Math.min(100, value * 100))}
-                            className="h-2"
-                          />
-                        </div>
-                      ))}
-                      {allEntropyZero ? (
-                        <p className="text-xs text-muted-foreground">
-                          State is separable (no entanglement). Run a circuit with only a Bell-pair step to see entropy 1.
-                        </p>
-                      ) : null}
-                      {entropyData.length === 0 ? (
-                        <EmptyHint
-                          icon={Sparkles}
-                          title="No entanglement metrics yet"
-                          description="Entropy metrics populate after the backend reconstructs the result state."
-                        />
-                      ) : null}
-                    </div>
-                    <SectionPagination
-                      page={entropyPage}
-                      pageCount={entropyPageCount}
-                      pageSize={ENTROPY_PAGE_SIZE}
-                      totalItems={entropyData.length}
-                      itemLabel="entropy rows"
-                      onPageChange={setEntropyPage}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="glass-panel border-white/60 bg-white/78 dark:border-white/10 dark:bg-[#09121f]/78">
-            <CardHeader>
+          <Tabs
+            value={analysisSurface}
+            onValueChange={(value) =>
+              setAnalysisSurface(value as "measurements" | "geometry" | "deep")
+            }
+            className="gap-6"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <SectionTitle
-                icon={Binary}
-                eyebrow="Deep view"
-                title="Statevector and Density Matrices"
-                description="Detailed quantum output stays accessible, but tucked into roomy tabs so it does not overwhelm the main flow."
+                icon={Sparkles}
+                eyebrow="Analysis"
+                title="Quantum Result Surfaces"
+                description="Heavy result views are split into focused panels so the interface stays responsive even for large circuits."
               />
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="statevector" className="gap-4">
-                <TabsList variant="line" className="w-full justify-start gap-2 overflow-x-auto rounded-full">
-                  <TabsTrigger value="statevector">Statevector</TabsTrigger>
-                  <TabsTrigger value="density">Density matrices</TabsTrigger>
-                  <TabsTrigger value="metadata">Job metadata</TabsTrigger>
-                </TabsList>
+              <TabsList
+                variant="line"
+                className="w-full justify-start gap-2 overflow-x-auto rounded-full md:w-auto"
+              >
+                <TabsTrigger value="measurements">Measurements</TabsTrigger>
+                <TabsTrigger value="geometry">Geometry</TabsTrigger>
+                <TabsTrigger value="deep">Deep view</TabsTrigger>
+              </TabsList>
+            </div>
 
-                <TabsContent value="statevector">
-                  <div className="mb-4 rounded-2xl border border-white/50 bg-white/60 p-4 dark:border-white/8 dark:bg-white/5">
-                    <p className="text-sm font-medium">What is the statevector?</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      The statevector describes the quantum state after your circuit runs. Each row shows a basis state (e.g. |00&gt;, |01&gt;) and its amplitude—a complex number (a+bi). The squared magnitude |a+bi|² gives the probability of measuring that state. Values like 0.707+0j mean ≈50% probability; 1+0j means 100%.
-                    </p>
+            <TabsContent value="measurements" className="mt-0">
+              <Card className="glass-panel border-white/60 bg-white/78 dark:border-white/10 dark:bg-[#09121f]/78 w-full min-w-0">
+                <CardHeader>
+                  <SectionTitle
+                    icon={Gauge}
+                    eyebrow="Analysis"
+                    title="Measurement Landscape"
+                    description="Counts and basis probabilities are paged so large result sets stay readable and fast."
+                  />
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="space-y-3">
+                      <ChartCard
+                        title="Counts"
+                        subtitle="Shot distribution"
+                        data={visibleCountsData}
+                        emptyMessage="Counts appear when the circuit includes a measurement."
+                        config={measurementChartConfig}
+                        dataKey="value"
+                        labelKey="state"
+                        fill="#c2410c"
+                        valueFormatter={(value) => `${value}`}
+                      />
+                      <SectionPagination
+                        page={countsPage}
+                        pageCount={countsPageCount}
+                        pageSize={ANALYSIS_CHART_PAGE_SIZE}
+                        totalItems={countsData.length}
+                        itemLabel="count rows"
+                        onPageChange={setCountsPage}
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <ChartCard
+                        title="Measured probabilities"
+                        subtitle="Normalized outcome weights"
+                        data={visibleMeasuredProbabilityData.map((entry) => ({
+                          ...entry,
+                          value: Number((entry.value * 100).toFixed(2)),
+                        }))}
+                        emptyMessage="Measured probabilities will appear after execution."
+                        config={measurementChartConfig}
+                        dataKey="value"
+                        labelKey="state"
+                        fill="#0f766e"
+                        valueFormatter={(value) => `${value}%`}
+                      />
+                      <SectionPagination
+                        page={measuredProbabilityPage}
+                        pageCount={measuredProbabilityPageCount}
+                        pageSize={ANALYSIS_CHART_PAGE_SIZE}
+                        totalItems={measuredProbabilityData.length}
+                        itemLabel="probability rows"
+                        onPageChange={setMeasuredProbabilityPage}
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {statevectorRows.map((row) => (
-                      <div
-                        key={row.basisState}
-                        className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-white/5"
-                      >
-                        <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                          |{row.basisState}&gt;
-                        </div>
-                        <div className="mt-3 font-mono text-sm break-all">
-                          {row.amplitude}
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <ChartCard
+                      title="Top basis states"
+                      subtitle="Dominant amplitudes"
+                      data={topBasisData.map((entry) => ({
+                        ...entry,
+                        value: Number((entry.value * 100).toFixed(2)),
+                      }))}
+                      emptyMessage="Top basis states appear when the quantum result is available."
+                      config={measurementChartConfig}
+                      dataKey="value"
+                      labelKey="state"
+                      fill="#1d4ed8"
+                      valueFormatter={(value) => `${value}%`}
+                    />
+                    <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
+                      <div className="mb-4">
+                        <p className="text-sm font-medium">Fidelity envelope</p>
+                        <p className="text-sm text-muted-foreground">
+                          Target vs estimated execution quality.
+                        </p>
+                      </div>
+                      <div className="space-y-5">
+                        <ProgressStat
+                          label="Target fidelity"
+                          value={quantumResult?.fidelity?.fidelity_to_target_state ?? null}
+                        />
+                        <ProgressStat
+                          label="Estimated execution fidelity"
+                          value={quantumResult?.fidelity?.estimated_execution_fidelity ?? null}
+                        />
+                        <div className="rounded-2xl border border-white/50 bg-white/70 p-4 text-sm dark:border-white/8 dark:bg-white/6">
+                          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                            Target state
+                          </div>
+                          <div className="mt-2 font-medium">
+                            {quantumResult?.fidelity?.target_state ?? "--"}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                    {statevectorRows.length === 0 ? (
-                      <EmptyHint
-                        icon={Binary}
-                        title="No statevector yet"
-                        description="Execute a circuit to inspect the reconstructed amplitudes here."
-                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="geometry" className="mt-0">
+              <Card className="glass-panel border-white/60 bg-white/78 dark:border-white/10 dark:bg-[#09121f]/78 w-full min-w-0">
+                <CardHeader>
+                  <SectionTitle
+                    icon={Sparkles}
+                    eyebrow="State"
+                    title="Observables and Qubit Geometry"
+                    description="Expectation values, Bloch vectors, and entanglement are isolated into a single focused surface."
+                  />
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
+                    <div className="mb-4">
+                      <p className="text-sm font-medium">Observable expectations</p>
+                      <p className="text-sm text-muted-foreground">
+                        Signed values after the distributed circuit is reconstructed.
+                      </p>
+                    </div>
+                    <ChartContainer className="h-[17rem] w-full" config={observableChartConfig}>
+                      <BarChart
+                        data={observableData}
+                        margin={{ left: 8, right: 12, top: 8 }}
+                        layout="vertical"
+                      >
+                        <CartesianGrid horizontal={false} strokeDasharray="3 6" />
+                        <XAxis type="number" domain={[-1, 1]} />
+                        <YAxis
+                          type="category"
+                          dataKey="observable"
+                          width={84}
+                          tickLine={false}
+                        />
+                        <ChartTooltip
+                          cursor={false}
+                          content={<ChartTooltipContent indicator="line" />}
+                        />
+                        <Bar dataKey="value" radius={[10, 10, 10, 10]}>
+                          {observableData.map((entry) => (
+                            <Cell
+                              key={entry.observable}
+                              fill={entry.value >= 0 ? "#15803d" : "#be123c"}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ChartContainer>
+                    {observableData.length === 0 ? (
+                      <div className="pt-3">
+                        <EmptyHint
+                          icon={Gauge}
+                          title="Waiting for observable data"
+                          description="Observable expectations will show up after the quantum result lands."
+                        />
+                      </div>
                     ) : null}
                   </div>
-                  <SectionPagination
-                    page={statevectorPage}
-                    pageCount={statevectorPageCount}
-                    pageSize={STATEVECTOR_PAGE_SIZE}
-                    totalItems={statevectorValues.length}
-                    itemLabel="statevector amplitudes"
-                    onPageChange={setStatevectorPage}
-                  />
-                </TabsContent>
 
-                <TabsContent value="density">
-                  <div className="mb-4 rounded-2xl border border-white/50 bg-white/60 p-4 dark:border-white/8 dark:bg-white/5">
-                    <p className="text-sm font-medium">What are density matrices?</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Density matrices represent mixed or reduced quantum states. When you trace out (ignore) some qubits, the remaining subsystem is described by a reduced density matrix. Each matrix element is a complex number; the diagonal gives measurement probabilities. Used for analyzing entanglement and decoherence.
-                    </p>
-                  </div>
                   <div className="grid gap-4 lg:grid-cols-2">
-                    {visibleDensityMatrixEntries.map(([label, matrix]) => (
-                        <div
-                          key={label}
-                          className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-white/5"
-                        >
-                          <div className="mb-4">
-                            <p className="text-sm font-medium">{label}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Reduced density matrix
-                            </p>
+                    <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
+                      <div className="mb-4">
+                        <p className="text-sm font-medium">Bloch vectors</p>
+                        <p className="text-sm text-muted-foreground">
+                          Each qubit axis component rendered independently, with the 3D sphere loaded only when this panel is active.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-start gap-6">
+                        {visibleBlochData.map((qubit) => (
+                          <div key={qubit.qubit} className="flex flex-col items-center gap-3">
+                            <Suspense
+                              fallback={
+                                <div className="flex items-center justify-center rounded-2xl border border-white/50 bg-white/70 text-sm text-muted-foreground dark:border-white/8 dark:bg-black/15" style={{ width: 200, height: 200, minWidth: 200, minHeight: 200 }}>
+                                  Loading Bloch sphere...
+                                </div>
+                              }
+                            >
+                              <LazyBlochSphere
+                                vector={[qubit.x, qubit.y, qubit.z]}
+                                label={qubit.qubit}
+                                size={200}
+                              />
+                            </Suspense>
+                            <div className="w-full space-y-2 rounded-2xl border border-white/50 bg-white/70 p-3 dark:border-white/8 dark:bg-white/5">
+                              <AxisMeter label="X" value={qubit.x} color="#1d4ed8" />
+                              <AxisMeter label="Y" value={qubit.y} color="#c2410c" />
+                              <AxisMeter label="Z" value={qubit.z} color="#15803d" />
+                            </div>
                           </div>
-                          <div className="grid gap-2">
-                            {matrix.map((row, rowIndex) => (
+                        ))}
+                        {blochData.length === 0 ? (
+                          <div className="w-full">
+                            <EmptyHint
+                              icon={Orbit}
+                              title="Bloch vectors will appear here"
+                              description="Run a circuit to render x, y, and z components for each measured qubit."
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                      <SectionPagination
+                        page={blochPage}
+                        pageCount={blochPageCount}
+                        pageSize={BLOCH_PAGE_SIZE}
+                        totalItems={blochData.length}
+                        itemLabel="qubits"
+                        onPageChange={setBlochPage}
+                      />
+                    </div>
+
+                    <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
+                      <div className="mb-4">
+                        <p className="text-sm font-medium">Entanglement entropy</p>
+                        <p className="text-sm text-muted-foreground">
+                          Bipartition summary for each qubit against the rest of the system.
+                        </p>
+                      </div>
+                      <div className="space-y-4">
+                        {visibleEntropyData.map(({ label, value }) => (
+                          <div key={label} className="space-y-2">
+                            <div className="flex items-center justify-between gap-3 text-sm">
+                              <span className="font-medium">{label}</span>
+                              <span className="font-mono">{value.toFixed(4)}</span>
+                            </div>
+                            <Progress
+                              value={Math.max(0, Math.min(100, value * 100))}
+                              className="h-2"
+                            />
+                          </div>
+                        ))}
+                        {allEntropyZero ? (
+                          <p className="text-xs text-muted-foreground">
+                            State is separable (no entanglement). Run a circuit with only a Bell-pair step to see entropy 1.
+                          </p>
+                        ) : null}
+                        {entropyData.length === 0 ? (
+                          <EmptyHint
+                            icon={Sparkles}
+                            title="No entanglement metrics yet"
+                            description="Entropy metrics populate after the backend reconstructs the result state."
+                          />
+                        ) : null}
+                      </div>
+                      <SectionPagination
+                        page={entropyPage}
+                        pageCount={entropyPageCount}
+                        pageSize={ENTROPY_PAGE_SIZE}
+                        totalItems={entropyData.length}
+                        itemLabel="entropy rows"
+                        onPageChange={setEntropyPage}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="deep" className="mt-0">
+              <Card className="glass-panel border-white/60 bg-white/78 dark:border-white/10 dark:bg-[#09121f]/78">
+                <CardHeader>
+                  <SectionTitle
+                    icon={Binary}
+                    eyebrow="Deep view"
+                    title="Statevector and Density Matrices"
+                    description="The heaviest payload is lazy-loaded only when you enter the detailed quantum-state views."
+                  />
+                </CardHeader>
+                <CardContent>
+                  <Tabs
+                    value={deepDataView}
+                    onValueChange={(value) =>
+                      setDeepDataView(value as "metadata" | "statevector" | "density")
+                    }
+                    className="gap-4"
+                  >
+                    <TabsList variant="line" className="w-full justify-start gap-2 overflow-x-auto rounded-full">
+                      <TabsTrigger value="metadata">Job metadata</TabsTrigger>
+                      <TabsTrigger value="statevector">Statevector</TabsTrigger>
+                      <TabsTrigger value="density">Density matrices</TabsTrigger>
+                    </TabsList>
+
+                    {deepResultError ? (
+                      <div className="pt-2">
+                        <InlineAlert
+                          tone="warning"
+                          title="Deep state load"
+                          description={deepResultError}
+                        />
+                      </div>
+                    ) : null}
+
+                    <TabsContent value="metadata">
+                      <div className="mb-4 rounded-2xl border border-white/50 bg-white/60 p-4 dark:border-white/8 dark:bg-white/5">
+                        <p className="text-sm font-medium">Job metadata</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Timestamps, measured qubit indices, and plan quality snapshot for the current run.
+                        </p>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <MiniDataCard
+                          label="Created"
+                          value={formatTimestamp(currentJob?.created_at)}
+                          detail={currentJob?.created_at ?? "--"}
+                        />
+                        <MiniDataCard
+                          label="Updated"
+                          value={formatTimestamp(currentJob?.updated_at)}
+                          detail={currentJob?.updated_at ?? "--"}
+                        />
+                        <MiniDataCard
+                          label="Measured qubits"
+                          value={
+                            quantumResult?.measured_qubits?.length
+                              ? quantumResult.measured_qubits.join(", ")
+                              : "--"
+                          }
+                          detail="Measured qubit indices"
+                        />
+                        <MiniDataCard
+                          label="Plan quality snapshot"
+                          value={currentPlan?.quality_snapshot_id ? "Recorded" : "--"}
+                          detail={currentPlan?.quality_snapshot_id ?? "No plan yet"}
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="statevector">
+                      <div className="mb-4 rounded-2xl border border-white/50 bg-white/60 p-4 dark:border-white/8 dark:bg-white/5">
+                        <p className="text-sm font-medium">What is the statevector?</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          The statevector describes the quantum state after your circuit runs. Each row shows a basis state and its amplitude, so you can inspect the reconstructed wavefunction without loading the full payload until you need it.
+                        </p>
+                      </div>
+                      {isDeepResultLoading && statevectorRows.length === 0 ? (
+                        <EmptyHint
+                          icon={RefreshCcw}
+                          title="Loading statevector"
+                          description="Fetching the full quantum-state payload now."
+                        />
+                      ) : (
+                        <>
+                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            {statevectorRows.map((row) => (
                               <div
-                                key={`${label}-${rowIndex}`}
-                                className="grid grid-cols-2 gap-2"
+                                key={row.basisState}
+                                className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-white/5"
                               >
-                                {row.map((value, columnIndex) => (
-                                  <div
-                                    key={`${label}-${rowIndex}-${columnIndex}`}
-                                    className="rounded-2xl border border-white/50 bg-white/70 px-3 py-2 font-mono text-xs break-all dark:border-white/8 dark:bg-black/15"
-                                  >
-                                    {value}
-                                  </div>
-                                ))}
+                                <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                                  |{row.basisState}&gt;
+                                </div>
+                                <div className="mt-3 font-mono text-sm break-all">
+                                  {row.amplitude}
+                                </div>
                               </div>
                             ))}
+                            {statevectorRows.length === 0 ? (
+                              <EmptyHint
+                                icon={Binary}
+                                title="No statevector yet"
+                                description="Open a completed job to inspect the reconstructed amplitudes here."
+                              />
+                            ) : null}
                           </div>
-                        </div>
-                      )
-                    )}
-                    {densityMatrixEntries.length === 0 ? (
-                      <EmptyHint
-                        icon={Cpu}
-                        title="Density matrices unavailable"
-                        description="The matrix view appears after the backend finishes post-processing the circuit."
-                      />
-                    ) : null}
-                  </div>
-                  <SectionPagination
-                    page={densityMatrixPage}
-                    pageCount={densityMatrixPageCount}
-                    pageSize={DENSITY_MATRIX_PAGE_SIZE}
-                    totalItems={densityMatrixEntries.length}
-                    itemLabel="density matrices"
-                    onPageChange={setDensityMatrixPage}
-                  />
-                </TabsContent>
+                          <SectionPagination
+                            page={statevectorPage}
+                            pageCount={statevectorPageCount}
+                            pageSize={STATEVECTOR_PAGE_SIZE}
+                            totalItems={statevectorValues.length}
+                            itemLabel="statevector amplitudes"
+                            onPageChange={setStatevectorPage}
+                          />
+                        </>
+                      )}
+                    </TabsContent>
 
-                <TabsContent value="metadata">
-                  <div className="mb-4 rounded-2xl border border-white/50 bg-white/60 p-4 dark:border-white/8 dark:bg-white/5">
-                    <p className="text-sm font-medium">Job metadata</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Timestamps, measured qubit indices, and plan quality snapshot for the current run.
-                    </p>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <MiniDataCard
-                      label="Created"
-                      value={formatTimestamp(currentJob?.created_at)}
-                      detail={currentJob?.created_at ?? "--"}
-                    />
-                    <MiniDataCard
-                      label="Updated"
-                      value={formatTimestamp(currentJob?.updated_at)}
-                      detail={currentJob?.updated_at ?? "--"}
-                    />
-                    <MiniDataCard
-                      label="Measured qubits"
-                      value={
-                        quantumResult?.measured_qubits?.length
-                          ? quantumResult.measured_qubits.join(", ")
-                          : "--"
-                      }
-                      detail="Measured qubit indices"
-                    />
-                    <MiniDataCard
-                      label="Plan quality snapshot"
-                      value={currentPlan?.quality_snapshot_id ? "Recorded" : "--"}
-                      detail={currentPlan?.quality_snapshot_id ?? "No plan yet"}
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                    <TabsContent value="density">
+                      <div className="mb-4 rounded-2xl border border-white/50 bg-white/60 p-4 dark:border-white/8 dark:bg-white/5">
+                        <p className="text-sm font-medium">What are density matrices?</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Density matrices represent mixed or reduced quantum states. This panel stays lazy until requested so large jobs do not block the rest of the UI.
+                        </p>
+                      </div>
+                      {isDeepResultLoading && densityMatrixEntries.length === 0 ? (
+                        <EmptyHint
+                          icon={RefreshCcw}
+                          title="Loading density matrices"
+                          description="Fetching the full quantum-state payload now."
+                        />
+                      ) : (
+                        <>
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            {visibleDensityMatrixEntries.map(([label, matrix]) => (
+                              <div
+                                key={label}
+                                className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-white/5"
+                              >
+                                <div className="mb-4">
+                                  <p className="text-sm font-medium">{label}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Reduced density matrix
+                                  </p>
+                                </div>
+                                <div className="grid gap-2">
+                                  {matrix.map((row, rowIndex) => (
+                                    <div
+                                      key={`${label}-${rowIndex}`}
+                                      className="grid grid-cols-2 gap-2"
+                                    >
+                                      {row.map((value, columnIndex) => (
+                                        <div
+                                          key={`${label}-${rowIndex}-${columnIndex}`}
+                                          className="rounded-2xl border border-white/50 bg-white/70 px-3 py-2 font-mono text-xs break-all dark:border-white/8 dark:bg-black/15"
+                                        >
+                                          {value}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                            {densityMatrixEntries.length === 0 ? (
+                              <EmptyHint
+                                icon={Cpu}
+                                title="Density matrices unavailable"
+                                description="Open a completed job to inspect the reduced subsystem matrices here."
+                              />
+                            ) : null}
+                          </div>
+                          <SectionPagination
+                            page={densityMatrixPage}
+                            pageCount={densityMatrixPageCount}
+                            pageSize={DENSITY_MATRIX_PAGE_SIZE}
+                            totalItems={densityMatrixEntries.length}
+                            itemLabel="density matrices"
+                            onPageChange={setDensityMatrixPage}
+                          />
+                        </>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </section>
       </main>
     </div>
@@ -2569,7 +3014,7 @@ type RegistryPeerNodeData = {
 
 type RegistryPeerFlowNode = Node<RegistryPeerNodeData, "peer">
 
-function RegistryPeerNodeComponent({
+const RegistryPeerNodeComponent = memo(function RegistryPeerNodeComponent({
   data,
   selected,
 }: NodeProps<RegistryPeerFlowNode>) {
@@ -2656,7 +3101,7 @@ function RegistryPeerNodeComponent({
       </div>
     </div>
   )
-}
+})
 
 const registryNodeTypes = {
   peer: RegistryPeerNodeComponent,
@@ -2754,7 +3199,7 @@ function buildRegistryFlowEdges({
   return edges
 }
 
-function ServiceBroadcastBoard({
+const ServiceBroadcastBoard = memo(function ServiceBroadcastBoard({
   serviceGroups,
   selectedNodeId,
   onSelectNode,
@@ -3004,7 +3449,7 @@ function ServiceBroadcastBoard({
       </div>
     </div>
   )
-}
+})
 
 function PulseStat({
   icon: Icon,
@@ -3265,7 +3710,7 @@ type DagFragmentNodeData = {
 
 type DagFragmentFlowNode = Node<DagFragmentNodeData, "fragment">
 
-function DagFragmentNodeComponent({
+const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
   data,
   selected,
 }: NodeProps<DagFragmentFlowNode>) {
@@ -3353,7 +3798,7 @@ function DagFragmentNodeComponent({
       </div>
     </div>
   )
-}
+})
 
 const dagNodeTypes = {
   fragment: DagFragmentNodeComponent,
@@ -3418,7 +3863,7 @@ function buildDagFlowEdges({
   })
 }
 
-function DagBoard({
+const DagBoard = memo(function DagBoard({
   dagModel,
   selectedFragmentId,
   onSelectFragment,
@@ -3535,9 +3980,9 @@ function DagBoard({
       </div>
     </div>
   )
-}
+})
 
-function CandidateRow({
+const CandidateRow = memo(function CandidateRow({
   candidate,
   isPrimary,
 }: {
@@ -3589,9 +4034,9 @@ function CandidateRow({
       </div>
     </div>
   )
-}
+})
 
-function ChartCard({
+const ChartCard = memo(function ChartCard({
   title,
   subtitle,
   data,
@@ -3637,7 +4082,7 @@ function ChartCard({
       )}
     </div>
   )
-}
+})
 
 function ProgressStat({ label, value }: { label: string; value: number | null }) {
   return (

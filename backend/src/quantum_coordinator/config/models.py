@@ -74,7 +74,7 @@ class Libp2pConfig(BaseModel):
     )
     embedded_service_count: int = Field(default=3, ge=1, le=10)
     embedded_service_base_port: int = Field(default=9200, ge=1024, le=65535)
-    embedded_ad_interval_seconds: float = Field(default=2.0, gt=0.1, le=60.0)
+    embedded_ad_interval_seconds: float = Field(default=5.0, gt=0.1, le=60.0)
 
 
 class AppConfig(BaseModel):

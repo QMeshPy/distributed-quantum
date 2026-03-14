@@ -15,6 +15,7 @@ from fastapi import (
     FastAPI,
     Header,
     HTTPException,
+    Query,
     Request,
     WebSocket,
     WebSocketDisconnect,
@@ -29,6 +30,7 @@ from quantum_coordinator.api.models import (
     FidelitySampleResponse,
     HealthResponse,
     JobProgressResponse,
+    JobQuantumResult,
     JobResult,
     JobStatusResponse,
     JobUpdateResponse,
@@ -61,6 +63,21 @@ from quantum_coordinator.runtime import (
 from quantum_coordinator.service_discovery.registry import ServiceRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _summarize_quantum_result(
+    quantum_result: JobQuantumResult | None,
+) -> JobQuantumResult | None:
+    if quantum_result is None:
+        return None
+
+    return quantum_result.model_copy(
+        update={
+            "probabilities": None,
+            "statevector": None,
+            "reduced_density_matrices": None,
+        }
+    )
 
 
 class InMemoryRateLimiter:
@@ -278,7 +295,10 @@ def create_app(config: AppConfig) -> FastAPI:
         tags=["jobs"],
         dependencies=[Depends(enforce_request_policy)],
     )
-    async def get_job(job_id: str) -> JobStatusResponse:
+    async def get_job(
+        job_id: str,
+        result_detail: str = Query(default="full", pattern="^(full|summary)$"),
+    ) -> JobStatusResponse:
         job = job_manager.get(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Job not found")
@@ -288,6 +308,14 @@ def create_app(config: AppConfig) -> FastAPI:
             # Older records may not contain quantum_result; Pydantic will
             # ignore unknown/missing fields and still validate.
             result_payload = JobResult.model_validate_json(job.result_json)
+            if result_detail == "summary" and result_payload.quantum_result is not None:
+                result_payload = result_payload.model_copy(
+                    update={
+                        "quantum_result": _summarize_quantum_result(
+                            result_payload.quantum_result
+                        )
+                    }
+                )
         else:
             live_fragment_results = job_manager.get_live_fragment_results(job.job_id, job.plan_id)
             if live_fragment_results is not None:

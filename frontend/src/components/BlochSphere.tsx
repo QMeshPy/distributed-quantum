@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import VisualizerEntryPoint from "@qctrl/visualizer"
 
 interface BlochSphereProps {
@@ -16,7 +16,12 @@ interface BlochSphereProps {
  * The sphere's surface represents pure states; the indicator shows
  * the qubit's Bloch vector (x, y, z) on the sphere.
  */
-export function BlochSphere({ vector, label, size = 240, className }: BlochSphereProps) {
+export const BlochSphere = memo(function BlochSphere({
+  vector,
+  label,
+  size = 240,
+  className,
+}: BlochSphereProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<{ key: string; message: string } | null>(null)
   const vectorKey = vector.join(",")
@@ -92,4 +97,4 @@ export function BlochSphere({ vector, label, size = 240, className }: BlochSpher
       )}
     </div>
   )
-}
+})
