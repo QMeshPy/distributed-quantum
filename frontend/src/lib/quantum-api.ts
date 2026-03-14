@@ -90,12 +90,22 @@ export interface JobResult {
   quantum_result: JobQuantumResult | null
 }
 
+export interface JobProgress {
+  total_fragments: number
+  completed_fragments: number
+  active_fragments: number
+  completion_ratio: number
+  latest_event_at: string | null
+  finalizing: boolean
+}
+
 export interface JobStatusResponse {
   job_id: string
   status: JobStatus
   plan_id: string | null
   error: string | null
   result: JobResult | null
+  progress: JobProgress | null
   created_at: string
   updated_at: string
 }
@@ -137,6 +147,7 @@ export interface JobUpdateResponse {
   job_id: string
   status: JobStatus
   error: string | null
+  progress: JobProgress | null
   updated_at: string
 }
 

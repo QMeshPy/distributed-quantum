@@ -38,6 +38,17 @@ class JobResult(BaseModel):
     quantum_result: JobQuantumResult | None = None
 
 
+class JobProgressResponse(BaseModel):
+    """Live execution progress for a routed job."""
+
+    total_fragments: int
+    completed_fragments: int
+    active_fragments: int
+    completion_ratio: float
+    latest_event_at: datetime | None = None
+    finalizing: bool = False
+
+
 class HealthResponse(BaseModel):
     """Response payload for health checks."""
 
@@ -69,6 +80,7 @@ class JobStatusResponse(BaseModel):
     plan_id: str | None
     error: str | None
     result: JobResult | None
+    progress: JobProgressResponse | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -112,4 +124,5 @@ class JobUpdateResponse(BaseModel):
     job_id: str
     status: str
     error: str | None
+    progress: JobProgressResponse | None = None
     updated_at: datetime

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -22,6 +23,18 @@ from quantum_coordinator.runtime import (
 )
 
 TERMINAL_STATUSES = {JobStatus.COMPLETED, JobStatus.FAILED}
+
+
+@dataclass(frozen=True)
+class JobProgressSnapshot:
+    """Live progress derived from fragment execution events."""
+
+    total_fragments: int
+    completed_fragments: int
+    active_fragments: int
+    completion_ratio: float
+    latest_event_at: datetime | None
+    finalizing: bool
 
 
 class JobManager:
@@ -131,6 +144,84 @@ class JobManager:
     def get_plan(self, plan_id: str) -> ExecutionPlan | None:
         """Return a previously compiled execution plan, if available."""
         return self._plans.get(plan_id)
+
+    def get_progress(
+        self,
+        job_id: str,
+        plan_id: str | None,
+        status: JobStatus,
+    ) -> JobProgressSnapshot | None:
+        """Summarize fragment-level progress for a routed job."""
+        if plan_id is None:
+            return None
+
+        plan = self._plans.get(plan_id)
+        if plan is None:
+            return None
+
+        total_fragments = len(plan.fragment_order)
+        if total_fragments == 0:
+            return None
+
+        latest_event_by_fragment = {}
+        latest_event_at: datetime | None = None
+        for event in self._runtime_store.list_fragment_events(job_id):
+            latest_event_by_fragment[event.fragment_id] = event
+            latest_event_at = event.created_at
+
+        completed_fragments = sum(
+            1
+            for event in latest_event_by_fragment.values()
+            if event.status == "SUCCESS"
+        )
+        active_fragments = max(len(latest_event_by_fragment) - completed_fragments, 0)
+        completion_ratio = completed_fragments / total_fragments
+        finalizing = (
+            status == JobStatus.EXECUTING
+            and completed_fragments >= total_fragments
+        )
+
+        return JobProgressSnapshot(
+            total_fragments=total_fragments,
+            completed_fragments=completed_fragments,
+            active_fragments=active_fragments,
+            completion_ratio=completion_ratio,
+            latest_event_at=latest_event_at,
+            finalizing=finalizing,
+        )
+
+    def get_live_fragment_results(
+        self,
+        job_id: str,
+        plan_id: str | None,
+    ) -> list[dict[str, object]] | None:
+        """Return successful fragment snapshots before the job fully completes."""
+        if plan_id is None:
+            return None
+
+        plan = self._plans.get(plan_id)
+        if plan is None:
+            return None
+
+        successful_events_by_fragment = {}
+        for event in self._runtime_store.list_fragment_events(job_id):
+            if event.status == "SUCCESS":
+                successful_events_by_fragment[event.fragment_id] = event
+
+        return [
+            {
+                "fragment_id": fragment_id,
+                "node_id": successful_events_by_fragment[fragment_id].node_id,
+                "status": "SUCCESS",
+                "attempts": successful_events_by_fragment[fragment_id].attempt,
+                "started_at": None,
+                "finished_at": successful_events_by_fragment[fragment_id].created_at.isoformat(),
+                "observed_fidelity": successful_events_by_fragment[fragment_id].observed_fidelity,
+                "error": None,
+            }
+            for fragment_id in plan.fragment_order
+            if fragment_id in successful_events_by_fragment
+        ]
 
     async def recover_unfinished_jobs(self) -> None:
         """Restart processing for unfinished jobs from persistent storage."""

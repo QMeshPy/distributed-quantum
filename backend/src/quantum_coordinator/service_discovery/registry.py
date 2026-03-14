@@ -80,6 +80,26 @@ class ServiceRegistry:
 
         return updated
 
+    def mark_all_unavailable(self) -> list[ServiceAdvertisement]:
+        """Invalidate currently available entries until they are re-advertised."""
+        updated: list[ServiceAdvertisement] = []
+
+        for key, entry in list(self._entries.items()):
+            if not entry.advertisement.availability:
+                continue
+
+            unavailable_ad = entry.advertisement.model_copy(update={"availability": False})
+            self._entries[key] = RegistryEntry(
+                advertisement=unavailable_ad,
+                received_at=entry.received_at,
+            )
+            updated.append(unavailable_ad)
+
+            if self._store is not None:
+                self._store.save(unavailable_ad)
+
+        return updated
+
     def query(
         self,
         service_type: GateType | None = None,

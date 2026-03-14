@@ -365,7 +365,7 @@ class PyLibp2pFabric:
                 service_type=gate_type,
                 fidelity=fidelity,
                 qubit_min=1,
-                qubit_max=8,
+                qubit_max=32,
                 availability=True,
                 updated_at=updated_at,
             )

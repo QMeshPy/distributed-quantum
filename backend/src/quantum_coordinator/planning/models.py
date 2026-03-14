@@ -36,6 +36,7 @@ class CircuitFragment:
     qubits: tuple[int, ...]
     operation_ids: tuple[str, ...]
     dependencies: tuple[str, ...]
+    raw_text: str = ""
 
 
 @dataclass(frozen=True)

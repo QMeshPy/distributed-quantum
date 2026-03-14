@@ -7,9 +7,12 @@ from time import monotonic, sleep
 from fastapi.testclient import TestClient
 
 from quantum_coordinator.api.app import create_app
+from quantum_coordinator.config.models import AppConfig, DatabaseConfig, Libp2pConfig
+from quantum_coordinator.domain.models import GateType
 from quantum_coordinator.domain.models import JobStatus
-from quantum_coordinator.infra.persistence import SQLiteJobStore
+from quantum_coordinator.infra.persistence import FragmentExecutionEvent, SQLiteJobStore
 from quantum_coordinator.infra.persistence.job_store import JobRecord
+from quantum_coordinator.service_discovery.advertisement import ServiceAdvertisement
 from tests.support.real_libp2p import make_real_libp2p_config
 
 CIRCUIT_TEXT = """
@@ -29,6 +32,110 @@ teleport q[0], q[1];
 syndrome_extraction q[0];
 distillation q[1];
 measure q[0] -> c[0];
+"""
+
+SHOR_STYLE_CIRCUIT_TEXT = """
+OPENQASM 3;
+qubit[8] q;
+bit[3] c;
+
+h q[0];
+h q[1];
+h q[2];
+h q[3];
+h q[4];
+h q[5];
+h q[6];
+h q[7];
+
+for i in [0:3] {
+    controlled U(2^i) q[0], q[i];
+}
+
+qft q[0:4];
+
+measure q[0] -> c[0];
+measure q[1] -> c[1];
+measure q[2] -> c[2];
+"""
+
+LARGE_COMPLEX_CIRCUIT_TEXT = """
+OPENQASM 3;
+qubit[16] q;
+bit[16] c;
+
+h q[0];
+h q[1];
+h q[2];
+h q[3];
+h q[4];
+h q[5];
+h q[6];
+h q[7];
+h q[8];
+h q[9];
+h q[10];
+h q[11];
+h q[12];
+h q[13];
+h q[14];
+h q[15];
+
+bell_pair q[0], q[1];
+bell_pair q[2], q[3];
+bell_pair q[4], q[5];
+bell_pair q[6], q[7];
+bell_pair q[8], q[9];
+bell_pair q[10], q[11];
+bell_pair q[12], q[13];
+bell_pair q[14], q[15];
+
+ccnot q[0], q[1], q[2];
+ccnot q[3], q[4], q[5];
+ccnot q[6], q[7], q[8];
+ccnot q[9], q[10], q[11];
+ccnot q[12], q[13], q[14];
+
+for i in [0:7] {
+    controlled U(2^i) q[0], q[i];
+}
+
+qft q[0:8];
+
+for i in [0:7] {
+    for j in [i+1:7] {
+        cswap q[i], q[j], q[8];
+    }
+}
+
+for i in [0:15] {
+    controlled rz(3.1415) q[i], q[15-i];
+    controlled rx(2.0) q[i], q[15-i];
+}
+
+syndrome_extraction q[0];
+syndrome_extraction q[1];
+syndrome_extraction q[2];
+distillation q[3];
+teleport q[0], q[1];
+teleport q[2], q[3];
+iqft q[0:8];
+measure q[0] -> c[0];
+measure q[1] -> c[1];
+measure q[2] -> c[2];
+measure q[3] -> c[3];
+measure q[4] -> c[4];
+measure q[5] -> c[5];
+measure q[6] -> c[6];
+measure q[7] -> c[7];
+measure q[8] -> c[8];
+measure q[9] -> c[9];
+measure q[10] -> c[10];
+measure q[11] -> c[11];
+measure q[12] -> c[12];
+measure q[13] -> c[13];
+measure q[14] -> c[14];
+measure q[15] -> c[15];
 """
 
 
@@ -62,6 +169,23 @@ def _wait_for_services(
     raise AssertionError("services were not advertised before timeout")
 
 
+def _seed_local_services(app: object) -> None:
+    now = datetime.now(timezone.utc)
+    for gate_type in GateType:
+        app.state.registry.upsert(
+            ServiceAdvertisement(
+                node_id="local-simulator-node",
+                listen_addrs=("/ip4/127.0.0.1/tcp/0",),
+                service_type=gate_type,
+                fidelity=0.99,
+                qubit_min=1,
+                qubit_max=16,
+                availability=True,
+                updated_at=now,
+            )
+        )
+
+
 def test_submit_and_poll_job_completion(tmp_path: Path) -> None:
     database_path = str(tmp_path / "submit.db")
     app = create_app(make_real_libp2p_config(database_path))
@@ -81,6 +205,10 @@ def test_submit_and_poll_job_completion(tmp_path: Path) -> None:
 
         terminal = _wait_for_job_terminal(client, submit_payload["job_id"])
         assert terminal["status"] == "COMPLETED"
+        assert terminal["progress"] is not None
+        assert terminal["progress"]["total_fragments"] == 1
+        assert terminal["progress"]["completed_fragments"] == 1
+        assert terminal["progress"]["finalizing"] is False
         assert terminal["result"] is not None
         # Fragment-level execution summary should be present for downstream
         # inspection of how the job ran.
@@ -157,6 +285,153 @@ def test_measured_circuit_returns_counts_probabilities_and_statevector(tmp_path:
         assert quantum_result["observable_expectations"]["Z_q1"] == 0.0
         assert quantum_result["bloch_vectors"]["q0"]["z"] == 1.0
         assert quantum_result["bloch_vectors"]["q1"]["x"] == 1.0
+
+
+def test_executing_job_exposes_partial_fragment_results(tmp_path: Path) -> None:
+    database_path = str(tmp_path / "live-fragments.db")
+    app = create_app(
+        AppConfig(
+            database=DatabaseConfig(path=database_path),
+            libp2p=Libp2pConfig(enabled=False),
+        )
+    )
+    _seed_local_services(app)
+
+    plan = app.state.job_manager._planner.compile(MEASURED_CIRCUIT_TEXT)
+    app.state.job_manager._plans[plan.plan_id] = plan
+
+    with TestClient(app) as client:
+        now = datetime.now(timezone.utc)
+        job_id = "job-live-fragments"
+        app.state.job_store.upsert(
+            JobRecord(
+                job_id=job_id,
+                status=JobStatus.EXECUTING,
+                circuit_text=MEASURED_CIRCUIT_TEXT,
+                plan_id=plan.plan_id,
+                error=None,
+                result_json=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        app.state.runtime_store.append_fragment_event(
+            FragmentExecutionEvent(
+                event_id="evt-live-frag-1",
+                job_id=job_id,
+                fragment_id=plan.fragment_order[0],
+                node_id="local-simulator-node",
+                attempt=1,
+                status="SUCCESS",
+                error=None,
+                observed_fidelity=0.99,
+                created_at=now,
+            )
+        )
+
+        response = client.get(f"/api/v1/jobs/{job_id}")
+        assert response.status_code == 200
+        payload = response.json()
+
+        assert payload["status"] == "EXECUTING"
+        assert payload["result"] is not None
+        assert payload["result"]["quantum_result"] is None
+        assert len(payload["result"]["fragment_results"]) == 1
+        assert payload["result"]["fragment_results"][0]["fragment_id"] == plan.fragment_order[0]
+        assert payload["result"]["fragment_results"][0]["status"] == "SUCCESS"
+
+
+def test_shor_style_openqasm3_circuit_completes_with_seeded_local_services(
+    tmp_path: Path,
+) -> None:
+    database_path = str(tmp_path / "shor-style.db")
+    app = create_app(
+        AppConfig(
+            database=DatabaseConfig(path=database_path),
+            libp2p=Libp2pConfig(enabled=False),
+        )
+    )
+    _seed_local_services(app)
+
+    with TestClient(app) as client:
+        services_response = client.get("/api/v1/services")
+        assert services_response.status_code == 200
+        assert services_response.json()
+
+        submit_response = client.post(
+            "/api/v1/circuits/submit",
+            json={"circuit": SHOR_STYLE_CIRCUIT_TEXT},
+        )
+        assert submit_response.status_code == 200
+        job_id = submit_response.json()["job_id"]
+
+        terminal = _wait_for_job_terminal(client, job_id)
+        assert terminal["status"] == "COMPLETED"
+        assert terminal["result"] is not None
+
+        quantum_result = terminal["result"]["quantum_result"]
+        assert quantum_result is not None
+        assert quantum_result["counts"] is not None
+        assert quantum_result["measured_qubits"] == [0, 1, 2]
+
+        assert terminal["plan_id"] is not None
+        plan_response = client.get(f"/api/v1/plans/{terminal['plan_id']}")
+        assert plan_response.status_code == 200
+        plan = plan_response.json()
+        service_types = {
+            fragment["service_type"] for fragment in plan["fragments"].values()
+        }
+        assert "hadamard" in service_types
+        assert "controlled_unitary" in service_types
+        assert "qft" in service_types
+
+
+def test_large_complex_openqasm3_circuit_completes_with_seeded_local_services(
+    tmp_path: Path,
+) -> None:
+    database_path = str(tmp_path / "large-complex.db")
+    app = create_app(
+        AppConfig(
+            database=DatabaseConfig(path=database_path),
+            libp2p=Libp2pConfig(enabled=False),
+        )
+    )
+    _seed_local_services(app)
+
+    with TestClient(app) as client:
+        submit_response = client.post(
+            "/api/v1/circuits/submit",
+            json={"circuit": LARGE_COMPLEX_CIRCUIT_TEXT},
+        )
+        assert submit_response.status_code == 200
+        job_id = submit_response.json()["job_id"]
+
+        terminal = _wait_for_job_terminal(client, job_id, timeout_seconds=10.0)
+        assert terminal["status"] == "COMPLETED"
+        assert terminal["result"] is not None
+        assert terminal["progress"] is not None
+        assert terminal["progress"]["total_fragments"] == 121
+        assert terminal["progress"]["completed_fragments"] == 121
+        assert terminal["progress"]["finalizing"] is False
+
+        quantum_result = terminal["result"]["quantum_result"]
+        assert quantum_result is not None
+        assert quantum_result["counts"] is not None
+        assert quantum_result["measured_qubits"] == list(range(16))
+        assert quantum_result["observable_expectations"] is not None
+        assert quantum_result["bloch_vectors"] is not None
+        assert quantum_result["entanglement_entropy"] is not None
+
+        assert terminal["plan_id"] is not None
+        plan_response = client.get(f"/api/v1/plans/{terminal['plan_id']}")
+        assert plan_response.status_code == 200
+        plan = plan_response.json()
+        service_types = {
+            fragment["service_type"] for fragment in plan["fragments"].values()
+        }
+        assert "programmable_gate" in service_types
+        assert "qft" in service_types
+        assert "controlled_unitary" in service_types
 
 
 def test_auth_and_rate_limit_guards(tmp_path: Path) -> None:

@@ -30,3 +30,25 @@ def test_topological_order_is_dependency_safe() -> None:
     order = topological_order(deps)
 
     assert order == ("frag-0001", "frag-0002", "frag-0003")
+
+
+def test_topological_order_prefers_lowest_ready_fragment_id() -> None:
+    deps = {
+        "frag-0001": (),
+        "frag-0002": (),
+        "frag-0003": ("frag-0001",),
+        "frag-0004": ("frag-0002",),
+        "frag-0005": ("frag-0003",),
+        "frag-0006": ("frag-0004",),
+    }
+
+    order = topological_order(deps)
+
+    assert order == (
+        "frag-0001",
+        "frag-0002",
+        "frag-0003",
+        "frag-0004",
+        "frag-0005",
+        "frag-0006",
+    )

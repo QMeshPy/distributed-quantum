@@ -68,3 +68,34 @@ def test_registry_prunes_stale_entries_to_unavailable() -> None:
     assert len(updated) == 1
     assert updated[0].availability is False
     assert registry.query(service_type=GateType.CNOT, available_only=True) == []
+
+
+def test_registry_can_invalidate_cached_entries() -> None:
+    registry = ServiceRegistry(stale_after=timedelta(seconds=60))
+    registry.upsert(
+        ServiceAdvertisement(
+            node_id="node-1",
+            service_type=GateType.CNOT,
+            fidelity=0.95,
+            qubit_min=1,
+            qubit_max=2,
+            availability=True,
+        )
+    )
+    registry.upsert(
+        ServiceAdvertisement(
+            node_id="node-2",
+            service_type=GateType.CZ,
+            fidelity=0.91,
+            qubit_min=1,
+            qubit_max=2,
+            availability=False,
+        )
+    )
+
+    updated = registry.mark_all_unavailable()
+
+    assert len(updated) == 1
+    assert updated[0].node_id == "node-1"
+    assert updated[0].availability is False
+    assert registry.query(available_only=True) == []

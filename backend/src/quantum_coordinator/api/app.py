@@ -28,6 +28,7 @@ from quantum_coordinator.api.models import (
     FidelityMetricsResponse,
     FidelitySampleResponse,
     HealthResponse,
+    JobProgressResponse,
     JobResult,
     JobStatusResponse,
     JobUpdateResponse,
@@ -215,6 +216,9 @@ def create_app(config: AppConfig) -> FastAPI:
     async def startup_recovery() -> None:
         registry.prune_stale()
         if libp2p_fabric is not None:
+            # Cached ads can outlive the peers that produced them across a
+            # coordinator restart, so force them unavailable until re-announced.
+            registry.mark_all_unavailable()
             try:
                 await libp2p_fabric.start()
             except Exception:
@@ -284,6 +288,28 @@ def create_app(config: AppConfig) -> FastAPI:
             # Older records may not contain quantum_result; Pydantic will
             # ignore unknown/missing fields and still validate.
             result_payload = JobResult.model_validate_json(job.result_json)
+        else:
+            live_fragment_results = job_manager.get_live_fragment_results(job.job_id, job.plan_id)
+            if live_fragment_results is not None:
+                result_payload = JobResult(
+                    job_id=job.job_id,
+                    fragment_results=live_fragment_results,
+                    quantum_result=None,
+                )
+
+        progress_snapshot = job_manager.get_progress(job.job_id, job.plan_id, job.status)
+        progress_payload = (
+            None
+            if progress_snapshot is None
+            else JobProgressResponse(
+                total_fragments=progress_snapshot.total_fragments,
+                completed_fragments=progress_snapshot.completed_fragments,
+                active_fragments=progress_snapshot.active_fragments,
+                completion_ratio=progress_snapshot.completion_ratio,
+                latest_event_at=progress_snapshot.latest_event_at,
+                finalizing=progress_snapshot.finalizing,
+            )
+        )
 
         return JobStatusResponse(
             job_id=job.job_id,
@@ -291,6 +317,7 @@ def create_app(config: AppConfig) -> FastAPI:
             plan_id=job.plan_id,
             error=job.error,
             result=result_payload,
+            progress=progress_payload,
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
@@ -417,10 +444,23 @@ def create_app(config: AppConfig) -> FastAPI:
                     await websocket.close(code=4404)
                     return
 
+                progress_snapshot = job_manager.get_progress(job.job_id, job.plan_id, job.status)
                 payload = JobUpdateResponse(
                     job_id=job.job_id,
                     status=job.status.value,
                     error=job.error,
+                    progress=(
+                        None
+                        if progress_snapshot is None
+                        else JobProgressResponse(
+                            total_fragments=progress_snapshot.total_fragments,
+                            completed_fragments=progress_snapshot.completed_fragments,
+                            active_fragments=progress_snapshot.active_fragments,
+                            completion_ratio=progress_snapshot.completion_ratio,
+                            latest_event_at=progress_snapshot.latest_event_at,
+                            finalizing=progress_snapshot.finalizing,
+                        )
+                    ),
                     updated_at=job.updated_at,
                 ).model_dump(mode="json")
                 if payload != previous_payload:

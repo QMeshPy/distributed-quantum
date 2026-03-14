@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import deque
+from heapq import heappop, heappush
 
 from quantum_coordinator.planning.models import CircuitIR
 
@@ -37,17 +37,18 @@ def topological_order(dependencies: dict[str, tuple[str, ...]]) -> tuple[str, ..
         for dep in dep_ids:
             outgoing.setdefault(dep, []).append(node_id)
 
-    queue = deque(sorted(node_id for node_id, degree in in_degree.items() if degree == 0))
+    ready = [node_id for node_id, degree in in_degree.items() if degree == 0]
+    ready.sort()
     ordered: list[str] = []
 
-    while queue:
-        node_id = queue.popleft()
+    while ready:
+        node_id = heappop(ready)
         ordered.append(node_id)
 
         for dependent in sorted(outgoing.get(node_id, [])):
             in_degree[dependent] -= 1
             if in_degree[dependent] == 0:
-                queue.append(dependent)
+                heappush(ready, dependent)
 
     if len(ordered) != len(dependencies):
         raise ValueError("Dependency graph contains a cycle or unresolved node")

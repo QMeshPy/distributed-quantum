@@ -8,8 +8,12 @@ from enum import Enum
 class GateType(str, Enum):
     """Gate services supported by service nodes."""
 
+    HADAMARD = "hadamard"
     CNOT = "cnot"
     CZ = "cz"
+    CONTROLLED_UNITARY = "controlled_unitary"
+    PROGRAMMABLE_GATE = "programmable_gate"
+    QFT = "qft"
     TELEPORTATION = "teleportation"
     BELL_PAIR = "bell_pair"
     SYNDROME_EXTRACTION = "syndrome_extraction"

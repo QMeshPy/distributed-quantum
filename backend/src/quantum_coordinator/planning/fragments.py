@@ -26,6 +26,7 @@ def build_fragments(
             qubits=operation.qubits,
             operation_ids=(operation.operation_id,),
             dependencies=dependency_ids,
+            raw_text=operation.raw_text,
         )
 
     return fragments

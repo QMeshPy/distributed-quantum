@@ -4,8 +4,10 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
+  type MouseEvent,
 } from "react"
 import "@xyflow/react/dist/style.css"
 import {
@@ -65,6 +67,15 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -99,7 +110,6 @@ import {
   analyzeCircuitText,
   appendStatusLog,
   buildDagModel,
-  buildStatevectorRows,
   formatDurationMs,
   formatPercent,
   formatServiceLabel,
@@ -133,6 +143,30 @@ const SERVICE_STYLES: Record<
     fill: "rgba(180, 83, 9, 0.14)",
     text: "#b45309",
     glow: "rgba(234, 179, 8, 0.18)",
+  },
+  controlled_unitary: {
+    stroke: "#7c2d12",
+    fill: "rgba(124, 45, 18, 0.14)",
+    text: "#7c2d12",
+    glow: "rgba(194, 65, 12, 0.18)",
+  },
+  hadamard: {
+    stroke: "#0f766e",
+    fill: "rgba(13, 148, 136, 0.14)",
+    text: "#0f766e",
+    glow: "rgba(45, 212, 191, 0.18)",
+  },
+  programmable_gate: {
+    stroke: "#0f172a",
+    fill: "rgba(15, 23, 42, 0.12)",
+    text: "#0f172a",
+    glow: "rgba(71, 85, 105, 0.18)",
+  },
+  qft: {
+    stroke: "#1e3a8a",
+    fill: "rgba(30, 58, 138, 0.14)",
+    text: "#1e3a8a",
+    glow: "rgba(37, 99, 235, 0.18)",
   },
   teleportation: {
     stroke: "#1d4ed8",
@@ -184,6 +218,7 @@ const JOB_PHASES: JobStatus[] = [
   "EXECUTING",
   "COMPLETED",
 ]
+const JOB_POLL_INTERVAL_MS = 1000
 
 const nodeChartConfig = {
   fidelity: { label: "Fidelity", color: "#0f766e" },
@@ -201,10 +236,50 @@ const observableChartConfig = {
   value: { label: "Expectation", color: "#15803d" },
 }
 
+const FRAGMENT_PAGE_SIZE = 8
+const FABRIC_NODE_PAGE_SIZE = 4
+const BLOCH_PAGE_SIZE = 4
+const ENTROPY_PAGE_SIZE = 8
+const STATEVECTOR_PAGE_SIZE = 24
+const DENSITY_MATRIX_PAGE_SIZE = 4
+
 interface NodeServiceGroup {
   node: NetworkNode
   advertisements: ServiceResponse[]
   latestUpdatedAt: string | null
+}
+
+function getPageCount(totalItems: number, pageSize: number) {
+  return Math.max(1, Math.ceil(totalItems / pageSize))
+}
+
+function getPageSlice<T>(items: T[], page: number, pageSize: number) {
+  const startIndex = (page - 1) * pageSize
+  return items.slice(startIndex, startIndex + pageSize)
+}
+
+function buildPaginationItems(currentPage: number, pageCount: number) {
+  if (pageCount <= 5) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1)
+  }
+
+  const pages = new Set<number>([1, currentPage - 1, currentPage, currentPage + 1, pageCount])
+  const sortedPages = [...pages]
+    .filter((page) => page >= 1 && page <= pageCount)
+    .sort((left, right) => left - right)
+
+  const items: Array<number | "ellipsis"> = []
+  for (const page of sortedPages) {
+    const previousPage = typeof items[items.length - 1] === "number"
+      ? (items[items.length - 1] as number)
+      : null
+    if (previousPage !== null && page - previousPage > 1) {
+      items.push("ellipsis")
+    }
+    items.push(page)
+  }
+
+  return items
 }
 
 function App() {
@@ -244,6 +319,13 @@ function App() {
   const [jobConnectionState, setJobConnectionState] = useState<
     "idle" | "connecting" | "live" | "polling"
   >("idle")
+  const [fragmentListPage, setFragmentListPage] = useState(1)
+  const [fabricNodePage, setFabricNodePage] = useState(1)
+  const [blochPage, setBlochPage] = useState(1)
+  const [entropyPage, setEntropyPage] = useState(1)
+  const [statevectorPage, setStatevectorPage] = useState(1)
+  const [densityMatrixPage, setDensityMatrixPage] = useState(1)
+  const activeJobSyncAbortRef = useRef<AbortController | null>(null)
 
   const networkNodes = useMemo(
     () => groupServicesByNode(services, metricsByNode),
@@ -283,6 +365,20 @@ function App() {
     networkNodes.find((node) => node.nodeId === selectedNodeId) ??
     networkNodes[0] ??
     null
+  const fragmentIds = currentPlan?.fragment_order ?? []
+  const fragmentListPageCount = getPageCount(fragmentIds.length, FRAGMENT_PAGE_SIZE)
+  const visibleFragmentIds = getPageSlice(
+    fragmentIds,
+    fragmentListPage,
+    FRAGMENT_PAGE_SIZE
+  )
+  const visibleFragmentStartIndex = (fragmentListPage - 1) * FRAGMENT_PAGE_SIZE
+  const fabricNodePageCount = getPageCount(networkNodes.length, FABRIC_NODE_PAGE_SIZE)
+  const visibleNetworkNodes = getPageSlice(
+    networkNodes,
+    fabricNodePage,
+    FABRIC_NODE_PAGE_SIZE
+  )
   const dagModel = useMemo(() => buildDagModel(currentPlan, currentJob), [
     currentPlan,
     currentJob,
@@ -301,13 +397,33 @@ function App() {
     ) ?? null
 
   const quantumResult = currentJob?.result?.quantum_result ?? null
+  const fragmentProgress = currentJob?.progress ?? null
   const lifecycleStatus = currentJob?.status ?? statusHistory[statusHistory.length - 1]?.status
   const isTerminalJob =
     currentJob?.status === "COMPLETED" || currentJob?.status === "FAILED"
-  const lifecycleProgress = lifecycleStatus
-    ? ((Math.max(JOB_PHASES.indexOf(lifecycleStatus), 0) + 1) / JOB_PHASES.length) * 100
-    : 0
+  const lifecycleProgress = (() => {
+    if (!lifecycleStatus) {
+      return 0
+    }
+
+    const phaseIndex = Math.max(JOB_PHASES.indexOf(lifecycleStatus), 0)
+    if (lifecycleStatus === "EXECUTING" && fragmentProgress?.total_fragments) {
+      const phaseStart = (phaseIndex / JOB_PHASES.length) * 100
+      const phaseEnd = ((phaseIndex + 1) / JOB_PHASES.length) * 100
+      return phaseStart + (phaseEnd - phaseStart) * fragmentProgress.completion_ratio
+    }
+
+    return ((phaseIndex + 1) / JOB_PHASES.length) * 100
+  })()
   const recentStatusEntries = statusHistory.slice(-5).reverse()
+  const lifecycleDetail =
+    lifecycleStatus === "EXECUTING" && fragmentProgress
+      ? fragmentProgress.finalizing
+        ? `All ${fragmentProgress.total_fragments} fragments executed. Building the quantum result bundle now.`
+        : `${fragmentProgress.completed_fragments} of ${fragmentProgress.total_fragments} fragments executed${fragmentProgress.active_fragments > 0 ? `, ${fragmentProgress.active_fragments} in flight` : ""}.`
+      : lifecycleStatus
+        ? `Current stage: ${lifecycleStatus}`
+        : "Submit a circuit to light up the execution phases."
   const streamPulseValue =
     jobConnectionState === "live"
       ? "WebSocket live"
@@ -338,9 +454,13 @@ function App() {
     health?.status !== "ok"
       ? "The health endpoint is not responding yet. Once it comes back, live service discovery and execution telemetry will resume automatically."
       : trackedJobId
-        ? currentPlan
-          ? `${health.service} is tracking ${currentPlan.fragment_order.length} routed fragments across ${serviceGroups.length} visible peers.`
-          : `${health.service} is tracking ${shortId(trackedJobId, 10, 5)} and preparing the execution surfaces.`
+        ? lifecycleStatus === "EXECUTING" && fragmentProgress
+          ? fragmentProgress.finalizing
+            ? `${health.service} finished executing ${fragmentProgress.total_fragments} routed fragments and is finalizing probabilities, observables, and state analysis.`
+            : `${health.service} is executing ${fragmentProgress.completed_fragments} of ${fragmentProgress.total_fragments} routed fragments across ${serviceGroups.length} visible peers.`
+          : currentPlan
+            ? `${health.service} is tracking ${currentPlan.fragment_order.length} routed fragments across ${serviceGroups.length} visible peers.`
+            : `${health.service} is tracking ${shortId(trackedJobId, 10, 5)} and preparing the execution surfaces.`
         : `${health.service} is online with ${serviceGroups.length} visible peers and refreshes the fabric view every 12 seconds.`
 
   const refreshOverview = async (intent: "initial" | "background") => {
@@ -388,53 +508,80 @@ function App() {
     }
   }
 
-  const syncJob = useEffectEvent(async (jobId: string, source: "poll" | "stream") => {
-    setIsJobSyncing(true)
-
-    try {
-      const nextJob = await getJob(jobId)
-      let nextPlan = currentPlan
-
-      if (nextJob.plan_id && (!nextPlan || nextPlan.plan_id !== nextJob.plan_id)) {
-        nextPlan = await getPlan(nextJob.plan_id)
+  const syncJob = useEffectEvent(
+    async (
+      jobId: string,
+      source: "poll" | "stream",
+      signal?: AbortSignal
+    ) => {
+      if (signal?.aborted) {
+        return
       }
 
-      startTransition(() => {
-        setCurrentJob(nextJob)
-        setJobError(nextJob.error)
-        setStatusHistory((currentEntries) =>
-          appendStatusLog(currentEntries, {
-            status: nextJob.status,
-            recordedAt: nextJob.updated_at,
-            source,
-          })
-        )
+      setIsJobSyncing(true)
 
-        if (nextPlan) {
-          setCurrentPlan(nextPlan)
-          setSelectedFragmentId((currentFragmentId) => {
-            if (
-              currentFragmentId &&
-              nextPlan.fragment_order.includes(currentFragmentId)
-            ) {
-              return currentFragmentId
-            }
-
-            return nextPlan.fragment_order[0] ?? null
-          })
+      try {
+        const nextJob = await getJob(jobId, signal)
+        if (signal?.aborted || trackedJobId !== jobId) {
+          return
         }
-      })
 
-      if (nextJob.status === "COMPLETED") {
-        void refreshOverview("background")
+        let nextPlan = currentPlan
+
+        if (nextJob.plan_id && (!nextPlan || nextPlan.plan_id !== nextJob.plan_id)) {
+          nextPlan = await getPlan(nextJob.plan_id, signal)
+        }
+
+        if (signal?.aborted || trackedJobId !== jobId) {
+          return
+        }
+
+        startTransition(() => {
+          setCurrentJob(nextJob)
+          setJobError(nextJob.error)
+          setStatusHistory((currentEntries) =>
+            appendStatusLog(currentEntries, {
+              status: nextJob.status,
+              recordedAt: nextJob.updated_at,
+              source,
+            })
+          )
+
+          if (nextPlan) {
+            setCurrentPlan(nextPlan)
+            setSelectedFragmentId((currentFragmentId) => {
+              if (
+                currentFragmentId &&
+                nextPlan.fragment_order.includes(currentFragmentId)
+              ) {
+                return currentFragmentId
+              }
+
+              return nextPlan.fragment_order[0] ?? null
+            })
+          }
+        })
+
+        if (nextJob.status === "COMPLETED") {
+          void refreshOverview("background")
+        }
+      } catch (error) {
+        if (
+          error instanceof DOMException &&
+          error.name === "AbortError"
+        ) {
+          return
+        }
+
+        setJobError(getErrorMessage(error))
+        setJobConnectionState("polling")
+      } finally {
+        if (!signal?.aborted) {
+          setIsJobSyncing(false)
+        }
       }
-    } catch (error) {
-      setJobError(getErrorMessage(error))
-      setJobConnectionState("polling")
-    } finally {
-      setIsJobSyncing(false)
     }
-  })
+  )
 
   useEffect(() => {
     void refreshOverview("initial")
@@ -457,19 +604,58 @@ function App() {
   }, [networkNodes, selectedNodeId])
 
   useEffect(() => {
+    setFragmentListPage((currentPage) => Math.min(currentPage, fragmentListPageCount))
+  }, [fragmentListPageCount])
+
+  useEffect(() => {
+    setFabricNodePage((currentPage) => Math.min(currentPage, fabricNodePageCount))
+  }, [fabricNodePageCount])
+
+  useEffect(() => {
+    if (!selectedFragmentId) {
+      return
+    }
+
+    const selectedIndex = fragmentIds.indexOf(selectedFragmentId)
+    if (selectedIndex < 0) {
+      return
+    }
+
+    const nextPage = Math.floor(selectedIndex / FRAGMENT_PAGE_SIZE) + 1
+    setFragmentListPage((currentPage) => (currentPage === nextPage ? currentPage : nextPage))
+  }, [fragmentIds, selectedFragmentId])
+
+  useEffect(() => {
+    if (!selectedNodeId) {
+      return
+    }
+
+    const selectedIndex = networkNodes.findIndex((node) => node.nodeId === selectedNodeId)
+    if (selectedIndex < 0) {
+      return
+    }
+
+    const nextPage = Math.floor(selectedIndex / FABRIC_NODE_PAGE_SIZE) + 1
+    setFabricNodePage((currentPage) => (currentPage === nextPage ? currentPage : nextPage))
+  }, [networkNodes, selectedNodeId])
+
+  useEffect(() => {
     if (!trackedJobId || isTerminalJob) {
       return
     }
 
     let isActive = true
     let websocket: WebSocket | null = null
+    const abortController = new AbortController()
+    activeJobSyncAbortRef.current?.abort()
+    activeJobSyncAbortRef.current = abortController
 
     setJobConnectionState("connecting")
-    void syncJob(trackedJobId, "poll")
+    void syncJob(trackedJobId, "poll", abortController.signal)
 
     const intervalId = window.setInterval(() => {
-      void syncJob(trackedJobId, "poll")
-    }, 1600)
+      void syncJob(trackedJobId, "poll", abortController.signal)
+    }, JOB_POLL_INTERVAL_MS)
 
     try {
       websocket = new WebSocket(getJobUpdatesUrl(trackedJobId))
@@ -493,7 +679,7 @@ function App() {
             })
           )
         })
-        void syncJob(trackedJobId, "stream")
+        void syncJob(trackedJobId, "stream", abortController.signal)
       }
       websocket.onerror = () => {
         if (isActive) {
@@ -512,6 +698,10 @@ function App() {
     return () => {
       isActive = false
       window.clearInterval(intervalId)
+      abortController.abort()
+      if (activeJobSyncAbortRef.current === abortController) {
+        activeJobSyncAbortRef.current = null
+      }
       websocket?.close()
     }
   }, [trackedJobId, isTerminalJob])
@@ -536,6 +726,13 @@ function App() {
   }
 
   const applySubmittedJob = (response: CircuitSubmitResponse) => {
+    activeJobSyncAbortRef.current?.abort()
+    setFragmentListPage(1)
+    setBlochPage(1)
+    setEntropyPage(1)
+    setStatevectorPage(1)
+    setDensityMatrixPage(1)
+
     startTransition(() => {
       setTrackedJobId(response.job_id)
       setCurrentJob(null)
@@ -598,7 +795,36 @@ function App() {
     .sort((a, b) => String(a.label).localeCompare(String(b.label)))
   const allEntropyZero =
     entropyData.length > 0 && entropyData.every((e) => e.value === 0)
-  const statevectorRows = buildStatevectorRows(quantumResult?.statevector)
+  const blochPageCount = getPageCount(blochData.length, BLOCH_PAGE_SIZE)
+  const visibleBlochData = getPageSlice(blochData, blochPage, BLOCH_PAGE_SIZE)
+  const entropyPageCount = getPageCount(entropyData.length, ENTROPY_PAGE_SIZE)
+  const visibleEntropyData = getPageSlice(entropyData, entropyPage, ENTROPY_PAGE_SIZE)
+  const statevectorValues = quantumResult?.statevector ?? []
+  const statevectorPageCount = getPageCount(statevectorValues.length, STATEVECTOR_PAGE_SIZE)
+  const statevectorStartIndex = (statevectorPage - 1) * STATEVECTOR_PAGE_SIZE
+  const statevectorRows = useMemo(() => {
+    if (!statevectorValues.length) {
+      return []
+    }
+
+    const qubitWidth = Math.max(1, Math.round(Math.log2(statevectorValues.length)))
+    return statevectorValues
+      .slice(statevectorStartIndex, statevectorStartIndex + STATEVECTOR_PAGE_SIZE)
+      .map((amplitude, index) => ({
+        basisState: (statevectorStartIndex + index).toString(2).padStart(qubitWidth, "0"),
+        amplitude,
+      }))
+  }, [statevectorStartIndex, statevectorValues])
+  const densityMatrixEntries = Object.entries(quantumResult?.reduced_density_matrices ?? {})
+  const densityMatrixPageCount = getPageCount(
+    densityMatrixEntries.length,
+    DENSITY_MATRIX_PAGE_SIZE
+  )
+  const visibleDensityMatrixEntries = getPageSlice(
+    densityMatrixEntries,
+    densityMatrixPage,
+    DENSITY_MATRIX_PAGE_SIZE
+  )
   const candidateData = (selectedAssignment?.candidates ?? []).map(
     (candidate: PlanCandidate) => ({
       node: shortId(candidate.node_id, 8, 4),
@@ -611,6 +837,22 @@ function App() {
   const averageNodeFidelity =
     networkNodes.reduce((total, node) => total + node.averageFidelity, 0) /
     Math.max(networkNodes.length, 1)
+
+  useEffect(() => {
+    setBlochPage((currentPage) => Math.min(currentPage, blochPageCount))
+  }, [blochPageCount])
+
+  useEffect(() => {
+    setEntropyPage((currentPage) => Math.min(currentPage, entropyPageCount))
+  }, [entropyPageCount])
+
+  useEffect(() => {
+    setStatevectorPage((currentPage) => Math.min(currentPage, statevectorPageCount))
+  }, [statevectorPageCount])
+
+  useEffect(() => {
+    setDensityMatrixPage((currentPage) => Math.min(currentPage, densityMatrixPageCount))
+  }, [densityMatrixPageCount])
 
   return (
     <div className="quantum-shell relative min-h-svh overflow-x-hidden">
@@ -785,7 +1027,7 @@ function App() {
                         }
                         detail={trackedJobId ?? "Submit a circuit to start the live stream"}
                       />
-                      <HeroMiniStat
+                      {/* <HeroMiniStat
                         label="Selected node"
                         value={selectedNode?.shortId ?? "Not selected"}
                         detail={
@@ -793,8 +1035,8 @@ function App() {
                             ? `${formatPercent(selectedNode.averageFidelity)} average fidelity`
                             : "Fabric selection appears after service discovery"
                         }
-                      />
-                      <HeroMiniStat
+                      /> */}
+                      {/* <HeroMiniStat
                         label="Last fabric refresh"
                         value={
                           lastOverviewRefreshAt
@@ -806,7 +1048,7 @@ function App() {
                             ? `${currentPlan.fragment_order.length} routed fragments loaded`
                             : "Plan graph appears after compile"
                         }
-                      />
+                      /> */}
                     </div>
                   </div>
                 </div>
@@ -956,9 +1198,7 @@ function App() {
                           Lifecycle progress
                         </div>
                         <div className="mt-1 text-sm text-foreground/68">
-                          {lifecycleStatus
-                            ? `Current stage: ${lifecycleStatus}`
-                            : "Submit a circuit to light up the execution phases."}
+                          {lifecycleDetail}
                         </div>
                       </div>
                       <div className="rounded-full border border-white/60 bg-white/80 px-3 py-1 text-sm font-semibold dark:border-white/10 dark:bg-white/8">
@@ -969,6 +1209,23 @@ function App() {
                       value={lifecycleProgress}
                       className="mt-4 h-2.5 bg-white/70 dark:bg-white/8"
                     />
+                    {fragmentProgress ? (
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-foreground/65">
+                        <span className="rounded-full border border-white/55 px-2.5 py-1 dark:border-white/10">
+                          {fragmentProgress.completed_fragments}/{fragmentProgress.total_fragments} fragments
+                        </span>
+                        {fragmentProgress.active_fragments > 0 ? (
+                          <span className="rounded-full border border-white/55 px-2.5 py-1 dark:border-white/10">
+                            {fragmentProgress.active_fragments} active
+                          </span>
+                        ) : null}
+                        {fragmentProgress.latest_event_at ? (
+                          <span className="rounded-full border border-white/55 px-2.5 py-1 dark:border-white/10">
+                            Last fragment update {formatTimestamp(fragmentProgress.latest_event_at)}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="mt-4">
                       <LifecycleRail currentStatus={lifecycleStatus} />
                     </div>
@@ -1217,7 +1474,7 @@ function App() {
                     Planner coverage
                   </div>
                   <div className="space-y-3">
-                    {(currentPlan?.fragment_order ?? []).map((fragmentId, index) => {
+                    {visibleFragmentIds.map((fragmentId, index) => {
                       const fragment = currentPlan?.fragments[fragmentId]
                       if (!fragment) {
                         return null
@@ -1237,7 +1494,7 @@ function App() {
                         >
                           <div className="min-w-0">
                             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                              Fragment {index + 1}
+                              Fragment {visibleFragmentStartIndex + index + 1}
                             </p>
                             <p className="truncate text-sm font-medium">
                               {formatServiceLabel(fragment.service_type)}
@@ -1249,6 +1506,14 @@ function App() {
                         </button>
                       )
                     })}
+                    <SectionPagination
+                      page={fragmentListPage}
+                      pageCount={fragmentListPageCount}
+                      pageSize={FRAGMENT_PAGE_SIZE}
+                      totalItems={fragmentIds.length}
+                      itemLabel="fragments"
+                      onPageChange={setFragmentListPage}
+                    />
                     {currentPlan === null ? (
                       <EmptyHint
                         icon={Workflow}
@@ -1364,7 +1629,7 @@ function App() {
               ) : null}
 
               <div className="grid gap-4 lg:grid-cols-2 min-w-[320px]">
-                {networkNodes.map((node, index) => (
+                {visibleNetworkNodes.map((node, index) => (
                   <button
                     key={node.nodeId}
                     type="button"
@@ -1380,7 +1645,7 @@ function App() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                          Node {index + 1}
+                          Node {(fabricNodePage - 1) * FABRIC_NODE_PAGE_SIZE + index + 1}
                         </p>
                         <h3 className="font-mono text-sm font-medium break-all">
                           {node.nodeId}
@@ -1429,6 +1694,14 @@ function App() {
                   </button>
                 ))}
               </div>
+              <SectionPagination
+                page={fabricNodePage}
+                pageCount={fabricNodePageCount}
+                pageSize={FABRIC_NODE_PAGE_SIZE}
+                totalItems={networkNodes.length}
+                itemLabel="nodes"
+                onPageChange={setFabricNodePage}
+              />
             </CardContent>
           </Card>
 
@@ -1539,7 +1812,7 @@ function App() {
                 />
               </CardHeader>
               <CardContent className="grid gap-3">
-                {(currentPlan?.fragment_order ?? []).map((fragmentId) => {
+                {visibleFragmentIds.map((fragmentId) => {
                   const fragment = currentPlan?.fragments[fragmentId]
                   const result = currentJob?.result?.fragment_results.find(
                     (entry) => entry.fragment_id === fragmentId
@@ -1601,6 +1874,14 @@ function App() {
                     </button>
                   )
                 })}
+                <SectionPagination
+                  page={fragmentListPage}
+                  pageCount={fragmentListPageCount}
+                  pageSize={FRAGMENT_PAGE_SIZE}
+                  totalItems={fragmentIds.length}
+                  itemLabel="fragments"
+                  onPageChange={setFragmentListPage}
+                />
 
                 {currentPlan === null ? (
                   <EmptyHint
@@ -1835,7 +2116,7 @@ function App() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-start gap-6">
-                      {blochData.map((qubit) => (
+                      {visibleBlochData.map((qubit) => (
                         <div key={qubit.qubit} className="flex flex-col items-center gap-3">
                           <BlochSphere
                             vector={[qubit.x, qubit.y, qubit.z]}
@@ -1859,6 +2140,14 @@ function App() {
                         </div>
                       ) : null}
                     </div>
+                    <SectionPagination
+                      page={blochPage}
+                      pageCount={blochPageCount}
+                      pageSize={BLOCH_PAGE_SIZE}
+                      totalItems={blochData.length}
+                      itemLabel="qubits"
+                      onPageChange={setBlochPage}
+                    />
                   </div>
 
                   <div className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-black/15">
@@ -1869,7 +2158,7 @@ function App() {
                       </p>
                     </div>
                     <div className="space-y-4">
-                      {entropyData.map(({ label, value }) => (
+                      {visibleEntropyData.map(({ label, value }) => (
                         <div key={label} className="space-y-2">
                           <div className="flex items-center justify-between gap-3 text-sm">
                             <span className="font-medium">{label}</span>
@@ -1896,6 +2185,14 @@ function App() {
                         />
                       ) : null}
                     </div>
+                    <SectionPagination
+                      page={entropyPage}
+                      pageCount={entropyPageCount}
+                      pageSize={ENTROPY_PAGE_SIZE}
+                      totalItems={entropyData.length}
+                      itemLabel="entropy rows"
+                      onPageChange={setEntropyPage}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -1948,6 +2245,14 @@ function App() {
                       />
                     ) : null}
                   </div>
+                  <SectionPagination
+                    page={statevectorPage}
+                    pageCount={statevectorPageCount}
+                    pageSize={STATEVECTOR_PAGE_SIZE}
+                    totalItems={statevectorValues.length}
+                    itemLabel="statevector amplitudes"
+                    onPageChange={setStatevectorPage}
+                  />
                 </TabsContent>
 
                 <TabsContent value="density">
@@ -1958,8 +2263,7 @@ function App() {
                     </p>
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
-                    {Object.entries(quantumResult?.reduced_density_matrices ?? {}).map(
-                      ([label, matrix]) => (
+                    {visibleDensityMatrixEntries.map(([label, matrix]) => (
                         <div
                           key={label}
                           className="rounded-3xl border border-white/50 bg-white/65 p-4 dark:border-white/8 dark:bg-white/5"
@@ -1990,7 +2294,7 @@ function App() {
                         </div>
                       )
                     )}
-                    {Object.keys(quantumResult?.reduced_density_matrices ?? {}).length === 0 ? (
+                    {densityMatrixEntries.length === 0 ? (
                       <EmptyHint
                         icon={Cpu}
                         title="Density matrices unavailable"
@@ -1998,6 +2302,14 @@ function App() {
                       />
                     ) : null}
                   </div>
+                  <SectionPagination
+                    page={densityMatrixPage}
+                    pageCount={densityMatrixPageCount}
+                    pageSize={DENSITY_MATRIX_PAGE_SIZE}
+                    totalItems={densityMatrixEntries.length}
+                    itemLabel="density matrices"
+                    onPageChange={setDensityMatrixPage}
+                  />
                 </TabsContent>
 
                 <TabsContent value="metadata">
@@ -2039,6 +2351,79 @@ function App() {
           </Card>
         </section>
       </main>
+    </div>
+  )
+}
+
+function SectionPagination({
+  page,
+  pageCount,
+  pageSize,
+  totalItems,
+  itemLabel,
+  onPageChange,
+}: {
+  page: number
+  pageCount: number
+  pageSize: number
+  totalItems: number
+  itemLabel: string
+  onPageChange: (page: number) => void
+}) {
+  if (totalItems <= pageSize) {
+    return null
+  }
+
+  const startItem = (page - 1) * pageSize + 1
+  const endItem = Math.min(totalItems, page * pageSize)
+  const paginationItems = buildPaginationItems(page, pageCount)
+
+  const handlePageChange = (
+    event: MouseEvent<HTMLAnchorElement>,
+    nextPage: number
+  ) => {
+    event.preventDefault()
+    onPageChange(nextPage)
+  }
+
+  return (
+    <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        Showing {startItem}-{endItem} of {totalItems} {itemLabel}
+      </div>
+      <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              href="#"
+              onClick={(event) => handlePageChange(event, Math.max(1, page - 1))}
+              className={cn(page === 1 && "pointer-events-none opacity-50")}
+            />
+          </PaginationItem>
+          {paginationItems.map((item, index) => (
+            <PaginationItem key={`${item}-${index}`}>
+              {item === "ellipsis" ? (
+                <PaginationEllipsis />
+              ) : (
+                <PaginationLink
+                  href="#"
+                  isActive={item === page}
+                  onClick={(event) => handlePageChange(event, item)}
+                >
+                  {item}
+                </PaginationLink>
+              )}
+            </PaginationItem>
+          ))}
+          <PaginationItem>
+            <PaginationNext
+              href="#"
+              onClick={(event) => handlePageChange(event, Math.min(pageCount, page + 1))}
+              className={cn(page === pageCount && "pointer-events-none opacity-50")}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
   )
 }
