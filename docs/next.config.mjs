@@ -4,7 +4,7 @@ const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
-  basePath: '/docs',
+  // basePath: '/docs',
   serverExternalPackages: ['@takumi-rs/image-response'],
   reactStrictMode: true,
   async rewrites() {
