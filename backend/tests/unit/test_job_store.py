@@ -23,6 +23,18 @@ def test_job_store_upsert_get_and_list_unfinished(tmp_path: Path) -> None:
     )
     store.upsert(queued)
 
+    older = JobRecord(
+        job_id="job-0",
+        status=JobStatus.FAILED,
+        circuit_text="OPENQASM 3;",
+        plan_id="plan-0",
+        error="boom",
+        result_json=None,
+        created_at=now.replace(microsecond=0),
+        updated_at=now.replace(microsecond=0),
+    )
+    store.upsert(older)
+
     loaded = store.get("job-1")
     assert loaded is not None
     assert loaded.job_id == queued.job_id
@@ -43,3 +55,9 @@ def test_job_store_upsert_get_and_list_unfinished(tmp_path: Path) -> None:
     )
     store.upsert(completed)
     assert store.list_unfinished() == []
+
+    recent = store.list_recent(limit=10)
+    assert [job.job_id for job in recent] == ["job-1", "job-0"]
+
+    failed_only = store.list_recent(limit=10, statuses=(JobStatus.FAILED,))
+    assert [job.job_id for job in failed_only] == ["job-0"]

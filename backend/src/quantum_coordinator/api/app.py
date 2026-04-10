@@ -29,6 +29,7 @@ from quantum_coordinator.api.models import (
     FidelityMetricsResponse,
     FidelitySampleResponse,
     HealthResponse,
+    JobListItemResponse,
     JobProgressResponse,
     JobQuantumResult,
     JobResult,
@@ -78,6 +79,17 @@ def _summarize_quantum_result(
             "reduced_density_matrices": None,
         }
     )
+
+
+def _circuit_preview(circuit_text: str, *, max_length: int = 96) -> str:
+    for line in circuit_text.splitlines():
+        normalized = " ".join(line.split())
+        if normalized:
+            if len(normalized) <= max_length:
+                return normalized
+            return f"{normalized[: max_length - 1]}..."
+
+    return "Circuit submitted"
 
 
 class InMemoryRateLimiter:
@@ -289,6 +301,47 @@ def create_app(config: AppConfig) -> FastAPI:
         background_tasks.add_task(job_manager.process, job.job_id)
         return CircuitSubmitResponse(job_id=job.job_id, status=job.status.value)
 
+    def _progress_payload_for_job(job_id: str, plan_id: str | None, status: JobStatus) -> JobProgressResponse | None:
+        progress_snapshot = job_manager.get_progress(job_id, plan_id, status)
+        return (
+            None
+            if progress_snapshot is None
+            else JobProgressResponse(
+                total_fragments=progress_snapshot.total_fragments,
+                completed_fragments=progress_snapshot.completed_fragments,
+                active_fragments=progress_snapshot.active_fragments,
+                completion_ratio=progress_snapshot.completion_ratio,
+                latest_event_at=progress_snapshot.latest_event_at,
+                finalizing=progress_snapshot.finalizing,
+            )
+        )
+
+    @app.get(
+        "/api/v1/jobs",
+        response_model=list[JobListItemResponse],
+        tags=["jobs"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def list_jobs(
+        limit: int = Query(default=50, ge=1, le=200),
+        status: list[JobStatus] | None = Query(default=None),
+    ) -> list[JobListItemResponse]:
+        records = job_manager.list_recent(limit=limit, statuses=None if not status else tuple(status))
+        return [
+            JobListItemResponse(
+                job_id=record.job_id,
+                status=record.status.value,
+                plan_id=record.plan_id,
+                error=record.error,
+                progress=_progress_payload_for_job(record.job_id, record.plan_id, record.status),
+                circuit_preview=_circuit_preview(record.circuit_text),
+                result_available=record.result_json is not None,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+            for record in records
+        ]
+
     @app.get(
         "/api/v1/jobs/{job_id}",
         response_model=JobStatusResponse,
@@ -325,19 +378,7 @@ def create_app(config: AppConfig) -> FastAPI:
                     quantum_result=None,
                 )
 
-        progress_snapshot = job_manager.get_progress(job.job_id, job.plan_id, job.status)
-        progress_payload = (
-            None
-            if progress_snapshot is None
-            else JobProgressResponse(
-                total_fragments=progress_snapshot.total_fragments,
-                completed_fragments=progress_snapshot.completed_fragments,
-                active_fragments=progress_snapshot.active_fragments,
-                completion_ratio=progress_snapshot.completion_ratio,
-                latest_event_at=progress_snapshot.latest_event_at,
-                finalizing=progress_snapshot.finalizing,
-            )
-        )
+        progress_payload = _progress_payload_for_job(job.job_id, job.plan_id, job.status)
 
         return JobStatusResponse(
             job_id=job.job_id,
@@ -346,6 +387,7 @@ def create_app(config: AppConfig) -> FastAPI:
             error=job.error,
             result=result_payload,
             progress=progress_payload,
+            circuit_text=job.circuit_text,
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
