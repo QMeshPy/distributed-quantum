@@ -16,6 +16,7 @@ def test_jobs_list_endpoint_returns_recent_jobs_and_filters_by_status(tmp_path: 
         AppConfig(
             database=DatabaseConfig(path=str(tmp_path / "job-list.db")),
             libp2p=Libp2pConfig(enabled=False),
+            recover_jobs_on_startup=False,
         )
     )
     now = datetime.now(timezone.utc)
@@ -52,7 +53,7 @@ def test_jobs_list_endpoint_returns_recent_jobs_and_filters_by_status(tmp_path: 
 
         assert [item["job_id"] for item in payload] == ["job-new", "job-old"]
         assert payload[0]["status"] == "QUEUED"
-        assert payload[0]["circuit_preview"] == "OPENQASM 3;"
+        assert payload[0]["circuit_preview"] == "measure q[0] -> c[0];"
         assert payload[0]["result_available"] is False
 
         filtered = client.get("/api/v1/jobs", params=[("status", "FAILED")])

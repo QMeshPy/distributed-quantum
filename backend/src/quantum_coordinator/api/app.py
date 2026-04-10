@@ -7,6 +7,7 @@ import logging
 import time
 from contextlib import suppress
 from datetime import timedelta
+from pathlib import Path
 
 import anyio
 from fastapi import (
@@ -82,14 +83,28 @@ def _summarize_quantum_result(
 
 
 def _circuit_preview(circuit_text: str, *, max_length: int = 96) -> str:
+    fallback: str | None = None
+
     for line in circuit_text.splitlines():
         normalized = " ".join(line.split())
         if normalized:
-            if len(normalized) <= max_length:
-                return normalized
-            return f"{normalized[: max_length - 1]}..."
+            preview = (
+                normalized
+                if len(normalized) <= max_length
+                else f"{normalized[: max_length - 1]}..."
+            )
+            if fallback is None:
+                fallback = preview
 
-    return "Circuit submitted"
+            upper_line = normalized.upper()
+            if upper_line.startswith("OPENQASM") or upper_line.startswith("INCLUDE ") or upper_line.startswith("QREG "):
+                continue
+            if upper_line.startswith("CREG ") or upper_line.startswith("QUBIT[") or upper_line.startswith("BIT["):
+                continue
+
+            return preview
+
+    return fallback or "Circuit submitted"
 
 
 class InMemoryRateLimiter:
@@ -243,6 +258,21 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.on_event("startup")
     async def startup_recovery() -> None:
+        db_abs = Path(config.database.path)
+        if not db_abs.is_absolute():
+            db_abs = Path.cwd() / db_abs
+        job_routes = sorted(
+            {
+                getattr(route, "path", None)
+                for route in app.routes
+                if getattr(route, "path", None) and "/jobs" in route.path
+            }
+        )
+        logger.info(
+            "coordinator_http_ready database_path=%s job_routes=%s",
+            db_abs.resolve(),
+            job_routes,
+        )
         registry.prune_stale()
         if libp2p_fabric is not None:
             # Cached ads can outlive the peers that produced them across a
@@ -257,7 +287,8 @@ def create_app(config: AppConfig) -> FastAPI:
                 for advertisement in libp2p_fabric.available_advertisements():
                     registry.upsert(advertisement)
                 app.state.discovery_task = asyncio.create_task(ingest_discovery_ads())
-        await job_manager.recover_unfinished_jobs()
+        if config.recover_jobs_on_startup:
+            await job_manager.recover_unfinished_jobs()
 
     @app.on_event("shutdown")
     async def shutdown_libp2p() -> None:

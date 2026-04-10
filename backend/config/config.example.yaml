@@ -1,4 +1,5 @@
 environment: development
+recover_jobs_on_startup: true
 
 api:
   host: 0.0.0.0

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -162,7 +162,7 @@ const panelData: Record<string, { group: string; items: string[] }[]> = {
 /** Sidebar links for Runs & Projects — maps label → href */
 const runsProjectsItemHref: Record<string, string> = {
 	'Run History': '/runs',
-	'Active Run': '/runs?status=current'
+	'Active Run': '/runs?status=running'
 };
 
 const SIDEBAR_ITEM_ICONS: Record<string, LucideIcon> = {
@@ -228,30 +228,37 @@ function parseRunIdFromPath(pathname: string): string | null {
 export function DashboardShell({ children }: DashboardShellProps) {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-	const [activeItem, setActiveItem] = useState<(typeof navItems)[number]['key']>('home');
-	const [activePanelItem, setActivePanelItem] = useState<string | null>(null);
-
-	useEffect(() => {
+	const [manualActiveItem, setManualActiveItem] = useState<(typeof navItems)[number]['key']>('home');
+	const [manualActivePanelItem, setManualActivePanelItem] = useState<string | null>(null);
+	const runId = useMemo(() => parseRunIdFromPath(pathname), [pathname]);
+	const statusFilter = searchParams.get('status');
+	const routeState = useMemo(() => {
 		if (pathname.startsWith('/runs')) {
-			setActiveItem('runs-projects');
-			if (pathname === '/runs') {
-				setActivePanelItem('Run History');
-			} else if (pathname === '/runs/new') {
-				setActivePanelItem(null);
-			} else if (parseRunIdFromPath(pathname)) {
-				setActivePanelItem(null);
-			}
-		} else if (pathname === '/dashboard' || pathname === '/') {
-			setActiveItem('home');
+			return {
+				activeItem: 'runs-projects' as const,
+				activePanelItem:
+					pathname === '/runs'
+						? statusFilter === 'running' || statusFilter === 'current'
+							? 'Active Run'
+							: 'Run History'
+						: null
+			};
 		}
-	}, [pathname]);
 
+		if (pathname === '/dashboard' || pathname === '/') {
+			return {
+				activeItem: 'home' as const,
+				activePanelItem: null
+			};
+		}
+
+		return null;
+	}, [pathname, statusFilter]);
+	const activeItem = routeState?.activeItem ?? manualActiveItem;
+	const activePanelItem = routeState?.activePanelItem ?? manualActivePanelItem;
 	const activeNav = navItems.find(item => item.key === activeItem) ?? navItems[0];
 	const ActiveNavIcon = activeNav.icon;
 	const activeGroups = panelData[activeItem] ?? [];
-
-	const runId = useMemo(() => parseRunIdFromPath(pathname), [pathname]);
-	const statusFilter = searchParams.get('status');
 
 	const homeRailActive = (pathname === '/dashboard' || pathname === '/') && activeItem === 'home';
 	const runsRailActive = pathname.startsWith('/runs') && activeItem === 'runs-projects';
@@ -342,8 +349,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 										aria-label={item.label}
 										aria-current={isActive ? 'page' : undefined}
 										onClick={() => {
-											setActiveItem('home');
-											setActivePanelItem(null);
+											setManualActiveItem('home');
+											setManualActivePanelItem(null);
 										}}
 										className={cn(
 											'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
@@ -368,8 +375,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 										aria-label={item.label}
 										aria-current={isActive ? 'page' : undefined}
 										onClick={() => {
-											setActiveItem('runs-projects');
-											setActivePanelItem('Run History');
+											setManualActiveItem('runs-projects');
+											setManualActivePanelItem('Run History');
 										}}
 										className={cn(
 											'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
@@ -393,8 +400,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 									aria-label={item.label}
 									aria-pressed={isActive}
 									onClick={() => {
-										setActiveItem(item.key);
-										setActivePanelItem(null);
+										setManualActiveItem(item.key);
+										setManualActivePanelItem(null);
 									}}
 									className={cn(
 										'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
@@ -435,8 +442,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
 												<ActiveNavIcon className='size-5 text-primary' />
 											</div>
 											<div className='min-w-0'>
-												<p className='truncate text-sm font-semibold tracking-tight'>{activeNav.label}</p>
-												<p className='text-xs text-sidebar-foreground/65'>Workspace navigation</p>
+												<p className='truncate text-sm font-semibold tracking-tight'>
+													{activeNav.label}
+												</p>
+												<p className='text-xs text-sidebar-foreground/65'>
+													Workspace navigation
+												</p>
 											</div>
 										</div>
 										{activeItem === 'runs-projects' ? (
@@ -478,55 +489,63 @@ export function DashboardShell({ children }: DashboardShellProps) {
 													<SidebarMenu className='gap-0.5 px-2'>
 														{section.items.map(item => {
 															const NavIcon = iconForSidebarItem(item);
-																const runsHref =
-																	activeItem === 'runs-projects' ? runsProjectsItemHref[item] : undefined;
+															const runsHref =
+																activeItem === 'runs-projects'
+																	? runsProjectsItemHref[item]
+																	: undefined;
 
-																if (runsHref) {
-																	const onRunsList = pathname === '/runs';
-																	const isRunHistoryActive =
-																		item === 'Run History' &&
-																		onRunsList &&
-																		!runId &&
-																		statusFilter !== 'current';
-																	const isActiveRunLinkActive =
-																		item === 'Active Run' &&
-																		onRunsList &&
-																		!runId &&
-																		statusFilter === 'current';
-
-																	return (
-																		<SidebarMenuItem key={item}>
-																			<SidebarMenuButton
-																				asChild
-																				isActive={isRunHistoryActive || isActiveRunLinkActive}
-																				className='px-3'
-																			>
-																				<Link
-																					href={runsHref}
-																					onClick={() => setActivePanelItem(item)}
-																				>
-																					<NavIcon className='opacity-80' />
-																					<span className='truncate'>{item}</span>
-																				</Link>
-																			</SidebarMenuButton>
-																		</SidebarMenuItem>
-																	);
-																}
+															if (runsHref) {
+																const onRunsList = pathname === '/runs';
+																const isRunHistoryActive =
+																	item === 'Run History' &&
+																	onRunsList &&
+																	!runId &&
+																	statusFilter !== 'current';
+																const isActiveRunLinkActive =
+																	item === 'Active Run' &&
+																	onRunsList &&
+																	!runId &&
+																	(statusFilter === 'running' ||
+																		statusFilter === 'current');
 
 																return (
 																	<SidebarMenuItem key={item}>
 																		<SidebarMenuButton
-																			type='button'
-																			isActive={activePanelItem === item}
-																			onClick={() => setActivePanelItem(item)}
+																			asChild
+																			isActive={
+																				isRunHistoryActive ||
+																				isActiveRunLinkActive
+																			}
 																			className='px-3'
 																		>
-																			<NavIcon className='opacity-80' />
-																			<span className='truncate'>{item}</span>
+																			<Link
+																				href={runsHref}
+																				onClick={() =>
+																					setManualActivePanelItem(item)
+																				}
+																			>
+																				<NavIcon className='opacity-80' />
+																				<span className='truncate'>{item}</span>
+																			</Link>
 																		</SidebarMenuButton>
 																	</SidebarMenuItem>
 																);
-															})}
+															}
+
+															return (
+																<SidebarMenuItem key={item}>
+																	<SidebarMenuButton
+																		type='button'
+																		isActive={activePanelItem === item}
+																		onClick={() => setManualActivePanelItem(item)}
+																		className='px-3'
+																	>
+																		<NavIcon className='opacity-80' />
+																		<span className='truncate'>{item}</span>
+																	</SidebarMenuButton>
+																</SidebarMenuItem>
+															);
+														})}
 													</SidebarMenu>
 												</SidebarGroupContent>
 											</SidebarGroup>
@@ -598,7 +617,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 															<Link
 																href='/dashboard'
 																className='truncate'
-																onClick={() => setActivePanelItem(null)}
+																onClick={() => setManualActivePanelItem(null)}
 															>
 																{activeNav.label}
 															</Link>
@@ -606,7 +625,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
 													</BreadcrumbItem>
 													<BreadcrumbSeparator />
 													<BreadcrumbItem className='min-w-0 max-w-[min(100%,12rem)] sm:max-w-md'>
-														<BreadcrumbPage className='truncate'>{activePanelItem}</BreadcrumbPage>
+														<BreadcrumbPage className='truncate'>
+															{activePanelItem}
+														</BreadcrumbPage>
 													</BreadcrumbItem>
 												</>
 											) : (
