@@ -2,7 +2,7 @@
 
 import '@xyflow/react/dist/style.css';
 
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import {
 	Background,
 	Controls,
@@ -16,10 +16,20 @@ import {
 	type Node,
 	type NodeProps
 } from '@xyflow/react';
-import { GitBranchIcon } from 'lucide-react';
+import { CircleHelpIcon, GitBranchIcon } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+	Pagination,
+	PaginationContent,
+	PaginationEllipsis,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious
+} from '@/components/ui/pagination';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
 	buildPeerExecutionFlowModel,
 	type PeerExecutionFlowModel
@@ -34,6 +44,9 @@ const PEER_FLOW_FIT_VIEW_OPTIONS = {
 	maxZoom: 1.35,
 	duration: 220
 };
+
+const ROUTES_PAGE_SIZE = 4;
+const HANDOFFS_PAGE_SIZE = 4;
 
 type PeerExecutionFlowSectionProps = {
 	plan: RunPlanSummary | null;
@@ -53,6 +66,187 @@ type PeerFlowNodeData = {
 };
 
 type PeerFlowNode = Node<PeerFlowNodeData, 'peer'>;
+
+function buildPaginationPageItems(
+	current: number,
+	total: number
+): Array<number | 'ellipsis'> {
+	if (total <= 1) {
+		return [1];
+	}
+
+	const pages = new Set<number>();
+	pages.add(1);
+	pages.add(total);
+
+	for (let page = current - 1; page <= current + 1; page++) {
+		if (page >= 1 && page <= total) {
+			pages.add(page);
+		}
+	}
+
+	const sortedPages = [...pages].sort((left, right) => left - right);
+	const output: Array<number | 'ellipsis'> = [];
+
+	for (let index = 0; index < sortedPages.length; index++) {
+		const page = sortedPages[index];
+		const previous = sortedPages[index - 1];
+
+		if (index > 0 && previous !== undefined && page - previous > 1) {
+			output.push('ellipsis');
+		}
+
+		output.push(page);
+	}
+
+	return output;
+}
+
+function InfoTooltip({
+	content
+}: {
+	content: string;
+}) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type='button'
+					aria-label='What does this mean?'
+					className='text-muted-foreground hover:text-foreground inline-flex size-5 items-center justify-center rounded-full transition-colors'
+				>
+					<CircleHelpIcon className='size-3.5' />
+				</button>
+			</TooltipTrigger>
+			<TooltipContent
+				side='top'
+				sideOffset={8}
+				className='max-w-sm text-xs leading-relaxed'
+			>
+				{content}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
+function MetricTooltipBadge({
+	label,
+	tooltip,
+	variant = 'outline'
+}: {
+	label: string;
+	tooltip: string;
+	variant?: 'outline' | 'secondary';
+}) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type='button'
+					className={cn(badgeVariants({ variant }), 'cursor-help')}
+				>
+					{label}
+				</button>
+			</TooltipTrigger>
+			<TooltipContent
+				side='top'
+				sideOffset={8}
+				className='max-w-sm text-xs leading-relaxed'
+			>
+				{tooltip}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
+function ListPagination({
+	page,
+	pageCount,
+	totalItems,
+	itemLabel,
+	ariaLabel,
+	onPageChange
+}: {
+	page: number;
+	pageCount: number;
+	totalItems: number;
+	itemLabel: string;
+	ariaLabel: string;
+	onPageChange: (next: number) => void;
+}) {
+	if (pageCount <= 1) {
+		return null;
+	}
+
+	const pageItems = buildPaginationPageItems(page, pageCount);
+	const stop = (event: MouseEvent<HTMLAnchorElement>) => {
+		event.preventDefault();
+	};
+
+	return (
+		<div className='flex flex-col gap-3 border-t border-border/60 pt-3'>
+			<p className='text-xs text-muted-foreground'>
+				Page {page} of {pageCount} · {totalItems} {itemLabel}
+			</p>
+			<Pagination
+				aria-label={ariaLabel}
+				className='justify-start'
+			>
+				<PaginationContent className='flex-wrap gap-2'>
+					<PaginationItem>
+						<PaginationPrevious
+							aria-disabled={page <= 1}
+							className={cn(page <= 1 && 'pointer-events-none opacity-50')}
+							href='#'
+							onClick={event => {
+								stop(event);
+								if (page > 1) {
+									onPageChange(page - 1);
+								}
+							}}
+							text='Prev'
+						/>
+					</PaginationItem>
+					{pageItems.map((item, index) =>
+						item === 'ellipsis' ? (
+							<PaginationItem key={`ellipsis-${index}`}>
+								<PaginationEllipsis />
+							</PaginationItem>
+						) : (
+							<PaginationItem key={item}>
+								<PaginationLink
+									href='#'
+									isActive={item === page}
+									size='icon'
+									onClick={event => {
+										stop(event);
+										onPageChange(item);
+									}}
+								>
+									{item}
+								</PaginationLink>
+							</PaginationItem>
+						)
+					)}
+					<PaginationItem>
+						<PaginationNext
+							aria-disabled={page >= pageCount}
+							className={cn(page >= pageCount && 'pointer-events-none opacity-50')}
+							href='#'
+							onClick={event => {
+								stop(event);
+								if (page < pageCount) {
+									onPageChange(page + 1);
+								}
+							}}
+							text='Next'
+						/>
+					</PaginationItem>
+				</PaginationContent>
+			</Pagination>
+		</div>
+	);
+}
 
 function buildPeerFlowCoverageLabel(model: PeerExecutionFlowModel) {
 	if (model.resolvedFragments === 0) {
@@ -185,7 +379,7 @@ function buildPeerFlowEdges(model: PeerExecutionFlowModel) {
 		id: edge.id,
 		source: edge.sourcePeerId,
 		target: edge.targetPeerId,
-		type: 'smoothstep',
+		type: 'simplebezier',
 		label: edge.handoffCount === 1 ? '1 handoff' : `${edge.handoffCount} handoffs`,
 		labelStyle: {
 			fontSize: 11,
@@ -301,164 +495,242 @@ export function PeerExecutionFlowSection({
 		() => buildPeerExecutionFlowModel(plan, fragmentResults),
 		[plan, fragmentResults]
 	);
+	const paginationScopeKey = `${plan?.planId ?? 'no-plan'}:${model?.routes.length ?? 0}:${model?.edges.length ?? 0}`;
+	const [paginationState, setPaginationState] = useState(() => ({
+		scopeKey: paginationScopeKey,
+		routesPage: 1,
+		handoffsPage: 1
+	}));
+
+	const routes = model?.routes ?? [];
+	const handoffs = model?.edges ?? [];
+	const routesPageCount = Math.max(1, Math.ceil(routes.length / ROUTES_PAGE_SIZE));
+	const handoffsPageCount = Math.max(1, Math.ceil(handoffs.length / HANDOFFS_PAGE_SIZE));
+	const rawRoutesPage = paginationState.scopeKey === paginationScopeKey ? paginationState.routesPage : 1;
+	const rawHandoffsPage =
+		paginationState.scopeKey === paginationScopeKey ? paginationState.handoffsPage : 1;
+	const routesPage = Math.min(rawRoutesPage, routesPageCount);
+	const handoffsPage = Math.min(rawHandoffsPage, handoffsPageCount);
+	const visibleRoutes = routes.slice(
+		(routesPage - 1) * ROUTES_PAGE_SIZE,
+		routesPage * ROUTES_PAGE_SIZE
+	);
+	const visibleHandoffs = handoffs.slice(
+		(handoffsPage - 1) * HANDOFFS_PAGE_SIZE,
+		handoffsPage * HANDOFFS_PAGE_SIZE
+	);
+
+	const setRoutesPage = (nextPage: number) =>
+		setPaginationState(current => ({
+			scopeKey: paginationScopeKey,
+			routesPage: Math.max(1, nextPage),
+			handoffsPage: current.scopeKey === paginationScopeKey ? current.handoffsPage : 1
+		}));
+
+	const setHandoffsPage = (nextPage: number) =>
+		setPaginationState(current => ({
+			scopeKey: paginationScopeKey,
+			routesPage: current.scopeKey === paginationScopeKey ? current.routesPage : 1,
+			handoffsPage: Math.max(1, nextPage)
+		}));
 
 	return (
-		<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
-			<CardHeader className='border-b border-border/80'>
-				<div className='flex items-start gap-3'>
-					<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'>
-						<GitBranchIcon className='size-5' />
-					</div>
-					<div className='min-w-0 flex-1 space-y-1'>
-						<CardTitle>Peer execution flow</CardTitle>
-						<CardDescription>
-							Collapses fragment execution into peer-to-peer routing so you can see how the circuit moved across the network.
-						</CardDescription>
-					</div>
-				</div>
-			</CardHeader>
-			<CardContent className='space-y-6 pt-6'>
-				{!plan ? (
-					<p className='text-sm text-muted-foreground'>
-						The execution plan is not available yet, so the peer graph cannot be derived.
-					</p>
-				) : !model || model.nodes.length === 0 ? (
-					<p className='text-sm text-muted-foreground'>
-						Peer assignments have not been published yet for this run.
-					</p>
-				) : (
-					<>
-						<div className='flex flex-wrap gap-2'>
-							<Badge variant='outline'>{model.nodes.length} peers</Badge>
-							<Badge variant='outline'>{model.crossPeerHandoffs} cross-peer handoffs</Badge>
-							<Badge variant='outline'>{model.localHandoffs} local handoffs</Badge>
-							<Badge variant='secondary'>{buildPeerFlowCoverageLabel(model)}</Badge>
+		<TooltipProvider delayDuration={120}>
+			<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
+				<CardHeader className='border-b border-border/80'>
+					<div className='flex items-start gap-3'>
+						<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'>
+							<GitBranchIcon className='size-5' />
 						</div>
+						<div className='min-w-0 flex-1 space-y-1'>
+							<div className='flex items-center gap-2'>
+								<CardTitle>Peer execution flow</CardTitle>
+								<InfoTooltip content='This is a peer-level view derived from the fragment DAG. We merge fragments by the peer that executed them, then draw arrows only where a dependency crosses from one peer to another.' />
+							</div>
+							<CardDescription>
+								Collapses fragment execution into peer-to-peer routing so you can see how the circuit moved across the network.
+							</CardDescription>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className='space-y-6 pt-6'>
+					{!plan ? (
+						<p className='text-sm text-muted-foreground'>
+							The execution plan is not available yet, so the peer graph cannot be derived.
+						</p>
+					) : !model || model.nodes.length === 0 ? (
+						<p className='text-sm text-muted-foreground'>
+							Peer assignments have not been published yet for this run.
+						</p>
+					) : (
+						<>
+							<div className='flex flex-wrap gap-2'>
+								<MetricTooltipBadge
+									label={`${model.nodes.length} peers`}
+									tooltip='Unique peers that participated in the execution, based on observed runtime node IDs when available and planned primary peers otherwise.'
+								/>
+								<MetricTooltipBadge
+									label={`${model.crossPeerHandoffs} cross-peer handoffs`}
+									tooltip='Dependency links where one fragment ran on one peer and the dependent fragment ran on a different peer.'
+								/>
+								<MetricTooltipBadge
+									label={`${model.localHandoffs} local handoffs`}
+									tooltip='Dependency links that stayed on the same peer, so the next fragment did not need to move across the network.'
+								/>
+								<MetricTooltipBadge
+									label={buildPeerFlowCoverageLabel(model)}
+									tooltip='Observed routing means the graph is using actual runtime node IDs from fragment results. If a fragment has not executed yet, the view falls back to the planned primary peer.'
+									variant='secondary'
+								/>
+							</div>
 
-						<PeerExecutionFlowCanvas model={model} />
+							<PeerExecutionFlowCanvas model={model} />
 
-						<div className='grid gap-4 xl:grid-cols-2'>
-							<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
-								<div className='mb-3'>
-									<h3 className='text-sm font-semibold tracking-tight'>Distinct peer routes</h3>
-									<p className='mt-1 text-xs text-muted-foreground'>
-										Root-to-leaf fragment paths collapsed down to peers.
-									</p>
-								</div>
-								<div className='space-y-3'>
-									{model.routes.length ? (
-										model.routes.map(route => (
-											<div
-												key={route.id}
-												className='rounded-3xl border border-border/80 bg-card px-4 py-3 shadow-sm'
-											>
-												<div className='flex flex-wrap items-center gap-2'>
-													{route.peerIds.map((peerId, index) => (
-														<div
-															key={`${route.id}-${peerId}-${index}`}
-															className='flex items-center gap-2'
-														>
-															<span
-																className='rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium'
-																title={peerId}
+							<div className='grid gap-4 xl:grid-cols-2'>
+								<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
+									<div className='mb-3'>
+										<div className='flex items-center gap-2'>
+											<h3 className='text-sm font-semibold tracking-tight'>Distinct peer routes</h3>
+											<InfoTooltip content='A peer route is a root-to-leaf execution path with consecutive fragments on the same peer merged together. It answers “which peers did this branch of the circuit pass through?”' />
+										</div>
+										<p className='mt-1 text-xs text-muted-foreground'>
+											Root-to-leaf fragment paths collapsed down to peers.
+										</p>
+									</div>
+									<div className='space-y-3'>
+										{routes.length ? (
+											visibleRoutes.map(route => (
+												<div
+													key={route.id}
+													className='rounded-3xl border border-border/80 bg-card px-4 py-3 shadow-sm'
+												>
+													<div className='flex flex-wrap items-center gap-2'>
+														{route.peerIds.map((peerId, index) => (
+															<div
+																key={`${route.id}-${peerId}-${index}`}
+																className='flex items-center gap-2'
 															>
-																{shortFragmentId(peerId, 9, 4)}
-															</span>
-															{index < route.peerIds.length - 1 ? (
-																<span className='text-muted-foreground text-xs'>→</span>
-															) : null}
-														</div>
-													))}
-													{route.usesPlannedRouting ? (
-														<Badge variant='secondary'>mixed planned/observed</Badge>
-													) : null}
+																<span
+																	className='rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium'
+																	title={peerId}
+																>
+																	{shortFragmentId(peerId, 9, 4)}
+																</span>
+																{index < route.peerIds.length - 1 ? (
+																	<span className='text-muted-foreground text-xs'>→</span>
+																) : null}
+															</div>
+														))}
+														{route.usesPlannedRouting ? (
+															<Badge variant='secondary'>mixed planned/observed</Badge>
+														) : null}
+													</div>
+													<p className='mt-2 text-xs text-muted-foreground'>
+														{route.sourcePathCount === 1
+															? '1 fragment path maps to this peer route.'
+															: `${route.sourcePathCount} fragment paths map to this peer route.`}
+													</p>
+													<p className='mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground'>
+														Fragments:{' '}
+														{route.fragmentIds
+															.map(fragmentId => shortFragmentId(fragmentId, 10, 4))
+															.join(' → ')}
+													</p>
 												</div>
-												<p className='mt-2 text-xs text-muted-foreground'>
-													{route.sourcePathCount === 1
-														? '1 fragment path maps to this peer route.'
-														: `${route.sourcePathCount} fragment paths map to this peer route.`}
-												</p>
-												<p className='mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground'>
-													Fragments:{' '}
-													{route.fragmentIds
-														.map(fragmentId => shortFragmentId(fragmentId, 10, 4))
-														.join(' → ')}
-												</p>
-											</div>
-										))
-									) : (
-										<p className='text-sm text-muted-foreground'>
-											No root-to-leaf peer routes are available yet.
-										</p>
-									)}
+											))
+										) : (
+											<p className='text-sm text-muted-foreground'>
+												No root-to-leaf peer routes are available yet.
+											</p>
+										)}
+									</div>
+									<ListPagination
+										page={routesPage}
+										pageCount={routesPageCount}
+										totalItems={routes.length}
+										itemLabel='peer routes'
+										ariaLabel='Distinct peer routes pagination'
+										onPageChange={setRoutesPage}
+									/>
 								</div>
-							</div>
 
-							<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
-								<div className='mb-3'>
-									<h3 className='text-sm font-semibold tracking-tight'>Cross-peer handoffs</h3>
-									<p className='mt-1 text-xs text-muted-foreground'>
-										Dependency edges where execution moved from one peer to another.
-									</p>
-								</div>
-								<div className='space-y-3'>
-									{model.edges.length ? (
-										model.edges.map(edge => (
-											<div
-												key={edge.id}
-												className='rounded-3xl border border-border/80 bg-card px-4 py-3 shadow-sm'
-											>
-												<div className='flex flex-wrap items-center gap-2'>
-													<span
-														className='rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium'
-														title={edge.sourcePeerId}
-													>
-														{shortFragmentId(edge.sourcePeerId, 9, 4)}
-													</span>
-													<span className='text-muted-foreground text-xs'>→</span>
-													<span
-														className='rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium'
-														title={edge.targetPeerId}
-													>
-														{shortFragmentId(edge.targetPeerId, 9, 4)}
-													</span>
-													<Badge variant='outline'>
-														{edge.handoffCount === 1 ? '1 handoff' : `${edge.handoffCount} handoffs`}
-													</Badge>
-													{edge.usesPlannedRouting ? (
-														<Badge variant='secondary'>mixed planned/observed</Badge>
-													) : null}
-												</div>
-												<div className='mt-2 flex flex-wrap gap-2'>
-													{edge.fragmentPairs.map(pair => (
+								<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
+									<div className='mb-3'>
+										<div className='flex items-center gap-2'>
+											<h3 className='text-sm font-semibold tracking-tight'>Cross-peer handoffs</h3>
+											<InfoTooltip content='A cross-peer handoff happens when a fragment completes on one peer and a dependent fragment executes on another peer. This is the network movement between peers.' />
+										</div>
+										<p className='mt-1 text-xs text-muted-foreground'>
+											Dependency edges where execution moved from one peer to another.
+										</p>
+									</div>
+									<div className='space-y-3'>
+										{handoffs.length ? (
+											visibleHandoffs.map(edge => (
+												<div
+													key={edge.id}
+													className='rounded-3xl border border-border/80 bg-card px-4 py-3 shadow-sm'
+												>
+													<div className='flex flex-wrap items-center gap-2'>
 														<span
-															key={`${edge.id}-${pair.fromFragmentId}-${pair.toFragmentId}`}
-															className='rounded-full border border-border/70 bg-muted/30 px-3 py-1 font-mono text-[11px] text-muted-foreground'
+															className='rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium'
+															title={edge.sourcePeerId}
 														>
-															{shortFragmentId(pair.fromFragmentId, 10, 4)} →{' '}
-															{shortFragmentId(pair.toFragmentId, 10, 4)}
+															{shortFragmentId(edge.sourcePeerId, 9, 4)}
 														</span>
-													))}
+														<span className='text-muted-foreground text-xs'>→</span>
+														<span
+															className='rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium'
+															title={edge.targetPeerId}
+														>
+															{shortFragmentId(edge.targetPeerId, 9, 4)}
+														</span>
+														<Badge variant='outline'>
+															{edge.handoffCount === 1 ? '1 handoff' : `${edge.handoffCount} handoffs`}
+														</Badge>
+														{edge.usesPlannedRouting ? (
+															<Badge variant='secondary'>mixed planned/observed</Badge>
+														) : null}
+													</div>
+													<div className='mt-2 flex flex-wrap gap-2'>
+														{edge.fragmentPairs.map(pair => (
+															<span
+																key={`${edge.id}-${pair.fromFragmentId}-${pair.toFragmentId}`}
+																className='rounded-full border border-border/70 bg-muted/30 px-3 py-1 font-mono text-[11px] text-muted-foreground'
+															>
+																{shortFragmentId(pair.fromFragmentId, 10, 4)} →{' '}
+																{shortFragmentId(pair.toFragmentId, 10, 4)}
+															</span>
+														))}
+													</div>
 												</div>
-											</div>
-										))
-									) : (
-										<p className='text-sm text-muted-foreground'>
-											All fragment dependencies stayed on the same peer.
-										</p>
-									)}
+											))
+										) : (
+											<p className='text-sm text-muted-foreground'>
+												All fragment dependencies stayed on the same peer.
+											</p>
+										)}
+									</div>
+									<ListPagination
+										page={handoffsPage}
+										pageCount={handoffsPageCount}
+										totalItems={handoffs.length}
+										itemLabel='cross-peer handoffs'
+										ariaLabel='Cross-peer handoffs pagination'
+										onPageChange={setHandoffsPage}
+									/>
 								</div>
 							</div>
-						</div>
 
-						{model.routeEnumerationTruncated ? (
-							<p className='text-xs text-muted-foreground'>
-								Showing the first derived routes for readability. Larger DAGs may collapse additional peer paths not listed here.
-							</p>
-						) : null}
-					</>
-				)}
-			</CardContent>
-		</Card>
+							{model.routeEnumerationTruncated ? (
+								<p className='text-xs text-muted-foreground'>
+									Showing the first derived routes for readability. Larger DAGs may collapse additional peer paths not listed here.
+								</p>
+							) : null}
+						</>
+					)}
+				</CardContent>
+			</Card>
+		</TooltipProvider>
 	);
 }

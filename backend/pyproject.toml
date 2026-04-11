@@ -61,5 +61,8 @@ exclude = ["tests"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.uv]
+upgrade-package = ["libp2p"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/quantum_coordinator"]
