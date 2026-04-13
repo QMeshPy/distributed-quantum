@@ -2946,7 +2946,7 @@ function buildRegistryFlowEdges({
         id: `edge-${sourceGroup.node.nodeId}-${targetGroup.node.nodeId}`,
         source: sourceGroup.node.nodeId,
         target: targetGroup.node.nodeId,
-        type: "bezier",
+        type: "simplebezier",
         animated: isFocused,
         style: {
           stroke: isFocused ? sourceStyle.stroke : "rgba(71, 85, 105, 0.34)",
@@ -3682,7 +3682,7 @@ function buildDagFlowEdges({
       id: `dag-edge-${edge.from}-${edge.to}`,
       source: edge.from,
       target: edge.to,
-      type: "bezier",
+      type: "simplebezier",
       animated: isFocused,
       style: {
         stroke: isFocused ? sourceStyle.stroke : "rgba(71, 85, 105, 0.32)",

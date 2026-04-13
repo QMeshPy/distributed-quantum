@@ -45,6 +45,14 @@ class JobStore(Protocol):
     def list_unfinished(self) -> list[JobRecord]:
         """Load unfinished jobs for restart recovery."""
 
+    def list_recent(
+        self,
+        *,
+        limit: int = 50,
+        statuses: tuple[JobStatus, ...] | None = None,
+    ) -> list[JobRecord]:
+        """Load recent jobs ordered from newest to oldest."""
+
 
 class SQLiteJobStore:
     """SQLite-backed job lifecycle store."""
@@ -117,6 +125,35 @@ class SQLiteJobStore:
                 """,
                 UNFINISHED_STATUSES,
             ).fetchall()
+
+        return [_row_to_record(row) for row in rows]
+
+    def list_recent(
+        self,
+        *,
+        limit: int = 50,
+        statuses: tuple[JobStatus, ...] | None = None,
+    ) -> list[JobRecord]:
+        query = """
+            SELECT job_id, status, circuit_text, plan_id,
+                   error, result_json, created_at, updated_at
+            FROM jobs
+        """
+        params: list[object] = []
+
+        if statuses:
+            placeholders = ", ".join("?" for _ in statuses)
+            query += f" WHERE status IN ({placeholders})"
+            params.extend(status.value for status in statuses)
+
+        query += """
+            ORDER BY created_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
 
         return [_row_to_record(row) for row in rows]
 

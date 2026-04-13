@@ -81,6 +81,21 @@ class JobStatusResponse(BaseModel):
     error: str | None
     result: JobResult | None
     progress: JobProgressResponse | None = None
+    circuit_text: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class JobListItemResponse(BaseModel):
+    """Lightweight job record for run history screens."""
+
+    job_id: str
+    status: str
+    plan_id: str | None
+    error: str | None
+    progress: JobProgressResponse | None = None
+    circuit_preview: str
+    result_available: bool = False
     created_at: datetime
     updated_at: datetime
 

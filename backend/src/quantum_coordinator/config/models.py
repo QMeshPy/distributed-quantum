@@ -2,7 +2,25 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import BaseModel, ConfigDict, Field
+
+
+def default_database_path() -> str:
+    """Stable default DB path when running from a source checkout.
+
+    If this package lives under a ``src/`` tree (typical editable install), use
+    ``<repo>/backend/data/quantum_coordinator.db`` regardless of process cwd so
+    submit/list/detail always share one database. Otherwise keep cwd-relative
+    ``./data/quantum_coordinator.db`` (e.g. wheel install).
+    """
+    package_dir = Path(__file__).resolve().parent.parent
+    parent = package_dir.parent
+    if parent.name == "src":
+        backend_root = parent.parent
+        return str((backend_root / "data" / "quantum_coordinator.db").resolve())
+    return "./data/quantum_coordinator.db"
 
 
 class APIConfig(BaseModel):
@@ -36,7 +54,7 @@ class DatabaseConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    path: str = Field(default="./data/quantum_coordinator.db", min_length=1)
+    path: str = Field(default_factory=default_database_path, min_length=1)
     enable_wal_mode: bool = True
 
 
@@ -83,6 +101,10 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     environment: str = Field(default="development", min_length=1)
+    recover_jobs_on_startup: bool = Field(
+        default=True,
+        description="When true, unfinished jobs are resumed after coordinator startup.",
+    )
     api: APIConfig = Field(default_factory=APIConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)

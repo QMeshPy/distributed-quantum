@@ -2,6 +2,12 @@
 
 This task plan is requirement-driven and optimized for a research POC that can evolve into production architecture.
 
+Long-horizon roadmap note:
+
+- use this file for the current proof-of-concept implementation sequence
+- use [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) for the detailed multi-milestone future platform plan
+- use [future-roadmap/00-sequencing-and-program-plan.md](future-roadmap/00-sequencing-and-program-plan.md) for milestone ordering and dependencies
+
 ## 1. Milestone Summary
 
 1. **M0 Foundation**: project scaffold, config, logging, CI checks

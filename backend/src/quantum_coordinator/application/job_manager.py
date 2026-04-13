@@ -81,6 +81,15 @@ class JobManager:
         """Lookup a persisted job."""
         return self._job_store.get(job_id)
 
+    def list_recent(
+        self,
+        *,
+        limit: int = 50,
+        statuses: tuple[JobStatus, ...] | None = None,
+    ) -> list[JobRecord]:
+        """Return recent jobs ordered newest-first for run history views."""
+        return self._job_store.list_recent(limit=limit, statuses=statuses)
+
     async def process(self, job_id: str) -> None:
         """Compile and execute a job if it is not terminal."""
         claimed = await self._claim(job_id)

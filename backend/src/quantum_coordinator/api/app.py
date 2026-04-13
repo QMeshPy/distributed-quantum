@@ -7,6 +7,7 @@ import logging
 import time
 from contextlib import suppress
 from datetime import timedelta
+from pathlib import Path
 
 import anyio
 from fastapi import (
@@ -29,6 +30,7 @@ from quantum_coordinator.api.models import (
     FidelityMetricsResponse,
     FidelitySampleResponse,
     HealthResponse,
+    JobListItemResponse,
     JobProgressResponse,
     JobQuantumResult,
     JobResult,
@@ -78,6 +80,31 @@ def _summarize_quantum_result(
             "reduced_density_matrices": None,
         }
     )
+
+
+def _circuit_preview(circuit_text: str, *, max_length: int = 96) -> str:
+    fallback: str | None = None
+
+    for line in circuit_text.splitlines():
+        normalized = " ".join(line.split())
+        if normalized:
+            preview = (
+                normalized
+                if len(normalized) <= max_length
+                else f"{normalized[: max_length - 1]}..."
+            )
+            if fallback is None:
+                fallback = preview
+
+            upper_line = normalized.upper()
+            if upper_line.startswith("OPENQASM") or upper_line.startswith("INCLUDE ") or upper_line.startswith("QREG "):
+                continue
+            if upper_line.startswith("CREG ") or upper_line.startswith("QUBIT[") or upper_line.startswith("BIT["):
+                continue
+
+            return preview
+
+    return fallback or "Circuit submitted"
 
 
 class InMemoryRateLimiter:
@@ -231,6 +258,21 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.on_event("startup")
     async def startup_recovery() -> None:
+        db_abs = Path(config.database.path)
+        if not db_abs.is_absolute():
+            db_abs = Path.cwd() / db_abs
+        job_routes = sorted(
+            {
+                getattr(route, "path", None)
+                for route in app.routes
+                if getattr(route, "path", None) and "/jobs" in route.path
+            }
+        )
+        logger.info(
+            "coordinator_http_ready database_path=%s job_routes=%s",
+            db_abs.resolve(),
+            job_routes,
+        )
         registry.prune_stale()
         if libp2p_fabric is not None:
             # Cached ads can outlive the peers that produced them across a
@@ -245,7 +287,8 @@ def create_app(config: AppConfig) -> FastAPI:
                 for advertisement in libp2p_fabric.available_advertisements():
                     registry.upsert(advertisement)
                 app.state.discovery_task = asyncio.create_task(ingest_discovery_ads())
-        await job_manager.recover_unfinished_jobs()
+        if config.recover_jobs_on_startup:
+            await job_manager.recover_unfinished_jobs()
 
     @app.on_event("shutdown")
     async def shutdown_libp2p() -> None:
@@ -289,6 +332,47 @@ def create_app(config: AppConfig) -> FastAPI:
         background_tasks.add_task(job_manager.process, job.job_id)
         return CircuitSubmitResponse(job_id=job.job_id, status=job.status.value)
 
+    def _progress_payload_for_job(job_id: str, plan_id: str | None, status: JobStatus) -> JobProgressResponse | None:
+        progress_snapshot = job_manager.get_progress(job_id, plan_id, status)
+        return (
+            None
+            if progress_snapshot is None
+            else JobProgressResponse(
+                total_fragments=progress_snapshot.total_fragments,
+                completed_fragments=progress_snapshot.completed_fragments,
+                active_fragments=progress_snapshot.active_fragments,
+                completion_ratio=progress_snapshot.completion_ratio,
+                latest_event_at=progress_snapshot.latest_event_at,
+                finalizing=progress_snapshot.finalizing,
+            )
+        )
+
+    @app.get(
+        "/api/v1/jobs",
+        response_model=list[JobListItemResponse],
+        tags=["jobs"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def list_jobs(
+        limit: int = Query(default=50, ge=1, le=200),
+        status: list[JobStatus] | None = Query(default=None),
+    ) -> list[JobListItemResponse]:
+        records = job_manager.list_recent(limit=limit, statuses=None if not status else tuple(status))
+        return [
+            JobListItemResponse(
+                job_id=record.job_id,
+                status=record.status.value,
+                plan_id=record.plan_id,
+                error=record.error,
+                progress=_progress_payload_for_job(record.job_id, record.plan_id, record.status),
+                circuit_preview=_circuit_preview(record.circuit_text),
+                result_available=record.result_json is not None,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+            for record in records
+        ]
+
     @app.get(
         "/api/v1/jobs/{job_id}",
         response_model=JobStatusResponse,
@@ -325,19 +409,7 @@ def create_app(config: AppConfig) -> FastAPI:
                     quantum_result=None,
                 )
 
-        progress_snapshot = job_manager.get_progress(job.job_id, job.plan_id, job.status)
-        progress_payload = (
-            None
-            if progress_snapshot is None
-            else JobProgressResponse(
-                total_fragments=progress_snapshot.total_fragments,
-                completed_fragments=progress_snapshot.completed_fragments,
-                active_fragments=progress_snapshot.active_fragments,
-                completion_ratio=progress_snapshot.completion_ratio,
-                latest_event_at=progress_snapshot.latest_event_at,
-                finalizing=progress_snapshot.finalizing,
-            )
-        )
+        progress_payload = _progress_payload_for_job(job.job_id, job.plan_id, job.status)
 
         return JobStatusResponse(
             job_id=job.job_id,
@@ -346,6 +418,7 @@ def create_app(config: AppConfig) -> FastAPI:
             error=job.error,
             result=result_payload,
             progress=progress_payload,
+            circuit_text=job.circuit_text,
             created_at=job.created_at,
             updated_at=job.updated_at,
         )

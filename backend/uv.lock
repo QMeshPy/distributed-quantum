@@ -928,7 +928,7 @@ dependencies = [
     { name = "types-requests" },
     { name = "zeroconf" },
 ]
-sdist = { hash = "sha256:334e73ce58f70d78bf8f58d48848d8bf088b4fa185f754dbd948ae69ad87b911" }
+sdist = { hash = "sha256:3a1d415ebb12c0893218795c7859a2f8a7fe99562a8933c2d573f81616d03b09" }
 
 [package.metadata]
 requires-dist = [
