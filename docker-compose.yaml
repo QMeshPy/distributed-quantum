@@ -5,7 +5,8 @@ services:
     environment:
       QC_API__ENABLE_AUTH: "${QC_API__ENABLE_AUTH:-false}"
       QC_API__API_KEY: "${QUANTUM_BACKEND_API_KEY:-null}"
-      QC_API__ENABLE_CORS: "false"
+      QC_API__ENABLE_CORS: "${QC_API__ENABLE_CORS:-true}"
+      QC_API__CORS_ORIGINS: '${QC_API__CORS_ORIGINS:-["https://distributed-quantum.com","https://v0.distributed-quantum.com","http://localhost:3000","http://localhost:3003"]}'
       QC_DATABASE__PATH: "${QC_DATABASE__PATH:-/workspace/backend/data/quantum_coordinator.db}"
       QC_LIBP2P__ENABLED: "${QC_LIBP2P__ENABLED:-true}"
       QC_LIBP2P__ENABLE_MDNS: "false"
