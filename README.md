@@ -271,6 +271,7 @@ Normalization details:
 
 - There is no root workspace `Makefile` right now. Backend commands must be run via `make -C backend ...` or from inside `backend/`.
 - `frontend-v2/` is the active UI. `frontend/` is legacy and should not be used for new setup or deployment work.
+- If you still need the legacy UI, use the PM2 helper documented in [`MANUAL.md`](MANUAL.md#legacy-frontend-via-pm2-optional) (`./scripts/manage-legacy-frontend.sh`) instead of adding `frontend/` to Docker Compose.
 - `GET /api/v1/plans/{plan_id}` is backed by the coordinator's in-memory plan cache, so plan lookup is only guaranteed for plans compiled since the current backend process started.
 - If `QC_LIBP2P__ENABLED=false`, the backend falls back to a local in-process gate adapter instead of real libp2p transport.
 - This is a proof-of-concept orchestration system, not a full hardware-backed quantum network stack.

@@ -59,11 +59,13 @@ services:
         condition: service_healthy
     environment:
       CADDY_FRONTEND_SITE_ADDRESS: "${CADDY_FRONTEND_SITE_ADDRESS:-http://localhost:3000}"
+      CADDY_LEGACY_FRONTEND_SITE_ADDRESS: "${CADDY_LEGACY_FRONTEND_SITE_ADDRESS:-http://localhost:3003}"
       CADDY_API_SITE_ADDRESS: "${CADDY_API_SITE_ADDRESS:-http://localhost:8080}"
     ports:
       - "80:80"
       - "443:443"
       - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3003:3003"
       - "127.0.0.1:8080:8080"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro

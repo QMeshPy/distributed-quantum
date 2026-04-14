@@ -24,6 +24,7 @@ Hostname layout:
 - [3. Install Docker And Compose](#3-install-docker-and-compose)
 - [4. Clone The Repository](#4-clone-the-repository)
 - [5. Configure The Environment](#5-configure-the-environment)
+- [Legacy Frontend Via PM2 (Optional)](#legacy-frontend-via-pm2-optional)
 - [6. Migrate From PM2 And Host Caddy](#6-migrate-from-pm2-and-host-caddy)
 - [7. Deploy The Stack](#7-deploy-the-stack)
 - [8. Verify The Deployment](#8-verify-the-deployment)
@@ -165,6 +166,51 @@ For local use, keep:
 ```dotenv
 CADDY_FRONTEND_SITE_ADDRESS=http://localhost:3000
 CADDY_API_SITE_ADDRESS=http://localhost:8080
+CADDY_LEGACY_FRONTEND_SITE_ADDRESS=http://localhost:3003
+```
+
+## Legacy Frontend Via PM2 (Optional)
+
+Use this only if you still need `frontend/` (legacy Vite app). It is not part of Docker Compose services.
+
+The repository includes a helper script:
+
+```bash
+./scripts/manage-legacy-frontend.sh
+```
+
+What it does:
+
+- builds `frontend/` with `vite build`
+- runs `serve -s dist -l 3003` through PM2
+- keeps PM2 data inside this workspace using `PM2_HOME=.pm2-legacy-frontend`
+- saves a local PM2 dump file so you can resurrect later
+
+Common commands from repo root:
+
+```bash
+./scripts/manage-legacy-frontend.sh start
+./scripts/manage-legacy-frontend.sh status
+./scripts/manage-legacy-frontend.sh save
+./scripts/manage-legacy-frontend.sh resurrect
+./scripts/manage-legacy-frontend.sh stop
+```
+
+Optional environment overrides:
+
+```bash
+LEGACY_FRONTEND_PORT=3003
+LEGACY_FRONTEND_PM2_APP_NAME=legacy-frontend
+```
+
+Notes:
+
+- default legacy port is `3003`
+- Caddy routes `CADDY_LEGACY_FRONTEND_SITE_ADDRESS` to `host.docker.internal:3003`
+- install prerequisites once on the host:
+
+```bash
+npm i -g pm2 serve
 ```
 
 ## 6. Migrate From PM2 And Host Caddy
