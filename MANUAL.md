@@ -208,6 +208,10 @@ Notes:
 - default legacy port is `3003`
 - Caddy routes `CADDY_LEGACY_FRONTEND_SITE_ADDRESS` to `host.docker.internal:3003`
 - install prerequisites once on the host:
+- if legacy does not come up, see [11. Troubleshooting](#11-troubleshooting), especially:
+  - `failed to bind host port 127.0.0.1:3003`
+  - `https://v0.<domain> is not serving the legacy frontend`
+  - `CORS errors when legacy frontend calls API`
 
 ```bash
 npm i -g pm2 serve
@@ -470,6 +474,77 @@ docker compose -f docker-compose.yaml up -d --build --force-recreate
 ```
 
 - practical guidance: for this stack, use at least `20 GB`; if you do frequent rebuilds on the same host, `30-40 GB` is safer
+
+If Docker Compose fails with `failed to bind host port 127.0.0.1:3003`:
+
+- this means port `3003` is already used (usually by legacy PM2 `serve`)
+- stop the legacy process before starting Compose:
+
+```bash
+./scripts/manage-legacy-frontend.sh stop
+docker compose -f docker-compose.yaml up -d --build --force-recreate
+```
+
+- if you need legacy UI and Compose at the same time, keep Caddy on `80/443` and do not publish `127.0.0.1:3003:3003` from the Caddy container
+- check current listener:
+
+```bash
+sudo lsof -iTCP:3003 -sTCP:LISTEN -n -P
+```
+
+If `https://v0.<domain>` is not serving the legacy frontend:
+
+- ensure `.env` includes the legacy host:
+
+```dotenv
+CADDY_LEGACY_FRONTEND_SITE_ADDRESS=v0.<domain>
+```
+
+- ensure Linux Docker can resolve host services from Caddy:
+
+```yaml
+caddy:
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+```
+
+- restart Caddy and legacy frontend:
+
+```bash
+docker compose -f docker-compose.yaml up -d --build caddy
+./scripts/manage-legacy-frontend.sh restart
+```
+
+- verify proxy path:
+
+```bash
+curl -I http://127.0.0.1:3003
+curl -I -H "Host: v0.<domain>" http://127.0.0.1
+docker compose -f docker-compose.yaml logs --tail=100 caddy
+```
+
+If the legacy frontend on `v0.<domain>` shows CORS errors when calling API:
+
+- enable backend CORS and set explicit allowed origins in `.env`:
+
+```dotenv
+QC_API__ENABLE_CORS=true
+QC_API__CORS_ORIGINS=["https://<domain>","https://v0.<domain>","http://localhost:3000","http://localhost:3003"]
+```
+
+- redeploy backend (or full stack):
+
+```bash
+docker compose -f docker-compose.yaml up -d --build backend caddy
+```
+
+- verify CORS headers from API:
+
+```bash
+curl -i -H "Origin: https://v0.<domain>" https://api.<domain>/api/v1/health
+```
+
+- expected response should include `access-control-allow-origin: https://v0.<domain>`
 
 If the backend is up but the UI cannot load data:
 
