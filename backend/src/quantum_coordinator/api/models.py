@@ -141,3 +141,111 @@ class JobUpdateResponse(BaseModel):
     error: str | None
     progress: JobProgressResponse | None = None
     updated_at: datetime
+
+
+class TopologyCoordinatorResponse(BaseModel):
+    """Coordinator transport-level connectivity details."""
+
+    peer_id: str
+    listen_addrs: list[str]
+    connected_peer_ids: list[str]
+    connected_peer_count: int
+
+
+class TopologyBehaviorResponse(BaseModel):
+    """Verbose behavior profile for an embedded peer."""
+
+    profile_name: str
+    base_fidelity: float
+    qubit_min: int
+    qubit_max: int
+    supported_gate_types: list[str]
+    base_availability: bool
+    response_delay_seconds: float
+    transient_error_rate: float
+    availability_flap_period_seconds: float
+
+
+class TopologyAdvertisementResponse(BaseModel):
+    """Service advertisement attached to a topology node."""
+
+    node_id: str
+    listen_addrs: list[str]
+    service_type: str
+    fidelity: float
+    qubit_min: int
+    qubit_max: int
+    availability: bool
+    updated_at: datetime
+
+
+class TopologyServiceNodeResponse(BaseModel):
+    """Verbose transport + behavior + capability payload for one service peer."""
+
+    index: int
+    peer_id: str
+    listen_addrs: list[str]
+    connected_peer_ids: list[str]
+    connected_peer_count: int
+    current_availability: bool
+    behavior: TopologyBehaviorResponse
+    advertisements: list[TopologyAdvertisementResponse]
+
+
+class TopologyDirectedEdgeResponse(BaseModel):
+    """One observed directed transport edge."""
+
+    source_peer_id: str
+    target_peer_id: str
+    source_role: str
+    target_role: str
+    source_listen_addrs: list[str]
+    target_listen_addrs: list[str]
+    is_coordinator_edge: bool
+    observed_direction: str
+
+
+class TopologyUndirectedEdgeResponse(BaseModel):
+    """Pair-level view of connectivity with mutuality flags."""
+
+    peer_a: str
+    peer_b: str
+    peer_a_role: str
+    peer_b_role: str
+    peer_a_listen_addrs: list[str]
+    peer_b_listen_addrs: list[str]
+    a_observes_b: bool
+    b_observes_a: bool
+    mutual: bool
+
+
+class TopologyRegistryEntryResponse(BaseModel):
+    """Registry ad entry included in topology snapshots."""
+
+    node_id: str
+    service_type: str
+    listen_addrs: list[str]
+    fidelity: float
+    qubit_min: int
+    qubit_max: int
+    availability: bool
+    updated_at: datetime
+    expires_at: datetime
+
+
+class NetworkTopologyResponse(BaseModel):
+    """High-verbosity network connectivity snapshot."""
+
+    fabric_running: bool
+    topic: str
+    gate_protocol_id: str
+    embedded_service_count_configured: int
+    embedded_peer_behavior_mode: str
+    embedded_peer_random_seed: int
+    generated_at: datetime
+    coordinator: TopologyCoordinatorResponse | None
+    services: list[TopologyServiceNodeResponse]
+    directed_edges: list[TopologyDirectedEdgeResponse]
+    undirected_edges: list[TopologyUndirectedEdgeResponse]
+    registry_snapshot: list[TopologyRegistryEntryResponse]
+    known_service_addresses: dict[str, list[str]]

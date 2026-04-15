@@ -35,6 +35,55 @@ export type DashboardNodeSnapshot = {
 	lastUpdatedLabel: string;
 };
 
+export type DashboardNetworkGraphNodeStatus = 'healthy' | 'degraded' | 'offline';
+
+export type DashboardNetworkGraphNodeKind = 'coordinator' | 'peer';
+
+export type DashboardNetworkGraphNode = {
+	id: string;
+	nodeId: string | null;
+	kind: DashboardNetworkGraphNodeKind;
+	status: DashboardNetworkGraphNodeStatus;
+	label: string;
+	shortLabel: string;
+	averageFidelity: number;
+	availableServices: number;
+	totalServices: number;
+	minQubits: number;
+	maxQubits: number;
+	serviceTypes: string[];
+	primaryAddress: string | null;
+	lastUpdated: string | null;
+	lastUpdatedLabel: string;
+	color: string;
+	val: number;
+};
+
+export type DashboardNetworkGraphLink = {
+	id: string;
+	source: string;
+	target: string;
+	kind: 'coordinator' | 'peer';
+	color: string;
+	availableServices: number;
+	totalServices: number;
+	serviceTypes: string[];
+	width: number;
+	particleSpeed: number;
+};
+
+export type DashboardNetworkSnapshot = {
+	nodes: DashboardNetworkGraphNode[];
+	links: DashboardNetworkGraphLink[];
+	totalPeers: number;
+	activePeers: number;
+	totalServices: number;
+	availableServices: number;
+	averageFidelity: number;
+	serviceTypes: string[];
+	maxQubits: number;
+};
+
 export type DashboardChartMetricKey = 'averageFidelity' | 'availableServices' | 'maxQubits';
 
 export type DashboardChartPoint = {
@@ -72,6 +121,7 @@ export type DashboardSnapshot = {
 	health: DashboardHealthSummary | null;
 	summaryCards: DashboardSummaryCard[];
 	nodes: DashboardNodeSnapshot[];
+	network: DashboardNetworkSnapshot;
 	chart: DashboardChartPoint[];
 	services: DashboardServiceRow[];
 };

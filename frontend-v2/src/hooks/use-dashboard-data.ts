@@ -106,7 +106,7 @@ export function useDashboardData({ refreshIntervalMs = 30_000 }: UseDashboardDat
 		error,
 		isRefreshing,
 		selectedNodeId,
-		isLoading: status === 'loading' && snapshot === null,
+		isLoading: snapshot === null && status !== 'error',
 		refresh: () =>
 			loadDashboard({
 				silent: Boolean(useDashboardStore.getState().snapshot)

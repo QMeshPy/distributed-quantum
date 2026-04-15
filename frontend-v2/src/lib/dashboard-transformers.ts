@@ -1,5 +1,7 @@
 import type { BackendFidelityMetricsResponse, BackendHealthResponse, BackendServiceResponse } from '@/types/backend';
 import type {
+	DashboardNetworkGraphNodeStatus,
+	DashboardNetworkSnapshot,
 	DashboardNodeSnapshot,
 	DashboardServiceRow,
 	DashboardSnapshot,
@@ -13,6 +15,8 @@ type BuildDashboardSnapshotInput = {
 	metrics: BackendFidelityMetricsResponse[];
 	warnings?: string[];
 };
+
+const COORDINATOR_GRAPH_NODE_ID = 'coordinator';
 
 function formatPercentage(value: number, fractionDigits = 2) {
 	return `${(value * 100).toFixed(fractionDigits)}%`;
@@ -86,12 +90,7 @@ function average(values: number[]) {
 	return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-function buildNodeSnapshots(
-	services: BackendServiceResponse[],
-	metrics: BackendFidelityMetricsResponse[],
-	referenceDate: Date
-) {
-	const metricsByNodeId = new Map(metrics.map(metric => [metric.node_id, metric]));
+function buildServicesByNodeId(services: BackendServiceResponse[]) {
 	const servicesByNodeId = new Map<string, BackendServiceResponse[]>();
 
 	for (const service of services) {
@@ -99,6 +98,44 @@ function buildNodeSnapshots(
 		existingServices.push(service);
 		servicesByNodeId.set(service.node_id, existingServices);
 	}
+
+	return servicesByNodeId;
+}
+
+function getNetworkNodeStatus(availableServices: number, totalServices: number) {
+	if (totalServices === 0 || availableServices === 0) {
+		return 'offline' as const;
+	}
+
+	if (availableServices === totalServices) {
+		return 'healthy' as const;
+	}
+
+	return 'degraded' as const;
+}
+
+function getNetworkNodeColor(status: 'healthy' | 'degraded' | 'offline', kind: 'coordinator' | 'peer' = 'peer') {
+	if (kind === 'coordinator') {
+		return status === 'offline' ? '#64748b' : '#f97316';
+	}
+
+	switch (status) {
+		case 'healthy':
+			return '#14b8a6';
+		case 'degraded':
+			return '#f59e0b';
+		default:
+			return '#94a3b8';
+	}
+}
+
+function buildNodeSnapshots(
+	services: BackendServiceResponse[],
+	metrics: BackendFidelityMetricsResponse[],
+	referenceDate: Date
+) {
+	const metricsByNodeId = new Map(metrics.map(metric => [metric.node_id, metric]));
+	const servicesByNodeId = buildServicesByNodeId(services);
 
 	const nodes: DashboardNodeSnapshot[] = Array.from(servicesByNodeId.entries()).map(([nodeId, nodeServices]) => {
 		const nodeMetric = metricsByNodeId.get(nodeId);
@@ -215,6 +252,135 @@ function buildSummaryCards(
 	];
 }
 
+function buildNetworkSnapshot({
+	generatedAt,
+	health,
+	nodes,
+	services,
+	referenceDate
+}: {
+	generatedAt: string;
+	health: BackendHealthResponse | null;
+	nodes: DashboardNodeSnapshot[];
+	services: BackendServiceResponse[];
+	referenceDate: Date;
+}): DashboardNetworkSnapshot {
+	const servicesByNodeId = buildServicesByNodeId(services);
+	const serviceTypes = [...new Set(services.map(service => service.service_type))].sort((left, right) =>
+		left.localeCompare(right)
+	);
+	const availableServices = services.filter(service => service.availability).length;
+	const averageFidelity = average(nodes.map(node => node.averageFidelity));
+	const maxQubits = services.length ? Math.max(...services.map(service => service.qubit_max)) : 0;
+
+	const peerNodes = nodes.map(node => {
+		const nodeServices = servicesByNodeId.get(node.nodeId) ?? [];
+		const nodeServiceTypes = [...new Set(nodeServices.map(service => service.service_type))].sort((left, right) =>
+			left.localeCompare(right)
+		);
+		const primaryAddress = nodeServices.flatMap(service => service.listen_addrs).find(Boolean) ?? null;
+		const status = getNetworkNodeStatus(node.availableServices, node.totalServices);
+
+		return {
+			id: node.nodeId,
+			nodeId: node.nodeId,
+			kind: 'peer' as const,
+			status,
+			label: node.nodeId,
+			shortLabel: node.nodeLabel,
+			averageFidelity: node.averageFidelity,
+			availableServices: node.availableServices,
+			totalServices: node.totalServices,
+			minQubits: node.minQubits,
+			maxQubits: node.maxQubits,
+			serviceTypes: nodeServiceTypes,
+			primaryAddress,
+			lastUpdated: node.lastUpdated,
+			lastUpdatedLabel: node.lastUpdatedLabel,
+			color: getNetworkNodeColor(status),
+			val: Number((4 + node.availableServices * 1.2 + node.averageFidelity * 6 + node.maxQubits * 0.12).toFixed(2))
+		};
+	});
+
+	const coordinatorStatus: DashboardNetworkGraphNodeStatus =
+		health?.status === 'ok' ? 'healthy' : peerNodes.some(node => node.availableServices > 0) ? 'degraded' : 'offline';
+	const coordinatorNode = {
+		id: COORDINATOR_GRAPH_NODE_ID,
+		nodeId: null,
+		kind: 'coordinator' as const,
+		status: coordinatorStatus,
+		label: health?.service ?? 'Coordinator',
+		shortLabel: 'Coord',
+		averageFidelity,
+		availableServices,
+		totalServices: services.length,
+		minQubits: 0,
+		maxQubits,
+		serviceTypes,
+		primaryAddress: null,
+		lastUpdated: health ? generatedAt : null,
+		lastUpdatedLabel: health ? formatRelativeTime(generatedAt, referenceDate) : 'Unavailable',
+		color: getNetworkNodeColor(coordinatorStatus, 'coordinator'),
+		val: Number((6 + Math.max(nodes.length, 1) * 0.8).toFixed(2))
+	};
+
+	const coordinatorLinks = peerNodes.map(node => ({
+		id: `${COORDINATOR_GRAPH_NODE_ID}:${node.id}`,
+		source: COORDINATOR_GRAPH_NODE_ID,
+		target: node.id,
+		kind: 'coordinator' as const,
+		color: node.color,
+		availableServices: node.availableServices,
+		totalServices: node.totalServices,
+		serviceTypes: node.serviceTypes,
+		width: Number((1.2 + node.availableServices * 0.45).toFixed(2)),
+		particleSpeed: Number((0.0035 + Math.min(node.availableServices, 4) * 0.0012).toFixed(4))
+	}));
+
+	const peerLinks = peerNodes.flatMap((sourceNode, sourceIndex) => {
+		return peerNodes.slice(sourceIndex + 1).flatMap(targetNode => {
+			const sharedServiceTypes = sourceNode.serviceTypes.filter(serviceType =>
+				targetNode.serviceTypes.includes(serviceType)
+			);
+			if (sharedServiceTypes.length === 0) {
+				return [];
+			}
+
+			const sharedAvailableServices = Math.min(sourceNode.availableServices, targetNode.availableServices);
+			const totalServiceCapacity = Math.min(sourceNode.totalServices, targetNode.totalServices);
+			const linkWidth = Number((1 + sharedServiceTypes.length * 0.35 + sharedAvailableServices * 0.1).toFixed(2));
+			const particleSpeed = Number((0.0028 + Math.min(sharedServiceTypes.length, 5) * 0.0007).toFixed(4));
+
+			return [
+				{
+					id: `peer:${sourceNode.id}:${targetNode.id}`,
+					source: sourceNode.id,
+					target: targetNode.id,
+					kind: 'peer' as const,
+					color: '#7c3aed',
+					availableServices: sharedAvailableServices,
+					totalServices: totalServiceCapacity,
+					serviceTypes: sharedServiceTypes,
+					width: linkWidth,
+					particleSpeed
+				}
+			];
+		});
+	});
+
+	return {
+		nodes: [coordinatorNode, ...peerNodes],
+		links: [...coordinatorLinks, ...peerLinks],
+		totalPeers: nodes.length,
+		activePeers: nodes.filter(node => node.availableServices > 0).length,
+		totalServices: services.length,
+		availableServices,
+		averageFidelity,
+		serviceTypes,
+		maxQubits
+	};
+}
+
 export function buildDashboardSnapshot({
 	generatedAt,
 	health,
@@ -284,6 +450,13 @@ export function buildDashboardSnapshot({
 			: null,
 		summaryCards: buildSummaryCards(nodes, services, health),
 		nodes,
+		network: buildNetworkSnapshot({
+			generatedAt,
+			health,
+			nodes,
+			services,
+			referenceDate
+		}),
 		chart: nodes.map(node => ({
 			nodeId: node.nodeId,
 			nodeLabel: node.nodeLabel,

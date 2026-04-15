@@ -39,12 +39,15 @@ export default function RootLayout({
 				oxanium.variable
 			)}
 		>
-			<TooltipProvider>
-				<body className='min-h-full flex flex-col'>
+			<body
+				className='min-h-full flex flex-col'
+				suppressHydrationWarning
+			>
+				<TooltipProvider>
 					{children}
 					<Toaster />
-				</body>
-			</TooltipProvider>
+				</TooltipProvider>
+			</body>
 		</html>
 	);
 }

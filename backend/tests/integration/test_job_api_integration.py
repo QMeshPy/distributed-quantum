@@ -249,6 +249,41 @@ def test_services_and_fidelity_metrics_endpoints(tmp_path: Path) -> None:
         assert 0.0 <= metrics["max_fidelity"] <= 1.0
 
 
+def test_network_topology_endpoint_exposes_verbose_connectivity(tmp_path: Path) -> None:
+    database_path = str(tmp_path / "topology.db")
+    app = create_app(make_real_libp2p_config(database_path))
+
+    with TestClient(app) as client:
+        _wait_for_services(client)
+
+        response = client.get("/api/v1/network/topology")
+        assert response.status_code == 200
+        payload = response.json()
+
+        assert payload["fabric_running"] is True
+        assert isinstance(payload["topic"], str)
+        assert isinstance(payload["gate_protocol_id"], str)
+        assert payload["coordinator"] is not None
+        assert payload["coordinator"]["peer_id"]
+        assert isinstance(payload["coordinator"]["listen_addrs"], list)
+        assert isinstance(payload["coordinator"]["connected_peer_ids"], list)
+        assert isinstance(payload["services"], list)
+        assert len(payload["services"]) >= 1
+        assert isinstance(payload["directed_edges"], list)
+        assert len(payload["directed_edges"]) >= 1
+        assert isinstance(payload["undirected_edges"], list)
+        assert len(payload["undirected_edges"]) >= 1
+        assert isinstance(payload["registry_snapshot"], list)
+        assert len(payload["registry_snapshot"]) >= 1
+        assert isinstance(payload["known_service_addresses"], dict)
+
+        first_service = payload["services"][0]
+        assert "behavior" in first_service
+        assert "advertisements" in first_service
+        assert isinstance(first_service["advertisements"], list)
+        assert len(first_service["advertisements"]) >= 1
+
+
 def test_measured_circuit_returns_counts_probabilities_and_statevector(tmp_path: Path) -> None:
     database_path = str(tmp_path / "measured.db")
     app = create_app(make_real_libp2p_config(database_path))
