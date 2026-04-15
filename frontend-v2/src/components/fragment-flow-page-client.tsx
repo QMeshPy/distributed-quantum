@@ -15,11 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RunStatusBadge } from '@/components/run-status-badge';
 import { useRunDetail } from '@/hooks/use-run-detail';
 import { buildFragmentDagModel } from '@/lib/fragment-dag-model';
-import {
-	formatFragmentPercent,
-	formatFragmentServiceLabel,
-	shortFragmentId
-} from '@/lib/fragment-flow-format';
+import { formatFragmentPercent, formatFragmentServiceLabel, shortFragmentId } from '@/lib/fragment-flow-format';
 
 type FragmentFlowPageClientProps = {
 	runId: string;
@@ -31,8 +27,7 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 	const { snapshot, error, isLoading, isRefreshing, refresh } = useRunDetail(runId);
 
 	const dagModel = React.useMemo(
-		() =>
-			snapshot ? buildFragmentDagModel(snapshot.plan, snapshot.run.fragmentResults) : null,
+		() => (snapshot ? buildFragmentDagModel(snapshot.plan, snapshot.run.fragmentResults) : null),
 		[snapshot]
 	);
 
@@ -255,7 +250,9 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 												</div>
 												<div>
 													<dt className='text-muted-foreground'>Worker node</dt>
-													<dd className='font-mono text-xs break-all'>{runtimeResult.nodeId}</dd>
+													<dd className='font-mono text-xs break-all'>
+														{runtimeResult.nodeId}
+													</dd>
 												</div>
 												<div>
 													<dt className='text-muted-foreground'>Attempts</dt>
@@ -277,7 +274,9 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 												{runtimeResult.error ? (
 													<div>
 														<dt className='text-destructive'>Error</dt>
-														<dd className='text-destructive text-sm'>{runtimeResult.error}</dd>
+														<dd className='text-destructive text-sm'>
+															{runtimeResult.error}
+														</dd>
 													</div>
 												) : null}
 											</dl>
@@ -306,7 +305,8 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 													</TableHeader>
 													<TableBody>
 														{selectedFragment.candidates.map(candidate => {
-															const isPrimary = candidate.nodeId === selectedFragment.primaryNodeId;
+															const isPrimary =
+																candidate.nodeId === selectedFragment.primaryNodeId;
 															return (
 																<TableRow
 																	key={candidate.nodeId}
@@ -315,7 +315,9 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 																	<TableCell className='max-w-[140px] font-mono text-[11px] break-all'>
 																		{shortFragmentId(candidate.nodeId, 10, 4)}
 																		{isPrimary ? (
-																			<span className='ml-1 text-muted-foreground'>•</span>
+																			<span className='ml-1 text-muted-foreground'>
+																				•
+																			</span>
 																		) : null}
 																	</TableCell>
 																	<TableCell className='text-right text-xs'>
@@ -334,7 +336,9 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 									) : null}
 								</>
 							) : (
-								<p className='text-sm text-muted-foreground'>Click a node on the graph to inspect it.</p>
+								<p className='text-sm text-muted-foreground'>
+									Click a node on the graph to inspect it.
+								</p>
 							)}
 						</CardContent>
 					</Card>

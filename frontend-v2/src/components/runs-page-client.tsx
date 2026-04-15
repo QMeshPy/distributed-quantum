@@ -230,8 +230,8 @@ export function RunsPageClient() {
 											</EmptyMedia>
 											<EmptyTitle>No data loaded</EmptyTitle>
 											<EmptyDescription className='max-w-md'>
-												Fix the connection issue above, then use Retry. If the API is fixed, you should see
-												section metrics and the table populate automatically.
+												Fix the connection issue above, then use Retry. If the API is fixed, you
+												should see section metrics and the table populate automatically.
 											</EmptyDescription>
 										</EmptyHeader>
 									</Empty>
@@ -304,8 +304,8 @@ export function RunsPageClient() {
 								<AlertDescription className='space-y-2'>
 									<p>{snapshot?.warnings.join(' ')}</p>
 									<p className='text-destructive/90'>
-										Submits can still succeed while the list endpoint is missing or the coordinator is
-										down. Restart the coordinator from this repository so it serves{' '}
+										Submits can still succeed while the list endpoint is missing or the coordinator
+										is down. Restart the coordinator from this repository so it serves{' '}
 										<code className='rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs'>
 											GET /api/v1/jobs
 										</code>{' '}
@@ -342,35 +342,35 @@ export function RunsPageClient() {
 					/>
 
 					<div className='flex flex-wrap gap-2 border-b border-border px-4 pb-2 lg:px-6'>
-				{FILTER_TABS.map(tab => {
-					const isActive = tab.value === filter;
-					const count =
-						tab.value === 'all'
-							? counts.total
-							: tab.value === 'queued'
-								? counts.queued
-								: tab.value === 'running'
-									? counts.running
-									: tab.value === 'completed'
-										? counts.completed
-										: counts.failed;
+						{FILTER_TABS.map(tab => {
+							const isActive = tab.value === filter;
+							const count =
+								tab.value === 'all'
+									? counts.total
+									: tab.value === 'queued'
+										? counts.queued
+										: tab.value === 'running'
+											? counts.running
+											: tab.value === 'completed'
+												? counts.completed
+												: counts.failed;
 
-					return (
-						<button
-							key={tab.value}
-							type='button'
-							onClick={() => setFilter(tab.value)}
-							className={cn(
-								'relative rounded-md px-3 py-2 text-sm font-medium transition-colors',
-								isActive
-									? 'text-foreground after:absolute after:right-2 after:bottom-0 after:left-2 after:h-0.5 after:rounded-full after:bg-primary'
-									: 'text-muted-foreground hover:text-foreground'
-							)}
-						>
-							{tab.label} <span className='text-muted-foreground'>({count})</span>
-						</button>
-					);
-				})}
+							return (
+								<button
+									key={tab.value}
+									type='button'
+									onClick={() => setFilter(tab.value)}
+									className={cn(
+										'relative rounded-md px-3 py-2 text-sm font-medium transition-colors',
+										isActive
+											? 'text-foreground after:absolute after:right-2 after:bottom-0 after:left-2 after:h-0.5 after:rounded-full after:bg-primary'
+											: 'text-muted-foreground hover:text-foreground'
+									)}
+								>
+									{tab.label} <span className='text-muted-foreground'>({count})</span>
+								</button>
+							);
+						})}
 					</div>
 
 					<div className='px-4 lg:px-6'>
@@ -403,72 +403,80 @@ export function RunsPageClient() {
 														? `/finance?jobId=${encodeURIComponent(row.id)}`
 														: `/runs/${encodeURIComponent(row.id)}`;
 												return (
-												<TableRow key={row.id}>
-													<TableCell>
-														<Link
-															href={detailHref}
-															className='font-medium text-primary underline-offset-4 hover:underline'
-														>
-															{row.circuitPreview}
-														</Link>
-														<div className='mt-0.5 font-mono text-xs text-muted-foreground'>
-															{row.id}
-														</div>
-														{row.jobKind === 'financial' ? (
-															<div className='mt-1 text-xs text-muted-foreground'>
-																Financial analysis
-																{row.resultAvailable && row.backendStatus === 'COMPLETED'
-																	? ' · result ready'
-																	: ''}
+													<TableRow key={row.id}>
+														<TableCell>
+															<Link
+																href={detailHref}
+																className='font-medium text-primary underline-offset-4 hover:underline'
+															>
+																{row.circuitPreview}
+															</Link>
+															<div className='mt-0.5 font-mono text-xs text-muted-foreground'>
+																{row.id}
 															</div>
-														) : null}
-														{row.planId ? (
-															<div className='mt-1 text-xs text-muted-foreground'>
-																Plan {row.planId}
-															</div>
-														) : null}
-														{row.error ? (
-															<div className='mt-1 text-xs text-destructive'>{row.error}</div>
-														) : null}
-													</TableCell>
-													<TableCell>
-														<div className='space-y-2'>
-															<RunStatusBadge
-																label={row.statusLabel}
-																variant={row.badgeVariant}
-															/>
-															{row.progress ? (
-																<div className='text-xs text-muted-foreground'>
-																	{row.progress.completedFragments}/{row.progress.totalFragments}{' '}
-																	{row.jobKind === 'financial'
-																		? 'analysis phases'
-																		: 'fragments'}{' '}
-																	complete
+															{row.jobKind === 'financial' ? (
+																<div className='mt-1 text-xs text-muted-foreground'>
+																	Financial analysis
+																	{row.resultAvailable &&
+																	row.backendStatus === 'COMPLETED'
+																		? ' · result ready'
+																		: ''}
 																</div>
 															) : null}
-														</div>
-													</TableCell>
-													<TableCell className='hidden lg:table-cell'>
-														{row.progress ? (
-															<div className='min-w-44 space-y-2'>
-																<Progress value={row.progress.completionPercentage} />
-																<div className='text-xs text-muted-foreground'>
-																	{row.progress.completionPercentage}% •{' '}
-																	{row.progress.latestEventLabel}
+															{row.planId ? (
+																<div className='mt-1 text-xs text-muted-foreground'>
+																	Plan {row.planId}
 																</div>
+															) : null}
+															{row.error ? (
+																<div className='mt-1 text-xs text-destructive'>
+																	{row.error}
+																</div>
+															) : null}
+														</TableCell>
+														<TableCell>
+															<div className='space-y-2'>
+																<RunStatusBadge
+																	label={row.statusLabel}
+																	variant={row.badgeVariant}
+																/>
+																{row.progress ? (
+																	<div className='text-xs text-muted-foreground'>
+																		{row.progress.completedFragments}/
+																		{row.progress.totalFragments}{' '}
+																		{row.jobKind === 'financial'
+																			? 'analysis phases'
+																			: 'fragments'}{' '}
+																		complete
+																	</div>
+																) : null}
 															</div>
-														) : (
-															<span className='text-sm text-muted-foreground'>
-																Awaiting execution events
-															</span>
-														)}
-													</TableCell>
-													<TableCell className='hidden text-muted-foreground md:table-cell'>
-														{row.createdAtLabel}
-													</TableCell>
-													<TableCell className='text-muted-foreground'>{row.updatedAtLabel}</TableCell>
-												</TableRow>
-											);
+														</TableCell>
+														<TableCell className='hidden lg:table-cell'>
+															{row.progress ? (
+																<div className='min-w-44 space-y-2'>
+																	<Progress
+																		value={row.progress.completionPercentage}
+																	/>
+																	<div className='text-xs text-muted-foreground'>
+																		{row.progress.completionPercentage}% •{' '}
+																		{row.progress.latestEventLabel}
+																	</div>
+																</div>
+															) : (
+																<span className='text-sm text-muted-foreground'>
+																	Awaiting execution events
+																</span>
+															)}
+														</TableCell>
+														<TableCell className='hidden text-muted-foreground md:table-cell'>
+															{row.createdAtLabel}
+														</TableCell>
+														<TableCell className='text-muted-foreground'>
+															{row.updatedAtLabel}
+														</TableCell>
+													</TableRow>
+												);
 											})}
 										</TableBody>
 									</Table>

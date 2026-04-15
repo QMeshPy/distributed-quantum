@@ -12,10 +12,7 @@ const SERVICE_LABELS: Record<string, string> = {
 	measurement_feedforward: 'Measurement Feedforward'
 };
 
-export const FRAGMENT_SERVICE_STYLES: Record<
-	string,
-	{ stroke: string; fill: string; text: string; glow: string }
-> = {
+export const FRAGMENT_SERVICE_STYLES: Record<string, { stroke: string; fill: string; text: string; glow: string }> = {
 	bell_pair: {
 		stroke: '#0f766e',
 		fill: 'rgba(15, 118, 110, 0.14)',

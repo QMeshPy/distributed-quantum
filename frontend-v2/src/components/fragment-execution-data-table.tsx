@@ -1,12 +1,7 @@
 'use client';
 
 import { AlertCircleIcon } from 'lucide-react';
-import {
-	flexRender,
-	getCoreRowModel,
-	useReactTable,
-	type ColumnDef
-} from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
 
 import { RunStatusBadge } from '@/components/run-status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -73,9 +68,7 @@ const columns: ColumnDef<RunFragmentResultSummary>[] = [
 	{
 		accessorKey: 'attempts',
 		header: () => <span className='block w-full text-end'>Attempts</span>,
-		cell: ({ row }) => (
-			<span className='block w-full text-end tabular-nums'>{row.original.attempts}</span>
-		),
+		cell: ({ row }) => <span className='block w-full text-end tabular-nums'>{row.original.attempts}</span>,
 		meta: { headClass: 'text-end', cellClass: 'w-[5.5rem] tabular-nums' }
 	},
 	{
@@ -93,9 +86,7 @@ const columns: ColumnDef<RunFragmentResultSummary>[] = [
 		header: 'Finished',
 		cell: ({ row }) => (
 			<div className='flex min-w-0 items-center gap-2'>
-				<span className='text-muted-foreground min-w-0 truncate text-xs'>
-					{row.original.finishedAtLabel}
-				</span>
+				<span className='text-muted-foreground min-w-0 truncate text-xs'>{row.original.finishedAtLabel}</span>
 				{row.original.error ? (
 					<Tooltip>
 						<TooltipTrigger asChild>

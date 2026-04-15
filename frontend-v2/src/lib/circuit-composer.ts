@@ -143,8 +143,7 @@ creg c[2];`
 	{
 		id: 'measure-all',
 		label: 'Measure all',
-		description:
-			'One line per qubit (backend requires q[i] -> c[i]); duplicate the pattern for larger registers.',
+		description: 'One line per qubit (backend requires q[i] -> c[i]); duplicate the pattern for larger registers.',
 		category: 'Readout',
 		snippet: 'measure q[0] -> c[0];\nmeasure q[1] -> c[1];'
 	},
@@ -157,7 +156,7 @@ creg c[2];`
 	},
 	{
 		id: 'algo-shor-qpe',
-		label: "Shor (QPE skeleton)",
+		label: 'Shor (QPE skeleton)',
 		description:
 			'Order-finding via phase estimation on modular exponentiation U: counting qubits q[0],q[1], work q[2]; replace c-U with your N,a.',
 		category: 'Algorithms',
@@ -239,7 +238,8 @@ h q[1];`
 	{
 		id: 'algo-simon',
 		label: 'Simon (query pattern)',
-		description: 'Two-query structure: superposition, oracle U_f, then H on first register; classical post-process.',
+		description:
+			'Two-query structure: superposition, oracle U_f, then H on first register; classical post-process.',
 		category: 'Algorithms',
 		snippet: `// Simon: repeat to sample y ⊥ s; classical linear algebra finds hidden period s
 h q[0];

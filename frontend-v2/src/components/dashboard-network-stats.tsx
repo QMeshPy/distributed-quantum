@@ -59,7 +59,9 @@ export function DashboardNetworkStats({
 	}
 
 	const selectedNode = network?.nodes.find(node => node.kind === 'peer' && node.nodeId === selectedNodeId) ?? null;
-	const serviceTypesLabel = network?.serviceTypes.length ? network.serviceTypes.join(' · ') : 'No service types advertised yet.';
+	const serviceTypesLabel = network?.serviceTypes.length
+		? network.serviceTypes.join(' · ')
+		: 'No service types advertised yet.';
 
 	if (selectedNode) {
 		return (
@@ -78,7 +80,8 @@ export function DashboardNetworkStats({
 					<CardFooter className='flex-col items-start gap-1.5 text-sm'>
 						<div className='font-medium'>{selectedNode.label}</div>
 						<div className='text-muted-foreground'>
-							{selectedNode.availableServices}/{selectedNode.totalServices} services live · {selectedNode.lastUpdatedLabel}
+							{selectedNode.availableServices}/{selectedNode.totalServices} services live ·{' '}
+							{selectedNode.lastUpdatedLabel}
 						</div>
 					</CardFooter>
 				</Card>
@@ -99,7 +102,9 @@ export function DashboardNetworkStats({
 							{selectedNode.minQubits}-{selectedNode.maxQubits} qubit span
 						</div>
 						<div className='text-muted-foreground'>
-							{selectedNode.serviceTypes.length ? selectedNode.serviceTypes.join(' · ') : 'No gate types reported.'}
+							{selectedNode.serviceTypes.length
+								? selectedNode.serviceTypes.join(' · ')
+								: 'No gate types reported.'}
 						</div>
 					</CardFooter>
 				</Card>
@@ -146,7 +151,9 @@ export function DashboardNetworkStats({
 				<CardFooter className='flex-col items-start gap-1.5 text-sm'>
 					<div className='font-medium'>Peers with at least one schedulable service right now.</div>
 					<div className='text-muted-foreground'>
-						{network ? `${network.totalPeers - network.activePeers} peers are currently unavailable.` : 'Waiting for network data.'}
+						{network
+							? `${network.totalPeers - network.activePeers} peers are currently unavailable.`
+							: 'Waiting for network data.'}
 					</div>
 				</CardFooter>
 			</Card>
@@ -186,7 +193,9 @@ export function DashboardNetworkStats({
 				<CardFooter className='flex-col items-start gap-1.5 text-sm'>
 					<div className='font-medium'>Average fidelity across peers in the current dashboard snapshot.</div>
 					<div className='text-muted-foreground'>
-						{health ? `Coordinator ${health.status.toUpperCase()} · uptime ${health.uptimeLabel}.` : 'Coordinator health metadata is unavailable.'}
+						{health
+							? `Coordinator ${health.status.toUpperCase()} · uptime ${health.uptimeLabel}.`
+							: 'Coordinator health metadata is unavailable.'}
 					</div>
 				</CardFooter>
 			</Card>

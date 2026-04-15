@@ -36,15 +36,12 @@ export function useRunQuantumFullDetail(runId: string, enabled: boolean) {
 			setError(null);
 
 			try {
-				const response = await fetch(
-					`/api/runs/${encodeURIComponent(runId)}?result_detail=full`,
-					{
-						method: 'GET',
-						cache: 'no-store',
-						headers: { Accept: 'application/json' },
-						signal: controller.signal
-					}
-				);
+				const response = await fetch(`/api/runs/${encodeURIComponent(runId)}?result_detail=full`, {
+					method: 'GET',
+					cache: 'no-store',
+					headers: { Accept: 'application/json' },
+					signal: controller.signal
+				});
 
 				const payload = (await response.json().catch(() => null)) as
 					| { run?: { quantumSummary?: QuantumFullPayload | null } }
@@ -64,9 +61,7 @@ export function useRunQuantumFullDetail(runId: string, enabled: boolean) {
 				}
 
 				const summary =
-					payload && 'run' in payload && payload.run?.quantumSummary
-						? payload.run.quantumSummary
-						: null;
+					payload && 'run' in payload && payload.run?.quantumSummary ? payload.run.quantumSummary : null;
 
 				setData({
 					statevector: summary?.statevector ?? null,

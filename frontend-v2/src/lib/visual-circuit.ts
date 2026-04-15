@@ -5,7 +5,7 @@ include "qelib1.inc";
 `;
 
 function emptyColumn(numQubits: number): CircuitCell[] {
-	return Array.from({ length: numQubits }, () => ({ kind: 'empty' } as const));
+	return Array.from({ length: numQubits }, () => ({ kind: 'empty' }) as const);
 }
 
 export function createDefaultVisualCircuit(): VisualCircuitState {

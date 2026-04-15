@@ -59,8 +59,7 @@ export function buildFragmentDagModel(
 			return 0;
 		}
 
-		const depth =
-			Math.max(...fragment.dependencies.map(dependency => getDepth(dependency))) + 1;
+		const depth = Math.max(...fragment.dependencies.map(dependency => getDepth(dependency))) + 1;
 		depthCache.set(fragmentId, depth);
 		return depth;
 	};
@@ -84,8 +83,7 @@ export function buildFragmentDagModel(
 	const nodes: FragmentDagNode[] = [];
 	for (const depth of depths) {
 		const fragmentIds = fragmentsByDepth.get(depth) ?? [];
-		const columnHeight =
-			fragmentIds.length * nodeHeight + Math.max(0, fragmentIds.length - 1) * rowGap;
+		const columnHeight = fragmentIds.length * nodeHeight + Math.max(0, fragmentIds.length - 1) * rowGap;
 		const startY = padding + (drawableHeight - columnHeight) / 2;
 
 		fragmentIds.forEach((fragmentId, index) => {

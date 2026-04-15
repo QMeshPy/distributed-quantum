@@ -132,9 +132,7 @@ export function buildPeerExecutionFlowModel(
 
 	const resultByFragmentId = new Map(fragmentResults.map(fragment => [fragment.fragmentId, fragment]));
 	const fragmentById = new Map(plan.fragments.map(fragment => [fragment.fragmentId, fragment]));
-	const childrenByFragmentId = new Map<string, string[]>(
-		plan.fragments.map(fragment => [fragment.fragmentId, []])
-	);
+	const childrenByFragmentId = new Map<string, string[]>(plan.fragments.map(fragment => [fragment.fragmentId, []]));
 	const getDepth = buildDepthResolver(plan);
 
 	for (const fragment of plan.fragments) {

@@ -381,9 +381,7 @@ export function DashboardNetwork3D({
 		return clamp(Math.min(canvasSize.width, canvasSize.height) / 480, 0.85, 1.48);
 	}, [canvasSize.height, canvasSize.width, hasCanvasDimensions]);
 
-	const graphNodeRel = hasCanvasDimensions
-		? graphNodeRelSize(canvasSize.width, canvasSize.height)
-		: 8;
+	const graphNodeRel = hasCanvasDimensions ? graphNodeRelSize(canvasSize.width, canvasSize.height) : 8;
 
 	const canAttachGraphHost = hasMounted && !isLoading && (network?.totalPeers ?? 0) > 0;
 
@@ -477,11 +475,7 @@ export function DashboardNetwork3D({
 		const magnitude = Math.hypot(x, y, z);
 
 		if (magnitude < 1) {
-			graph.cameraPosition(
-				{ x: distance * 0.85, y: distance * 0.35, z: distance },
-				{ x, y, z },
-				transitionMs
-			);
+			graph.cameraPosition({ x: distance * 0.85, y: distance * 0.35, z: distance }, { x, y, z }, transitionMs);
 			return;
 		}
 
@@ -535,15 +529,9 @@ export function DashboardNetwork3D({
 		[graphPalette, hoveredLink, hoveredNodeId, selectedNodeId]
 	);
 
-	const nodeLabel = React.useCallback(
-		(node: GraphNode) => buildNodeTooltip(node, themePalette),
-		[themePalette]
-	);
+	const nodeLabel = React.useCallback((node: GraphNode) => buildNodeTooltip(node, themePalette), [themePalette]);
 
-	const linkLabel = React.useCallback(
-		(link: GraphLink) => buildLinkTooltip(link, themePalette),
-		[themePalette]
-	);
+	const linkLabel = React.useCallback((link: GraphLink) => buildLinkTooltip(link, themePalette), [themePalette]);
 
 	const linkColor = React.useCallback(
 		(link: GraphLink) => {
@@ -569,8 +557,7 @@ export function DashboardNetwork3D({
 	);
 
 	const linkDirectionalParticleWidth = React.useCallback(
-		(link: GraphLink) =>
-			(isLinkActive(link, selectedNodeId, hoveredLinkId) ? 5 : 3) * viewLineScale,
+		(link: GraphLink) => (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 5 : 3) * viewLineScale,
 		[hoveredLinkId, selectedNodeId, viewLineScale]
 	);
 
@@ -585,8 +572,7 @@ export function DashboardNetwork3D({
 	);
 
 	const linkDirectionalArrowLength = React.useCallback(
-		(link: GraphLink) =>
-			(isLinkActive(link, selectedNodeId, hoveredLinkId) ? 6 : 4) * viewLineScale,
+		(link: GraphLink) => (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 6 : 4) * viewLineScale,
 		[hoveredLinkId, selectedNodeId, viewLineScale]
 	);
 

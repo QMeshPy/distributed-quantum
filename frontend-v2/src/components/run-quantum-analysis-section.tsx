@@ -1,32 +1,12 @@
 'use client';
 
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	XAxis,
-	YAxis
-} from 'recharts';
-import {
-	BinaryIcon,
-	CpuIcon,
-	GaugeIcon,
-	OrbitIcon,
-	RefreshCcwIcon,
-	SparklesIcon
-} from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
+import { BinaryIcon, CpuIcon, GaugeIcon, OrbitIcon, RefreshCcwIcon, SparklesIcon } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Progress } from '@/components/ui/progress';
@@ -36,9 +16,7 @@ import { useRunQuantumFullDetail } from '@/hooks/use-run-quantum-full-detail';
 import type { FinancialAnalysisResult } from '@/types/financial';
 import type { RunDetail, RunMeasurementBucket, RunQuantumSummary } from '@/types/runs';
 
-const LazyBlochSphere = lazy(() =>
-	import('@/components/bloch-sphere').then(m => ({ default: m.BlochSphere }))
-);
+const LazyBlochSphere = lazy(() => import('@/components/bloch-sphere').then(m => ({ default: m.BlochSphere })));
 
 const ANALYSIS_CHART_PAGE_SIZE = 24;
 const BLOCH_PAGE_SIZE = 4;
@@ -95,14 +73,15 @@ function mapTopBasis(states: Array<Record<string, unknown>>) {
 					? state.basisState
 					: String(state.basis_state ?? state.basisState ?? '?');
 		const raw = state.probability ?? state.value;
-		const value =
-			typeof raw === 'number' && !Number.isNaN(raw) ? raw : Number(raw) || 0;
+		const value = typeof raw === 'number' && !Number.isNaN(raw) ? raw : Number(raw) || 0;
 		return { state: basis, value };
 	});
 }
 
 function bucketsToChartRows(buckets: RunMeasurementBucket[], labelKey: 'state' | 'observable') {
-	return buckets.map(b => (labelKey === 'state' ? { state: b.key, value: b.value } : { observable: b.key, value: b.value }));
+	return buckets.map(b =>
+		labelKey === 'state' ? { state: b.key, value: b.value } : { observable: b.key, value: b.value }
+	);
 }
 
 function SectionPagination({
@@ -294,17 +273,14 @@ export function RunQuantumAnalysisSection({
 	const [densityMatrixPage, setDensityMatrixPage] = useState(1);
 
 	const isCompleted = run.backendStatus === 'COMPLETED';
-	const needDeepPayload =
-		!isFinancial && analysisSurface === 'deep' && deepDataView !== 'metadata' && isCompleted;
-	const { data: deepData, loading: isDeepLoading, error: deepError } = useRunQuantumFullDetail(
-		runId,
-		needDeepPayload
-	);
+	const needDeepPayload = !isFinancial && analysisSurface === 'deep' && deepDataView !== 'metadata' && isCompleted;
+	const {
+		data: deepData,
+		loading: isDeepLoading,
+		error: deepError
+	} = useRunQuantumFullDetail(runId, needDeepPayload);
 
-	const countsData = useMemo(
-		() => bucketsToChartRows(quantum?.countBuckets ?? [], 'state'),
-		[quantum?.countBuckets]
-	);
+	const countsData = useMemo(() => bucketsToChartRows(quantum?.countBuckets ?? [], 'state'), [quantum?.countBuckets]);
 	const measuredProbabilityData = useMemo(
 		() =>
 			(quantum?.measuredProbabilities ?? []).map(b => ({
@@ -354,14 +330,10 @@ export function RunQuantumAnalysisSection({
 		[quantum?.entanglementEntropy]
 	);
 
-	const allEntropyZero =
-		entropyData.length > 0 && entropyData.every(entry => entry.value === 0);
+	const allEntropyZero = entropyData.length > 0 && entropyData.every(entry => entry.value === 0);
 
 	const countsPageCount = getPageCount(countsData.length, ANALYSIS_CHART_PAGE_SIZE);
-	const measuredProbabilityPageCount = getPageCount(
-		measuredProbabilityData.length,
-		ANALYSIS_CHART_PAGE_SIZE
-	);
+	const measuredProbabilityPageCount = getPageCount(measuredProbabilityData.length, ANALYSIS_CHART_PAGE_SIZE);
 	const blochPageCount = getPageCount(blochData.length, BLOCH_PAGE_SIZE);
 	const entropyPageCount = getPageCount(entropyData.length, ENTROPY_PAGE_SIZE);
 
@@ -395,11 +367,7 @@ export function RunQuantumAnalysisSection({
 		[deepData?.reducedDensityMatrices]
 	);
 	const densityMatrixPageCount = getPageCount(densityMatrixEntries.length, DENSITY_MATRIX_PAGE_SIZE);
-	const visibleDensityMatrixEntries = getPageSlice(
-		densityMatrixEntries,
-		densityMatrixPage,
-		DENSITY_MATRIX_PAGE_SIZE
-	);
+	const visibleDensityMatrixEntries = getPageSlice(densityMatrixEntries, densityMatrixPage, DENSITY_MATRIX_PAGE_SIZE);
 
 	useEffect(() => {
 		setCountsPage(p => Math.min(p, countsPageCount));
@@ -431,7 +399,9 @@ export function RunQuantumAnalysisSection({
 							<SparklesIcon className='size-5' />
 						</div>
 						<div className='min-w-0 space-y-1'>
-							<CardTitle>{isFinancial ? 'Analysis result surfaces' : 'Quantum result surfaces'}</CardTitle>
+							<CardTitle>
+								{isFinancial ? 'Analysis result surfaces' : 'Quantum result surfaces'}
+							</CardTitle>
 							<CardDescription>
 								{isFinancial
 									? 'Financial metrics map into the same panels as circuit jobs once the coordinator finishes the CSV pipeline.'
@@ -467,7 +437,9 @@ export function RunQuantumAnalysisSection({
 									<SparklesIcon className='size-5' />
 								</div>
 								<div className='min-w-0 space-y-1'>
-									<CardTitle>{isFinancial ? 'Financial analysis surfaces' : 'Quantum result surfaces'}</CardTitle>
+									<CardTitle>
+										{isFinancial ? 'Financial analysis surfaces' : 'Quantum result surfaces'}
+									</CardTitle>
 									<CardDescription>
 										{isFinancial
 											? 'Column mix, correlations, trends, and fragment routing — mirrored into the same layout as quantum circuit runs.'
@@ -496,7 +468,9 @@ export function RunQuantumAnalysisSection({
 								<div className='space-y-3'>
 									<AnalysisChartCard
 										title={isFinancial ? 'Column mix' : 'Counts'}
-										subtitle={isFinancial ? 'Inferred dtypes from column profiles' : 'Shot distribution'}
+										subtitle={
+											isFinancial ? 'Inferred dtypes from column profiles' : 'Shot distribution'
+										}
 										data={visibleCountsData as unknown as Array<Record<string, string | number>>}
 										emptyMessage={
 											isFinancial
@@ -521,7 +495,9 @@ export function RunQuantumAnalysisSection({
 									<AnalysisChartCard
 										title={isFinancial ? 'Correlation strength' : 'Measured probabilities'}
 										subtitle={
-											isFinancial ? '|r| for the strongest pairs (shown as %)' : 'Normalized outcome weights'
+											isFinancial
+												? '|r| for the strongest pairs (shown as %)'
+												: 'Normalized outcome weights'
 										}
 										data={visibleMeasuredProbabilityData.map(entry => ({
 											...entry,
@@ -584,7 +560,11 @@ export function RunQuantumAnalysisSection({
 											value={readNumber(fidelityRecord, 'fidelity_to_target_state')}
 										/>
 										<ProgressStat
-											label={isFinancial ? 'Minimum fragment fidelity' : 'Estimated execution fidelity'}
+											label={
+												isFinancial
+													? 'Minimum fragment fidelity'
+													: 'Estimated execution fidelity'
+											}
 											value={readNumber(fidelityRecord, 'estimated_execution_fidelity')}
 										/>
 										<div className='rounded-2xl border border-border/80 bg-card/80 p-4 text-sm ring-1 ring-foreground/5 dark:ring-foreground/10'>
@@ -650,7 +630,9 @@ export function RunQuantumAnalysisSection({
 												{observableData.map(entry => (
 													<Cell
 														key={entry.observable}
-														fill={entry.value >= 0 ? 'var(--chart-2)' : 'var(--destructive)'}
+														fill={
+															entry.value >= 0 ? 'var(--chart-2)' : 'var(--destructive)'
+														}
 													/>
 												))}
 											</Bar>
@@ -739,7 +721,9 @@ export function RunQuantumAnalysisSection({
 															<OrbitIcon />
 														</EmptyMedia>
 														<EmptyTitle>
-															{isFinancial ? 'Fragment vectors will appear here' : 'Bloch vectors will appear here'}
+															{isFinancial
+																? 'Fragment vectors will appear here'
+																: 'Bloch vectors will appear here'}
 														</EmptyTitle>
 														<EmptyDescription>
 															{isFinancial
@@ -789,8 +773,8 @@ export function RunQuantumAnalysisSection({
 										))}
 										{allEntropyZero && !isFinancial ? (
 											<p className='text-xs text-muted-foreground'>
-												State is separable (no entanglement). Run a circuit with only a Bell-pair step
-												to see entropy 1.
+												State is separable (no entanglement). Run a circuit with only a
+												Bell-pair step to see entropy 1.
 											</p>
 										) : null}
 										{entropyData.length === 0 ? (
@@ -800,7 +784,9 @@ export function RunQuantumAnalysisSection({
 														<SparklesIcon />
 													</EmptyMedia>
 													<EmptyTitle>
-														{isFinancial ? 'No volatility metrics yet' : 'No entanglement metrics yet'}
+														{isFinancial
+															? 'No volatility metrics yet'
+															: 'No entanglement metrics yet'}
 													</EmptyTitle>
 													<EmptyDescription>
 														{isFinancial
@@ -885,7 +871,9 @@ export function RunQuantumAnalysisSection({
 														: '—'
 											}
 											detail={
-												isFinancial ? 'Distributed CSV analysis stages' : 'Measured qubit indices'
+												isFinancial
+													? 'Distributed CSV analysis stages'
+													: 'Measured qubit indices'
 											}
 										/>
 										<MiniDataCard
@@ -919,8 +907,8 @@ export function RunQuantumAnalysisSection({
 											<div className='rounded-2xl border border-border/80 bg-muted/25 p-4 dark:bg-muted/15'>
 												<p className='text-sm font-medium'>Numeric column snapshot</p>
 												<p className='mt-1 text-sm text-muted-foreground'>
-													First numeric fields from column profiling — same deep tab slot as the
-													quantum statevector, mapped to financial data.
+													First numeric fields from column profiling — same deep tab slot as
+													the quantum statevector, mapped to financial data.
 												</p>
 											</div>
 											<div className='max-h-[min(28rem,70vh)] overflow-auto rounded-2xl border border-border/80'>
@@ -939,7 +927,9 @@ export function RunQuantumAnalysisSection({
 															.slice(0, 48)
 															.map(p => (
 																<TableRow key={p.name}>
-																	<TableCell className='font-medium'>{p.name}</TableCell>
+																	<TableCell className='font-medium'>
+																		{p.name}
+																	</TableCell>
 																	<TableCell className='text-right font-mono text-xs'>
 																		{p.mean?.toFixed(4) ?? '—'}
 																	</TableCell>
@@ -960,9 +950,10 @@ export function RunQuantumAnalysisSection({
 											<div className='rounded-2xl border border-border/80 bg-muted/25 p-4 dark:bg-muted/15'>
 												<p className='text-sm font-medium'>What is the statevector?</p>
 												<p className='mt-1 text-sm text-muted-foreground'>
-													The statevector describes the quantum state after your circuit runs. Each row
-													shows a basis state and its amplitude, so you can inspect the reconstructed
-													wavefunction without loading the full payload until you need it.
+													The statevector describes the quantum state after your circuit runs.
+													Each row shows a basis state and its amplitude, so you can inspect
+													the reconstructed wavefunction without loading the full payload
+													until you need it.
 												</p>
 											</div>
 											{isDeepLoading && statevectorRows.length === 0 ? (
@@ -988,7 +979,9 @@ export function RunQuantumAnalysisSection({
 																<div className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
 																	|{row.basisState}⟩
 																</div>
-																<div className='mt-3 font-mono text-sm break-all'>{row.amplitude}</div>
+																<div className='mt-3 font-mono text-sm break-all'>
+																	{row.amplitude}
+																</div>
 															</div>
 														))}
 														{statevectorRows.length === 0 ? (
@@ -999,7 +992,8 @@ export function RunQuantumAnalysisSection({
 																	</EmptyMedia>
 																	<EmptyTitle>No statevector yet</EmptyTitle>
 																	<EmptyDescription>
-																		Open a completed job to inspect the reconstructed amplitudes here.
+																		Open a completed job to inspect the
+																		reconstructed amplitudes here.
 																	</EmptyDescription>
 																</EmptyHeader>
 															</Empty>
@@ -1025,7 +1019,9 @@ export function RunQuantumAnalysisSection({
 									{isFinancial && financialResult ? (
 										<>
 											<div className='rounded-2xl border border-border/80 bg-muted/25 p-4 dark:bg-muted/15'>
-												<p className='text-sm font-medium'>Pearson correlation matrix (top pairs)</p>
+												<p className='text-sm font-medium'>
+													Pearson correlation matrix (top pairs)
+												</p>
 												<p className='mt-1 text-sm text-muted-foreground'>
 													Uses the same deep tab as density matrices, mapped to the strongest
 													correlations from the distributed matrix fragment.
@@ -1042,22 +1038,24 @@ export function RunQuantumAnalysisSection({
 														</TableRow>
 													</TableHeader>
 													<TableBody>
-														{financialResult.top_correlations.slice(0, 40).map((pair, idx) => (
-															<TableRow key={`${pair.col_a}-${pair.col_b}-${idx}`}>
-																<TableCell className='max-w-[10rem] truncate font-medium'>
-																	{pair.col_a}
-																</TableCell>
-																<TableCell className='max-w-[10rem] truncate font-medium'>
-																	{pair.col_b}
-																</TableCell>
-																<TableCell className='text-right font-mono text-xs'>
-																	{pair.pearson.toFixed(4)}
-																</TableCell>
-																<TableCell className='text-right text-xs capitalize'>
-																	{pair.strength}
-																</TableCell>
-															</TableRow>
-														))}
+														{financialResult.top_correlations
+															.slice(0, 40)
+															.map((pair, idx) => (
+																<TableRow key={`${pair.col_a}-${pair.col_b}-${idx}`}>
+																	<TableCell className='max-w-[10rem] truncate font-medium'>
+																		{pair.col_a}
+																	</TableCell>
+																	<TableCell className='max-w-[10rem] truncate font-medium'>
+																		{pair.col_b}
+																	</TableCell>
+																	<TableCell className='text-right font-mono text-xs'>
+																		{pair.pearson.toFixed(4)}
+																	</TableCell>
+																	<TableCell className='text-right text-xs capitalize'>
+																		{pair.strength}
+																	</TableCell>
+																</TableRow>
+															))}
 													</TableBody>
 												</Table>
 											</div>
@@ -1067,8 +1065,9 @@ export function RunQuantumAnalysisSection({
 											<div className='rounded-2xl border border-border/80 bg-muted/25 p-4 dark:bg-muted/15'>
 												<p className='text-sm font-medium'>What are density matrices?</p>
 												<p className='mt-1 text-sm text-muted-foreground'>
-													Density matrices represent mixed or reduced quantum states. This panel stays
-													lazy until requested so large jobs do not block the rest of the UI.
+													Density matrices represent mixed or reduced quantum states. This
+													panel stays lazy until requested so large jobs do not block the rest
+													of the UI.
 												</p>
 											</div>
 											{isDeepLoading && densityMatrixEntries.length === 0 ? (
@@ -1122,9 +1121,12 @@ export function RunQuantumAnalysisSection({
 																	<EmptyMedia variant='icon'>
 																		<CpuIcon />
 																	</EmptyMedia>
-																	<EmptyTitle>Density matrices unavailable</EmptyTitle>
+																	<EmptyTitle>
+																		Density matrices unavailable
+																	</EmptyTitle>
 																	<EmptyDescription>
-																		Open a completed job to inspect the reduced subsystem matrices here.
+																		Open a completed job to inspect the reduced
+																		subsystem matrices here.
 																	</EmptyDescription>
 																</EmptyHeader>
 															</Empty>

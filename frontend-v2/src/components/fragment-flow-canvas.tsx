@@ -55,11 +55,7 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 	const style = FRAGMENT_SERVICE_STYLES[data.serviceType] ?? FRAGMENT_SERVICE_STYLES.bell_pair;
 	const isActive = selected || data.isFocused;
 	const statusLabel =
-		data.status === 'SUCCESS'
-			? 'Completed'
-			: data.status === 'FAILED'
-				? 'Failed'
-				: (data.status ?? 'Pending');
+		data.status === 'SUCCESS' ? 'Completed' : data.status === 'FAILED' ? 'Failed' : (data.status ?? 'Pending');
 	const statusClass =
 		data.status === 'SUCCESS'
 			? 'border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-400/10 dark:text-emerald-200'
@@ -71,9 +67,7 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 		<div
 			className={cn(
 				'w-[17.75rem] rounded-[1.85rem] border p-4 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.36)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1',
-				isActive
-					? 'border-primary/40 bg-card/95 dark:border-primary/30'
-					: 'border-border/80 bg-card/90'
+				isActive ? 'border-primary/40 bg-card/95 dark:border-primary/30' : 'border-border/80 bg-card/90'
 			)}
 			style={{
 				boxShadow: isActive ? `0 30px 72px -42px ${style.glow}` : undefined
@@ -200,11 +194,9 @@ function buildDagFlowEdges({
 	return dagModel.edges.map<Edge>(edge => {
 		const sourceNode = nodeById.get(edge.from);
 		const sourceStyle =
-			FRAGMENT_SERVICE_STYLES[sourceNode?.serviceType ?? 'bell_pair'] ??
-			FRAGMENT_SERVICE_STYLES.bell_pair;
+			FRAGMENT_SERVICE_STYLES[sourceNode?.serviceType ?? 'bell_pair'] ?? FRAGMENT_SERVICE_STYLES.bell_pair;
 		const isFocused =
-			selectedFragmentId !== null &&
-			(selectedFragmentId === edge.from || selectedFragmentId === edge.to);
+			selectedFragmentId !== null && (selectedFragmentId === edge.from || selectedFragmentId === edge.to);
 
 		return {
 			id: `dag-edge-${edge.from}-${edge.to}`,
@@ -290,20 +282,19 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 					<div className='text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground'>
 						Generated fragment DAG
 					</div>
-					<p
-						className={cn(
-							'text-muted-foreground',
-							isEmbed ? 'mt-0.5 text-xs' : 'mt-1 text-sm'
-						)}
-					>
+					<p className={cn('text-muted-foreground', isEmbed ? 'mt-0.5 text-xs' : 'mt-1 text-sm')}>
 						{isEmbed
 							? 'Pan, zoom, and click fragments to highlight them. Use Open fragment flow for full analytics.'
 							: 'Drag nodes and pan the canvas. Click a fragment for details.'}
 					</p>
 				</div>
 				<div className='flex flex-wrap gap-2 text-xs text-muted-foreground'>
-					<span className='rounded-full border border-border/70 px-3 py-1'>{dagModel.nodes.length} fragments</span>
-					<span className='rounded-full border border-border/70 px-3 py-1'>{dagModel.edges.length} edges</span>
+					<span className='rounded-full border border-border/70 px-3 py-1'>
+						{dagModel.nodes.length} fragments
+					</span>
+					<span className='rounded-full border border-border/70 px-3 py-1'>
+						{dagModel.edges.length} edges
+					</span>
 				</div>
 			</div>
 			<div
@@ -353,9 +344,7 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 							zoomable
 							nodeColor={n => {
 								const svc = (n.data as DagFragmentNodeData | undefined)?.serviceType;
-								return (
-									FRAGMENT_SERVICE_STYLES[svc ?? 'bell_pair']?.stroke ?? 'var(--primary)'
-								);
+								return FRAGMENT_SERVICE_STYLES[svc ?? 'bell_pair']?.stroke ?? 'var(--primary)';
 							}}
 						/>
 					)}

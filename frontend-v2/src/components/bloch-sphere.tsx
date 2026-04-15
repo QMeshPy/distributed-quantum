@@ -13,12 +13,7 @@ type BlochSphereProps = {
 	className?: string;
 };
 
-export const BlochSphere = memo(function BlochSphere({
-	vector,
-	label,
-	size = 240,
-	className
-}: BlochSphereProps) {
+export const BlochSphere = memo(function BlochSphere({ vector, label, size = 240, className }: BlochSphereProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [error, setError] = useState<{ key: string; message: string } | null>(null);
 	const vectorKey = vector.join(',');

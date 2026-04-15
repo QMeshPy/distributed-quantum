@@ -175,7 +175,9 @@ export function NewRunPageClient() {
 							<p className='max-w-2xl text-sm leading-6 text-muted-foreground'>
 								Use the grid builder (gates from the standard library) or edit OpenQASM directly.
 								Submitting posts the same circuit string to{' '}
-								<code className='rounded bg-muted/80 px-1.5 py-0.5 font-mono text-xs'>POST /api/runs</code>
+								<code className='rounded bg-muted/80 px-1.5 py-0.5 font-mono text-xs'>
+									POST /api/runs
+								</code>
 								.
 							</p>
 						</div>
@@ -233,7 +235,9 @@ export function NewRunPageClient() {
 								<div className='grid min-w-[220px] grid-cols-2 gap-2 sm:grid-cols-3'>
 									<MetricTile
 										label='Version'
-										value={analysis.detectedVersion ? `QASM ${analysis.detectedVersion}` : 'Missing'}
+										value={
+											analysis.detectedVersion ? `QASM ${analysis.detectedVersion}` : 'Missing'
+										}
 									/>
 									<MetricTile
 										label='Operations'
@@ -265,11 +269,12 @@ export function NewRunPageClient() {
 									<AlertCircleIcon />
 									<AlertTitle>Visual builder can&apos;t mirror this OpenQASM</AlertTitle>
 									<AlertDescription>
-										This text uses gates or control flow outside the drag-and-drop palette (for example{' '}
-										<code className='rounded bg-background px-1 font-mono text-xs'>rz</code>,{' '}
-										<code className='rounded bg-background px-1 font-mono text-xs'>if</code>, or non-adjacent{' '}
-										<code className='rounded bg-background px-1 font-mono text-xs'>cx</code>). Edit in the
-										OpenQASM tab, or switch to a simpler template.
+										This text uses gates or control flow outside the drag-and-drop palette (for
+										example <code className='rounded bg-background px-1 font-mono text-xs'>rz</code>
+										, <code className='rounded bg-background px-1 font-mono text-xs'>if</code>, or
+										non-adjacent{' '}
+										<code className='rounded bg-background px-1 font-mono text-xs'>cx</code>). Edit
+										in the OpenQASM tab, or switch to a simpler template.
 									</AlertDescription>
 								</Alert>
 							) : null}
@@ -279,8 +284,8 @@ export function NewRunPageClient() {
 									<div>
 										<p className='text-sm font-medium'>
 											{selectedTemplateId
-												? (templates.find(template => template.id === selectedTemplateId)?.title ??
-													'Starter template')
+												? (templates.find(template => template.id === selectedTemplateId)
+														?.title ?? 'Starter template')
 												: 'Custom circuit'}
 										</p>
 										<p className='text-xs text-muted-foreground'>
@@ -349,8 +354,8 @@ export function NewRunPageClient() {
 									<AlertTitle>Readiness notes</AlertTitle>
 									<AlertDescription className='space-y-2'>
 										<p>
-											The circuit can still be edited and queued, but these checks are worth cleaning
-											up first:
+											The circuit can still be edited and queued, but these checks are worth
+											cleaning up first:
 										</p>
 										<ul className='space-y-1 pl-4 text-sm'>
 											{analysis.warnings.map(warning => (
@@ -369,8 +374,8 @@ export function NewRunPageClient() {
 									<CheckCircle2Icon />
 									<AlertTitle>Submission shape looks healthy</AlertTitle>
 									<AlertDescription>
-										The circuit has the core pieces we expect, so you should get a cleaner handoff into
-										the coordinator and more useful detail pages afterward.
+										The circuit has the core pieces we expect, so you should get a cleaner handoff
+										into the coordinator and more useful detail pages afterward.
 									</AlertDescription>
 								</Alert>
 							)}
@@ -510,7 +515,12 @@ export function NewRunPageClient() {
 														className='space-y-3'
 													>
 														<div className='flex items-center justify-between gap-2 border-b border-border/50 pb-2'>
-															<p className={cn('text-sm font-semibold tracking-tight', theme.header)}>
+															<p
+																className={cn(
+																	'text-sm font-semibold tracking-tight',
+																	theme.header
+																)}
+															>
 																{group.category}
 															</p>
 															<Badge
@@ -525,7 +535,9 @@ export function NewRunPageClient() {
 																<button
 																	key={snippet.id}
 																	type='button'
-																	onClick={() => insertSnippetAndPreferCode(snippet.id)}
+																	onClick={() =>
+																		insertSnippetAndPreferCode(snippet.id)
+																	}
 																	className={cn(
 																		'rounded-3xl border bg-background/80 p-3 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 																		theme.card
@@ -535,7 +547,10 @@ export function NewRunPageClient() {
 																		<p className='font-medium'>{snippet.label}</p>
 																		<Badge
 																			variant='outline'
-																			className={cn('shrink-0 border text-xs font-normal', theme.badge)}
+																			className={cn(
+																				'shrink-0 border text-xs font-normal',
+																				theme.badge
+																			)}
 																		>
 																			Insert
 																		</Badge>

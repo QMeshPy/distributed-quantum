@@ -10,9 +10,7 @@ export default async function RunFragmentFlowPage({ params }: PageProps) {
 	const { runId } = await params;
 
 	return (
-		<Suspense
-			fallback={<div className='p-6 text-sm text-muted-foreground'>Loading fragment flow…</div>}
-		>
+		<Suspense fallback={<div className='p-6 text-sm text-muted-foreground'>Loading fragment flow…</div>}>
 			<FragmentFlowPageClient runId={runId} />
 		</Suspense>
 	);

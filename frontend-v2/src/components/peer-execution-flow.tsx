@@ -30,10 +30,7 @@ import {
 	PaginationPrevious
 } from '@/components/ui/pagination';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-	buildPeerExecutionFlowModel,
-	type PeerExecutionFlowModel
-} from '@/lib/peer-flow-model';
+import { buildPeerExecutionFlowModel, type PeerExecutionFlowModel } from '@/lib/peer-flow-model';
 import { shortFragmentId } from '@/lib/fragment-flow-format';
 import { cn } from '@/lib/utils';
 import type { RunFragmentResultSummary, RunPlanSummary } from '@/types/runs';
@@ -67,10 +64,7 @@ type PeerFlowNodeData = {
 
 type PeerFlowNode = Node<PeerFlowNodeData, 'peer'>;
 
-function buildPaginationPageItems(
-	current: number,
-	total: number
-): Array<number | 'ellipsis'> {
+function buildPaginationPageItems(current: number, total: number): Array<number | 'ellipsis'> {
 	if (total <= 1) {
 		return [1];
 	}
@@ -102,11 +96,7 @@ function buildPaginationPageItems(
 	return output;
 }
 
-function InfoTooltip({
-	content
-}: {
-	content: string;
-}) {
+function InfoTooltip({ content }: { content: string }) {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
@@ -268,15 +258,9 @@ function buildPeerFlowCoverageLabel(model: PeerExecutionFlowModel) {
 	return `Observed ${model.observedFragments}/${model.totalFragments}; ${model.unresolvedFragments} fragments still unassigned`;
 }
 
-const PeerFlowNodeComponent = memo(function PeerFlowNodeComponent({
-	data
-}: NodeProps<PeerFlowNode>) {
+const PeerFlowNodeComponent = memo(function PeerFlowNodeComponent({ data }: NodeProps<PeerFlowNode>) {
 	const routeStateLabel =
-		data.plannedFragmentCount === 0
-			? 'Observed'
-			: data.observedFragmentCount === 0
-				? 'Planned'
-				: 'Mixed';
+		data.plannedFragmentCount === 0 ? 'Observed' : data.observedFragmentCount === 0 ? 'Planned' : 'Mixed';
 	const routeStateClass =
 		data.plannedFragmentCount === 0
 			? 'border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-400/10 dark:text-emerald-200'
@@ -408,11 +392,7 @@ function buildPeerFlowEdges(model: PeerExecutionFlowModel) {
 	}));
 }
 
-const PeerExecutionFlowCanvas = memo(function PeerExecutionFlowCanvas({
-	model
-}: {
-	model: PeerExecutionFlowModel;
-}) {
+const PeerExecutionFlowCanvas = memo(function PeerExecutionFlowCanvas({ model }: { model: PeerExecutionFlowModel }) {
 	const baseNodes = useMemo(() => buildPeerFlowNodes(model), [model]);
 	const [nodes, setNodes, onNodesChange] = useNodesState<PeerFlowNode>(baseNodes);
 
@@ -448,7 +428,9 @@ const PeerExecutionFlowCanvas = memo(function PeerExecutionFlowCanvas({
 				</div>
 				<div className='flex flex-wrap gap-2 text-xs text-muted-foreground'>
 					<span className='rounded-full border border-border/70 px-3 py-1'>{model.nodes.length} peers</span>
-					<span className='rounded-full border border-border/70 px-3 py-1'>{model.edges.length} routes between peers</span>
+					<span className='rounded-full border border-border/70 px-3 py-1'>
+						{model.edges.length} routes between peers
+					</span>
 				</div>
 			</div>
 			<div className='relative h-[min(420px,max(320px,36vh))] w-full'>
@@ -487,14 +469,8 @@ const PeerExecutionFlowCanvas = memo(function PeerExecutionFlowCanvas({
 	);
 });
 
-export function PeerExecutionFlowSection({
-	plan,
-	fragmentResults
-}: PeerExecutionFlowSectionProps) {
-	const model = useMemo(
-		() => buildPeerExecutionFlowModel(plan, fragmentResults),
-		[plan, fragmentResults]
-	);
+export function PeerExecutionFlowSection({ plan, fragmentResults }: PeerExecutionFlowSectionProps) {
+	const model = useMemo(() => buildPeerExecutionFlowModel(plan, fragmentResults), [plan, fragmentResults]);
 	const paginationScopeKey = `${plan?.planId ?? 'no-plan'}:${model?.routes.length ?? 0}:${model?.edges.length ?? 0}`;
 	const [paginationState, setPaginationState] = useState(() => ({
 		scopeKey: paginationScopeKey,
@@ -507,18 +483,11 @@ export function PeerExecutionFlowSection({
 	const routesPageCount = Math.max(1, Math.ceil(routes.length / ROUTES_PAGE_SIZE));
 	const handoffsPageCount = Math.max(1, Math.ceil(handoffs.length / HANDOFFS_PAGE_SIZE));
 	const rawRoutesPage = paginationState.scopeKey === paginationScopeKey ? paginationState.routesPage : 1;
-	const rawHandoffsPage =
-		paginationState.scopeKey === paginationScopeKey ? paginationState.handoffsPage : 1;
+	const rawHandoffsPage = paginationState.scopeKey === paginationScopeKey ? paginationState.handoffsPage : 1;
 	const routesPage = Math.min(rawRoutesPage, routesPageCount);
 	const handoffsPage = Math.min(rawHandoffsPage, handoffsPageCount);
-	const visibleRoutes = routes.slice(
-		(routesPage - 1) * ROUTES_PAGE_SIZE,
-		routesPage * ROUTES_PAGE_SIZE
-	);
-	const visibleHandoffs = handoffs.slice(
-		(handoffsPage - 1) * HANDOFFS_PAGE_SIZE,
-		handoffsPage * HANDOFFS_PAGE_SIZE
-	);
+	const visibleRoutes = routes.slice((routesPage - 1) * ROUTES_PAGE_SIZE, routesPage * ROUTES_PAGE_SIZE);
+	const visibleHandoffs = handoffs.slice((handoffsPage - 1) * HANDOFFS_PAGE_SIZE, handoffsPage * HANDOFFS_PAGE_SIZE);
 
 	const setRoutesPage = (nextPage: number) =>
 		setPaginationState(current => ({
@@ -548,7 +517,8 @@ export function PeerExecutionFlowSection({
 								<InfoTooltip content='This is a peer-level view derived from the fragment DAG. We merge fragments by the peer that executed them, then draw arrows only where a dependency crosses from one peer to another.' />
 							</div>
 							<CardDescription>
-								Collapses fragment execution into peer-to-peer routing so you can see how the circuit moved across the network.
+								Collapses fragment execution into peer-to-peer routing so you can see how the circuit
+								moved across the network.
 							</CardDescription>
 						</div>
 					</div>
@@ -590,7 +560,9 @@ export function PeerExecutionFlowSection({
 								<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
 									<div className='mb-3'>
 										<div className='flex items-center gap-2'>
-											<h3 className='text-sm font-semibold tracking-tight'>Distinct peer routes</h3>
+											<h3 className='text-sm font-semibold tracking-tight'>
+												Distinct peer routes
+											</h3>
 											<InfoTooltip content='A peer route is a root-to-leaf execution path with consecutive fragments on the same peer merged together. It answers “which peers did this branch of the circuit pass through?”' />
 										</div>
 										<p className='mt-1 text-xs text-muted-foreground'>
@@ -617,7 +589,9 @@ export function PeerExecutionFlowSection({
 																	{shortFragmentId(peerId, 9, 4)}
 																</span>
 																{index < route.peerIds.length - 1 ? (
-																	<span className='text-muted-foreground text-xs'>→</span>
+																	<span className='text-muted-foreground text-xs'>
+																		→
+																	</span>
 																) : null}
 															</div>
 														))}
@@ -657,7 +631,9 @@ export function PeerExecutionFlowSection({
 								<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
 									<div className='mb-3'>
 										<div className='flex items-center gap-2'>
-											<h3 className='text-sm font-semibold tracking-tight'>Cross-peer handoffs</h3>
+											<h3 className='text-sm font-semibold tracking-tight'>
+												Cross-peer handoffs
+											</h3>
 											<InfoTooltip content='A cross-peer handoff happens when a fragment completes on one peer and a dependent fragment executes on another peer. This is the network movement between peers.' />
 										</div>
 										<p className='mt-1 text-xs text-muted-foreground'>
@@ -686,7 +662,9 @@ export function PeerExecutionFlowSection({
 															{shortFragmentId(edge.targetPeerId, 9, 4)}
 														</span>
 														<Badge variant='outline'>
-															{edge.handoffCount === 1 ? '1 handoff' : `${edge.handoffCount} handoffs`}
+															{edge.handoffCount === 1
+																? '1 handoff'
+																: `${edge.handoffCount} handoffs`}
 														</Badge>
 														{edge.usesPlannedRouting ? (
 															<Badge variant='secondary'>mixed planned/observed</Badge>
@@ -724,7 +702,8 @@ export function PeerExecutionFlowSection({
 
 							{model.routeEnumerationTruncated ? (
 								<p className='text-xs text-muted-foreground'>
-									Showing the first derived routes for readability. Larger DAGs may collapse additional peer paths not listed here.
+									Showing the first derived routes for readability. Larger DAGs may collapse
+									additional peer paths not listed here.
 								</p>
 							) : null}
 						</>

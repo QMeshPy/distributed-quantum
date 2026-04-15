@@ -258,12 +258,14 @@ export function VisualCircuitBuilder({ visual, onVisualChange }: VisualCircuitBu
 
 			<p className='text-xs leading-5 text-muted-foreground'>
 				<EraserIcon className='mr-1 inline size-3.5 align-text-bottom' />
-				CNOT spans the dropped qubit and the one below. Unsupported OpenQASM (e.g. mid-circuit classical
-				logic) stays in the text tab only.
+				CNOT spans the dropped qubit and the one below. Unsupported OpenQASM (e.g. mid-circuit classical logic)
+				stays in the text tab only.
 			</p>
 
 			<details className='rounded-2xl border border-border/60 bg-muted/10 px-3 py-2 text-xs'>
-				<summary className='cursor-pointer font-medium text-muted-foreground'>Generated OpenQASM preview</summary>
+				<summary className='cursor-pointer font-medium text-muted-foreground'>
+					Generated OpenQASM preview
+				</summary>
 				<pre className='mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-5 text-foreground/90'>
 					{serializedPreview || '—'}
 				</pre>

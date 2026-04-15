@@ -468,9 +468,7 @@ function CorrelationPanel({ correlations, top }: { correlations: CorrelationPair
 										</span>
 									</div>
 								))}
-								{pairs.length === 0 && (
-									<p className='text-xs text-muted-foreground'>None found</p>
-								)}
+								{pairs.length === 0 && <p className='text-xs text-muted-foreground'>None found</p>}
 							</CardContent>
 						</Card>
 					);
@@ -987,20 +985,14 @@ function AnomalyPanel({ anomalies }: { anomalies: AnomalyPoint[] }) {
 									>
 										{a.label === 'extreme_high' ? '▲' : '▼'}
 									</span>
-									<span className='min-w-0 flex-1 truncate text-muted-foreground'>
-										{a.column}
-									</span>
+									<span className='min-w-0 flex-1 truncate text-muted-foreground'>{a.column}</span>
 									<span className='font-mono font-semibold'>{fmt(a.value)}</span>
-									<span className='shrink-0 text-muted-foreground'>
-										z={a.z_score.toFixed(2)}
-									</span>
+									<span className='shrink-0 text-muted-foreground'>z={a.z_score.toFixed(2)}</span>
 									<span className='shrink-0 text-muted-foreground'>row {a.row_index}</span>
 								</div>
 							))}
 							{anomalies.length === 0 && (
-								<p className='py-8 text-center text-sm text-muted-foreground'>
-									No anomalies detected
-								</p>
+								<p className='py-8 text-center text-sm text-muted-foreground'>No anomalies detected</p>
 							)}
 						</div>
 					</CardContent>

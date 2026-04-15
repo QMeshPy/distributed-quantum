@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 				);
 			} else {
 				warnings.push(
-					`Financial analysis history could not be loaded (${reason instanceof BackendClientError ? reason.details ?? reason.message : 'unknown error'}).`
+					`Financial analysis history could not be loaded (${reason instanceof BackendClientError ? (reason.details ?? reason.message) : 'unknown error'}).`
 				);
 			}
 		}

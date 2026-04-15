@@ -298,12 +298,18 @@ function buildNetworkSnapshot({
 			lastUpdated: node.lastUpdated,
 			lastUpdatedLabel: node.lastUpdatedLabel,
 			color: getNetworkNodeColor(status),
-			val: Number((4 + node.availableServices * 1.2 + node.averageFidelity * 6 + node.maxQubits * 0.12).toFixed(2))
+			val: Number(
+				(4 + node.availableServices * 1.2 + node.averageFidelity * 6 + node.maxQubits * 0.12).toFixed(2)
+			)
 		};
 	});
 
 	const coordinatorStatus: DashboardNetworkGraphNodeStatus =
-		health?.status === 'ok' ? 'healthy' : peerNodes.some(node => node.availableServices > 0) ? 'degraded' : 'offline';
+		health?.status === 'ok'
+			? 'healthy'
+			: peerNodes.some(node => node.availableServices > 0)
+				? 'degraded'
+				: 'offline';
 	const coordinatorNode = {
 		id: COORDINATOR_GRAPH_NODE_ID,
 		nodeId: null,

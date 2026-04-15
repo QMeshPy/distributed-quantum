@@ -7,12 +7,7 @@ export type CircuitTemplate = {
 	circuit: string;
 };
 
-export type CircuitSnippetCategory =
-	| 'Registers'
-	| 'Single-qubit'
-	| 'Entanglement'
-	| 'Readout'
-	| 'Algorithms';
+export type CircuitSnippetCategory = 'Registers' | 'Single-qubit' | 'Entanglement' | 'Readout' | 'Algorithms';
 
 export type CircuitSnippet = {
 	id: string;
