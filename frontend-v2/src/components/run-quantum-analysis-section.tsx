@@ -47,11 +47,11 @@ const STATEVECTOR_PAGE_SIZE = 24;
 const DENSITY_MATRIX_PAGE_SIZE = 4;
 
 const measurementChartConfig = {
-	value: { label: 'Value', color: 'hsl(var(--chart-1))' }
+	value: { label: 'Value', color: 'var(--chart-1)' }
 } satisfies ChartConfig;
 
 const observableChartConfig = {
-	value: { label: 'Expectation', color: 'hsl(var(--chart-2))' }
+	value: { label: 'Expectation', color: 'var(--chart-2)' }
 } satisfies ChartConfig;
 
 function getPageCount(total: number, pageSize: number) {

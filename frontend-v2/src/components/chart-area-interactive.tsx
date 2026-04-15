@@ -54,7 +54,7 @@ const chartConfig = {
 	},
 	availableServices: {
 		label: metricOptions.availableServices.label,
-		color: 'hsl(var(--chart-2, 215 90% 52%))'
+		color: 'var(--chart-2)'
 	},
 	maxQubits: {
 		label: metricOptions.maxQubits.label,

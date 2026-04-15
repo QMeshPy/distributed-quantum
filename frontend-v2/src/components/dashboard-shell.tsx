@@ -487,7 +487,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 						<div className='relative z-[1] flex min-h-0 min-w-0 flex-1 overflow-hidden'>
 							<Sidebar
 								collapsible='none'
-								className='relative h-full min-h-0 shrink-0 overflow-hidden border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_90%_45%_at_50%_-15%,hsl(var(--primary)/0.12),transparent)] dark:before:bg-[radial-gradient(ellipse_90%_45%_at_50%_-15%,hsl(var(--primary)/0.18),transparent)]'
+								className='relative h-full min-h-0 shrink-0 overflow-hidden border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_90%_45%_at_50%_-15%,var(--primary-glow),transparent)] dark:before:bg-[radial-gradient(ellipse_90%_45%_at_50%_-15%,var(--primary-glow-strong),transparent)]'
 							>
 								<SidebarHeader className='relative gap-2 border-b border-sidebar-border/60 bg-sidebar/80 px-4 py-4 backdrop-blur-[2px]'>
 									<div className='flex items-start justify-between gap-3'>

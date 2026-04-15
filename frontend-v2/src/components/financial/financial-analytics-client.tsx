@@ -85,11 +85,11 @@ function pct(n: number | undefined): string {
 }
 
 const CHART_COLORS = [
-	'hsl(var(--chart-1))',
-	'hsl(var(--chart-2))',
-	'hsl(var(--chart-3))',
-	'hsl(var(--chart-4))',
-	'hsl(var(--chart-5))'
+	'var(--chart-1)',
+	'var(--chart-2)',
+	'var(--chart-3)',
+	'var(--chart-4)',
+	'var(--chart-5)'
 ];
 
 // ------------------------------------------------------------------
@@ -376,7 +376,7 @@ function ColumnProfiles({ profiles }: { profiles: ColumnProfile[] }) {
 							>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 								/>
 								<XAxis
 									dataKey='name'
@@ -385,8 +385,8 @@ function ColumnProfiles({ profiles }: { profiles: ColumnProfile[] }) {
 								<YAxis tick={{ fontSize: 10 }} />
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
@@ -494,7 +494,7 @@ function CorrelationPanel({ correlations, top }: { correlations: CorrelationPair
 							>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 									horizontal={false}
 								/>
 								<XAxis
@@ -510,8 +510,8 @@ function CorrelationPanel({ correlations, top }: { correlations: CorrelationPair
 								/>
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
@@ -618,7 +618,7 @@ function TrendPanel({ insights }: { insights: TimeSeriesInsight[] }) {
 							<BarChart data={barData}>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 								/>
 								<XAxis
 									dataKey='name'
@@ -627,8 +627,8 @@ function TrendPanel({ insights }: { insights: TimeSeriesInsight[] }) {
 								<YAxis tick={{ fontSize: 10 }} />
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
@@ -661,7 +661,7 @@ function TrendPanel({ insights }: { insights: TimeSeriesInsight[] }) {
 							height={280}
 						>
 							<RadarChart data={radarData}>
-								<PolarGrid stroke='hsl(var(--border))' />
+								<PolarGrid stroke='var(--border)' />
 								<PolarAngleAxis
 									dataKey='column'
 									tick={{ fontSize: 10 }}
@@ -761,7 +761,7 @@ function DCFPanel({ dcf }: { dcf: DCFOutput }) {
 							<BarChart data={scenarioData}>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 								/>
 								<XAxis
 									dataKey='name'
@@ -770,8 +770,8 @@ function DCFPanel({ dcf }: { dcf: DCFOutput }) {
 								<YAxis tick={{ fontSize: 10 }} />
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
@@ -831,7 +831,7 @@ function DCFPanel({ dcf }: { dcf: DCFOutput }) {
 								</defs>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 								/>
 								<XAxis
 									dataKey='year'
@@ -840,8 +840,8 @@ function DCFPanel({ dcf }: { dcf: DCFOutput }) {
 								<YAxis tick={{ fontSize: 10 }} />
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
@@ -922,7 +922,7 @@ function AnomalyPanel({ anomalies }: { anomalies: AnomalyPoint[] }) {
 							<ScatterChart margin={{ left: 0, right: 16 }}>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 								/>
 								<XAxis
 									dataKey='x'
@@ -936,8 +936,8 @@ function AnomalyPanel({ anomalies }: { anomalies: AnomalyPoint[] }) {
 								/>
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
@@ -1092,7 +1092,7 @@ function ExecutionPanel({ segments, result }: { segments: NodeExecutionSegment[]
 							<BarChart data={barData}>
 								<CartesianGrid
 									strokeDasharray='3 3'
-									stroke='hsl(var(--border))'
+									stroke='var(--border)'
 								/>
 								<XAxis
 									dataKey='task'
@@ -1101,8 +1101,8 @@ function ExecutionPanel({ segments, result }: { segments: NodeExecutionSegment[]
 								<YAxis tick={{ fontSize: 10 }} />
 								<Tooltip
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: 8,
 										fontSize: 11
 									}}
