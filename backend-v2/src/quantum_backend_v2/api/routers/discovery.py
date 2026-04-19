@@ -112,7 +112,7 @@ def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
             registry_snapshot=[
                 {
                     "peer_id": e.peer_id,
-                    "trust_tier": e.trust_tier.value,
+                    "trust_tier": e.trust_tier,
                     "health_status": e.health_status,
                     "service_ids": list(e.service_ids),
                     "network_addresses": list(e.network_addresses),

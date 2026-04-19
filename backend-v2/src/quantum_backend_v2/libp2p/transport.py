@@ -34,9 +34,14 @@ from libp2p.tools.anyio_service import background_trio_service
 
 from quantum_backend_v2.config.models import Libp2pSettings
 from quantum_backend_v2.discovery.events import DiscoveryEvent, DiscoveryEventKind
-from quantum_backend_v2.discovery.models import PeerAdvertisement, PeerHeartbeat
+from quantum_backend_v2.discovery.models import (
+    PeerAdvertisement,
+    PeerHeartbeat,
+    ServiceAdvertisementSummary,
+)
 from quantum_backend_v2.libp2p.bootstrap import Libp2pRuntime, create_real_libp2p_runtime
 from quantum_backend_v2.libp2p.pubsub import create_gossipsub_pubsub
+from quantum_backend_v2.quality.catalog import KNOWN_SERVICE_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +116,7 @@ class LibP2pNetworkThread:
         listen_addrs = (
             [Multiaddr(addr) for addr in settings.listen_multiaddrs]
             if settings.activate_listeners and settings.listen_multiaddrs
-            else None
+            else ()
         )
 
         try:
@@ -201,9 +206,18 @@ class LibP2pNetworkThread:
         advertisement = PeerAdvertisement(
             peer_id=str(host.get_id()),
             trust_tier="platform_managed",
-            network_addresses=tuple(str(addr) for addr in host.get_addrs()),
+            network_addresses=_advertised_network_addresses(host, settings),
             supported_protocols=(
                 f"/qb2/{settings.rendezvous_namespace}/peer-exchange/1.0.0",
+            ),
+            service_summaries=tuple(
+                ServiceAdvertisementSummary(
+                    service_id=service_id,
+                    version="1.0.0",
+                    quantum_capability=service_id,
+                    benchmark_mode="quantum_vs_classical",
+                )
+                for service_id in KNOWN_SERVICE_IDS
             ),
         )
         try:
@@ -231,3 +245,10 @@ def build_network_thread(
         runtime=runtime,
         event_queue=event_queue,
     )
+
+
+def _advertised_network_addresses(host: object, settings: Libp2pSettings) -> tuple[str, ...]:
+    addrs = tuple(str(addr) for addr in host.get_addrs())  # type: ignore[attr-defined]
+    if addrs:
+        return addrs
+    return tuple(settings.listen_multiaddrs)

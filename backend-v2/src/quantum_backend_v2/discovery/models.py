@@ -16,9 +16,9 @@ class ServiceAdvertisementSummary(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     version: str = Field(min_length=3)
-    quantum_capability: str = Field(min_length=3)
+    quantum_capability: str = Field(min_length=2)
     benchmark_mode: str = Field(min_length=3)
 
 

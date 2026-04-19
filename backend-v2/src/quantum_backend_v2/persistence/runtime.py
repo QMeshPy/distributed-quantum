@@ -13,7 +13,11 @@ from quantum_backend_v2.persistence.models import (
     PersistenceReadiness,
 )
 from quantum_backend_v2.persistence.mongodb import MongoRuntime, build_mongo_runtime
-from quantum_backend_v2.persistence.postgres import PostgresRuntime, build_postgres_runtime
+from quantum_backend_v2.persistence.postgres import (
+    PostgresBase,
+    PostgresRuntime,
+    build_postgres_runtime,
+)
 
 
 @dataclass(frozen=True)
@@ -60,6 +64,9 @@ class PersistenceRuntime:
 
     async def startup(self) -> None:
         """Initialize database clients that require async setup (for example Beanie)."""
+        if self.postgres is not None:
+            async with self.postgres.engine.begin() as connection:
+                await connection.run_sync(PostgresBase.metadata.create_all)
         if self.mongodb is not None:
             await self.mongodb.initialize_models()
 

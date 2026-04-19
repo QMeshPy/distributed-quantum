@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 from fastapi import FastAPI
 
+from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService
 from quantum_backend_v2.api.app import create_app
 from quantum_backend_v2.bootstrap.libp2p import create_libp2p_plan, create_libp2p_runtime
 from quantum_backend_v2.config import load_settings
@@ -26,10 +27,24 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         libp2p_runtime=libp2p_runtime,
         mongo_runtime=persistence_runtime.mongodb,
     )
+    session_factory = persistence_runtime.postgres_session_factory
+    circuit_job_service = None
+    financial_job_service = None
+    if session_factory is not None:
+        circuit_job_service = CircuitJobService(
+            session_factory=session_factory,
+            discovery_service=discovery_service,
+            libp2p_runtime=libp2p_runtime,
+        )
+        financial_job_service = FinancialJobService(
+            session_factory=session_factory,
+        )
     return create_app(
         settings,
         persistence_runtime=persistence_runtime,
         libp2p_plan=libp2p_plan,
         libp2p_runtime=libp2p_runtime,
         discovery_service=discovery_service,
+        circuit_job_service=circuit_job_service,
+        financial_job_service=financial_job_service,
     )

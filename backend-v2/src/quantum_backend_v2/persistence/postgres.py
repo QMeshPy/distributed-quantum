@@ -126,6 +126,35 @@ class WorkflowRunRecord(TimestampedRecordMixin, PostgresBase):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ExecutionPlanRecord(TimestampedRecordMixin, PostgresBase):
+    """Durable execution plan payload keyed by plan_id."""
+
+    __tablename__ = "execution_plans"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_run_id: Mapped[str] = mapped_column(
+        ForeignKey("workflow_runs.id"), nullable=False, index=True
+    )
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class FinancialJobRecord(TimestampedRecordMixin, PostgresBase):
+    """Durable financial analysis job state."""
+
+    __tablename__ = "financial_jobs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("platform_users.id"), nullable=True, index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    col_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+
+
 class ReservationEventRecord(PostgresBase):
     """Append-only reservation event log — never updated, only inserted.
 

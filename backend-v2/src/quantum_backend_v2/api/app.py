@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from quantum_backend_v2 import __version__
+from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService
 from quantum_backend_v2.api.deps.auth import configure_auth
 from quantum_backend_v2.api.errors import register_exception_handlers
 from quantum_backend_v2.api.routers import discovery_router, system_router
@@ -33,6 +34,8 @@ def create_app(
     libp2p_plan: Libp2pBootstrapPlan,
     libp2p_runtime: Libp2pRuntime,
     discovery_service: DiscoveryService,
+    circuit_job_service: CircuitJobService | None,
+    financial_job_service: FinancialJobService | None,
     reservation_service: ReservationService | None = None,
 ) -> FastAPI:
     """Create the backend-v2 FastAPI application."""
@@ -79,18 +82,21 @@ def create_app(
     app.include_router(
         build_workflows_router(session_factory=persistence_runtime.postgres_session_factory)
     )
-    app.include_router(
-        build_circuits_router(session_factory=persistence_runtime.postgres_session_factory)
-    )
+    if circuit_job_service is not None:
+        app.include_router(
+            build_circuits_router(job_service=circuit_job_service)
+        )
     app.include_router(
         build_services_router(discovery_service=discovery_service)
     )
-    app.include_router(
-        build_plans_router(session_factory=persistence_runtime.postgres_session_factory)
-    )
-    app.include_router(
-        build_financial_router(session_factory=persistence_runtime.postgres_session_factory)
-    )
+    if circuit_job_service is not None:
+        app.include_router(
+            build_plans_router(job_service=circuit_job_service)
+        )
+    if financial_job_service is not None:
+        app.include_router(
+            build_financial_router(financial_job_service=financial_job_service)
+        )
 
     if reservation_service is not None:
         app.include_router(

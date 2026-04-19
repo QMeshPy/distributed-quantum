@@ -23,11 +23,21 @@ import queue
 from dataclasses import dataclass, field
 
 from quantum_backend_v2.config.models import Libp2pSettings
-from quantum_backend_v2.discovery.events import DiscoveryEvent
+from quantum_backend_v2.discovery.events import DiscoveryEvent, DiscoveryEventKind
+from quantum_backend_v2.discovery.models import (
+    PeerAdvertisement,
+    PeerHeartbeat,
+    ServiceAdvertisementSummary,
+)
 from quantum_backend_v2.discovery.registry import PeerRegistry
 from quantum_backend_v2.libp2p.bootstrap import Libp2pRuntime
-from quantum_backend_v2.libp2p.transport import LibP2pNetworkThread, build_network_thread
+from quantum_backend_v2.libp2p.transport import (
+    LibP2pNetworkThread,
+    _advertised_network_addresses,
+    build_network_thread,
+)
 from quantum_backend_v2.persistence.mongodb import MongoRuntime
+from quantum_backend_v2.quality.catalog import KNOWN_SERVICE_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +93,8 @@ class DiscoveryService:
             event_queue=self._event_queue,
         )
         self._network_thread.start()
+        if self.settings.enabled:
+            self._seed_local_peer_events()
         self._drain_task = asyncio.create_task(
             self._drain_loop(), name="discovery-drain"
         )
@@ -140,6 +152,50 @@ class DiscoveryService:
                 stale = await self._registry.sweep_stale_peers()
                 if stale:
                     logger.info("stale peer sweep: %d stale peers found", stale)
+
+    def _seed_local_peer_events(self) -> None:
+        peer_id = str(self.libp2p_runtime.host.get_id())
+
+        advertisement = PeerAdvertisement(
+            peer_id=peer_id,
+            trust_tier="platform_managed",
+            network_addresses=_advertised_network_addresses(
+                self.libp2p_runtime.host, self.settings
+            ),
+            supported_protocols=(
+                f"/qb2/{self.settings.rendezvous_namespace}/peer-exchange/1.0.0",
+            ),
+            service_summaries=tuple(
+                ServiceAdvertisementSummary(
+                    service_id=service_id,
+                    version="1.0.0",
+                    quantum_capability=service_id,
+                    benchmark_mode="quantum_vs_classical",
+                )
+                for service_id in KNOWN_SERVICE_IDS
+            ),
+        )
+        heartbeat = PeerHeartbeat(
+            peer_id=peer_id,
+            health_status="healthy",
+            active_reservations=0,
+            active_executions=0,
+            peer_log_position=0,
+        )
+        self._event_queue.put_nowait(
+            DiscoveryEvent(
+                kind=DiscoveryEventKind.ADVERTISEMENT,
+                raw_payload=advertisement.model_dump_json().encode(),
+                received_at=advertisement.emitted_at,
+            )
+        )
+        self._event_queue.put_nowait(
+            DiscoveryEvent(
+                kind=DiscoveryEventKind.HEARTBEAT,
+                raw_payload=heartbeat.model_dump_json().encode(),
+                received_at=heartbeat.emitted_at,
+            )
+        )
 
 
 def build_discovery_service(
