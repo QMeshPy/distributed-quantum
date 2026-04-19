@@ -9,8 +9,9 @@ from typing import Any
 from fastapi import FastAPI
 
 from quantum_backend_v2 import __version__
-from quantum_backend_v2.api.routers import system_router
+from quantum_backend_v2.api.routers import discovery_router, system_router
 from quantum_backend_v2.config import AppSettings
+from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.persistence import PersistenceRuntime
 
@@ -21,6 +22,7 @@ def create_app(
     persistence_runtime: PersistenceRuntime,
     libp2p_plan: Libp2pBootstrapPlan,
     libp2p_runtime: Libp2pRuntime,
+    discovery_service: DiscoveryService,
 ) -> FastAPI:
     """Create the backend-v2 FastAPI application."""
     started_monotonic = time.monotonic()
@@ -28,11 +30,14 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
         await persistence_runtime.startup()
+        # Start the discovery service after persistence is ready so MongoDB
+        # document upserts can happen from the first received event.
+        discovery_service.start()
         try:
             yield
         finally:
+            await discovery_service.stop()
             await persistence_runtime.shutdown()
-            await libp2p_runtime.host.close()
 
     app = FastAPI(
         title="Quantum Backend V2",
@@ -51,5 +56,8 @@ def create_app(
             libp2p_plan=libp2p_plan,
             libp2p_runtime=libp2p_runtime,
         )
+    )
+    app.include_router(
+        discovery_router(discovery_service=discovery_service)
     )
     return app

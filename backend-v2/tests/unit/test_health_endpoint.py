@@ -14,6 +14,7 @@ def test_health_endpoint_returns_ok(tmp_path) -> None:
             "QB2_PEER_LOG_DIR": str(tmp_path / "peer-logs"),
             "QB2_PEER_ID": "test-peer",
             "QB2_LIBP2P_PEERSTORE_PATH": str(tmp_path / "libp2p" / "peerstore.sqlite3"),
+            "QB2_LIBP2P_ACTIVATE_LISTENERS": "false",
         }
     )
 
@@ -52,6 +53,7 @@ def test_ready_and_libp2p_bootstrap_endpoints_are_developer_friendly(tmp_path) -
             "QB2_LIBP2P_RENDEZVOUS_NAMESPACE": "qb2-test-net",
             "QB2_LIBP2P_LISTEN_MULTIADDRS": "/ip4/127.0.0.1/tcp/4011",
             "QB2_LIBP2P_PEERSTORE_PATH": str(tmp_path / "libp2p" / "peerstore.sqlite3"),
+            "QB2_LIBP2P_ACTIVATE_LISTENERS": "false",
         }
     )
 

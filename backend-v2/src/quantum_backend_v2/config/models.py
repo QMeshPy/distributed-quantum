@@ -133,7 +133,17 @@ class Libp2pSettings(BaseModel):
     bootstrap_peers: tuple[str, ...] = Field(default_factory=tuple)
     rendezvous_namespace: str = Field(default="quantum-backend-v2", min_length=3)
     peerstore_path: Path = Field(default_factory=_default_libp2p_peerstore_path)
-    activate_listeners: bool = False
+    activate_listeners: bool = True
+    heartbeat_interval_seconds: int = Field(default=60, ge=5)
+    stale_peer_ttl_seconds: int = Field(default=300, ge=30)
+
+    @property
+    def advertisement_topic(self) -> str:
+        return f"{self.rendezvous_namespace}.peer-advertisement.v1"
+
+    @property
+    def heartbeat_topic(self) -> str:
+        return f"{self.rendezvous_namespace}.peer-heartbeat.v1"
 
 
 class AppSettings(BaseModel):
@@ -209,7 +219,13 @@ class AppSettings(BaseModel):
                     )
                 ),
                 activate_listeners=_parse_bool(
-                    env.get("QB2_LIBP2P_ACTIVATE_LISTENERS", "false")
+                    env.get("QB2_LIBP2P_ACTIVATE_LISTENERS", "true")
+                ),
+                heartbeat_interval_seconds=int(
+                    env.get("QB2_LIBP2P_HEARTBEAT_INTERVAL_SECONDS", "60")
+                ),
+                stale_peer_ttl_seconds=int(
+                    env.get("QB2_LIBP2P_STALE_PEER_TTL_SECONDS", "300")
                 ),
             ),
         )
