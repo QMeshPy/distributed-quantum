@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from quantum_backend_v2.api.models.circuits import CircuitSubmitRequest
+from quantum_backend_v2.api.models.enrollment import EnrollPeerRequest
+from quantum_backend_v2.api.models.reservations import ReserveRequest
+from quantum_backend_v2.api.models.workflows import (
+    BenchmarkSubmitRequest,
+    SubmitWorkflowRequest,
+)
 from quantum_backend_v2.bootstrap import create_application
 
 
@@ -74,7 +81,9 @@ def test_ready_and_libp2p_bootstrap_endpoints_are_developer_friendly(tmp_path) -
     assert bootstrap_payload["peer_id"] == "libp2p-test-peer"
     assert bootstrap_payload["rendezvous_namespace"] == "qb2-test-net"
     assert bootstrap_payload["listen_multiaddrs"] == ["/ip4/127.0.0.1/tcp/4011"]
-    assert bootstrap_payload["advertisement_protocol"]["topic"] == "qb2-test-net.peer-advertisement.v1"
+    assert (
+        bootstrap_payload["advertisement_protocol"]["topic"] == "qb2-test-net.peer-advertisement.v1"
+    )
     assert bootstrap_payload["heartbeat_protocol"]["topic"] == "qb2-test-net.peer-heartbeat.v1"
 
     assert runtime_response.status_code == 200
@@ -82,9 +91,44 @@ def test_ready_and_libp2p_bootstrap_endpoints_are_developer_friendly(tmp_path) -
     assert runtime_payload["driver"] == "py-libp2p"
     assert runtime_payload["using_real_py_libp2p"] is True
     assert runtime_payload["host_type"] == "BasicHost"
-    assert runtime_payload["peerstore_backend"] == "SyncPersistentPeerStore"
+    assert runtime_payload["peerstore_backend"] == "CompatibleSyncPersistentPeerStore"
     assert runtime_payload["requested_peer_label"] == "libp2p-test-peer"
     assert runtime_payload["listeners_active"] is False
     assert runtime_payload["configured_listen_multiaddrs"] == ["/ip4/127.0.0.1/tcp/4011"]
-    assert runtime_payload["advertised_multiaddrs"] == []
+    assert runtime_payload["advertised_multiaddrs"] == ["/ip4/127.0.0.1/tcp/4011"]
     assert runtime_payload["rendezvous_namespace"] == "qb2-test-net"
+
+
+def test_root_redirects_to_docs_and_favicon_is_quiet(tmp_path) -> None:
+    app = create_application(
+        env={
+            "QB2_ENVIRONMENT": "test",
+            "QB2_SERVICE_NAME": "quantum-backend-v2-test",
+            "QB2_JSON_LOGS": "false",
+            "QB2_PEER_LOG_DIR": str(tmp_path / "peer-logs"),
+            "QB2_PEER_ID": "test-peer",
+            "QB2_LIBP2P_PEERSTORE_PATH": str(tmp_path / "libp2p" / "peerstore.sqlite3"),
+            "QB2_LIBP2P_ACTIVATE_LISTENERS": "false",
+        }
+    )
+
+    with TestClient(app) as client:
+        root = client.get("/", follow_redirects=False)
+        favicon = client.get("/favicon.ico")
+
+    assert root.status_code == 307
+    assert root.headers["location"] == "/docs"
+    assert favicon.status_code == 204
+
+
+def test_request_models_publish_swagger_examples() -> None:
+    assert "OPENQASM 2.0" in CircuitSubmitRequest.model_json_schema()["example"]["circuit"]
+    assert EnrollPeerRequest.model_json_schema()["example"]["trust_tier"] == "user_contributed"
+    assert (
+        SubmitWorkflowRequest.model_json_schema()["example"]["workflow_type"] == "quantum_circuit"
+    )
+    assert (
+        BenchmarkSubmitRequest.model_json_schema()["example"]["benchmark_family"]
+        == "portfolio-optimization"
+    )
+    assert ReserveRequest.model_json_schema()["example"]["ttl_seconds"] == 120

@@ -21,6 +21,7 @@ from quantum_backend_v2.discovery.events import DiscoveryEvent, DiscoveryEventKi
 from quantum_backend_v2.discovery.models import PeerHeartbeat
 from quantum_backend_v2.discovery.service import DiscoveryService, build_discovery_service
 from quantum_backend_v2.libp2p.transport import LibP2pNetworkThread
+from quantum_backend_v2.quality.catalog import KNOWN_SERVICE_IDS
 
 
 def _offline_settings(**kwargs: object) -> Libp2pSettings:
@@ -32,6 +33,8 @@ def _offline_settings(**kwargs: object) -> Libp2pSettings:
         "activate_listeners": False,
         "heartbeat_interval_seconds": 30,
         "stale_peer_ttl_seconds": 60,
+        "dev_service_peer_count": 0,
+        "dev_service_base_port": 4021,
     }
     defaults.update(kwargs)  # type: ignore[arg-type]
     return Libp2pSettings(**defaults)
@@ -195,6 +198,26 @@ class TestLibp2pSettingsDefaults:
         settings = Libp2pSettings(peer_id="qb2-dev")
         assert settings.stale_peer_ttl_seconds == 300
 
+    def test_local_service_ids_move_to_workers_when_dev_peers_enabled(self) -> None:
+        mock_runtime = MagicMock()
+        service = build_discovery_service(
+            settings=_offline_settings(dev_service_peer_count=4),
+            libp2p_runtime=mock_runtime,
+            mongo_runtime=None,
+        )
+
+        assert service._local_service_ids() == ()
+
+    def test_local_service_ids_default_to_full_catalog_without_dev_workers(self) -> None:
+        mock_runtime = MagicMock()
+        service = build_discovery_service(
+            settings=_offline_settings(dev_service_peer_count=0),
+            libp2p_runtime=mock_runtime,
+            mongo_runtime=None,
+        )
+
+        assert service._local_service_ids() == KNOWN_SERVICE_IDS
+
     def test_from_env_reads_new_fields(self) -> None:
         from quantum_backend_v2.config.models import AppSettings
 
@@ -204,8 +227,12 @@ class TestLibp2pSettingsDefaults:
             "QB2_LIBP2P_HEARTBEAT_INTERVAL_SECONDS": "120",
             "QB2_LIBP2P_STALE_PEER_TTL_SECONDS": "600",
             "QB2_LIBP2P_ACTIVATE_LISTENERS": "false",
+            "QB2_LIBP2P_DEV_SERVICE_PEER_COUNT": "4",
+            "QB2_LIBP2P_DEV_SERVICE_BASE_PORT": "4121",
         }
         settings = AppSettings.from_env(env)
         assert settings.libp2p.heartbeat_interval_seconds == 120
         assert settings.libp2p.stale_peer_ttl_seconds == 600
         assert settings.libp2p.activate_listeners is False
+        assert settings.libp2p.dev_service_peer_count == 4
+        assert settings.libp2p.dev_service_base_port == 4121

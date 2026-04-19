@@ -21,16 +21,16 @@ Lifecycle
 
 from __future__ import annotations
 
-import json
 import logging
 import queue
 import threading
 from datetime import datetime, timezone
 
 import trio
-from multiaddr import Multiaddr
-
+from libp2p.peer.peerstore import create_signed_peer_record
+from libp2p.peer.peerinfo import info_from_p2p_addr
 from libp2p.tools.anyio_service import background_trio_service
+from multiaddr import Multiaddr
 
 from quantum_backend_v2.config.models import Libp2pSettings
 from quantum_backend_v2.discovery.events import DiscoveryEvent, DiscoveryEventKind
@@ -39,13 +39,16 @@ from quantum_backend_v2.discovery.models import (
     PeerHeartbeat,
     ServiceAdvertisementSummary,
 )
-from quantum_backend_v2.libp2p.bootstrap import Libp2pRuntime, create_real_libp2p_runtime
+from quantum_backend_v2.libp2p.addressing import resolve_advertised_network_addresses
+from quantum_backend_v2.libp2p.bootstrap import Libp2pRuntime
 from quantum_backend_v2.libp2p.pubsub import create_gossipsub_pubsub
 from quantum_backend_v2.quality.catalog import KNOWN_SERVICE_IDS
 
 logger = logging.getLogger(__name__)
 
 _STOP_POLL_INTERVAL = 0.5  # seconds
+_BOOTSTRAP_CONNECT_RETRIES = 20
+_BOOTSTRAP_CONNECT_RETRY_DELAY_SECONDS = 0.5
 
 
 class LibP2pNetworkThread:
@@ -62,10 +65,12 @@ class LibP2pNetworkThread:
         settings: Libp2pSettings,
         runtime: Libp2pRuntime,
         event_queue: queue.SimpleQueue[DiscoveryEvent],
+        service_ids: tuple[str, ...] | None = None,
     ) -> None:
         self._settings = settings
         self._runtime = runtime
         self._event_queue = event_queue
+        self._service_ids = service_ids if service_ids is not None else KNOWN_SERVICE_IDS
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
@@ -121,15 +126,18 @@ class LibP2pNetworkThread:
 
         try:
             async with host.run(listen_addrs=listen_addrs):
+                self._refresh_local_peer_record(host)
                 logger.info(
                     "libp2p host running (listeners_active=%s, peer_id=%s)",
-                    listen_addrs is not None,
+                    bool(listen_addrs),
                     str(host.get_id()),
                 )
-                async with background_trio_service(pubsub):
-                    async with background_trio_service(gossipsub):
+                async with background_trio_service(gossipsub):
+                    async with background_trio_service(pubsub):
                         await pubsub.wait_until_ready()
+                        await trio.sleep(0.2)
                         logger.debug("GossipSub pubsub ready")
+                        await self._connect_bootstrap_peers(host)
 
                         adv_sub = await pubsub.subscribe(settings.advertisement_topic)
                         hb_sub = await pubsub.subscribe(settings.heartbeat_topic)
@@ -181,7 +189,6 @@ class LibP2pNetworkThread:
         settings = self._settings
 
         while True:
-            await trio.sleep(settings.heartbeat_interval_seconds)
             heartbeat = PeerHeartbeat(
                 peer_id=str(host.get_id()),
                 health_status="healthy",
@@ -197,6 +204,7 @@ class LibP2pNetworkThread:
                 logger.debug("heartbeat published for peer %s", heartbeat.peer_id)
             except Exception:
                 logger.exception("failed to publish heartbeat")
+            await trio.sleep(settings.heartbeat_interval_seconds)
 
     async def _publish_advertisement(self, pubsub: object) -> None:
         """Publish the initial PeerAdvertisement on startup."""
@@ -206,10 +214,8 @@ class LibP2pNetworkThread:
         advertisement = PeerAdvertisement(
             peer_id=str(host.get_id()),
             trust_tier="platform_managed",
-            network_addresses=_advertised_network_addresses(host, settings),
-            supported_protocols=(
-                f"/qb2/{settings.rendezvous_namespace}/peer-exchange/1.0.0",
-            ),
+            network_addresses=resolve_advertised_network_addresses(host, settings),
+            supported_protocols=(f"/qb2/{settings.rendezvous_namespace}/peer-exchange/1.0.0",),
             service_summaries=tuple(
                 ServiceAdvertisementSummary(
                     service_id=service_id,
@@ -217,7 +223,7 @@ class LibP2pNetworkThread:
                     quantum_capability=service_id,
                     benchmark_mode="quantum_vs_classical",
                 )
-                for service_id in KNOWN_SERVICE_IDS
+                for service_id in self._service_ids
             ),
         )
         try:
@@ -233,22 +239,57 @@ class LibP2pNetworkThread:
         except Exception:
             logger.exception("failed to publish initial advertisement")
 
+    async def _connect_bootstrap_peers(self, host: object) -> None:
+        if not self._settings.bootstrap_peers:
+            return
+
+        for raw_addr in self._settings.bootstrap_peers:
+            peer_info = info_from_p2p_addr(Multiaddr(raw_addr))
+            for attempt in range(1, _BOOTSTRAP_CONNECT_RETRIES + 1):
+                try:
+                    await host.connect(peer_info)  # type: ignore[attr-defined]
+                    logger.info(
+                        "connected to bootstrap peer %s on attempt %d",
+                        peer_info.peer_id,
+                        attempt,
+                    )
+                    break
+                except Exception:
+                    if attempt >= _BOOTSTRAP_CONNECT_RETRIES:
+                        logger.exception(
+                            "failed to connect to bootstrap peer %s after %d attempts",
+                            raw_addr,
+                            _BOOTSTRAP_CONNECT_RETRIES,
+                        )
+                    else:
+                        await trio.sleep(_BOOTSTRAP_CONNECT_RETRY_DELAY_SECONDS)
+
+    def _refresh_local_peer_record(self, host: object) -> None:
+        try:
+            advertised_addrs = [
+                Multiaddr(addr)
+                for addr in resolve_advertised_network_addresses(host, self._settings)
+            ]
+            envelope = create_signed_peer_record(
+                host.get_id(),  # type: ignore[attr-defined]
+                advertised_addrs,
+                host.get_private_key(),  # type: ignore[attr-defined]
+            )
+            host.get_peerstore().set_local_record(envelope)  # type: ignore[attr-defined]
+        except Exception:
+            logger.exception("failed to refresh local signed peer record")
+
 
 def build_network_thread(
     settings: Libp2pSettings,
     runtime: Libp2pRuntime,
     event_queue: queue.SimpleQueue[DiscoveryEvent],
+    service_ids: tuple[str, ...] | None = None,
 ) -> LibP2pNetworkThread:
     """Factory that constructs a ``LibP2pNetworkThread``."""
     return LibP2pNetworkThread(
         settings=settings,
         runtime=runtime,
         event_queue=event_queue,
+        service_ids=service_ids,
     )
-
-
-def _advertised_network_addresses(host: object, settings: Libp2pSettings) -> tuple[str, ...]:
-    addrs = tuple(str(addr) for addr in host.get_addrs())  # type: ignore[attr-defined]
-    if addrs:
-        return addrs
-    return tuple(settings.listen_multiaddrs)

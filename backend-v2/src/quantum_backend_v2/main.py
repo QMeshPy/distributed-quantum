@@ -6,7 +6,6 @@ import argparse
 
 import uvicorn
 
-from quantum_backend_v2.bootstrap import create_application
 from quantum_backend_v2.config import load_settings
 
 
@@ -18,7 +17,13 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = load_settings()
-    app = create_application()
     host = args.host or settings.api_host
     port = args.port or settings.api_port
-    uvicorn.run(app, host=host, port=port, reload=True, reload_dirs=["src"])
+    uvicorn.run(
+        "quantum_backend_v2.bootstrap.application:create_application",
+        factory=True,
+        host=host,
+        port=port,
+        reload=True,
+        reload_dirs=["src"],
+    )

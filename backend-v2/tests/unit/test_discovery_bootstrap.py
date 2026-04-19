@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from quantum_backend_v2.bootstrap import create_libp2p_plan, create_libp2p_runtime
 from quantum_backend_v2.config import Libp2pSettings
-from quantum_backend_v2.discovery import PeerAdvertisement, PeerHeartbeat, ServiceAdvertisementSummary
+from quantum_backend_v2.discovery import (
+    PeerAdvertisement,
+    PeerHeartbeat,
+    ServiceAdvertisementSummary,
+)
 
 
 def test_libp2p_plan_builds_expected_protocol_suite() -> None:
@@ -40,12 +44,12 @@ def test_real_libp2p_runtime_uses_py_libp2p_host_and_peerstore(tmp_path) -> None
     assert summary.driver == "py-libp2p"
     assert summary.using_real_py_libp2p is True
     assert summary.host_type == "BasicHost"
-    assert summary.peerstore_backend == "SyncPersistentPeerStore"
+    assert summary.peerstore_backend == "CompatibleSyncPersistentPeerStore"
     assert summary.requested_peer_label == "peer-zeta"
     assert summary.host_peer_id.startswith("12D3KooW")
     assert summary.listeners_active is False
     assert summary.configured_listen_multiaddrs == ("/ip4/0.0.0.0/tcp/4011",)
-    assert summary.advertised_multiaddrs == ()
+    assert summary.advertised_multiaddrs == ("/ip4/0.0.0.0/tcp/4011",)
     assert summary.rendezvous_namespace == "qb2-swarm"
 
 

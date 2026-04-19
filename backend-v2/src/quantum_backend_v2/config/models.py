@@ -130,12 +130,15 @@ class Libp2pSettings(BaseModel):
     enabled: bool = True
     peer_id: str = Field(default="qb2-dev-peer", min_length=3)
     listen_multiaddrs: tuple[str, ...] = Field(default_factory=tuple)
+    advertise_multiaddrs: tuple[str, ...] = Field(default_factory=tuple)
     bootstrap_peers: tuple[str, ...] = Field(default_factory=tuple)
     rendezvous_namespace: str = Field(default="quantum-backend-v2", min_length=3)
     peerstore_path: Path = Field(default_factory=_default_libp2p_peerstore_path)
     activate_listeners: bool = True
     heartbeat_interval_seconds: int = Field(default=60, ge=5)
     stale_peer_ttl_seconds: int = Field(default=300, ge=30)
+    dev_service_peer_count: int = Field(default=0, ge=0, le=32)
+    dev_service_base_port: int = Field(default=4021, ge=1024, le=65535)
 
     @property
     def advertisement_topic(self) -> str:
@@ -215,6 +218,7 @@ class AppSettings(BaseModel):
                 listen_multiaddrs=_parse_csv(
                     env.get("QB2_LIBP2P_LISTEN_MULTIADDRS", "/ip4/0.0.0.0/tcp/4011")
                 ),
+                advertise_multiaddrs=_parse_csv(env.get("QB2_LIBP2P_ADVERTISE_MULTIADDRS", "")),
                 bootstrap_peers=_parse_csv(env.get("QB2_LIBP2P_BOOTSTRAP_PEERS", "")),
                 rendezvous_namespace=env.get(
                     "QB2_LIBP2P_RENDEZVOUS_NAMESPACE",
@@ -226,15 +230,13 @@ class AppSettings(BaseModel):
                         str(_default_libp2p_peerstore_path()),
                     )
                 ),
-                activate_listeners=_parse_bool(
-                    env.get("QB2_LIBP2P_ACTIVATE_LISTENERS", "true")
-                ),
+                activate_listeners=_parse_bool(env.get("QB2_LIBP2P_ACTIVATE_LISTENERS", "true")),
                 heartbeat_interval_seconds=int(
                     env.get("QB2_LIBP2P_HEARTBEAT_INTERVAL_SECONDS", "60")
                 ),
-                stale_peer_ttl_seconds=int(
-                    env.get("QB2_LIBP2P_STALE_PEER_TTL_SECONDS", "300")
-                ),
+                stale_peer_ttl_seconds=int(env.get("QB2_LIBP2P_STALE_PEER_TTL_SECONDS", "300")),
+                dev_service_peer_count=int(env.get("QB2_LIBP2P_DEV_SERVICE_PEER_COUNT", "0")),
+                dev_service_base_port=int(env.get("QB2_LIBP2P_DEV_SERVICE_BASE_PORT", "4021")),
             ),
         )
 

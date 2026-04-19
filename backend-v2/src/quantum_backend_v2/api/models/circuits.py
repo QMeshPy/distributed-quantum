@@ -5,11 +5,22 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CircuitSubmitRequest(BaseModel):
     """Request to submit a quantum circuit for execution."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "circuit": (
+                    'OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[2];\ncreg c[2];\n'
+                    "h q[0];\ncx q[0],q[1];\nmeasure q -> c;"
+                )
+            }
+        }
+    )
 
     circuit: str = Field(
         min_length=10,
@@ -19,6 +30,15 @@ class CircuitSubmitRequest(BaseModel):
 
 class CircuitSubmitResponse(BaseModel):
     """Response after submitting a circuit."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "job_8d0f5af2fd3640be8d62a9f48f8d3d6d",
+                "status": "queued",
+            }
+        }
+    )
 
     job_id: str = Field(description="Unique job identifier")
     status: str = Field(description="Initial job status")
@@ -59,6 +79,38 @@ class JobListItemResponse(BaseModel):
 
 class JobStatusResponse(BaseModel):
     """Detailed job status response."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "job_8d0f5af2fd3640be8d62a9f48f8d3d6d",
+                "status": "completed",
+                "plan_id": "plan_3f7a10d687804c7f8a3a9cb8cf848a8e",
+                "error": None,
+                "result": {
+                    "job_id": "job_8d0f5af2fd3640be8d62a9f48f8d3d6d",
+                    "fragment_results": [
+                        {"fragment_id": "frag-0", "node_id": "12D3KooWAlphaNode"},
+                    ],
+                    "quantum_result": {"counts": {"00": 513, "11": 511}},
+                },
+                "progress": {
+                    "total_fragments": 2,
+                    "completed_fragments": 2,
+                    "active_fragments": 0,
+                    "completion_ratio": 1.0,
+                    "latest_event_at": "2026-04-20T00:45:00Z",
+                    "finalizing": False,
+                },
+                "circuit_text": (
+                    'OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[2];\ncreg c[2];\n'
+                    "h q[0];\ncx q[0],q[1];\nmeasure q -> c;"
+                ),
+                "created_at": "2026-04-20T00:44:10Z",
+                "updated_at": "2026-04-20T00:45:00Z",
+            }
+        }
+    )
 
     job_id: str
     status: str

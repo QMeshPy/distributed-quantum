@@ -49,7 +49,40 @@ class PeerDetail(BaseModel):
 class PeerListResponse(BaseModel):
     """Paginated list of peers in the discovery registry."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        json_schema_extra={
+            "example": {
+                "peers": [
+                    {
+                        "peer_id": "12D3KooWBootstrapNode",
+                        "trust_tier": "platform_managed",
+                        "health_status": "healthy",
+                        "network_address_count": 1,
+                        "service_count": 0,
+                        "active_reservations": 0,
+                        "active_executions": 0,
+                        "last_seen_at": "2026-04-20T00:58:00Z",
+                        "is_stale": False,
+                    },
+                    {
+                        "peer_id": "12D3KooWWorkerNode",
+                        "trust_tier": "platform_managed",
+                        "health_status": "healthy",
+                        "network_address_count": 1,
+                        "service_count": 6,
+                        "active_reservations": 1,
+                        "active_executions": 1,
+                        "last_seen_at": "2026-04-20T00:58:03Z",
+                        "is_stale": False,
+                    },
+                ],
+                "total": 2,
+                "include_stale": False,
+            }
+        },
+    )
 
     peers: tuple[PeerSummary, ...]
     total: int = Field(ge=0)
@@ -82,10 +115,37 @@ class TopologyResponse(BaseModel):
 class NetworkTopologyResponse(BaseModel):
     """Network topology response compatible with old backend API."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "fabric_running": True,
+                "generated_at": "2026-04-20T00:58:05Z",
+                "services": [
+                    {
+                        "node_id": "12D3KooWWorkerNode",
+                        "service_type": "svc.quantum.portfolio",
+                        "listen_addrs": ["/ip4/127.0.0.1/tcp/4021"],
+                        "fidelity": 0.98,
+                        "availability": True,
+                        "updated_at": "2026-04-20T00:58:03Z",
+                    }
+                ],
+                "registry_snapshot": [
+                    {
+                        "peer_id": "12D3KooWWorkerNode",
+                        "trust_tier": "platform_managed",
+                        "health_status": "healthy",
+                        "service_ids": ["svc.quantum.portfolio"],
+                        "network_addresses": ["/ip4/127.0.0.1/tcp/4021"],
+                        "last_seen_at": "2026-04-20T00:58:03Z",
+                    }
+                ],
+            }
+        },
+    )
 
     fabric_running: bool
     generated_at: datetime
     services: list[dict[str, Any]] = Field(default_factory=list)
     registry_snapshot: list[dict[str, Any]] = Field(default_factory=list)
-

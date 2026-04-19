@@ -4,19 +4,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import logging
+from pathlib import Path
 
 from libp2p import (
     __version__ as py_libp2p_version,
     create_new_ed25519_key_pair,
-    create_sync_sqlite_peerstore,
     new_host,
 )
 from libp2p.abc import IHost, IPeerStore
 from multiaddr import Multiaddr
 
 from quantum_backend_v2.config import Libp2pSettings
+from quantum_backend_v2.libp2p.addressing import resolve_advertised_network_addresses
 from quantum_backend_v2.libp2p.models import Libp2pBootstrapPlan, Libp2pRuntimeSummary
+from quantum_backend_v2.libp2p.peerstore import create_compatible_sync_sqlite_peerstore
 from quantum_backend_v2.protocols import ProtocolDescriptor, ProtocolVersion
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -42,7 +47,7 @@ class Libp2pRuntime:
             host_peer_id=str(self.host.get_id()),
             listeners_active=self.listeners_active,
             configured_listen_multiaddrs=self.settings.listen_multiaddrs,
-            advertised_multiaddrs=tuple(str(addr) for addr in self.host.get_addrs()),
+            advertised_multiaddrs=resolve_advertised_network_addresses(self.host, self.settings),
             bootstrap_peers=self.settings.bootstrap_peers,
             rendezvous_namespace=self.settings.rendezvous_namespace,
         )
@@ -82,7 +87,8 @@ def create_libp2p_bootstrap_plan(settings: Libp2pSettings) -> Libp2pBootstrapPla
 def create_real_libp2p_runtime(settings: Libp2pSettings) -> Libp2pRuntime:
     """Create a real py-libp2p host and peerstore for backend-v2."""
     settings.peerstore_path.parent.mkdir(parents=True, exist_ok=True)
-    peerstore = create_sync_sqlite_peerstore(settings.peerstore_path)
+    _reset_dev_peerstore_if_needed(settings)
+    peerstore = create_compatible_sync_sqlite_peerstore(settings.peerstore_path)
     key_pair = create_new_ed25519_key_pair(seed=_derive_seed(settings.peer_id))
     plan = create_libp2p_bootstrap_plan(settings)
     listen_addrs = _parse_listen_addrs(settings) if settings.activate_listeners else None
@@ -90,7 +96,7 @@ def create_real_libp2p_runtime(settings: Libp2pSettings) -> Libp2pRuntime:
         key_pair=key_pair,
         peerstore_opt=peerstore,
         listen_addrs=listen_addrs,
-        bootstrap=list(settings.bootstrap_peers) or None,
+        bootstrap=None,
         enable_mDNS=False,
     )
     return Libp2pRuntime(
@@ -110,3 +116,28 @@ def _parse_listen_addrs(settings: Libp2pSettings) -> list[Multiaddr] | None:
     if not settings.listen_multiaddrs:
         return None
     return [Multiaddr(addr) for addr in settings.listen_multiaddrs]
+
+
+def _reset_dev_peerstore_if_needed(settings: Libp2pSettings) -> None:
+    if settings.dev_service_peer_count <= 0:
+        return
+
+    removed_paths = []
+    for path in _sqlite_artifact_paths(settings.peerstore_path):
+        if path.exists():
+            path.unlink()
+            removed_paths.append(path.name)
+
+    if removed_paths:
+        logger.info(
+            "reset local libp2p peerstore state for embedded dev swarm (%s)",
+            ", ".join(sorted(removed_paths)),
+        )
+
+
+def _sqlite_artifact_paths(path: Path) -> tuple[Path, ...]:
+    return (
+        path,
+        Path(f"{path}-shm"),
+        Path(f"{path}-wal"),
+    )

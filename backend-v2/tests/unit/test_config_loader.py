@@ -29,10 +29,13 @@ def test_load_settings_reads_environment_overrides() -> None:
             "QB2_LIBP2P_ENABLED": "true",
             "QB2_LIBP2P_PEER_ID": "peer-alpha-libp2p",
             "QB2_LIBP2P_LISTEN_MULTIADDRS": "/ip4/0.0.0.0/tcp/4011,/ip4/0.0.0.0/udp/4011/quic",
+            "QB2_LIBP2P_ADVERTISE_MULTIADDRS": "/ip4/127.0.0.1/tcp/4011",
             "QB2_LIBP2P_BOOTSTRAP_PEERS": "/dns4/bootstrap-a/tcp/4011,/dns4/bootstrap-b/tcp/4011",
             "QB2_LIBP2P_RENDEZVOUS_NAMESPACE": "qb2-network",
             "QB2_LIBP2P_PEERSTORE_PATH": "/tmp/qb2-libp2p/peerstore.sqlite3",
             "QB2_LIBP2P_ACTIVATE_LISTENERS": "true",
+            "QB2_LIBP2P_DEV_SERVICE_PEER_COUNT": "4",
+            "QB2_LIBP2P_DEV_SERVICE_BASE_PORT": "4121",
         }
     )
 
@@ -43,14 +46,24 @@ def test_load_settings_reads_environment_overrides() -> None:
     assert settings.logging.level == "DEBUG"
     assert settings.logging.json_logs is False
     assert settings.persistence.postgres.target.value == "neon"
-    assert settings.persistence.postgres.local_dsn == "postgresql+asyncpg://postgres:password@127.0.0.1:5432/qb2"
+    assert (
+        settings.persistence.postgres.local_dsn
+        == "postgresql+asyncpg://postgres:password@127.0.0.1:5432/qb2"
+    )
     assert settings.persistence.postgres.neon_pooled_dsn == "postgresql+asyncpg://pool.example/qb2"
-    assert settings.persistence.postgres.neon_direct_dsn == "postgresql+asyncpg://direct.example/qb2"
+    assert (
+        settings.persistence.postgres.neon_direct_dsn == "postgresql+asyncpg://direct.example/qb2"
+    )
     assert settings.persistence.postgres.database == "qb2_platform"
     assert settings.persistence.postgres.resolved_database == "qb2"
     assert settings.persistence.postgres.configured is True
-    assert settings.persistence.postgres.effective_app_dsn == "postgresql+asyncpg://pool.example/qb2"
-    assert settings.persistence.postgres.effective_migration_dsn == "postgresql+asyncpg://direct.example/qb2"
+    assert (
+        settings.persistence.postgres.effective_app_dsn == "postgresql+asyncpg://pool.example/qb2"
+    )
+    assert (
+        settings.persistence.postgres.effective_migration_dsn
+        == "postgresql+asyncpg://direct.example/qb2"
+    )
     assert settings.persistence.mongodb.target.value == "remote"
     assert settings.persistence.mongodb.local_uri == "mongodb://127.0.0.1:27017"
     assert settings.persistence.mongodb.remote_uri == "mongodb://mongo.example:27017"
@@ -66,6 +79,7 @@ def test_load_settings_reads_environment_overrides() -> None:
         "/ip4/0.0.0.0/tcp/4011",
         "/ip4/0.0.0.0/udp/4011/quic",
     )
+    assert settings.libp2p.advertise_multiaddrs == ("/ip4/127.0.0.1/tcp/4011",)
     assert settings.libp2p.bootstrap_peers == (
         "/dns4/bootstrap-a/tcp/4011",
         "/dns4/bootstrap-b/tcp/4011",
@@ -73,6 +87,8 @@ def test_load_settings_reads_environment_overrides() -> None:
     assert settings.libp2p.rendezvous_namespace == "qb2-network"
     assert settings.libp2p.peerstore_path == Path("/tmp/qb2-libp2p/peerstore.sqlite3")
     assert settings.libp2p.activate_listeners is True
+    assert settings.libp2p.dev_service_peer_count == 4
+    assert settings.libp2p.dev_service_base_port == 4121
 
 
 def test_load_settings_reads_dotenv_file(tmp_path) -> None:

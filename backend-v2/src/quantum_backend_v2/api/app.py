@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse, Response
 
 from quantum_backend_v2 import __version__
 from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService
@@ -60,6 +61,14 @@ def create_app(
         lifespan=lifespan,
     )
 
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse(url="/docs")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> Response:
+        return Response(status_code=204)
+
     register_exception_handlers(app)
 
     app.include_router(
@@ -73,9 +82,7 @@ def create_app(
             libp2p_runtime=libp2p_runtime,
         )
     )
-    app.include_router(
-        discovery_router(discovery_service=discovery_service)
-    )
+    app.include_router(discovery_router(discovery_service=discovery_service))
     app.include_router(
         build_enrollment_router(session_factory=persistence_runtime.postgres_session_factory)
     )
@@ -83,24 +90,14 @@ def create_app(
         build_workflows_router(session_factory=persistence_runtime.postgres_session_factory)
     )
     if circuit_job_service is not None:
-        app.include_router(
-            build_circuits_router(job_service=circuit_job_service)
-        )
-    app.include_router(
-        build_services_router(discovery_service=discovery_service)
-    )
+        app.include_router(build_circuits_router(job_service=circuit_job_service))
+    app.include_router(build_services_router(discovery_service=discovery_service))
     if circuit_job_service is not None:
-        app.include_router(
-            build_plans_router(job_service=circuit_job_service)
-        )
+        app.include_router(build_plans_router(job_service=circuit_job_service))
     if financial_job_service is not None:
-        app.include_router(
-            build_financial_router(financial_job_service=financial_job_service)
-        )
+        app.include_router(build_financial_router(financial_job_service=financial_job_service))
 
     if reservation_service is not None:
-        app.include_router(
-            build_reservations_router(reservation_service=reservation_service)
-        )
+        app.include_router(build_reservations_router(reservation_service=reservation_service))
 
     return app
