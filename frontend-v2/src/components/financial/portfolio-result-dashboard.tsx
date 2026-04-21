@@ -74,6 +74,38 @@ function formatDuration(milliseconds: number | null | undefined) {
 	return `${(milliseconds / 1000).toFixed(2)} s`;
 }
 
+function formatCount(value: number | null | undefined) {
+	if (value == null || Number.isNaN(value)) {
+		return '-';
+	}
+
+	return value.toLocaleString();
+}
+
+function formatDateLabel(value: string | null | undefined) {
+	if (!value) {
+		return '-';
+	}
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(date);
+}
+
+function titleCaseFromKey(value: string) {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
+}
+
+function describeReturnMethod(value: FinancialAnalysisResult['dataset']['return_method']) {
+	return value === 'provided_returns' ? 'Provided returns' : 'Simple returns from prices';
+}
+
 function ResultMetricCard({
 	icon,
 	label,
@@ -145,6 +177,36 @@ function StatTile({ label, value }: { label: string; value: string }) {
 	);
 }
 
+function EvidenceTile({
+	label,
+	present,
+	detail
+}: {
+	label: string;
+	present: boolean;
+	detail: string;
+}) {
+	return (
+		<div className={SOFT_PANEL_CLASS_NAME}>
+			<div className='flex flex-wrap items-center justify-between gap-3'>
+				<p className={LABEL_CLASS_NAME}>{label}</p>
+				<Badge
+					variant='outline'
+					className={cn(
+						'rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] shadow-[var(--clay-shadow)]',
+						present
+							? 'border-black/10 bg-[rgb(132_231_165_/_0.22)] text-[var(--clay-matcha-dark)]'
+							: 'border-black/10 bg-[rgb(252_121_129_/_0.18)] text-[#842432]'
+					)}
+				>
+					{present ? 'Present' : 'Missing'}
+				</Badge>
+			</div>
+			<p className='mt-3 text-sm leading-6 text-muted-foreground'>{detail}</p>
+		</div>
+	);
+}
+
 export function PortfolioResultDashboard({ result, jobId }: { result: FinancialAnalysisResult; jobId: string }) {
 	const frontier = result.benchmark.frontier.efficient_frontier;
 	const topStates = result.quantum_execution?.top_states ?? [];
@@ -179,6 +241,44 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 	const quantumResult = result.quantum_execution?.quantum_result;
 	const observedBasisStates = quantumResult?.counts ? Object.keys(quantumResult.counts).length : 0;
 	const hamiltonian = result.quantum_execution?.hamiltonian;
+	const comparisonReport = result.comparison_report;
+	const encodedAssets = result.quantum_execution?.encoded_assets ?? [];
+	const encodedColumns = result.quantum_execution?.encoded_columns ?? [];
+	const combinedWarnings = Array.from(
+		new Set([...result.warnings, ...(comparisonReport?.evidence.warnings ?? [])])
+	);
+	const evidenceChecklist = [
+		{
+			label: 'Exact baseline',
+			present: comparisonReport?.evidence.exact_baseline_available ?? frontier.length > 0,
+			detail: `${formatCount(result.solver_diagnostics.classical_solver.evaluated_portfolios)} portfolios evaluated by ${result.solver_diagnostics.classical_solver.strategy}.`
+		},
+		{
+			label: 'Efficient frontier',
+			present: frontier.length > 0,
+			detail: `${formatCount(frontier.length)} exact feasible frontier points returned.`
+		},
+		{
+			label: 'Top states',
+			present: topStates.length > 0,
+			detail: `${formatCount(topStates.length)} ranked states surfaced from the wavefunction.`
+		},
+		{
+			label: 'Fragment routing',
+			present: fragmentResults.length > 0,
+			detail: `${formatCount(fragmentResults.length)} fragments across ${formatCount(routedNodeCount)} routed nodes.`
+		},
+		{
+			label: 'OpenQASM',
+			present: Boolean(result.quantum_execution?.circuit_text.trim()),
+			detail: `Circuit ${formatCount(result.quantum_execution?.circuit_summary?.qubit_count)} qubits / depth ${formatCount(result.quantum_execution?.circuit_summary?.depth)} / size ${formatCount(result.quantum_execution?.circuit_summary?.size)}.`
+		},
+		{
+			label: 'Runtime result',
+			present: Boolean(quantumResult),
+			detail: `${formatCount(observedBasisStates)} observed basis states from ${formatCount(quantumResult?.shots)} shots.`
+		}
+	];
 
 	return (
 		<div className='space-y-8'>
@@ -213,9 +313,63 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 				/>
 			</div>
 
-			{result.comparison_report ? (
+			<div className='clay-section p-4 md:p-6'>
+				<div className='grid gap-6 xl:grid-cols-[1.1fr_0.9fr] xl:items-start'>
+					<div className='space-y-3'>
+						<p className={LABEL_CLASS_NAME}>Portfolio modeling pipeline</p>
+						<h2 className='text-3xl font-semibold leading-[0.98] tracking-[-0.05em] text-foreground md:text-4xl'>
+							What happened to the uploaded dataset before the quantum benchmark was scored.
+						</h2>
+						<p className='max-w-4xl text-sm leading-7 text-muted-foreground md:text-base'>
+							Uploaded {formatCount(result.row_count)} rows x {formatCount(result.col_count)} columns, read as{' '}
+							{describeReturnMethod(result.dataset.return_method).toLowerCase()}, filtered down from{' '}
+							{formatCount(result.dataset.raw_asset_count)} raw assets to {formatCount(result.dataset.asset_count)} modeled
+							assets after {formatCount(result.dataset.dropped_records)} dropped rows, then evaluated with an
+							exact classical baseline and the routed quantum solve on the same screened universe.
+						</p>
+						<div className='flex flex-wrap gap-2'>
+							{result.dataset.selected_tickers.length ? (
+								result.dataset.selected_tickers.map(ticker => (
+									<Badge
+										key={ticker}
+										className={SOFT_BADGE_CLASS_NAME}
+									>
+										{ticker}
+									</Badge>
+								))
+							) : (
+								<Badge className={SOFT_BADGE_CLASS_NAME}>No ticker list returned</Badge>
+							)}
+						</div>
+					</div>
+					<div className='grid gap-3 sm:grid-cols-2'>
+						<StatTile
+							label='Uploaded shape'
+							value={`${formatCount(result.row_count)} rows x ${formatCount(result.col_count)} cols`}
+						/>
+						<StatTile
+							label='Screened universe'
+							value={`${formatCount(result.dataset.asset_count)} of ${formatCount(result.dataset.raw_asset_count)} assets`}
+						/>
+						<StatTile
+							label='Value interpretation'
+							value={`${titleCaseFromKey(result.request.resolved_value_mode)} / ${titleCaseFromKey(result.dataset.input_layout)}`}
+						/>
+						<StatTile
+							label='Evidence basis'
+							value={
+								comparisonReport?.evidence.exact_baseline_available ?? frontier.length > 0
+									? 'Exact baseline'
+									: 'Limited baseline'
+							}
+						/>
+					</div>
+				</div>
+			</div>
+
+			{comparisonReport ? (
 				<PortfolioComparisonReportSection
-					report={result.comparison_report}
+					report={comparisonReport}
 					jobId={jobId}
 				/>
 			) : null}
@@ -364,25 +518,32 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 				<div className='space-y-6'>
 					<div className={WHITE_CARD_CLASS_NAME}>
 						<div className='space-y-2'>
-							<p className={LABEL_CLASS_NAME}>Dataset and solver context</p>
+							<p className={LABEL_CLASS_NAME}>Dataset intake and modeling contract</p>
 							<h3 className='text-[2rem] leading-[1.05] font-semibold tracking-[-0.04em] text-foreground'>
-								Resolved schema, optimization request, and parameter search diagnostics.
+								Resolved schema, dataset screening, and the exact request used to build the benchmark.
 							</h3>
 						</div>
 						<div className='mt-5 space-y-4'>
 							<div className={SOFT_PANEL_CLASS_NAME}>
-								<p className={LABEL_CLASS_NAME}>Dataset</p>
+								<p className={LABEL_CLASS_NAME}>Dataset screening</p>
 								<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[8rem_minmax(0,1fr)]'>
 									<dt className='text-muted-foreground'>Date range</dt>
 									<dd>
-										{result.dataset.start_date} to {result.dataset.end_date}
+										{formatDateLabel(result.dataset.start_date)} to {formatDateLabel(result.dataset.end_date)}
 									</dd>
+									<dt className='text-muted-foreground'>Layout</dt>
+									<dd>
+										{titleCaseFromKey(result.dataset.input_layout)} /{' '}
+										{titleCaseFromKey(result.dataset.inferred_frequency)}
+									</dd>
+									<dt className='text-muted-foreground'>Return mode</dt>
+									<dd>{describeReturnMethod(result.dataset.return_method)}</dd>
 									<dt className='text-muted-foreground'>Periods</dt>
-									<dd>{result.dataset.period_count}</dd>
+									<dd>{formatCount(result.dataset.period_count)}</dd>
 									<dt className='text-muted-foreground'>Raw assets</dt>
-									<dd>{result.dataset.raw_asset_count}</dd>
+									<dd>{formatCount(result.dataset.raw_asset_count)}</dd>
 									<dt className='text-muted-foreground'>Screened assets</dt>
-									<dd>{result.dataset.asset_count}</dd>
+									<dd>{formatCount(result.dataset.asset_count)}</dd>
 									<dt className='text-muted-foreground'>Columns</dt>
 									<dd>
 										{result.dataset.date_column}
@@ -390,14 +551,40 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 										{result.dataset.value_column ? ` / ${result.dataset.value_column}` : ''}
 									</dd>
 									<dt className='text-muted-foreground'>Dropped rows</dt>
-									<dd>{result.dataset.dropped_records}</dd>
+									<dd>{formatCount(result.dataset.dropped_records)}</dd>
 								</dl>
+								<div className='mt-4 flex flex-wrap gap-2'>
+									{result.dataset.selected_tickers.length ? (
+										result.dataset.selected_tickers.map(ticker => (
+											<Badge
+												key={`dataset-${ticker}`}
+												className={SOFT_BADGE_CLASS_NAME}
+											>
+												{ticker}
+											</Badge>
+										))
+									) : (
+										<span className='text-sm leading-6 text-muted-foreground'>
+											No screened ticker list returned.
+										</span>
+									)}
+								</div>
 							</div>
 							<div className={SOFT_PANEL_CLASS_NAME}>
-								<p className={LABEL_CLASS_NAME}>Solver request</p>
+								<p className={LABEL_CLASS_NAME}>Modeling contract</p>
 								<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[8rem_minmax(0,1fr)]'>
 									<dt className='text-muted-foreground'>Objective</dt>
 									<dd className='break-words'>{result.benchmark.objective_label}</dd>
+									<dt className='text-muted-foreground'>Allocation</dt>
+									<dd>{result.solver_diagnostics.allocation_model}</dd>
+									<dt className='text-muted-foreground'>Budget</dt>
+									<dd>{result.request.budget}</dd>
+									<dt className='text-muted-foreground'>Asset cap</dt>
+									<dd>{result.request.max_assets_considered}</dd>
+									<dt className='text-muted-foreground'>Requested mode</dt>
+									<dd>{titleCaseFromKey(result.request.value_mode)}</dd>
+									<dt className='text-muted-foreground'>Resolved mode</dt>
+									<dd>{titleCaseFromKey(result.request.resolved_value_mode)}</dd>
 									<dt className='text-muted-foreground'>Risk aversion</dt>
 									<dd>{formatNumber(result.request.risk_aversion, 4)}</dd>
 									<dt className='text-muted-foreground'>Penalty</dt>
@@ -406,28 +593,103 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 									<dd>{result.request.qaoa_reps}</dd>
 									<dt className='text-muted-foreground'>Search steps</dt>
 									<dd>{result.request.parameter_search_steps}</dd>
-									<dt className='text-muted-foreground'>Timings</dt>
+									<dt className='text-muted-foreground'>Overrides</dt>
 									<dd>
-										Classical {formatDuration(result.benchmark.timings.classical_duration_ms)} / Quantum{' '}
-										{formatDuration(result.benchmark.timings.quantum_duration_ms)}
+										{[
+											result.request.date_column && `date=${result.request.date_column}`,
+											result.request.ticker_column && `ticker=${result.request.ticker_column}`,
+											result.request.value_column && `value=${result.request.value_column}`
+										]
+											.filter(Boolean)
+											.join(' / ') || 'Auto detect'}
 									</dd>
 								</dl>
 							</div>
-							<div className={cn(SOFT_PANEL_CLASS_NAME, 'clay-dashed')}>
-								<p className={LABEL_CLASS_NAME}>Parameter search</p>
-								<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[9rem_minmax(0,1fr)]'>
-									<dt className='text-muted-foreground'>Strategy</dt>
-									<dd>{result.solver_diagnostics.quantum_solver.strategy}</dd>
-									<dt className='text-muted-foreground'>Evaluations</dt>
-									<dd>{result.solver_diagnostics.quantum_solver.parameter_evaluations}</dd>
-									<dt className='text-muted-foreground'>Coarse grid</dt>
-									<dd>{result.solver_diagnostics.quantum_solver.coarse_grid_steps}</dd>
-									<dt className='text-muted-foreground'>Local rounds</dt>
-									<dd>{result.solver_diagnostics.quantum_solver.local_refinement_rounds}</dd>
-									<dt className='text-muted-foreground'>Local points</dt>
-									<dd>{result.solver_diagnostics.quantum_solver.local_refinement_points}</dd>
-								</dl>
+						</div>
+					</div>
+
+					<div className={WHITE_CARD_CLASS_NAME}>
+						<div className='space-y-2'>
+							<p className={LABEL_CLASS_NAME}>Solver provenance and evidence</p>
+							<h3 className='text-[2rem] leading-[1.05] font-semibold tracking-[-0.04em] text-foreground'>
+								Why this benchmark is credible, and what evidence actually came back from the quantum side.
+							</h3>
+						</div>
+						<div className='mt-5 grid gap-4'>
+							<div className='grid gap-3 md:grid-cols-2'>
+								<div className='rounded-[1.6rem] border border-black/10 bg-[linear-gradient(135deg,rgba(248,204,101,0.26),rgba(255,255,255,0.96))] p-4 shadow-[var(--clay-shadow)]'>
+									<p className={LABEL_CLASS_NAME}>Classical baseline</p>
+									<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[8rem_minmax(0,1fr)]'>
+										<dt className='text-muted-foreground'>Strategy</dt>
+										<dd>{result.solver_diagnostics.classical_solver.strategy}</dd>
+										<dt className='text-muted-foreground'>Evaluated</dt>
+										<dd>{formatCount(result.solver_diagnostics.classical_solver.evaluated_portfolios)}</dd>
+										<dt className='text-muted-foreground'>Exact optimum</dt>
+										<dd>{comparisonReport?.classical.is_exact_optimum ?? true ? 'Yes' : 'No'}</dd>
+										<dt className='text-muted-foreground'>Runtime</dt>
+										<dd>{formatDuration(result.benchmark.timings.classical_duration_ms)}</dd>
+										<dt className='text-muted-foreground'>Feasible set</dt>
+										<dd>{formatCount(result.solver_diagnostics.feasible_portfolio_count)}</dd>
+									</dl>
+								</div>
+								<div className='rounded-[1.6rem] border border-black/10 bg-[linear-gradient(135deg,rgba(59,211,253,0.2),rgba(255,255,255,0.96))] p-4 shadow-[var(--clay-shadow)]'>
+									<p className={LABEL_CLASS_NAME}>Quantum solver</p>
+									<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[8rem_minmax(0,1fr)]'>
+										<dt className='text-muted-foreground'>Strategy</dt>
+										<dd>{result.solver_diagnostics.quantum_solver.strategy}</dd>
+										<dt className='text-muted-foreground'>Ansatz</dt>
+										<dd>{result.solver_diagnostics.quantum_solver.ansatz}</dd>
+										<dt className='text-muted-foreground'>Reps</dt>
+										<dd>{result.solver_diagnostics.quantum_solver.reps}</dd>
+										<dt className='text-muted-foreground'>Evaluations</dt>
+										<dd>{formatCount(result.solver_diagnostics.quantum_solver.parameter_evaluations)}</dd>
+										<dt className='text-muted-foreground'>Local refine</dt>
+										<dd>
+											{formatCount(result.solver_diagnostics.quantum_solver.local_refinement_rounds)} rounds /{' '}
+											{formatCount(result.solver_diagnostics.quantum_solver.local_refinement_points)} points
+										</dd>
+										<dt className='text-muted-foreground'>Encoded</dt>
+										<dd>
+											{formatCount(encodedAssets.length)} assets / {formatCount(encodedColumns.length)} columns
+										</dd>
+									</dl>
+								</div>
 							</div>
+
+							<div className='grid gap-3 sm:grid-cols-2'>
+								{evidenceChecklist.map(item => (
+									<EvidenceTile
+										key={item.label}
+										label={item.label}
+										present={item.present}
+										detail={item.detail}
+									/>
+								))}
+							</div>
+
+							{encodedAssets.length || encodedColumns.length ? (
+								<div className={cn(SOFT_PANEL_CLASS_NAME, 'clay-dashed')}>
+									<p className={LABEL_CLASS_NAME}>Encoding footprint</p>
+									<div className='mt-4 flex flex-wrap gap-2'>
+										{encodedAssets.map(asset => (
+											<Badge
+												key={`encoded-asset-${asset}`}
+												className={SOFT_BADGE_CLASS_NAME}
+											>
+												asset:{asset}
+											</Badge>
+										))}
+										{encodedColumns.map(column => (
+											<Badge
+												key={`encoded-column-${column}`}
+												className={SOFT_BADGE_CLASS_NAME}
+											>
+												column:{column}
+											</Badge>
+										))}
+									</div>
+								</div>
+							) : null}
 						</div>
 					</div>
 
@@ -689,6 +951,18 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 								</p>
 							</div>
 							<div className='rounded-[1.45rem] border border-white/12 bg-white/10 p-4'>
+								<p className='clay-label text-white/70'>Size</p>
+								<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-white'>
+									{result.quantum_execution?.circuit_summary?.size ?? '-'}
+								</p>
+							</div>
+							<div className='rounded-[1.45rem] border border-white/12 bg-white/10 p-4'>
+								<p className='clay-label text-white/70'>Parameters</p>
+								<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-white'>
+									{result.quantum_execution?.circuit_summary?.parameter_count ?? '-'}
+								</p>
+							</div>
+							<div className='rounded-[1.45rem] border border-white/12 bg-white/10 p-4'>
 								<p className='clay-label text-white/70'>Beta</p>
 								<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-white'>
 									{formatNumber(result.quantum_execution?.qaoa_parameters?.beta, 4)}
@@ -801,9 +1075,9 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 								</p>
 							</div>
 						</div>
-						{result.warnings.length ? (
+						{combinedWarnings.length ? (
 							<div className='space-y-3'>
-								{result.warnings.map(warning => (
+								{combinedWarnings.map(warning => (
 									<div
 										key={warning}
 										className='rounded-[1.45rem] border border-[var(--clay-oat)] bg-white/86 p-4 text-sm leading-7 text-muted-foreground shadow-[var(--clay-shadow)]'

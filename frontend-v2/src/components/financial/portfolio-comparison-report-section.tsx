@@ -23,9 +23,13 @@ import type {
 
 const WHITE_CARD_CLASS_NAME =
 	'rounded-[1.9rem] border border-[var(--clay-oat)] bg-white p-5 text-foreground shadow-[var(--clay-shadow)]';
+const SOFT_PANEL_CLASS_NAME =
+	'rounded-[1.45rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.92)] p-4';
 const LABEL_CLASS_NAME = 'clay-label text-[var(--clay-charcoal)]';
 const BUTTON_CLASS_NAME =
 	'clay-hover-lift rounded-full border border-black/10 bg-white text-black shadow-[var(--clay-shadow)] hover:bg-[rgb(248_204_101_/_0.32)]';
+const SOFT_BADGE_CLASS_NAME =
+	'rounded-full border border-black/10 bg-[rgb(250_249_247_/_0.92)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-foreground shadow-[var(--clay-shadow)]';
 
 function formatSignedNumber(value: number | null | undefined, digits = 6) {
 	if (value == null || Number.isNaN(value)) {
@@ -53,6 +57,27 @@ function formatDuration(milliseconds: number | null | undefined) {
 	}
 
 	return `${(milliseconds / 1000).toFixed(2)} s`;
+}
+
+function formatCount(value: number | null | undefined) {
+	if (value == null || Number.isNaN(value)) {
+		return '-';
+	}
+
+	return value.toLocaleString();
+}
+
+function formatDateLabel(value: string | null | undefined) {
+	if (!value) {
+		return '-';
+	}
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(date);
 }
 
 function titleCaseFromKey(value: string) {
@@ -133,6 +158,36 @@ function MetricCard({
 					<p className='text-[2rem] leading-[1.1] font-semibold tracking-[-0.04em] text-foreground'>{value}</p>
 				</div>
 				<div className={cn('clay-icon-chip border-black/10 text-foreground', iconClassName)}>{icon}</div>
+			</div>
+			<p className='mt-3 text-sm leading-6 text-muted-foreground'>{detail}</p>
+		</div>
+	);
+}
+
+function EvidenceCheck({
+	label,
+	present,
+	detail
+}: {
+	label: string;
+	present: boolean;
+	detail: string;
+}) {
+	return (
+		<div className={SOFT_PANEL_CLASS_NAME}>
+			<div className='flex flex-wrap items-center justify-between gap-3'>
+				<p className={LABEL_CLASS_NAME}>{label}</p>
+				<Badge
+					variant='outline'
+					className={cn(
+						'rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] shadow-[var(--clay-shadow)]',
+						present
+							? 'border-black/10 bg-[rgb(132_231_165_/_0.22)] text-[var(--clay-matcha-dark)]'
+							: 'border-black/10 bg-[rgb(252_121_129_/_0.18)] text-[#842432]'
+					)}
+				>
+					{present ? 'Present' : 'Missing'}
+				</Badge>
 			</div>
 			<p className='mt-3 text-sm leading-6 text-muted-foreground'>{detail}</p>
 		</div>
@@ -328,40 +383,180 @@ export function PortfolioComparisonReportSection({
 					<div className='grid gap-4 xl:grid-cols-[1.08fr_0.92fr]'>
 						<div className={WHITE_CARD_CLASS_NAME}>
 							<p className={LABEL_CLASS_NAME}>Benchmark contract</p>
-							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>Same input, same target, same constraints.</p>
+							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>
+								Same input, same target, same constraints.
+							</p>
 							<div className='mt-5 space-y-3'>
 								{report.fairness.notes.map(note => (
 									<div
 										key={note}
-									className='rounded-[1.35rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4 text-sm leading-6 text-muted-foreground'
+										className='rounded-[1.35rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4 text-sm leading-6 text-muted-foreground'
 									>
 										{note}
 									</div>
 								))}
 							</div>
-							<dl className='mt-6 grid gap-x-6 gap-y-3 text-sm leading-6 text-foreground md:grid-cols-[10rem_minmax(0,1fr)]'>
-								<dt className='text-muted-foreground'>Dataset window</dt>
-								<dd>
-									{report.dataset.start_date} to {report.dataset.end_date}
-								</dd>
-								<dt className='text-muted-foreground'>Shape</dt>
-								<dd>
-									{report.dataset.row_count.toLocaleString()} rows x {report.dataset.col_count} cols
-								</dd>
-								<dt className='text-muted-foreground'>Screened assets</dt>
-								<dd>{report.dataset.asset_count}</dd>
-								<dt className='text-muted-foreground'>Budget</dt>
-								<dd>{report.problem.budget}</dd>
-								<dt className='text-muted-foreground'>Risk aversion</dt>
-								<dd>{report.problem.risk_aversion.toFixed(4)}</dd>
-								<dt className='text-muted-foreground'>Quantum strategy</dt>
-								<dd>{report.problem.quantum_strategy}</dd>
-							</dl>
+							<div className='mt-6 grid gap-3'>
+								<div className={SOFT_PANEL_CLASS_NAME}>
+									<p className={LABEL_CLASS_NAME}>Dataset screening</p>
+									<dl className='mt-4 grid gap-x-6 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[10rem_minmax(0,1fr)]'>
+										<dt className='text-muted-foreground'>Dataset window</dt>
+										<dd>
+											{formatDateLabel(report.dataset.start_date)} to {formatDateLabel(report.dataset.end_date)}
+										</dd>
+										<dt className='text-muted-foreground'>Shape</dt>
+										<dd>
+											{formatCount(report.dataset.row_count)} rows x {formatCount(report.dataset.col_count)} cols
+										</dd>
+										<dt className='text-muted-foreground'>Layout</dt>
+										<dd>
+											{titleCaseFromKey(report.dataset.input_layout)} /{' '}
+											{titleCaseFromKey(report.dataset.inferred_frequency)}
+										</dd>
+										<dt className='text-muted-foreground'>Assets screened</dt>
+										<dd>
+											{formatCount(report.dataset.raw_asset_count)} raw to{' '}
+											{formatCount(report.dataset.asset_count)} modeled
+										</dd>
+										<dt className='text-muted-foreground'>Periods</dt>
+										<dd>{formatCount(report.dataset.period_count)}</dd>
+									</dl>
+									<div className='mt-4 flex flex-wrap gap-2'>
+										{report.dataset.selected_tickers.length ? (
+											report.dataset.selected_tickers.map(ticker => (
+												<Badge
+													key={ticker}
+													className={SOFT_BADGE_CLASS_NAME}
+												>
+													{ticker}
+												</Badge>
+											))
+										) : (
+											<span className='text-sm leading-6 text-muted-foreground'>
+												No screened ticker list returned.
+											</span>
+										)}
+									</div>
+								</div>
+
+								<div className={SOFT_PANEL_CLASS_NAME}>
+									<p className={LABEL_CLASS_NAME}>Optimization request</p>
+									<dl className='mt-4 grid gap-x-6 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[10rem_minmax(0,1fr)]'>
+										<dt className='text-muted-foreground'>Objective</dt>
+										<dd className='break-words'>{report.problem.objective_label}</dd>
+										<dt className='text-muted-foreground'>Allocation</dt>
+										<dd>{report.problem.allocation_model}</dd>
+										<dt className='text-muted-foreground'>Budget</dt>
+										<dd>{report.problem.budget}</dd>
+										<dt className='text-muted-foreground'>Risk aversion</dt>
+										<dd>{report.problem.risk_aversion.toFixed(4)}</dd>
+										<dt className='text-muted-foreground'>Penalty</dt>
+										<dd>{report.problem.penalty.toFixed(4)}</dd>
+										<dt className='text-muted-foreground'>QAOA reps</dt>
+										<dd>{report.problem.qaoa_reps}</dd>
+										<dt className='text-muted-foreground'>Search steps</dt>
+										<dd>{report.problem.parameter_search_steps}</dd>
+									</dl>
+								</div>
+							</div>
+						</div>
+
+						<div className={cn(WHITE_CARD_CLASS_NAME, 'clay-dashed')}>
+							<p className={LABEL_CLASS_NAME}>Evidence completeness</p>
+							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>
+								Check the proof points before making advantage claims.
+							</p>
+							<div className='mt-5 grid gap-3 sm:grid-cols-2'>
+								<EvidenceCheck
+									label='Exact baseline'
+									present={report.evidence.exact_baseline_available}
+									detail={`${formatCount(report.classical.evaluated_portfolios)} portfolios evaluated by the classical baseline.`}
+								/>
+								<EvidenceCheck
+									label='Efficient frontier'
+									present={report.evidence.efficient_frontier_points > 0}
+									detail={`${formatCount(report.evidence.efficient_frontier_points)} feasible frontier points returned.`}
+								/>
+								<EvidenceCheck
+									label='Top state ranking'
+									present={report.evidence.top_state_count > 0}
+									detail={`${formatCount(report.evidence.top_state_count)} ranked quantum states surfaced for inspection.`}
+								/>
+								<EvidenceCheck
+									label='Fragment routing'
+									present={report.evidence.fragment_count > 0}
+									detail={`${formatCount(report.evidence.fragment_count)} fragments across ${formatCount(report.quantum.distributed_nodes_used)} nodes.`}
+								/>
+								<EvidenceCheck
+									label='OpenQASM surfaced'
+									present={report.quantum.has_qasm}
+									detail={`Circuit ${formatCount(report.quantum.circuit_qubits)} qubits / depth ${formatCount(report.quantum.circuit_depth)} / size ${formatCount(report.quantum.circuit_size)}.`}
+								/>
+								<EvidenceCheck
+									label='Runtime result captured'
+									present={report.quantum.has_runtime_result}
+									detail={`${formatCount(report.evidence.observed_basis_state_count)} observed basis states were returned.`}
+								/>
+							</div>
+							{report.evidence.warnings.length ? (
+								<div className='mt-5 space-y-3'>
+									<p className={LABEL_CLASS_NAME}>Evidence warnings</p>
+									{report.evidence.warnings.map(warning => (
+										<div
+											key={warning}
+											className='rounded-[1.35rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4 text-sm leading-6 text-muted-foreground'
+										>
+											{warning}
+										</div>
+									))}
+								</div>
+							) : null}
+						</div>
+					</div>
+
+					<div className='grid gap-4 xl:grid-cols-[1.08fr_0.92fr]'>
+						<div className={WHITE_CARD_CLASS_NAME}>
+							<p className={LABEL_CLASS_NAME}>Solver provenance</p>
+							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>
+								How each side of the comparison was actually produced.
+							</p>
+							<div className='mt-5 grid gap-3 md:grid-cols-2'>
+								<div className='rounded-[1.6rem] border border-black/10 bg-[linear-gradient(135deg,rgba(248,204,101,0.26),rgba(255,255,255,0.96))] p-4 shadow-[var(--clay-shadow)]'>
+									<p className={LABEL_CLASS_NAME}>Classical baseline</p>
+									<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[8rem_minmax(0,1fr)]'>
+										<dt className='text-muted-foreground'>Strategy</dt>
+										<dd>{report.classical.strategy}</dd>
+										<dt className='text-muted-foreground'>Evaluated</dt>
+										<dd>{formatCount(report.classical.evaluated_portfolios)}</dd>
+										<dt className='text-muted-foreground'>Exact optimum</dt>
+										<dd>{report.classical.is_exact_optimum ? 'Yes' : 'No'}</dd>
+										<dt className='text-muted-foreground'>Runtime</dt>
+										<dd>{formatDuration(report.classical.duration_ms)}</dd>
+									</dl>
+								</div>
+								<div className='rounded-[1.6rem] border border-black/10 bg-[linear-gradient(135deg,rgba(59,211,253,0.2),rgba(255,255,255,0.96))] p-4 shadow-[var(--clay-shadow)]'>
+									<p className={LABEL_CLASS_NAME}>Quantum route</p>
+									<dl className='mt-4 grid gap-x-5 gap-y-2 text-sm leading-6 text-foreground md:grid-cols-[8rem_minmax(0,1fr)]'>
+										<dt className='text-muted-foreground'>Strategy</dt>
+										<dd>{report.quantum.strategy}</dd>
+										<dt className='text-muted-foreground'>Ansatz</dt>
+										<dd>{report.quantum.ansatz}</dd>
+										<dt className='text-muted-foreground'>Evaluations</dt>
+										<dd>{formatCount(report.quantum.parameter_evaluations)}</dd>
+										<dt className='text-muted-foreground'>Plan</dt>
+										<dd className='break-all'>{report.quantum.plan_id || 'Not returned'}</dd>
+										<dt className='text-muted-foreground'>Runtime</dt>
+										<dd>{formatDuration(report.quantum.duration_ms)}</dd>
+									</dl>
+								</div>
+							</div>
 						</div>
 
 						<div className={cn(WHITE_CARD_CLASS_NAME, 'clay-dashed')}>
 							<p className={LABEL_CLASS_NAME}>Scorecard</p>
-							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>What the scoreboard actually says.</p>
+							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>
+								What the scoreboard actually says.
+							</p>
 							<div className='mt-5 grid gap-3 sm:grid-cols-2'>
 								<div className='rounded-[1.4rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4'>
 									<p className={LABEL_CLASS_NAME}>Return winner</p>
