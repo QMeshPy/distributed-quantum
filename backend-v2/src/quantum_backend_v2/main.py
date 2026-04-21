@@ -32,3 +32,7 @@ def main() -> None:
         reload=args.reload,
         reload_dirs=["src"] if args.reload else None,
     )
+
+
+if __name__ == "__main__":
+    main()

@@ -18,6 +18,7 @@ from multiaddr import Multiaddr
 from quantum_backend_v2.config import Libp2pSettings
 from quantum_backend_v2.libp2p.addressing import resolve_advertised_network_addresses
 from quantum_backend_v2.libp2p.models import Libp2pBootstrapPlan, Libp2pRuntimeSummary
+from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
 from quantum_backend_v2.libp2p.peerstore import create_compatible_sync_sqlite_peerstore
 from quantum_backend_v2.protocols import ProtocolDescriptor, ProtocolVersion
 
@@ -57,6 +58,7 @@ def create_libp2p_bootstrap_plan(settings: Libp2pSettings) -> Libp2pBootstrapPla
     """Create the initial protocol suite and bootstrap plan for the peer host."""
     version = ProtocolVersion(major=1, minor=0, patch=0)
     namespace = settings.rendezvous_namespace
+    execution_protocol_ids = build_execution_protocol_ids(namespace)
     return Libp2pBootstrapPlan(
         enabled=settings.enabled,
         peer_id=settings.peer_id,
@@ -80,6 +82,30 @@ def create_libp2p_bootstrap_plan(settings: Libp2pSettings) -> Libp2pBootstrapPla
             version=version,
             stream_id=f"/qb2/{namespace}/peer-exchange/1.0.0",
             description="Shares useful peers and swarm topology hints.",
+        ),
+        reservation_prepare_protocol=ProtocolDescriptor(
+            name="reservation-prepare",
+            version=version,
+            stream_id=execution_protocol_ids.reservation_prepare,
+            description="Asks a peer to reserve fragment execution capacity.",
+        ),
+        reservation_commit_protocol=ProtocolDescriptor(
+            name="reservation-commit",
+            version=version,
+            stream_id=execution_protocol_ids.reservation_commit,
+            description="Commits an accepted reservation before fragment dispatch.",
+        ),
+        reservation_cancel_protocol=ProtocolDescriptor(
+            name="reservation-cancel",
+            version=version,
+            stream_id=execution_protocol_ids.reservation_cancel,
+            description="Releases a previously prepared reservation.",
+        ),
+        fragment_dispatch_protocol=ProtocolDescriptor(
+            name="fragment-dispatch",
+            version=version,
+            stream_id=execution_protocol_ids.fragment_dispatch,
+            description="Dispatches a fragment and returns the remote execution result.",
         ),
     )
 

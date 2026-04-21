@@ -1,4 +1,4 @@
-"""Runtime domain models — execution state reconstructed from the event log."""
+"""Runtime domain models - execution state reconstructed from the event log."""
 
 from __future__ import annotations
 
@@ -25,44 +25,51 @@ class ExecutionTransition(str, Enum):
     CANCELLED = "cancelled"
 
 
-_TERMINAL_TRANSITIONS = frozenset({
-    ExecutionTransition.COMPLETED,
-    ExecutionTransition.FAILED,
-    ExecutionTransition.CANCELLED,
-})
+_TERMINAL_TRANSITIONS = frozenset(
+    {
+        ExecutionTransition.COMPLETED,
+        ExecutionTransition.FAILED,
+        ExecutionTransition.CANCELLED,
+    }
+)
 
 _ALLOWED_TRANSITIONS: dict[ExecutionTransition, frozenset[ExecutionTransition]] = {
-    ExecutionTransition.DISPATCHED: frozenset({
-        ExecutionTransition.RUNNING,
-        ExecutionTransition.FAILED,
-        ExecutionTransition.CANCELLED,
-    }),
-    ExecutionTransition.RUNNING: frozenset({
-        ExecutionTransition.CHECKPOINTED,
-        ExecutionTransition.COMPLETED,
-        ExecutionTransition.FAILED,
-    }),
-    ExecutionTransition.CHECKPOINTED: frozenset({
-        ExecutionTransition.RUNNING,
-        ExecutionTransition.COMPLETED,
-        ExecutionTransition.FAILED,
-    }),
+    ExecutionTransition.DISPATCHED: frozenset(
+        {
+            ExecutionTransition.RUNNING,
+            ExecutionTransition.FAILED,
+            ExecutionTransition.CANCELLED,
+        }
+    ),
+    ExecutionTransition.RUNNING: frozenset(
+        {
+            ExecutionTransition.CHECKPOINTED,
+            ExecutionTransition.COMPLETED,
+            ExecutionTransition.FAILED,
+        }
+    ),
+    ExecutionTransition.CHECKPOINTED: frozenset(
+        {
+            ExecutionTransition.RUNNING,
+            ExecutionTransition.COMPLETED,
+            ExecutionTransition.FAILED,
+        }
+    ),
     ExecutionTransition.FAILED: frozenset({ExecutionTransition.RETRYING}),
-    ExecutionTransition.RETRYING: frozenset({
-        ExecutionTransition.DISPATCHED,
-        ExecutionTransition.FAILED,
-        ExecutionTransition.CANCELLED,
-    }),
+    ExecutionTransition.RETRYING: frozenset(
+        {
+            ExecutionTransition.DISPATCHED,
+            ExecutionTransition.FAILED,
+            ExecutionTransition.CANCELLED,
+        }
+    ),
     ExecutionTransition.COMPLETED: frozenset(),
     ExecutionTransition.CANCELLED: frozenset(),
 }
 
 
 class ExecutionState(BaseModel):
-    """Reconstructed in-memory view of a fragment execution.
-
-    Rebuilt from the append-only ``execution_events`` table on startup and on demand.
-    """
+    """Reconstructed in-memory view of a fragment execution."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -70,7 +77,7 @@ class ExecutionState(BaseModel):
     reservation_id: str = Field(min_length=8)
     workflow_run_id: str = Field(min_length=8)
     fragment_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     executing_peer_id: str = Field(min_length=3)
     current_transition: ExecutionTransition = ExecutionTransition.DISPATCHED
     retry_attempt: int = Field(default=0, ge=0)
@@ -104,7 +111,7 @@ class ExecutionState(BaseModel):
     ) -> "ExecutionState":
         if not self.can_transition_to(transition):
             raise ValueError(
-                f"Invalid transition {self.current_transition!r} → {transition!r} "
+                f"Invalid transition {self.current_transition!r} -> {transition!r} "
                 f"for execution {self.execution_id!r}"
             )
         update: dict[str, Any] = {

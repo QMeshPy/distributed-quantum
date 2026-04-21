@@ -163,6 +163,38 @@ class ReservationService:
         logger.info("reservation %s CANCELLED reason=%s", reservation_id, reason)
         return updated
 
+    async def reject(
+        self,
+        *,
+        reservation_id: str,
+        reason: str | None = None,
+        accepting_peer_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> ReservationState:
+        """Append a REJECTED event."""
+        idem_key = idempotency_key or uuid.uuid4().hex
+        async with self._session_factory() as session:
+            state = await _require_state(session, reservation_id)
+            updated = state.apply(
+                ReservationTransition.REJECTED,
+                accepting_peer_id=accepting_peer_id or state.accepting_peer_id,
+            )
+            await _append_event(
+                session,
+                reservation_id=reservation_id,
+                workflow_run_id=state.workflow_run_id,
+                fragment_id=state.fragment_id,
+                transition=ReservationTransition.REJECTED,
+                requesting_peer_id=state.requesting_peer_id,
+                accepting_peer_id=accepting_peer_id or state.accepting_peer_id,
+                service_id=state.service_id,
+                idempotency_key=idem_key,
+                reason=reason,
+            )
+            await session.commit()
+        logger.info("reservation %s REJECTED reason=%s", reservation_id, reason)
+        return updated
+
     async def get_state(self, reservation_id: str) -> ReservationState | None:
         """Reconstruct current state by replaying events from Postgres."""
         async with self._session_factory() as session:

@@ -38,7 +38,7 @@ class PackageManifestAnnouncement(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     package_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     version: str = Field(min_length=3)
     publisher_peer_id: str = Field(min_length=3)
     manifest_digest: str = Field(min_length=32)

@@ -194,9 +194,13 @@ class TestPeerRegistryStaleHandling:
         registry._entries["peer-alpha"] = entry.model_copy(
             update={"last_seen_at": stale_time}
         )
+        registry.mongo_runtime = object()
+        registry._purge_persisted_peer = AsyncMock()  # type: ignore[method-assign]
 
         count = await registry.sweep_stale_peers()
         assert count == 1
+        assert registry.get_peer("peer-alpha") is None
+        registry._purge_persisted_peer.assert_awaited_once_with("peer-alpha")  # type: ignore[attr-defined]
 
 
 class TestPeerRegistryRejoin:
@@ -264,6 +268,14 @@ class _AsyncDocList:
         return self._documents
 
 
+class _DeleteRecorder:
+    def __init__(self) -> None:
+        self.filters: list[dict[str, str]] = []
+
+    async def delete_many(self, query: dict[str, str]) -> None:
+        self.filters.append(query)
+
+
 class TestPeerRegistryRehydrate:
     async def test_rehydrate_normalizes_naive_datetimes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from quantum_backend_v2.persistence.mongodb import (
@@ -312,3 +324,69 @@ class TestPeerRegistryRehydrate:
         assert entry.last_advertisement_at is not None
         assert entry.last_advertisement_at.tzinfo is not None
         assert not registry.is_peer_stale("peer-restored")
+
+    async def test_rehydrate_purges_stale_persisted_peers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from quantum_backend_v2.persistence.mongodb import (
+            PeerCapabilityDocument,
+            TopologyProjectionDocument,
+        )
+
+        stale_now = datetime.now(timezone.utc) - timedelta(seconds=120)
+        capability_doc = SimpleNamespace(
+            peer_id="peer-stale",
+            capabilities=["platform_managed"],
+            published_service_ids=["svc.quantum.test"],
+            network_addresses=["/ip4/10.0.0.9/tcp/4011"],
+            protocol_versions={"/qb2/test/peer-exchange/1.0.0": "1.0.0"},
+            last_advertised_at=stale_now,
+            updated_at=stale_now,
+        )
+        topology_doc = SimpleNamespace(
+            peer_id="peer-stale",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            active_reservations=0,
+            active_executions=0,
+            peer_log_position=1,
+            observed_at=stale_now,
+        )
+
+        monkeypatch.setattr(
+            PeerCapabilityDocument,
+            "find_all",
+            lambda: _AsyncDocList([capability_doc]),
+        )
+        monkeypatch.setattr(
+            TopologyProjectionDocument,
+            "find_all",
+            lambda: _AsyncDocList([topology_doc]),
+        )
+
+        registry = PeerRegistry(mongo_runtime=object(), stale_peer_ttl_seconds=60)
+        registry._purge_persisted_peer = AsyncMock()  # type: ignore[method-assign]
+
+        await registry.rehydrate()
+
+        assert registry.peer_count() == 0
+        assert registry.get_peer("peer-stale") is None
+        registry._purge_persisted_peer.assert_awaited_once_with("peer-stale")  # type: ignore[attr-defined]
+
+
+class TestPeerRegistryPersistenceCleanup:
+    async def test_purge_persisted_peer_deletes_both_discovery_collections(self) -> None:
+        capability_collection = _DeleteRecorder()
+        topology_collection = _DeleteRecorder()
+        mongo_runtime = SimpleNamespace(
+            database={
+                "peer_capabilities": capability_collection,
+                "topology_projections": topology_collection,
+            }
+        )
+        registry = PeerRegistry(mongo_runtime=mongo_runtime, stale_peer_ttl_seconds=60)
+
+        await registry._purge_persisted_peer("peer-alpha")
+
+        assert capability_collection.filters == [{"peer_id": "peer-alpha"}]
+        assert topology_collection.filters == [{"peer_id": "peer-alpha"}]

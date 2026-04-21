@@ -71,7 +71,7 @@ class PeerPublishedQuantumServiceManifest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     version: str = Field(min_length=3)
     title: str = Field(min_length=3, max_length=120)
     summary: str = Field(min_length=12, max_length=600)
@@ -79,8 +79,8 @@ class PeerPublishedQuantumServiceManifest(BaseModel):
     publisher_account_id: str | None = Field(default=None, min_length=3)
     runtime_class: RuntimeClass
     protocol: ProtocolDescriptor
-    quantum_capability: str = Field(min_length=3)
-    classical_baseline_capability: str | None = Field(default=None, min_length=3)
+    quantum_capability: str = Field(min_length=2)
+    classical_baseline_capability: str | None = Field(default=None, min_length=2)
     entrypoint: str = Field(min_length=1)
     tags: tuple[str, ...] = Field(default_factory=tuple)
     input_schema: ServiceInterfaceSchema

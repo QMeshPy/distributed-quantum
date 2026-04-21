@@ -25,6 +25,8 @@ from quantum_backend_v2.persistence.postgres import (
     PlatformUserRecord,
     WorkflowRunRecord,
 )
+from quantum_backend_v2.reservations.service import ReservationService
+from quantum_backend_v2.runtime.service import ExecutionService
 
 
 _CIRCUIT_WORKFLOW_DEFINITION_ID = "circuit-execution"
@@ -61,9 +63,13 @@ class CircuitJobService:
         if session_factory is None:
             raise RuntimeError("CircuitJobService requires a configured Postgres session factory")
         self._session_factory = session_factory
+        reservation_service = ReservationService(session_factory=session_factory)
+        execution_service = ExecutionService(session_factory=session_factory)
         self._quantum_bridge = QuantumExecutionBridge(
             discovery_service=discovery_service,
             libp2p_runtime=libp2p_runtime,
+            reservation_service=reservation_service,
+            execution_service=execution_service,
         )
 
     async def submit(
@@ -111,8 +117,10 @@ class CircuitJobService:
 
         partial_results: list[dict[str, Any]] = []
         runtime_fragment_results: list[Any] = []
+        final_state = None
         try:
             circuit_text = str(record.input_snapshot.get("circuit", ""))
+            await self._quantum_bridge.wait_for_service_peers()
             plan = self._quantum_bridge.compile_plan(circuit_text)
             plan_payload = self._quantum_bridge.serialize_plan(plan)
 
@@ -134,12 +142,18 @@ class CircuitJobService:
                 record.output_snapshot = {}
                 await session.commit()
 
-            for index, fragment_result in enumerate(
-                self._quantum_bridge.iter_fragment_results(plan),
-                start=1,
+            index = 0
+            async for execution in self._quantum_bridge.iter_fragment_executions(
+                workflow_run_id=job_id,
+                plan=plan,
             ):
-                runtime_fragment_results.append(fragment_result)
-                serialized_result = self._quantum_bridge.serialize_fragment_result(fragment_result)
+                index += 1
+                runtime_fragment_results.append(execution.fragment_result)
+                final_state = execution.state
+                serialized_result = self._quantum_bridge.serialize_fragment_result(
+                    execution.fragment_result,
+                    execution=execution,
+                )
                 partial_results.append(serialized_result)
 
                 async with self._session_factory() as session:
@@ -156,6 +170,7 @@ class CircuitJobService:
             quantum_result = self._quantum_bridge.build_quantum_result(
                 plan=plan,
                 fragment_results=tuple(runtime_fragment_results),
+                final_state=final_state,
             )
 
             async with self._session_factory() as session:
@@ -291,9 +306,13 @@ class FinancialJobService:
         if session_factory is None:
             raise RuntimeError("FinancialJobService requires a configured Postgres session factory")
         self._session_factory = session_factory
+        reservation_service = ReservationService(session_factory=session_factory)
+        execution_service = ExecutionService(session_factory=session_factory)
         self._quantum_bridge = QuantumExecutionBridge(
             discovery_service=discovery_service,
             libp2p_runtime=libp2p_runtime,
+            reservation_service=reservation_service,
+            execution_service=execution_service,
         )
 
     async def submit(
@@ -351,15 +370,27 @@ class FinancialJobService:
                 filename=filename,
                 config=config,
             )
+            await self._quantum_bridge.wait_for_service_peers()
             plan = self._quantum_bridge.compile_plan(artifacts.circuit_qasm)
-            runtime_fragment_results = list(self._quantum_bridge.iter_fragment_results(plan))
-            serialized_fragment_results = [
-                self._quantum_bridge.serialize_fragment_result(fragment_result)
-                for fragment_result in runtime_fragment_results
-            ]
+            runtime_fragment_results: list[Any] = []
+            serialized_fragment_results: list[dict[str, Any]] = []
+            final_state = None
+            async for execution in self._quantum_bridge.iter_fragment_executions(
+                workflow_run_id=job_id,
+                plan=plan,
+            ):
+                runtime_fragment_results.append(execution.fragment_result)
+                final_state = execution.state
+                serialized_fragment_results.append(
+                    self._quantum_bridge.serialize_fragment_result(
+                        execution.fragment_result,
+                        execution=execution,
+                    )
+                )
             quantum_result = self._quantum_bridge.build_quantum_result(
                 plan=plan,
                 fragment_results=tuple(runtime_fragment_results),
+                final_state=final_state,
             )
 
             result_payload = copy.deepcopy(artifacts.payload)

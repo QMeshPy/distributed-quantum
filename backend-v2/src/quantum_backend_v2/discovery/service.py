@@ -30,12 +30,14 @@ from quantum_backend_v2.discovery.models import (
     PeerHeartbeat,
     ServiceAdvertisementSummary,
 )
-from quantum_backend_v2.discovery.registry import PeerRegistry
+from quantum_backend_v2.discovery.registry import PeerRegistry, PeerRegistryEntry
 from quantum_backend_v2.libp2p.addressing import (
     normalize_local_loopback_addr,
     resolve_advertised_network_addresses,
 )
 from quantum_backend_v2.libp2p.bootstrap import Libp2pRuntime, create_real_libp2p_runtime
+from quantum_backend_v2.libp2p.fragment_worker import PeerFragmentWorker
+from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
 from quantum_backend_v2.libp2p.transport import (
     LibP2pNetworkThread,
     build_network_thread,
@@ -77,6 +79,13 @@ class DiscoveryService:
         if self._registry is None:
             raise RuntimeError("DiscoveryService has not been started yet")
         return self._registry
+
+    @property
+    def coordinator_network(self) -> LibP2pNetworkThread:
+        """The coordinator's active libp2p transport thread."""
+        if self._network_thread is None:
+            raise RuntimeError("DiscoveryService has not been started yet")
+        return self._network_thread
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -135,6 +144,53 @@ class DiscoveryService:
             self._drain_task = None
 
         logger.info("discovery service stopped")
+
+    async def request_peer_rpc(
+        self,
+        *,
+        peer_id: str,
+        protocol_id: str,
+        payload: bytes,
+        peer_addresses: tuple[str, ...] = (),
+        timeout_seconds: float = 15.0,
+    ) -> bytes:
+        """Send a request over the coordinator's libp2p transport."""
+        return await asyncio.to_thread(
+            self.coordinator_network.request_bytes,
+            peer_id=peer_id,
+            protocol_id=protocol_id,
+            payload=payload,
+            peer_addresses=peer_addresses,
+            timeout_seconds=timeout_seconds,
+        )
+
+    async def wait_for_service_peers(
+        self,
+        *,
+        minimum_count: int | None = None,
+        timeout_seconds: float = 10.0,
+    ) -> list[PeerRegistryEntry]:
+        """Wait until a minimum number of healthy service peers are visible."""
+        expected_count = minimum_count
+        if expected_count is None:
+            if self.settings.dev_service_peer_count > 0:
+                expected_count = self.settings.dev_service_peer_count
+            else:
+                expected_count = 1 if self.settings.enabled else 0
+        if expected_count <= 0:
+            return self._healthy_service_peers()
+
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        while True:
+            peers = self._healthy_service_peers()
+            if len(peers) >= expected_count:
+                return peers
+            if asyncio.get_running_loop().time() >= deadline:
+                raise RuntimeError(
+                    "timed out waiting for healthy service peers "
+                    f"(expected={expected_count}, observed={len(peers)})"
+                )
+            await asyncio.sleep(0.2)
 
     # ------------------------------------------------------------------
     # Asyncio drain loop
@@ -231,13 +287,26 @@ class DiscoveryService:
                 bootstrap_peers=bootstrap_peers,
             )
             worker_runtime = create_real_libp2p_runtime(worker_settings)
+            worker_protocols = build_execution_protocol_ids(
+                worker_settings.rendezvous_namespace
+            )
+            worker_peer_id = str(worker_runtime.host.get_id())
+            worker = PeerFragmentWorker(peer_id=worker_peer_id)
             if self._registry is not None:
-                self._registry.trusted_peer_ids.add(str(worker_runtime.host.get_id()))
+                self._registry.trusted_peer_ids.add(worker_peer_id)
             worker_thread = build_network_thread(
                 settings=worker_settings,
                 runtime=worker_runtime,
-                event_queue=queue.SimpleQueue(),
+                event_queue=None,
                 service_ids=KNOWN_SERVICE_IDS,
+                request_handlers={
+                    worker_protocols.reservation_prepare: worker.handle_prepare,
+                    worker_protocols.reservation_commit: worker.handle_commit,
+                    worker_protocols.reservation_cancel: worker.handle_cancel,
+                    worker_protocols.fragment_dispatch: worker.handle_dispatch,
+                },
+                heartbeat_provider=worker.heartbeat_snapshot,
+                consume_discovery=False,
             )
             worker_thread.start()
             self._service_peer_threads.append(worker_thread)
@@ -280,6 +349,13 @@ class DiscoveryService:
             _append_p2p_suffix(normalize_local_loopback_addr(addr), local_peer_id)
             for addr in advertised
         )
+
+    def _healthy_service_peers(self) -> list[PeerRegistryEntry]:
+        return [
+            peer
+            for peer in self.registry.list_peers(include_stale=False)
+            if peer.health_status == "healthy" and peer.service_ids
+        ]
 
 
 def _append_p2p_suffix(addr: str, peer_id: str) -> str:

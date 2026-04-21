@@ -56,7 +56,7 @@ class BenchmarkRun(BaseModel):
     benchmark_family: str = Field(min_length=3)
     dataset_ref: str | None = None
     dataset_version: str | None = None
-    quantum_service_id: str = Field(min_length=3)
+    quantum_service_id: str = Field(min_length=2)
     classical_service_id: str | None = None
     quantum_peer_id: str | None = None
     classical_peer_id: str | None = None

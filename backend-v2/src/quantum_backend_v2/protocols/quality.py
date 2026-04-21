@@ -39,7 +39,7 @@ class FidelityReport(BaseModel):
     reporting_peer_id: str = Field(min_length=3)
     execution_id: str = Field(min_length=8)
     fragment_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     fidelity_score: float = Field(ge=0.0, le=1.0)
     shots: int = Field(ge=1)
     gate_error_rate: float | None = Field(default=None, ge=0.0, le=1.0)

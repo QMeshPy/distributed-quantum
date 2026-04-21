@@ -26,7 +26,7 @@ class ReserveRequest(BaseModel):
 
     workflow_run_id: str = Field(min_length=8)
     fragment_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     requesting_peer_id: str | None = Field(default=None, min_length=3)
     ttl_seconds: int = Field(default=60, ge=5)
     idempotency_key: str | None = None

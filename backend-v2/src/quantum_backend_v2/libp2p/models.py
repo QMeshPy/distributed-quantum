@@ -20,6 +20,10 @@ class Libp2pBootstrapPlan(BaseModel):
     advertisement_protocol: ProtocolDescriptor
     heartbeat_protocol: ProtocolDescriptor
     peer_exchange_protocol: ProtocolDescriptor
+    reservation_prepare_protocol: ProtocolDescriptor
+    reservation_commit_protocol: ProtocolDescriptor
+    reservation_cancel_protocol: ProtocolDescriptor
+    fragment_dispatch_protocol: ProtocolDescriptor
 
 
 class Libp2pRuntimeSummary(BaseModel):

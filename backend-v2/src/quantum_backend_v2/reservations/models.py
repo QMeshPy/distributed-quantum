@@ -1,4 +1,4 @@
-"""Reservation domain models — state, conflict detection, lifecycle."""
+"""Reservation domain models - state, conflict detection, lifecycle."""
 
 from __future__ import annotations
 
@@ -24,25 +24,31 @@ class ReservationTransition(str, Enum):
     REJECTED = "rejected"
 
 
-_TERMINAL_TRANSITIONS = frozenset({
-    ReservationTransition.COMMITTED,
-    ReservationTransition.CANCELLED,
-    ReservationTransition.EXPIRED,
-    ReservationTransition.REJECTED,
-})
-
-_ALLOWED_TRANSITIONS: dict[ReservationTransition, frozenset[ReservationTransition]] = {
-    ReservationTransition.REQUESTED: frozenset({
-        ReservationTransition.ACCEPTED,
-        ReservationTransition.REJECTED,
-        ReservationTransition.EXPIRED,
-        ReservationTransition.CANCELLED,
-    }),
-    ReservationTransition.ACCEPTED: frozenset({
+_TERMINAL_TRANSITIONS = frozenset(
+    {
         ReservationTransition.COMMITTED,
         ReservationTransition.CANCELLED,
         ReservationTransition.EXPIRED,
-    }),
+        ReservationTransition.REJECTED,
+    }
+)
+
+_ALLOWED_TRANSITIONS: dict[ReservationTransition, frozenset[ReservationTransition]] = {
+    ReservationTransition.REQUESTED: frozenset(
+        {
+            ReservationTransition.ACCEPTED,
+            ReservationTransition.REJECTED,
+            ReservationTransition.EXPIRED,
+            ReservationTransition.CANCELLED,
+        }
+    ),
+    ReservationTransition.ACCEPTED: frozenset(
+        {
+            ReservationTransition.COMMITTED,
+            ReservationTransition.CANCELLED,
+            ReservationTransition.EXPIRED,
+        }
+    ),
     ReservationTransition.COMMITTED: frozenset(),
     ReservationTransition.CANCELLED: frozenset(),
     ReservationTransition.EXPIRED: frozenset(),
@@ -51,18 +57,14 @@ _ALLOWED_TRANSITIONS: dict[ReservationTransition, frozenset[ReservationTransitio
 
 
 class ReservationState(BaseModel):
-    """Reconstructed in-memory view of a reservation from its event log.
-
-    This is a disposable projection — never an authoritative store.
-    It is rebuilt from the append-only ``reservation_events`` table.
-    """
+    """Reconstructed in-memory view of a reservation from its event log."""
 
     model_config = ConfigDict(extra="forbid")
 
     reservation_id: str = Field(min_length=8)
     workflow_run_id: str = Field(min_length=8)
     fragment_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     requesting_peer_id: str = Field(min_length=3)
     accepting_peer_id: str | None = None
     current_transition: ReservationTransition = ReservationTransition.REQUESTED
@@ -93,7 +95,7 @@ class ReservationState(BaseModel):
     ) -> "ReservationState":
         if not self.can_transition_to(transition):
             raise ValueError(
-                f"Invalid transition {self.current_transition!r} → {transition!r} "
+                f"Invalid transition {self.current_transition!r} -> {transition!r} "
                 f"for reservation {self.reservation_id!r}"
             )
         update: dict[str, Any] = {
@@ -105,10 +107,7 @@ class ReservationState(BaseModel):
 
 
 class ReservationConflictState(BaseModel):
-    """Peer-level conflict view rebuilt from the event log.
-
-    Tracks which reservations are active against a peer's execution slots.
-    """
+    """Peer-level conflict view rebuilt from the event log."""
 
     model_config = ConfigDict(extra="forbid")
 

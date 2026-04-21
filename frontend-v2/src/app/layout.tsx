@@ -1,7 +1,21 @@
 import type { Metadata } from 'next';
+import { Geist, Geist_Mono, Oxanium } from 'next/font/google';
 import './globals.css';
+import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+
+const oxanium = Oxanium({ subsets: ['latin'], variable: '--font-sans' });
+
+const geistSans = Geist({
+	variable: '--font-geist-sans',
+	subsets: ['latin']
+});
+
+const geistMono = Geist_Mono({
+	variable: '--font-geist-mono',
+	subsets: ['latin']
+});
 
 export const metadata: Metadata = {
 	title: 'Quantum Gates Dashboard',
@@ -16,17 +30,21 @@ export default function RootLayout({
 	return (
 		<html
 			lang='en'
-			className='h-full antialiased font-sans'
+			className={cn(
+				'h-full',
+				'antialiased',
+				geistSans.variable,
+				geistMono.variable,
+				'font-sans',
+				oxanium.variable
+			)}
 		>
-			<body
-				className='min-h-full flex flex-col'
-				suppressHydrationWarning
-			>
-				<TooltipProvider>
+			<TooltipProvider>
+				<body className='min-h-full flex flex-col'>
 					{children}
 					<Toaster />
-				</TooltipProvider>
-			</body>
+				</body>
+			</TooltipProvider>
 		</html>
 	);
 }

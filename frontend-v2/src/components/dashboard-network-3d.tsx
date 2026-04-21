@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { forceCollide } from 'd3-force-3d';
 import dynamic from 'next/dynamic';
 import { GitBranchIcon, RefreshCcwIcon } from 'lucide-react';
 import type { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-3d';
@@ -20,22 +21,24 @@ type DashboardNetwork3DProps = {
 	onSelectNode: (nodeId: string | null) => void;
 };
 
-type GraphNode = DashboardNetworkGraphNode & NodeObject;
+type GraphNode = Omit<DashboardNetworkGraphNode, 'color'> &
+	NodeObject & {
+		autoColorGroup: string;
+		color?: string;
+	};
 
-type GraphLink = Omit<DashboardNetworkGraphLink, 'source' | 'target'> &
+type GraphLink = Omit<DashboardNetworkGraphLink, 'source' | 'target' | 'color'> &
 	LinkObject<GraphNode> & {
 		source: string | GraphNode;
 		target: string | GraphNode;
+		autoColorGroup: string;
+		color?: string;
 	};
 
 type GraphData = {
 	nodes: GraphNode[];
 	links: GraphLink[];
 };
-
-const ForceGraph3D = dynamic(() => import('react-force-graph-3d').then(mod => mod.default), {
-	ssr: false
-}) as typeof ForceGraph3DComponent;
 
 type OrbitControlsLike = {
 	autoRotate?: boolean;
@@ -49,39 +52,6 @@ type OrbitControlsLike = {
 	zoomSpeed?: number;
 };
 
-const CANVAS_HEIGHT_CLASS = 'h-[420px] w-full sm:h-[480px] xl:h-[540px]';
-
-/** Tighter padding in px so zoomToFit fills more of the WebGL canvas (smaller = larger on-screen graph). */
-function graphZoomPaddingPx(width: number, height: number) {
-	const m = Math.min(width, height);
-	return Math.max(8, Math.round(m * 0.018));
-}
-
-function clamp(value: number, min: number, max: number) {
-	return Math.min(max, Math.max(min, value));
-}
-
-/** Spread simulation in graph units so node layout scales with the visible canvas. */
-function graphLinkDistance(width: number, height: number) {
-	const m = Math.min(width, height);
-	return Math.round(clamp(m * 0.32, 88, 320));
-}
-
-function graphChargeStrength(width: number, height: number) {
-	const m = Math.min(width, height);
-	return -Math.round(clamp(m * 0.52, 160, 420));
-}
-
-function graphCameraScale(width: number, height: number) {
-	const m = Math.min(width, height);
-	return clamp(m / 420, 0.72, 1.55);
-}
-
-function graphNodeRelSize(width: number, height: number) {
-	const m = Math.min(width, height);
-	return clamp(m / 54, 5.5, 16);
-}
-
 type ThemePalette = {
 	primary: string;
 	chart2: string;
@@ -92,6 +62,11 @@ type ThemePalette = {
 	border: string;
 };
 
+const ForceGraph3D = dynamic(() => import('react-force-graph-3d').then(mod => mod.default), {
+	ssr: false
+}) as typeof ForceGraph3DComponent;
+
+const CANVAS_HEIGHT_CLASS = 'h-[420px] w-full sm:h-[480px] xl:h-[540px]';
 const DEFAULT_THEME_PALETTE: ThemePalette = {
 	primary: '#7c3aed',
 	chart2: '#f59e0b',
@@ -101,6 +76,44 @@ const DEFAULT_THEME_PALETTE: ThemePalette = {
 	foreground: '#18181b',
 	border: '#e4e4e7'
 };
+
+function graphZoomPaddingPx(width: number, height: number) {
+	const m = Math.min(width, height);
+	return Math.max(32, Math.round(m * 0.08));
+}
+
+function clamp(value: number, min: number, max: number) {
+	return Math.min(max, Math.max(min, value));
+}
+
+function graphLinkDistance(width: number, height: number) {
+	const m = Math.min(width, height);
+	return Math.round(clamp(m * 0.52, 160, 340));
+}
+
+function graphChargeStrength(width: number, height: number) {
+	const m = Math.min(width, height);
+	return -Math.round(clamp(m * 1.08, 460, 1120));
+}
+
+function graphCameraScale(width: number, height: number) {
+	const m = Math.min(width, height);
+	return clamp(m / 420, 0.84, 1.6);
+}
+
+function graphNodeRelSize(width: number, height: number) {
+	const m = Math.min(width, height);
+	return clamp(m / 110, 3.9, 6.6);
+}
+
+function graphBaseNodeValue(node: GraphNode) {
+	const scaled = node.val * (node.kind === 'coordinator' ? 0.76 : 0.5);
+	return clamp(scaled, node.kind === 'coordinator' ? 6.2 : 3.8, node.kind === 'coordinator' ? 11.2 : 8.4);
+}
+
+function graphCollisionRadius(nodeValue: number, nodeRel: number) {
+	return Math.cbrt(Math.max(nodeValue, 1)) * nodeRel * 1.42 + 12;
+}
 
 function formatRatioAsPercent(value: number) {
 	return `${(value * 100).toFixed(2)}%`;
@@ -170,6 +183,14 @@ function resolveCssColor(value: string, fallback: string) {
 	return rgbToHex(resolvedColor) ?? fallback;
 }
 
+function resolveGraphPaintColor(value: string | undefined, fallback: string) {
+	if (!value) {
+		return fallback;
+	}
+
+	return resolveCssColor(value, fallback);
+}
+
 function hexToRgbParts(value: string) {
 	const normalized = normalizeHex(value).replace('#', '');
 	return {
@@ -216,8 +237,8 @@ function readThemePalette() {
 }
 
 function buildNodeTooltip(node: GraphNode, palette: ThemePalette) {
-	const title = escapeHtml(node.kind === 'coordinator' ? node.label : node.shortLabel);
-	const subtitle = escapeHtml(node.kind === 'coordinator' ? 'Coordinator snapshot' : node.label);
+	const title = escapeHtml(node.kind === 'coordinator' ? 'Coordinator' : node.shortLabel);
+	const subtitle = escapeHtml(node.kind === 'coordinator' ? node.label : node.nodeId ?? node.label);
 	const servicesLabel =
 		node.totalServices > 0
 			? `${node.availableServices}/${node.totalServices} services available`
@@ -231,7 +252,7 @@ function buildNodeTooltip(node: GraphNode, palette: ThemePalette) {
 	return `
 		<div style="min-width:220px;border-radius:16px;border:1px solid ${palette.border};background:${hexToRgba(tooltipSurface, 0.96)};padding:12px 14px;color:${palette.foreground};box-shadow:0 10px 30px ${hexToRgba(palette.foreground, 0.12)};backdrop-filter:blur(12px);">
 			<div style="font-size:13px;font-weight:700;letter-spacing:0.01em;">${title}</div>
-			<div style="margin-top:3px;font-size:11px;opacity:0.72;">${escapeHtml(subtitle)}</div>
+			<div style="margin-top:3px;font-size:11px;opacity:0.72;">${subtitle}</div>
 			<div style="margin-top:10px;font-size:12px;line-height:1.5;">
 				<div><strong>Status:</strong> ${escapeHtml(node.status)}</div>
 				<div><strong>Fidelity:</strong> ${escapeHtml(fidelityLabel)}</div>
@@ -248,8 +269,9 @@ function buildLinkTooltip(link: GraphLink, palette: ThemePalette) {
 	const targetNodeId = resolveGraphNodeId(link.target);
 	const capabilityLabel = link.serviceTypes.length ? link.serviceTypes.join(', ') : 'No service types reported';
 	const tooltipSurface = mixHex(palette.card, palette.background, 0.35);
-	const linkTitle = link.kind === 'peer' ? 'Peer-to-peer capability overlap' : 'Coordinator reachability';
-	const endpointLabel = link.kind === 'peer' ? `${sourceNodeId} ↔ ${targetNodeId}` : targetNodeId;
+	const linkTitle = link.kind === 'peer' ? 'Peer capability overlap' : 'Coordinator reachability';
+	const endpointLabel =
+		link.kind === 'peer' ? `${sourceNodeId} <-> ${targetNodeId}` : `${sourceNodeId} -> ${targetNodeId}`;
 	const servicesLabel =
 		link.kind === 'peer'
 			? `${link.availableServices}/${link.totalServices} shared live services`
@@ -345,44 +367,53 @@ export function DashboardNetwork3D({
 
 	const graphData = React.useMemo<GraphData>(
 		() => ({
-			nodes: network?.nodes.map(node => ({ ...node })) ?? [],
-			links: network?.links.map(link => ({ ...link })) ?? []
+			nodes:
+				network?.nodes.map(({ color: _color, ...node }) => ({
+					...node,
+					autoColorGroup: node.kind === 'coordinator' ? 'coordinator' : node.nodeId ?? node.id
+				})) ?? [],
+			links:
+				network?.links.map(({ color: _color, ...link }) => ({
+					...link,
+					autoColorGroup:
+						link.kind === 'coordinator'
+							? 'coordinator'
+							: resolveGraphNodeId(link.source) || `peer-link:${link.id}`
+				})) ?? []
 		}),
 		[network]
 	);
+
 	const deferredGraphData = React.useDeferredValue(graphData);
 	const hoveredLink = React.useMemo(
 		() => deferredGraphData.links.find(link => link.id === hoveredLinkId) ?? null,
 		[deferredGraphData.links, hoveredLinkId]
 	);
-	const graphPalette = React.useMemo(
-		() => ({
-			coordinator: themePalette.primary,
-			healthy: mixHex(themePalette.primary, themePalette.card, 0.22),
-			degraded: mixHex(themePalette.chart2, themePalette.card, 0.08),
-			offline: mixHex(themePalette.mutedForeground, themePalette.card, 0.14),
-			active: themePalette.chart2,
-			selected: themePalette.primary
-		}),
-		[themePalette]
+	const hasCanvasDimensions = canvasSize.width > 0 && canvasSize.height > 0;
+	const graphNodeRel = hasCanvasDimensions ? graphNodeRelSize(canvasSize.width, canvasSize.height) : 8;
+	const totalPeerOverlapLinks = React.useMemo(
+		() => deferredGraphData.links.filter(link => link.kind === 'peer').length,
+		[deferredGraphData.links]
+	);
+	const isAnyFocusActive = Boolean(selectedNodeId || hoveredNodeId || hoveredLinkId);
+	const graphCanvasBase = React.useMemo(
+		() => mixHex(themePalette.background, themePalette.card, 0.46),
+		[themePalette.background, themePalette.card]
 	);
 	const canvasSurfaceStyle = React.useMemo<React.CSSProperties>(
 		() => ({
-			backgroundImage: `radial-gradient(circle at top, ${hexToRgba(themePalette.primary, 0.18)}, transparent 34%), radial-gradient(circle at bottom, ${hexToRgba(themePalette.chart2, 0.12)}, transparent 30%), linear-gradient(180deg, ${hexToRgba(themePalette.card, 0.98)}, ${hexToRgba(themePalette.background, 0.94)})`
+			backgroundColor: themePalette.card,
+			backgroundImage: `radial-gradient(circle at 18% 16%, ${hexToRgba(themePalette.primary, 0.08)}, transparent 24%), radial-gradient(circle at 82% 14%, ${hexToRgba(themePalette.chart2, 0.07)}, transparent 22%), linear-gradient(180deg, ${hexToRgba(mixHex(themePalette.card, '#ffffff', 0.14), 0.98)} 0%, ${hexToRgba(graphCanvasBase, 0.98)} 100%)`
 		}),
-		[themePalette]
+		[graphCanvasBase, themePalette]
 	);
-	const hasCanvasDimensions = canvasSize.width > 0 && canvasSize.height > 0;
 	const viewLineScale = React.useMemo(() => {
 		if (!hasCanvasDimensions) {
 			return 1;
 		}
 
-		return clamp(Math.min(canvasSize.width, canvasSize.height) / 480, 0.85, 1.48);
+		return clamp(Math.min(canvasSize.width, canvasSize.height) / 560, 0.92, 1.4);
 	}, [canvasSize.height, canvasSize.width, hasCanvasDimensions]);
-
-	const graphNodeRel = hasCanvasDimensions ? graphNodeRelSize(canvasSize.width, canvasSize.height) : 8;
-
 	const canAttachGraphHost = hasMounted && !isLoading && (network?.totalPeers ?? 0) > 0;
 
 	React.useEffect(() => {
@@ -393,40 +424,78 @@ export function DashboardNetwork3D({
 		canvasMetricsRef.current = { width: canvasSize.width, height: canvasSize.height };
 	}, [canvasSize.width, canvasSize.height]);
 
+	const getRenderedNodeValue = React.useCallback(
+		(node: GraphNode) => {
+			let value = graphBaseNodeValue(node);
+			if (node.nodeId === selectedNodeId) {
+				value *= 1.14;
+			}
+			if (hoveredNodeId && node.id === hoveredNodeId) {
+				value *= 1.08;
+			}
+			if (hoveredLink && isNodeActive(node, selectedNodeId, hoveredNodeId, hoveredLink)) {
+				value *= 1.05;
+			}
+			if (selectedNodeId && node.kind === 'peer' && node.nodeId !== selectedNodeId) {
+				value *= 0.94;
+			}
+
+			return clamp(value, node.kind === 'coordinator' ? 6.2 : 3.8, node.kind === 'coordinator' ? 12.2 : 9.4);
+		},
+		[hoveredLink, hoveredNodeId, selectedNodeId]
+	);
+
 	const syncGraphLayoutToViewport = React.useEffectEvent(() => {
 		const fg = graphRef.current;
 		if (!fg) {
 			return;
 		}
 
-		const { width: w, height: h } = canvasMetricsRef.current;
-		if (w <= 0 || h <= 0) {
+		const { width, height } = canvasMetricsRef.current;
+		if (width <= 0 || height <= 0) {
 			return;
 		}
 
-		const linkForce = fg.d3Force('link') as { distance?: (value: number) => void } | undefined;
-		linkForce?.distance?.(graphLinkDistance(w, h));
+		const linkForce = fg.d3Force('link') as
+			| {
+					distance?: (value: ((link: GraphLink) => number) | number) => void;
+					strength?: (value: ((link: GraphLink) => number) | number) => void;
+			  }
+			| undefined;
+
+		linkForce?.distance?.((link: GraphLink) => {
+			const baseDistance = graphLinkDistance(width, height);
+			if (link.kind === 'coordinator') {
+				return baseDistance * 0.92 + Math.min(link.availableServices, 6) * 6;
+			}
+
+			return baseDistance * 1.18 + Math.min(link.serviceTypes.length, 6) * 12;
+		});
+		linkForce?.strength?.((link: GraphLink) => (link.kind === 'coordinator' ? 0.24 : 0.11));
 
 		const chargeForce = fg.d3Force('charge') as { strength?: (value: number) => void } | undefined;
-		chargeForce?.strength?.(graphChargeStrength(w, h));
+		chargeForce?.strength?.(graphChargeStrength(width, height));
+
+		const nodeRel = graphNodeRelSize(width, height);
+		const collisionForce = forceCollide<GraphNode>(node =>
+			graphCollisionRadius(getRenderedNodeValue(node), nodeRel)
+		);
+		collisionForce.strength(1);
+		collisionForce.iterations(2);
+		fg.d3Force('collide', collisionForce);
 
 		fg.d3ReheatSimulation();
 
 		const controls = fg.controls() as OrbitControlsLike | undefined;
 		if (controls) {
-			const m = Math.min(w, h);
-			controls.minDistance = Math.max(40, m * 0.055);
-			controls.maxDistance = Math.max(650, m * 2.35);
+			const m = Math.min(width, height);
+			controls.minDistance = Math.max(88, m * 0.14);
+			controls.maxDistance = Math.max(1200, m * 3.4);
 		}
 
-		const pad = graphZoomPaddingPx(w, h);
+		const pad = graphZoomPaddingPx(width, height);
 		requestAnimationFrame(() => {
-			const inner = graphRef.current;
-			if (!inner) {
-				return;
-			}
-
-			inner.zoomToFit(0, pad, node => (node as GraphNode).kind === 'peer');
+			graphRef.current?.zoomToFit(0, pad);
 		});
 	});
 
@@ -451,6 +520,18 @@ export function DashboardNetwork3D({
 		}, pauseMs);
 	});
 
+	const resetView = React.useEffectEvent((transitionMs = 700) => {
+		const graph = graphRef.current;
+		if (!graph) {
+			return;
+		}
+
+		const { width, height } = canvasMetricsRef.current;
+		const fitWidth = width > 0 ? width : 480;
+		const fitHeight = height > 0 ? height : 420;
+		graph.zoomToFit(transitionMs, graphZoomPaddingPx(fitWidth, fitHeight));
+	});
+
 	const focusNode = React.useEffectEvent((node: GraphNode | null, transitionMs = 900) => {
 		const graph = graphRef.current;
 		if (!graph) {
@@ -458,24 +539,25 @@ export function DashboardNetwork3D({
 		}
 
 		const { width: cw, height: ch } = canvasMetricsRef.current;
-		const w = cw > 0 ? cw : 480;
-		const h = ch > 0 ? ch : 420;
-		const pad = graphZoomPaddingPx(w, h);
-		const camScale = graphCameraScale(w, h);
+		const width = cw > 0 ? cw : 480;
+		const height = ch > 0 ? ch : 420;
+		const camScale = graphCameraScale(width, height);
 
 		if (!node) {
-			graph.zoomToFit(transitionMs, pad, candidate => (candidate as GraphNode).kind === 'peer');
+			graph.zoomToFit(transitionMs, graphZoomPaddingPx(width, height));
 			return;
 		}
+
+		const nodeRadius = graphCollisionRadius(getRenderedNodeValue(node), graphNodeRelSize(width, height));
 
 		const x = node.x ?? 0;
 		const y = node.y ?? 0;
 		const z = node.z ?? 0;
-		const distance = (110 + (node.val ?? 1) * 14) * camScale;
+		const distance = (136 + nodeRadius * 8.6) * camScale;
 		const magnitude = Math.hypot(x, y, z);
 
 		if (magnitude < 1) {
-			graph.cameraPosition({ x: distance * 0.85, y: distance * 0.35, z: distance }, { x, y, z }, transitionMs);
+			graph.cameraPosition({ x: distance * 0.82, y: distance * 0.34, z: distance }, { x, y, z }, transitionMs);
 			return;
 		}
 
@@ -491,124 +573,106 @@ export function DashboardNetwork3D({
 		);
 	});
 
-	const nodeVal = React.useCallback(
-		(node: GraphNode) => {
-			const multiplier = isNodeActive(node, selectedNodeId, hoveredNodeId, hoveredLink) ? 1.35 : 1;
-			if (selectedNodeId && node.kind === 'peer' && node.nodeId !== selectedNodeId) {
-				return node.val * 0.92;
-			}
-
-			return node.val * multiplier;
-		},
-		[hoveredLink, hoveredNodeId, selectedNodeId]
-	);
-
 	const nodeColor = React.useCallback(
 		(node: GraphNode) => {
-			if (node.nodeId === selectedNodeId) {
-				return graphPalette.selected;
+			const fallback =
+				node.kind === 'coordinator'
+					? mixHex(themePalette.chart2, '#ffffff', 0.08)
+					: mixHex(themePalette.primary, '#ffffff', 0.06);
+			const baseColor = resolveGraphPaintColor(node.color, fallback);
+
+			if (!isAnyFocusActive) {
+				return baseColor;
 			}
 
-			if (isNodeActive(node, selectedNodeId, hoveredNodeId, hoveredLink)) {
-				return graphPalette.active;
-			}
-
-			if (node.kind === 'coordinator') {
-				return graphPalette.coordinator;
-			}
-
-			switch (node.status) {
-				case 'healthy':
-					return graphPalette.healthy;
-				case 'degraded':
-					return graphPalette.degraded;
-				default:
-					return graphPalette.offline;
-			}
+			return isNodeActive(node, selectedNodeId, hoveredNodeId, hoveredLink)
+				? baseColor
+				: hexToRgba(baseColor, 0.28);
 		},
-		[graphPalette, hoveredLink, hoveredNodeId, selectedNodeId]
+		[hoveredLink, hoveredNodeId, isAnyFocusActive, selectedNodeId, themePalette.chart2, themePalette.primary]
 	);
-
-	const nodeLabel = React.useCallback((node: GraphNode) => buildNodeTooltip(node, themePalette), [themePalette]);
-
-	const linkLabel = React.useCallback((link: GraphLink) => buildLinkTooltip(link, themePalette), [themePalette]);
 
 	const linkColor = React.useCallback(
 		(link: GraphLink) => {
-			if (isLinkActive(link, selectedNodeId, hoveredLinkId)) {
-				return graphPalette.active;
+			const fallback =
+				link.kind === 'coordinator'
+					? mixHex(themePalette.chart2, '#ffffff', 0.12)
+					: mixHex(themePalette.primary, '#ffffff', 0.12);
+			const baseColor = resolveGraphPaintColor(link.color, fallback);
+
+			if (!isAnyFocusActive) {
+				return hexToRgba(baseColor, link.kind === 'peer' ? 0.28 : 0.5);
 			}
 
-			return link.kind === 'peer' ? hexToRgba(graphPalette.selected, 0.38) : graphPalette.healthy;
+			return isLinkActive(link, selectedNodeId, hoveredLinkId) ? hexToRgba(baseColor, 0.92) : hexToRgba(baseColor, 0.1);
 		},
-		[graphPalette, hoveredLinkId, selectedNodeId]
+		[hoveredLinkId, isAnyFocusActive, selectedNodeId, themePalette.chart2, themePalette.primary]
 	);
+
+	const nodeLabel = React.useCallback((node: GraphNode) => buildNodeTooltip(node, themePalette), [themePalette]);
+	const linkLabel = React.useCallback((link: GraphLink) => buildLinkTooltip(link, themePalette), [themePalette]);
 
 	const linkWidth = React.useCallback(
 		(link: GraphLink) =>
-			link.width * viewLineScale + (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 1.8 * viewLineScale : 0),
+			Math.max(
+				1,
+				link.width * viewLineScale + (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 1.65 * viewLineScale : 0)
+			),
 		[hoveredLinkId, selectedNodeId, viewLineScale]
+	);
+
+	const linkDirectionalParticles = React.useCallback(
+		(link: GraphLink) => {
+			if (link.kind !== 'coordinator') {
+				return 0;
+			}
+
+			return isLinkActive(link, selectedNodeId, hoveredLinkId) ? 4 : 2;
+		},
+		[hoveredLinkId, selectedNodeId]
 	);
 
 	const linkDirectionalParticleSpeed = React.useCallback(
 		(link: GraphLink) =>
-			isLinkActive(link, selectedNodeId, hoveredLinkId) ? link.particleSpeed * 1.5 : link.particleSpeed,
+			isLinkActive(link, selectedNodeId, hoveredLinkId) ? link.particleSpeed * 1.6 : link.particleSpeed,
 		[hoveredLinkId, selectedNodeId]
 	);
 
 	const linkDirectionalParticleWidth = React.useCallback(
-		(link: GraphLink) => (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 5 : 3) * viewLineScale,
+		(link: GraphLink) => (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 5.5 : 3.2) * viewLineScale,
 		[hoveredLinkId, selectedNodeId, viewLineScale]
 	);
 
 	const linkDirectionalParticleColor = React.useCallback(
-		(link: GraphLink) =>
-			isLinkActive(link, selectedNodeId, hoveredLinkId)
-				? graphPalette.active
-				: link.kind === 'peer'
-					? graphPalette.selected
-					: graphPalette.coordinator,
-		[graphPalette, hoveredLinkId, selectedNodeId]
+		(link: GraphLink) => {
+			const fallback =
+				link.kind === 'coordinator'
+					? mixHex(themePalette.chart2, '#ffffff', 0.08)
+					: mixHex(themePalette.primary, '#ffffff', 0.08);
+			const baseColor = resolveGraphPaintColor(link.color, fallback);
+			return isLinkActive(link, selectedNodeId, hoveredLinkId) ? '#ffffff' : baseColor;
+		},
+		[hoveredLinkId, selectedNodeId, themePalette.chart2, themePalette.primary]
 	);
 
 	const linkDirectionalArrowLength = React.useCallback(
-		(link: GraphLink) => (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 6 : 4) * viewLineScale,
+		(link: GraphLink) => (isLinkActive(link, selectedNodeId, hoveredLinkId) ? 7 : 4.5) * viewLineScale,
 		[hoveredLinkId, selectedNodeId, viewLineScale]
 	);
 
 	const linkDirectionalArrowColor = React.useCallback(
-		(link: GraphLink) =>
-			isLinkActive(link, selectedNodeId, hoveredLinkId)
-				? graphPalette.active
-				: link.kind === 'peer'
-					? graphPalette.selected
-					: graphPalette.coordinator,
-		[graphPalette, hoveredLinkId, selectedNodeId]
+		(link: GraphLink) => {
+			const fallback =
+				link.kind === 'coordinator'
+					? mixHex(themePalette.chart2, '#ffffff', 0.08)
+					: mixHex(themePalette.primary, '#ffffff', 0.08);
+			const baseColor = resolveGraphPaintColor(link.color, fallback);
+			return isLinkActive(link, selectedNodeId, hoveredLinkId) ? '#ffffff' : baseColor;
+		},
+		[hoveredLinkId, selectedNodeId, themePalette.chart2, themePalette.primary]
 	);
 
-	const resetView = React.useEffectEvent((transitionMs = 700) => {
-		const graph = graphRef.current;
-		if (!graph) {
-			return;
-		}
-
-		const mutableNode = findGraphNodeByPeerId(deferredGraphDataRef.current.nodes, selectedNodeId);
-		if (mutableNode) {
-			focusNode(mutableNode, transitionMs);
-			return;
-		}
-
-		const { width: rw, height: rh } = canvasMetricsRef.current;
-		const rwc = rw > 0 ? rw : 480;
-		const rhc = rh > 0 ? rh : 420;
-		graph.zoomToFit(transitionMs, graphZoomPaddingPx(rwc, rhc), node => (node as GraphNode).kind === 'peer');
-	});
-
-	const handleSelection = React.useEffectEvent((nodeId: string | null) => {
-		onSelectNode(nodeId);
-	});
-
-	const queueInitialFit = React.useEffectEvent((transitionMs = 0) => {
+	const queueInitialFit = React.useEffectEvent((transitionMs = 420) => {
 		if (initialFitFrameRef.current !== null) {
 			window.cancelAnimationFrame(initialFitFrameRef.current);
 		}
@@ -617,6 +681,10 @@ export function DashboardNetwork3D({
 			initialFitFrameRef.current = null;
 			resetView(transitionMs);
 		});
+	});
+
+	const handleSelection = React.useEffectEvent((nodeId: string | null) => {
+		onSelectNode(nodeId);
 	});
 
 	const onNodeClickFg = React.useEffectEvent((node: GraphNode) => {
@@ -638,7 +706,10 @@ export function DashboardNetwork3D({
 		const targetNode = findGraphNodeByPeerId(deferredGraphDataRef.current.nodes, targetNodeId);
 		if (targetNode) {
 			focusNode(targetNode);
+			return;
 		}
+
+		resetView();
 	});
 
 	const onBackgroundClickFg = React.useEffectEvent(() => {
@@ -654,18 +725,33 @@ export function DashboardNetwork3D({
 
 		engineBootstrappedRef.current = true;
 
+		const { width: cw, height: ch } = canvasMetricsRef.current;
+		const width = cw > 0 ? cw : 480;
+		const height = ch > 0 ? ch : 420;
+		const nodeRel = graphNodeRelSize(width, height);
+
 		const linkForce = fg.d3Force('link') as { strength?: (value: number) => void } | undefined;
-		linkForce?.strength?.(0.9);
+		linkForce?.strength?.(0.18);
+
+		const chargeForce = fg.d3Force('charge') as { strength?: (value: number) => void } | undefined;
+		chargeForce?.strength?.(graphChargeStrength(width, height));
+
+		const collisionForce = forceCollide<GraphNode>(node =>
+			graphCollisionRadius(getRenderedNodeValue(node), nodeRel)
+		);
+		collisionForce.strength(1);
+		collisionForce.iterations(2);
+		fg.d3Force('collide', collisionForce);
 
 		const controls = fg.controls() as OrbitControlsLike | undefined;
 		if (controls) {
 			controls.enableDamping = true;
 			controls.dampingFactor = 0.08;
 			controls.autoRotate = true;
-			controls.autoRotateSpeed = 0.55;
-			controls.rotateSpeed = 0.85;
+			controls.autoRotateSpeed = 0.45;
+			controls.rotateSpeed = 0.72;
 			controls.zoomSpeed = 0.9;
-			controls.panSpeed = 0.75;
+			controls.panSpeed = 0.68;
 		}
 
 		setGraphReady(true);
@@ -764,6 +850,7 @@ export function DashboardNetwork3D({
 
 			container.removeEventListener('pointerdown', pauseRotationListener);
 			container.removeEventListener('wheel', pauseRotationListener);
+
 			if (initialFitFrameRef.current !== null) {
 				window.cancelAnimationFrame(initialFitFrameRef.current);
 				initialFitFrameRef.current = null;
@@ -804,18 +891,6 @@ export function DashboardNetwork3D({
 
 	React.useEffect(() => {
 		const graph = graphRef.current;
-		if (!graph || !graphReady || !hasCanvasDimensions) {
-			return;
-		}
-
-		if (!hasInitialFitRef.current && deferredGraphData.nodes.length > 0) {
-			hasInitialFitRef.current = true;
-			queueInitialFit(0);
-		}
-	}, [canvasSize.height, canvasSize.width, deferredGraphData.nodes.length, graphReady, hasCanvasDimensions]);
-
-	React.useEffect(() => {
-		const graph = graphRef.current;
 		if (!graph || !graphReady) {
 			return;
 		}
@@ -828,7 +903,7 @@ export function DashboardNetwork3D({
 		}
 
 		resetView(700);
-	}, [graphReady, selectedNodeId]);
+	}, [focusNode, graphReady, pauseAutoRotate, resetView, selectedNodeId]);
 
 	React.useEffect(() => {
 		return () => {
@@ -851,10 +926,10 @@ export function DashboardNetwork3D({
 				<CardContent className='space-y-4'>
 					<Skeleton className={`rounded-3xl ${CANVAS_HEIGHT_CLASS}`} />
 					<div className='flex flex-wrap gap-2'>
-						{Array.from({ length: 4 }, (_, index) => (
+						{Array.from({ length: 5 }, (_, index) => (
 							<Skeleton
 								key={index}
-								className='h-7 w-28 rounded-full'
+								className='h-7 w-32 rounded-full'
 							/>
 						))}
 					</div>
@@ -867,7 +942,7 @@ export function DashboardNetwork3D({
 		return (
 			<Card className='@container/card'>
 				<CardHeader>
-					<CardTitle>Peer discovery map</CardTitle>
+					<CardTitle>Peer discovery graph</CardTitle>
 					<CardDescription>Waiting for peers to advertise services into the coordinator.</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -892,10 +967,10 @@ export function DashboardNetwork3D({
 		<Card className='@container/card overflow-hidden'>
 			<CardHeader>
 				<div className='space-y-1'>
-					<CardTitle>Peer discovery map</CardTitle>
+					<CardTitle>Peer discovery graph</CardTitle>
 					<CardDescription>
-						Each sphere is a live peer from the registry snapshot. Orange links show coordinator
-						reachability; purple links infer peer-to-peer coupling from shared service capabilities.
+						True 3D peer topology with orbit controls, fit-to-frame reset, and auto-colored node identities.
+						Solid links show coordinator reachability; peer links show inferred capability overlap.
 					</CardDescription>
 				</div>
 				<CardAction className='flex items-center gap-2'>
@@ -912,9 +987,23 @@ export function DashboardNetwork3D({
 			</CardHeader>
 			<CardContent className='space-y-4'>
 				<div
-					className='relative overflow-hidden rounded-[1.75rem] border border-border/60'
+					className='relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card/90'
 					style={canvasSurfaceStyle}
 				>
+					<div className='pointer-events-none absolute inset-x-4 top-4 z-10 flex flex-wrap gap-2 text-xs'>
+						<Badge className='border-border/70 bg-background/88 text-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
+							{network.totalPeers} live peers
+						</Badge>
+						<Badge className='border-border/70 bg-background/88 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
+							{network.totalServices} services
+						</Badge>
+						<Badge className='border-border/70 bg-background/88 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
+							{network.serviceTypes.length} gate families
+						</Badge>
+						<Badge className='border-border/70 bg-background/88 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
+							{totalPeerOverlapLinks} peer overlap links
+						</Badge>
+					</div>
 					<div
 						ref={containerRef}
 						className={CANVAS_HEIGHT_CLASS}
@@ -929,7 +1018,8 @@ export function DashboardNetwork3D({
 								backgroundColor='rgba(0,0,0,0)'
 								showNavInfo={false}
 								nodeRelSize={graphNodeRel}
-								nodeAutoColorBy='user'
+								nodeAutoColorBy='autoColorGroup'
+								linkAutoColorBy='autoColorGroup'
 								nodeOpacity={1}
 								linkOpacity={1}
 								linkDirectionalArrowRelPos={1}
@@ -937,22 +1027,22 @@ export function DashboardNetwork3D({
 								enableNodeDrag
 								enableNavigationControls
 								showPointerCursor
-								linkDirectionalParticles={0}
-								warmupTicks={40}
-								cooldownTime={18_000}
+								warmupTicks={50}
+								cooldownTime={20_000}
 								d3VelocityDecay={0.18}
 								onEngineStop={handleEngineStop}
-								nodeVal={nodeVal}
+								nodeVal={getRenderedNodeValue}
 								nodeColor={nodeColor}
 								nodeLabel={nodeLabel}
 								linkLabel={linkLabel}
 								linkColor={linkColor}
 								linkWidth={linkWidth}
-								linkDirectionalParticleSpeed={linkDirectionalParticleSpeed}
-								linkDirectionalParticleWidth={linkDirectionalParticleWidth}
-								linkDirectionalParticleColor={linkDirectionalParticleColor}
-								linkDirectionalArrowLength={linkDirectionalArrowLength}
-								linkDirectionalArrowColor={linkDirectionalArrowColor}
+								linkDirectionalParticles={link => linkDirectionalParticles(link as GraphLink)}
+								linkDirectionalParticleSpeed={link => linkDirectionalParticleSpeed(link as GraphLink)}
+								linkDirectionalParticleWidth={link => linkDirectionalParticleWidth(link as GraphLink)}
+								linkDirectionalParticleColor={link => linkDirectionalParticleColor(link as GraphLink)}
+								linkDirectionalArrowLength={link => linkDirectionalArrowLength(link as GraphLink)}
+								linkDirectionalArrowColor={link => linkDirectionalArrowColor(link as GraphLink)}
 								onNodeClick={node => onNodeClickFg(node as GraphNode)}
 								onNodeHover={node => {
 									setHoveredLinkId(null);
@@ -969,25 +1059,15 @@ export function DashboardNetwork3D({
 							/>
 						) : null}
 					</div>
-					<div className='pointer-events-none absolute inset-x-4 bottom-4 flex flex-wrap items-center gap-2 text-xs'>
-						<Badge
-							variant='outline'
-							className='bg-background/78 text-foreground shadow-sm backdrop-blur-sm'
-						>
-							<RefreshCcwIcon />
+					<div className='pointer-events-none absolute inset-x-4 bottom-4 z-10 flex flex-wrap items-center gap-2 text-xs'>
+						<Badge className='border-border/70 bg-background/88 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
 							{isInteracting ? 'Auto-rotate paused' : 'Auto-rotate active'}
 						</Badge>
-						<Badge
-							variant='outline'
-							className='bg-background/78 text-foreground shadow-sm backdrop-blur-sm'
-						>
-							Click a peer to focus
+						<Badge className='border-border/70 bg-background/88 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
+							Drag nodes to rebalance depth
 						</Badge>
-						<Badge
-							variant='outline'
-							className='bg-background/78 text-foreground shadow-sm backdrop-blur-sm'
-						>
-							Drag to rebalance
+						<Badge className='border-border/70 bg-background/88 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-background/88'>
+							Wheel to zoom, drag canvas to orbit
 						</Badge>
 					</div>
 				</div>
@@ -997,41 +1077,27 @@ export function DashboardNetwork3D({
 						variant='outline'
 						className='gap-2'
 					>
-						<span
-							className='size-2 rounded-full'
-							style={{ backgroundColor: graphPalette.coordinator }}
-						/>
-						Coordinator
+						<span className='size-2 rounded-full bg-[linear-gradient(90deg,#60a5fa,#f472b6)]' />
+						Auto-colored peers
 					</Badge>
 					<Badge
 						variant='outline'
 						className='gap-2'
 					>
-						<span
-							className='size-2 rounded-full'
-							style={{ backgroundColor: graphPalette.healthy }}
-						/>
-						Healthy peers
+						<span className='size-2 rounded-full bg-white' />
+						White arrows = coordinator flow
 					</Badge>
 					<Badge
 						variant='outline'
 						className='gap-2'
 					>
-						<span
-							className='size-2 rounded-full'
-							style={{ backgroundColor: graphPalette.degraded }}
-						/>
-						Partial capacity
+						Focused nodes brighten; others recede
 					</Badge>
 					<Badge
 						variant='outline'
 						className='gap-2'
 					>
-						<span
-							className='size-2 rounded-full'
-							style={{ backgroundColor: graphPalette.offline }}
-						/>
-						Unavailable
+						Larger spheres = more service and fidelity weight
 					</Badge>
 				</div>
 			</CardContent>

@@ -1,4 +1,4 @@
-"""Shared planning/execution bridge for QASM-backed workflows."""
+"""Shared planning and distributed execution bridge for QASM-backed workflows."""
 
 from __future__ import annotations
 
@@ -8,11 +8,36 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, AsyncIterator
 
 from quantum_backend_v2.api.routers.service_quality import ServiceQualityTracker
+from quantum_backend_v2.application.distributed_statevector import (
+    fidelity_between_handoffs,
+    make_initial_state_handoff,
+    summarize_state_handoff,
+)
 from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pRuntime
+from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
+from quantum_backend_v2.protocols.execution import (
+    DistributedStateHandoff,
+    ExecutionResultPayload,
+    ExecutionTransition,
+    FragmentDescriptor,
+    FragmentDispatchInput,
+    FragmentDispatchOutput,
+    FragmentDispatchRequest,
+)
+from quantum_backend_v2.protocols.reservation import (
+    ReservationCancelRequest,
+    ReservationCommitRequest,
+    ReservationCommitResponse,
+    ReservationPrepareRequest,
+    ReservationPrepareResponse,
+    ReservationTransition,
+)
+from quantum_backend_v2.reservations.service import ReservationService
+from quantum_backend_v2.runtime.service import ExecutionService
 
 
 def _utc_now() -> datetime:
@@ -92,21 +117,45 @@ def _format_complex(value: complex) -> str:
 class ServiceCandidate:
     node_id: str
     fidelity: float
+    active_reservations: int
+    active_executions: int
+    network_addresses: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class DistributedFragmentExecution:
+    fragment_result: Any
+    reservation_id: str
+    execution_id: str
+    output: FragmentDispatchOutput
+    state: DistributedStateHandoff
+    incoming_state_peer_id: str | None
 
 
 class QuantumExecutionBridge:
-    """Compile QASM, assign fragments, and synthesize execution metadata."""
+    """Compile QASM, assign fragments, and execute them over real libp2p RPC."""
 
     def __init__(
         self,
         *,
         discovery_service: DiscoveryService,
         libp2p_runtime: Libp2pRuntime,
+        reservation_service: ReservationService | None = None,
+        execution_service: ExecutionService | None = None,
     ) -> None:
         self._discovery_service = discovery_service
         self._libp2p_runtime = libp2p_runtime
+        self._reservation_service = reservation_service
+        self._execution_service = execution_service
         self._quality = ServiceQualityTracker()
         self._bridge = _load_backend_bridge()
+        self._protocol_ids = build_execution_protocol_ids(
+            libp2p_runtime.settings.rendezvous_namespace
+        )
+
+    async def wait_for_service_peers(self, *, timeout_seconds: float = 10.0) -> None:
+        """Wait for the configured service peers to appear before planning."""
+        await self._discovery_service.wait_for_service_peers(timeout_seconds=timeout_seconds)
 
     def compile_plan(self, circuit_text: str) -> Any:
         normalize_circuit_input = self._bridge["normalize_circuit_input"]
@@ -127,7 +176,8 @@ class QuantumExecutionBridge:
             }
         )
 
-        assignments = {}
+        assignments: dict[str, Any] = {}
+        planned_node_load: dict[str, int] = {}
         for fragment_id in fragment_order:
             fragment = fragments[fragment_id]
             candidates = self._candidates_for_service(fragment.service_type.value)
@@ -137,27 +187,60 @@ class QuantumExecutionBridge:
                     f"{fragment.fragment_id} ({fragment.service_type.value})"
                 )
 
+            dependency_nodes = {
+                assignments[dependency_id].primary_node_id
+                for dependency_id in fragment.dependencies
+                if dependency_id in assignments
+            }
+            max_live_load = max(
+                candidate.active_reservations + candidate.active_executions
+                for candidate in candidates
+            )
             scored_candidates = tuple(
                 candidate_score_type(
                     node_id=candidate.node_id,
-                    total_cost=round(1.0 - candidate.fidelity, 6),
+                    total_cost=self._total_cost(
+                        node_id=candidate.node_id,
+                        fidelity=candidate.fidelity,
+                        dependency_nodes=dependency_nodes,
+                        live_load=candidate.active_reservations + candidate.active_executions,
+                        max_live_load=max_live_load,
+                        planned_load=planned_node_load.get(candidate.node_id, 0),
+                    ),
                     latency_cost=0.0,
                     failure_risk_cost=round(1.0 - candidate.fidelity, 6),
-                    entanglement_cost=0.0,
-                    load_cost=0.0,
+                    entanglement_cost=self._entanglement_cost(
+                        candidate.node_id,
+                        dependency_nodes,
+                    ),
+                    load_cost=self._load_cost(
+                        live_load=candidate.active_reservations + candidate.active_executions,
+                        max_live_load=max_live_load,
+                        planned_load=planned_node_load.get(candidate.node_id, 0),
+                    ),
                     fidelity=candidate.fidelity,
                 )
                 for candidate in candidates
             )
-            primary = scored_candidates[0]
-            fallbacks = tuple(
-                candidate.node_id for candidate in scored_candidates[1:3]
+            ordered_candidates = tuple(
+                sorted(
+                    scored_candidates,
+                    key=lambda candidate: (
+                        candidate.total_cost,
+                        candidate.load_cost,
+                        -candidate.fidelity,
+                        candidate.node_id,
+                    ),
+                )
             )
+            primary = ordered_candidates[0]
+            planned_node_load[primary.node_id] = planned_node_load.get(primary.node_id, 0) + 1
+            fallbacks = tuple(candidate.node_id for candidate in ordered_candidates[1:4])
             assignments[fragment_id] = assignment_type(
                 fragment_id=fragment.fragment_id,
                 primary_node_id=primary.node_id,
                 fallback_node_ids=fallbacks,
-                candidates=scored_candidates,
+                candidates=ordered_candidates,
             )
 
         return execution_plan_type(
@@ -168,42 +251,58 @@ class QuantumExecutionBridge:
             quality_snapshot_id=f"quality-{_utc_now().isoformat()}",
         )
 
-    def iter_fragment_results(self, plan: Any) -> Iterator[Any]:
+    async def iter_fragment_executions(
+        self,
+        *,
+        workflow_run_id: str,
+        plan: Any,
+    ) -> AsyncIterator[DistributedFragmentExecution]:
         fragment_result_type = self._bridge["FragmentExecutionResult"]
         fragment_status_type = self._bridge["FragmentExecutionStatus"]
+        state = make_initial_state_handoff(self._infer_num_qubits(plan))
 
         for fragment_id in plan.fragment_order:
-            assignment = plan.assignments[fragment_id]
             fragment = plan.fragments[fragment_id]
-            started_at = _utc_now()
-            finished_at = _utc_now()
-            fidelity = self._quality.get_service_fidelity(
-                fragment.service_type.value,
-                peer_id=assignment.primary_node_id,
+            assignment = plan.assignments[fragment_id]
+            execution = await self._execute_fragment(
+                workflow_run_id=workflow_run_id,
+                plan_id=plan.plan_id,
+                fragment=fragment,
+                assignment=assignment,
+                state=state,
+                fragment_result_type=fragment_result_type,
+                fragment_status_type=fragment_status_type,
             )
-            yield fragment_result_type(
-                fragment_id=fragment.fragment_id,
-                node_id=assignment.primary_node_id,
-                status=fragment_status_type.SUCCESS,
-                attempts=1,
-                started_at=started_at,
-                finished_at=finished_at,
-                observed_fidelity=fidelity,
-                error=None,
-            )
+            state = execution.state
+            yield execution
 
     def build_quantum_result(
         self,
         *,
         plan: Any,
         fragment_results: tuple[Any, ...],
+        final_state: DistributedStateHandoff | None = None,
     ) -> dict[str, Any]:
-        return sanitize_json(
-            self._bridge["build_quantum_result"](
-                plan,
-                fragment_results=fragment_results,
-            )
+        raw_result = self._bridge["build_quantum_result"](
+            plan,
+            fragment_results=fragment_results,
         )
+        serialized = sanitize_json(raw_result)
+        if final_state is None:
+            return serialized
+
+        remote_summary = summarize_state_handoff(final_state)
+        serialized.update(remote_summary)
+        serialized["distributed_execution"] = {
+            "execution_mode": "remote_fragment_state_handoff",
+            "last_peer_id": final_state.previous_peer_id,
+            "validation_statevector_fidelity": self._validation_fidelity(
+                raw_statevector=raw_result.get("statevector"),
+                final_state=final_state,
+            ),
+            "measured_qubits": list(final_state.measured_qubits),
+        }
+        return serialized
 
     def serialize_plan(self, plan: Any) -> dict[str, Any]:
         return {
@@ -242,8 +341,13 @@ class QuantumExecutionBridge:
             "quality_snapshot_id": plan.quality_snapshot_id,
         }
 
-    def serialize_fragment_result(self, fragment_result: Any) -> dict[str, Any]:
-        return {
+    def serialize_fragment_result(
+        self,
+        fragment_result: Any,
+        *,
+        execution: DistributedFragmentExecution | None = None,
+    ) -> dict[str, Any]:
+        payload = {
             "fragment_id": fragment_result.fragment_id,
             "node_id": fragment_result.node_id,
             "status": fragment_result.status.value,
@@ -253,6 +357,210 @@ class QuantumExecutionBridge:
             "error": fragment_result.error,
             "observed_fidelity": fragment_result.observed_fidelity,
         }
+        if execution is not None:
+            payload.update(
+                {
+                    "reservation_id": execution.reservation_id,
+                    "execution_id": execution.execution_id,
+                    "state_handoff_from_node_id": execution.incoming_state_peer_id,
+                    "state_transfer_bytes": execution.output.state_transfer_bytes,
+                    "gate_count": execution.output.gate_count,
+                    "circuit_depth": execution.output.circuit_depth,
+                    "distributed_execution": True,
+                }
+            )
+        return payload
+
+    async def _execute_fragment(
+        self,
+        *,
+        workflow_run_id: str,
+        plan_id: str,
+        fragment: Any,
+        assignment: Any,
+        state: DistributedStateHandoff,
+        fragment_result_type: Any,
+        fragment_status_type: Any,
+    ) -> DistributedFragmentExecution:
+        candidate_node_ids = [assignment.primary_node_id, *assignment.fallback_node_ids]
+        last_error: str | None = None
+
+        for attempt_index, node_id in enumerate(candidate_node_ids, start=1):
+            peer = self._discovery_service.registry.get_peer(node_id)
+            peer_addresses = tuple(peer.network_addresses) if peer is not None else ()
+            reservation_id = f"res-{uuid.uuid4()}"
+            execution_id = f"exec-{uuid.uuid4()}"
+            prepare_request = ReservationPrepareRequest(
+                reservation_id=reservation_id,
+                workflow_run_id=workflow_run_id,
+                fragment_id=fragment.fragment_id,
+                requesting_peer_id=str(self._libp2p_runtime.host.get_id()),
+                service_id=fragment.service_type.value,
+                estimated_qubits=max(1, len(fragment.qubits)),
+                estimated_depth=max(1, len(fragment.operation_ids)),
+                idempotency_key=uuid.uuid4().hex,
+            )
+            if self._reservation_service is not None:
+                await self._reservation_service.request(
+                    reservation_id=reservation_id,
+                    workflow_run_id=workflow_run_id,
+                    fragment_id=fragment.fragment_id,
+                    service_id=fragment.service_type.value,
+                    requesting_peer_id=str(self._libp2p_runtime.host.get_id()),
+                    ttl_seconds=prepare_request.ttl_seconds,
+                    idempotency_key=prepare_request.idempotency_key,
+                )
+
+            prepare_response = ReservationPrepareResponse.model_validate_json(
+                await self._discovery_service.request_peer_rpc(
+                    peer_id=node_id,
+                    protocol_id=self._protocol_ids.reservation_prepare,
+                    payload=prepare_request.model_dump_json().encode("utf-8"),
+                    peer_addresses=peer_addresses,
+                )
+            )
+            if prepare_response.transition not in {
+                ReservationTransition.ACCEPTED,
+                ReservationTransition.COMMITTED,
+            }:
+                last_error = prepare_response.reason or (
+                    f"reservation {prepare_response.transition.value}"
+                )
+                if self._reservation_service is not None:
+                    await self._reservation_service.reject(
+                        reservation_id=reservation_id,
+                        reason=last_error,
+                        accepting_peer_id=node_id,
+                    )
+                continue
+
+            if self._reservation_service is not None:
+                await self._reservation_service.accept(
+                    reservation_id=reservation_id,
+                    accepting_peer_id=node_id,
+                )
+
+            if prepare_response.transition != ReservationTransition.COMMITTED:
+                commit_response = ReservationCommitResponse.model_validate_json(
+                    await self._discovery_service.request_peer_rpc(
+                        peer_id=node_id,
+                        protocol_id=self._protocol_ids.reservation_commit,
+                        payload=ReservationCommitRequest(
+                            reservation_id=reservation_id,
+                            workflow_run_id=workflow_run_id,
+                            fragment_id=fragment.fragment_id,
+                        ).model_dump_json().encode("utf-8"),
+                        peer_addresses=peer_addresses,
+                    )
+                )
+                if commit_response.transition != ReservationTransition.COMMITTED:
+                    last_error = (
+                        "reservation commit failed "
+                        f"with {commit_response.transition.value}"
+                    )
+                    await self._discovery_service.request_peer_rpc(
+                        peer_id=node_id,
+                        protocol_id=self._protocol_ids.reservation_cancel,
+                        payload=ReservationCancelRequest(
+                            reservation_id=reservation_id,
+                            reason=last_error,
+                        ).model_dump_json().encode("utf-8"),
+                        peer_addresses=peer_addresses,
+                    )
+                    if self._reservation_service is not None:
+                        await self._reservation_service.cancel(
+                            reservation_id=reservation_id,
+                            reason=last_error,
+                        )
+                    continue
+
+            if self._reservation_service is not None:
+                await self._reservation_service.commit(reservation_id=reservation_id)
+
+            dispatch_input = FragmentDispatchInput(
+                plan_id=plan_id,
+                fragment=FragmentDescriptor(
+                    fragment_id=fragment.fragment_id,
+                    service_id=fragment.service_type.value,
+                    qubits=tuple(fragment.qubits),
+                    operation_ids=tuple(fragment.operation_ids),
+                    dependencies=tuple(fragment.dependencies),
+                    raw_text=fragment.raw_text,
+                ),
+                state=state,
+            )
+            dispatch_request = FragmentDispatchRequest(
+                execution_id=execution_id,
+                reservation_id=reservation_id,
+                workflow_run_id=workflow_run_id,
+                fragment_id=fragment.fragment_id,
+                service_id=fragment.service_type.value,
+                input_payload=dispatch_input.model_dump(mode="json"),
+                idempotency_key=uuid.uuid4().hex,
+            )
+            started_at = _utc_now()
+            if self._execution_service is not None:
+                await self._execution_service.dispatch(
+                    execution_id=execution_id,
+                    reservation_id=reservation_id,
+                    workflow_run_id=workflow_run_id,
+                    fragment_id=fragment.fragment_id,
+                    service_id=fragment.service_type.value,
+                    executing_peer_id=node_id,
+                    idempotency_key=dispatch_request.idempotency_key,
+                )
+                await self._execution_service.record_running(execution_id=execution_id)
+
+            dispatch_response = ExecutionResultPayload.model_validate_json(
+                await self._discovery_service.request_peer_rpc(
+                    peer_id=node_id,
+                    protocol_id=self._protocol_ids.fragment_dispatch,
+                    payload=dispatch_request.model_dump_json().encode("utf-8"),
+                    peer_addresses=peer_addresses,
+                )
+            )
+            if dispatch_response.transition != ExecutionTransition.COMPLETED:
+                last_error = dispatch_response.error_detail or "fragment execution failed"
+                if self._execution_service is not None:
+                    await self._execution_service.record_failed(
+                        execution_id=execution_id,
+                        error_detail=last_error,
+                    )
+                continue
+
+            if self._execution_service is not None:
+                await self._execution_service.record_completed(
+                    execution_id=execution_id,
+                    fidelity_score=dispatch_response.fidelity_score,
+                    latency_ms=dispatch_response.latency_ms,
+                )
+
+            if dispatch_response.fidelity_score is not None:
+                self._quality.update_peer_fidelity(node_id, dispatch_response.fidelity_score)
+
+            output = FragmentDispatchOutput.model_validate(dispatch_response.output_payload)
+            fragment_result = fragment_result_type(
+                fragment_id=fragment.fragment_id,
+                node_id=node_id,
+                status=fragment_status_type.SUCCESS,
+                attempts=attempt_index,
+                started_at=started_at,
+                finished_at=dispatch_response.completed_at,
+                observed_fidelity=dispatch_response.fidelity_score,
+                error=None,
+            )
+            return DistributedFragmentExecution(
+                fragment_result=fragment_result,
+                reservation_id=reservation_id,
+                execution_id=execution_id,
+                output=output,
+                state=output.state,
+                incoming_state_peer_id=state.previous_peer_id,
+            )
+
+        raise RuntimeError(
+            f"Fragment {fragment.fragment_id} failed across all assigned peers: {last_error}"
+        )
 
     def _candidates_for_service(self, service_type: str) -> list[ServiceCandidate]:
         candidates: list[ServiceCandidate] = []
@@ -269,10 +577,13 @@ class QuantumExecutionBridge:
                         service_type,
                         peer_id=peer.peer_id,
                     ),
+                    active_reservations=peer.active_reservations,
+                    active_executions=peer.active_executions,
+                    network_addresses=tuple(peer.network_addresses),
                 )
             )
 
-        if not candidates:
+        if not candidates and self._libp2p_runtime.settings.dev_service_peer_count <= 0:
             local_peer_id = str(self._libp2p_runtime.host.get_id())
             candidates.append(
                 ServiceCandidate(
@@ -281,10 +592,81 @@ class QuantumExecutionBridge:
                         service_type,
                         peer_id=local_peer_id,
                     ),
+                    active_reservations=0,
+                    active_executions=0,
+                    network_addresses=tuple(),
                 )
             )
 
-        return sorted(
-            candidates,
-            key=lambda candidate: (-candidate.fidelity, candidate.node_id),
+        return candidates
+
+    def _infer_num_qubits(self, plan: Any) -> int:
+        highest_qubit = max(
+            (
+                qubit
+                for fragment in plan.fragments.values()
+                for qubit in fragment.qubits
+            ),
+            default=0,
         )
+        return highest_qubit + 1
+
+    def _load_cost(
+        self,
+        *,
+        live_load: int,
+        max_live_load: int,
+        planned_load: int,
+    ) -> float:
+        denominator = max(1, max_live_load + 1)
+        return round((live_load + planned_load) / denominator, 6)
+
+    def _entanglement_cost(
+        self,
+        node_id: str,
+        dependency_nodes: set[str],
+    ) -> float:
+        if not dependency_nodes:
+            return 0.0
+        if node_id in dependency_nodes:
+            return 0.0
+        return round(min(1.0, 0.15 * len(dependency_nodes)), 6)
+
+    def _total_cost(
+        self,
+        *,
+        node_id: str,
+        fidelity: float,
+        dependency_nodes: set[str],
+        live_load: int,
+        max_live_load: int,
+        planned_load: int,
+    ) -> float:
+        failure_risk_cost = 1.0 - fidelity
+        entanglement_cost = self._entanglement_cost(node_id, dependency_nodes)
+        load_cost = self._load_cost(
+            live_load=live_load,
+            max_live_load=max_live_load,
+            planned_load=planned_load,
+        )
+        return round(
+            (failure_risk_cost * 0.55)
+            + (entanglement_cost * 0.15)
+            + (load_cost * 0.30),
+            6,
+        )
+
+    def _validation_fidelity(
+        self,
+        *,
+        raw_statevector: Any,
+        final_state: DistributedStateHandoff,
+    ) -> float | None:
+        if not isinstance(raw_statevector, list):
+            return None
+        analytic_state = DistributedStateHandoff(
+            num_qubits=final_state.num_qubits,
+            amplitudes=tuple(_format_complex(complex(value)) for value in raw_statevector),
+            measured_qubits=final_state.measured_qubits,
+        )
+        return round(fidelity_between_handoffs(final_state, analytic_state), 12)

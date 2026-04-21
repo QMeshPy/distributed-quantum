@@ -96,7 +96,7 @@ class BenchmarkSubmitRequest(BaseModel):
     )
 
     benchmark_family: str = Field(min_length=3)
-    quantum_service_id: str = Field(min_length=3)
+    quantum_service_id: str = Field(min_length=2)
     classical_service_id: str | None = None
     dataset_ref: str | None = None
     dataset_version: str | None = None

@@ -75,7 +75,7 @@ class PackageApprovalRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     package_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     version: str = Field(min_length=3)
     publisher_peer_id: str = Field(min_length=3)
     approval_status: str = Field(default="pending", min_length=3)

@@ -1,4 +1,4 @@
-"""ExecutionService — appends durable execution events, never mutates rows."""
+"""ExecutionService - appends durable execution events, never mutates rows."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class ExecutionService:
         async with self._session_factory() as session:
             existing = await _load_state(session, execution_id)
             if existing is not None:
-                logger.info("execution %s already exists — idempotent", execution_id)
+                logger.info("execution %s already exists - idempotent", execution_id)
                 return existing
 
             await _append_event(
@@ -152,7 +152,9 @@ class ExecutionService:
         idem_key = idempotency_key or uuid.uuid4().hex
         async with self._session_factory() as session:
             state = await _require_state(session, execution_id)
-            retry_attempt = state.retry_attempt + (1 if transition == ExecutionTransition.RETRYING else 0)
+            retry_attempt = state.retry_attempt + (
+                1 if transition == ExecutionTransition.RETRYING else 0
+            )
             updated = state.apply(
                 transition,
                 retry_attempt=retry_attempt,
@@ -175,18 +177,11 @@ class ExecutionService:
                 payload=payload or {},
             )
             await session.commit()
-        logger.info("execution %s → %s", execution_id, transition.value)
+        logger.info("execution %s -> %s", execution_id, transition.value)
         return updated
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-async def _load_state(
-    session: AsyncSession, execution_id: str
-) -> ExecutionState | None:
+async def _load_state(session: AsyncSession, execution_id: str) -> ExecutionState | None:
     result = await session.execute(
         select(ExecutionEventRecord)
         .where(ExecutionEventRecord.execution_id == execution_id)
@@ -225,9 +220,7 @@ async def _load_state(
     return state
 
 
-async def _require_state(
-    session: AsyncSession, execution_id: str
-) -> ExecutionState:
+async def _require_state(session: AsyncSession, execution_id: str) -> ExecutionState:
     state = await _load_state(session, execution_id)
     if state is None:
         raise ValueError(f"Execution '{execution_id}' not found in event log.")

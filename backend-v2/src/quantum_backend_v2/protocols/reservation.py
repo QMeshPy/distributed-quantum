@@ -32,7 +32,7 @@ class ReservationPrepareRequest(BaseModel):
     workflow_run_id: str = Field(min_length=8)
     fragment_id: str = Field(min_length=3)
     requesting_peer_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     estimated_qubits: int = Field(ge=1)
     estimated_depth: int = Field(ge=1)
     priority: int = Field(default=0, ge=0, le=100)
@@ -82,6 +82,16 @@ class ReservationCancelRequest(BaseModel):
     reservation_id: str = Field(min_length=8)
     reason: str | None = Field(default=None, max_length=300)
     sent_at: datetime = Field(default_factory=_utc_now)
+
+
+class ReservationCancelResponse(BaseModel):
+    """Peer acknowledges a cancellation request."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    reservation_id: str = Field(min_length=8)
+    transition: ReservationTransition
+    replied_at: datetime = Field(default_factory=_utc_now)
 
 
 class ReservationExpiredNotice(BaseModel):

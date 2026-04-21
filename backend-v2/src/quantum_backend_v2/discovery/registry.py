@@ -102,7 +102,7 @@ class PeerRegistry:
     # ------------------------------------------------------------------
 
     def peer_count(self) -> int:
-        """Total number of peers seen (including stale ones)."""
+        """Current number of cached peers after stale eviction."""
         return len(self._entries)
 
     def list_peers(self, *, include_stale: bool = False) -> list[PeerRegistryEntry]:
@@ -181,8 +181,27 @@ class PeerRegistry:
                 }
             )
 
-        self._entries = entries
-        logger.info("rehydrated discovery registry with %d cached peers", len(entries))
+        active_entries: dict[str, PeerRegistryEntry] = {}
+        stale_peer_ids: list[str] = []
+        for peer_id, entry in entries.items():
+            if self._is_stale(entry):
+                stale_peer_ids.append(peer_id)
+                logger.info(
+                    "peer %s is stale during rehydrate (last_seen=%s, ttl=%ds)",
+                    peer_id,
+                    entry.last_seen_at.isoformat(),
+                    self.stale_peer_ttl_seconds,
+                )
+                await self._purge_persisted_peer(peer_id)
+                continue
+            active_entries[peer_id] = entry
+
+        self._entries = active_entries
+        logger.info(
+            "rehydrated discovery registry with %d cached peers (%d stale peers purged)",
+            len(active_entries),
+            len(stale_peer_ids),
+        )
 
     # ------------------------------------------------------------------
     # Event processing — called from the asyncio drain loop
@@ -207,21 +226,26 @@ class PeerRegistry:
     # ------------------------------------------------------------------
 
     async def sweep_stale_peers(self) -> int:
-        """Mark stale peers in MongoDB and return the count of stale peers found."""
-        stale = [e for e in self._entries.values() if self._is_stale(e)]
-        if not stale:
+        """Evict stale peers from cache, purge projections, and return their count."""
+        stale_peer_ids = [
+            entry.peer_id for entry in self._entries.values() if self._is_stale(entry)
+        ]
+        if not stale_peer_ids:
             return 0
 
-        for entry in stale:
+        for peer_id in stale_peer_ids:
+            entry = self._entries.pop(peer_id, None)
+            if entry is None:
+                continue
             logger.info(
                 "peer %s is stale (last_seen=%s, ttl=%ds)",
-                entry.peer_id,
+                peer_id,
                 entry.last_seen_at.isoformat(),
                 self.stale_peer_ttl_seconds,
             )
-            await self._mark_stale_in_mongo(entry.peer_id)
+            await self._purge_persisted_peer(peer_id)
 
-        return len(stale)
+        return len(stale_peer_ids)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -424,19 +448,20 @@ class PeerRegistry:
                 "failed to upsert TopologyProjectionDocument for peer %s", peer_id
             )
 
-    async def _mark_stale_in_mongo(self, peer_id: str) -> None:
+    async def _purge_persisted_peer(self, peer_id: str) -> None:
         if self.mongo_runtime is None:
             return
         try:
-            doc = await TopologyProjectionDocument.find_one(
-                TopologyProjectionDocument.peer_id == peer_id
+            database = self.mongo_runtime.database
+            await database[PeerCapabilityDocument.Settings.name].delete_many(
+                {"peer_id": peer_id}
             )
-            if doc is not None:
-                doc.health_status = "stale"
-                await doc.save()
+            await database[TopologyProjectionDocument.Settings.name].delete_many(
+                {"peer_id": peer_id}
+            )
         except Exception:
             logger.exception(
-                "failed to mark peer %s as stale in MongoDB", peer_id
+                "failed to purge discovery projections for stale peer %s", peer_id
             )
 
     async def _resolve_enrollment_visibility(

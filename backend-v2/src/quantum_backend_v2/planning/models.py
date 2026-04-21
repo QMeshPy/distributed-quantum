@@ -33,7 +33,7 @@ class WorkflowNode(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     node_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     label: str = Field(min_length=1, max_length=120)
     inputs: dict[str, Any] = Field(default_factory=dict)
     depends_on: tuple[str, ...] = Field(default_factory=tuple)
@@ -99,7 +99,7 @@ class ExecutionFragment(BaseModel):
     fragment_id: str = Field(min_length=3)
     workflow_run_id: str = Field(min_length=8)
     node_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     input_snapshot: dict[str, Any] = Field(default_factory=dict)
     required_qubits: int = Field(default=1, ge=1)
     required_depth: int = Field(default=1, ge=1)
@@ -130,6 +130,6 @@ class FragmentAssignment(BaseModel):
 
     fragment_id: str = Field(min_length=3)
     assigned_peer_id: str = Field(min_length=3)
-    service_id: str = Field(min_length=3)
+    service_id: str = Field(min_length=2)
     cost_estimate: CostEstimate
     assigned_at: datetime = Field(default_factory=_utc_now)
