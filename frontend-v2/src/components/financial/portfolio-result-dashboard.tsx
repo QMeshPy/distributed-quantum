@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
+import { PortfolioComparisonReportSection } from '@/components/financial/portfolio-comparison-report-section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,7 +79,9 @@ function ResultMetricCard({
 					<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>{label}</p>
 					<p className='text-xl font-semibold tracking-tight'>{value}</p>
 				</div>
-				<div className='flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary'>{icon}</div>
+				<div className='flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary'>
+					{icon}
+				</div>
 			</div>
 			<p className='mt-3 text-sm text-muted-foreground'>{detail}</p>
 		</div>
@@ -118,13 +121,7 @@ function SelectionSummaryCard({
 	);
 }
 
-export function PortfolioResultDashboard({
-	result,
-	jobId
-}: {
-	result: FinancialAnalysisResult;
-	jobId: string;
-}) {
+export function PortfolioResultDashboard({ result, jobId }: { result: FinancialAnalysisResult; jobId: string }) {
 	const frontier = result.benchmark.frontier.efficient_frontier;
 	const topStates = result.quantum_execution?.top_states ?? [];
 	const gateCounts = Object.entries(result.quantum_execution?.circuit_summary?.gate_counts ?? {}).sort(
@@ -142,7 +139,7 @@ export function PortfolioResultDashboard({
 	const plan = result.quantum_execution?.plan;
 	const hasPlan = Boolean(plan?.plan_id);
 	const planAssignments = plan?.assignments ?? {};
-	const planFragmentCount = hasPlan ? plan?.fragment_order.length ?? 0 : 0;
+	const planFragmentCount = hasPlan ? (plan?.fragment_order.length ?? 0) : 0;
 	const fragmentResults = result.quantum_execution?.fragment_results ?? [];
 	const fragmentStatusCounts = fragmentResults.reduce<Record<string, number>>((acc, fragment) => {
 		acc[fragment.status] = (acc[fragment.status] ?? 0) + 1;
@@ -188,12 +185,20 @@ export function PortfolioResultDashboard({
 				/>
 			</div>
 
+			{result.comparison_report ? (
+				<PortfolioComparisonReportSection
+					report={result.comparison_report}
+					jobId={jobId}
+				/>
+			) : null}
+
 			<div className='grid gap-6 xl:grid-cols-[1.15fr_0.85fr]'>
 				<Card className='shadow-md ring-1 ring-foreground/5'>
 					<CardHeader className='border-b border-border/70'>
 						<CardTitle id='benchmark'>Exact benchmark summary</CardTitle>
 						<CardDescription>
-							Professional Track B baseline: exact classical enumeration against the best feasible quantum state.
+							Professional Track B baseline: exact classical enumeration against the best feasible quantum
+							state.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-5 pt-6'>
@@ -215,19 +220,25 @@ export function PortfolioResultDashboard({
 						</div>
 						<div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Objective gap</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Objective gap
+								</p>
 								<p className='mt-2 text-lg font-semibold'>
 									{formatSignedNumber(result.benchmark.comparison.objective_gap)}
 								</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Objective ratio</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Objective ratio
+								</p>
 								<p className='mt-2 text-lg font-semibold'>
 									{formatNumber(result.benchmark.comparison.objective_ratio, 4)}
 								</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Asset overlap</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Asset overlap
+								</p>
 								<p className='mt-2 text-lg font-semibold'>
 									{formatPercent(result.benchmark.comparison.overlap_ratio)}
 								</p>
@@ -257,7 +268,9 @@ export function PortfolioResultDashboard({
 				<Card className='shadow-md ring-1 ring-foreground/5'>
 					<CardHeader className='border-b border-border/70'>
 						<CardTitle>Dataset and solver context</CardTitle>
-						<CardDescription>Resolved schema, optimization request, and parameter search diagnostics.</CardDescription>
+						<CardDescription>
+							Resolved schema, optimization request, and parameter search diagnostics.
+						</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-5 pt-6'>
 						<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
@@ -333,17 +346,23 @@ export function PortfolioResultDashboard({
 					<CardContent className='space-y-5 pt-6'>
 						<div className='grid gap-3 sm:grid-cols-3'>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Frontier points</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Frontier points
+								</p>
 								<p className='mt-2 text-lg font-semibold'>{frontier.length}</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Best frontier return</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Best frontier return
+								</p>
 								<p className='mt-2 text-lg font-semibold'>
 									{formatPercent(frontier[0]?.expected_return)}
 								</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Quantum percentile</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Quantum percentile
+								</p>
 								<p className='mt-2 text-lg font-semibold'>
 									{formatPercent(result.benchmark.frontier.quantum_percentile)}
 								</p>
@@ -367,9 +386,15 @@ export function PortfolioResultDashboard({
 											<TableRow key={`frontier-${candidate.bitstring}`}>
 												<TableCell>{candidate.rank ?? '-'}</TableCell>
 												<TableCell className='font-mono'>{candidate.bitstring}</TableCell>
-												<TableCell className='text-right'>{formatPercent(candidate.expected_return)}</TableCell>
-												<TableCell className='text-right'>{formatPercent(candidate.volatility)}</TableCell>
-												<TableCell className='text-right'>{formatSignedNumber(candidate.objective)}</TableCell>
+												<TableCell className='text-right'>
+													{formatPercent(candidate.expected_return)}
+												</TableCell>
+												<TableCell className='text-right'>
+													{formatPercent(candidate.volatility)}
+												</TableCell>
+												<TableCell className='text-right'>
+													{formatSignedNumber(candidate.objective)}
+												</TableCell>
 												<TableCell>{candidate.selected_assets.join(', ') || '-'}</TableCell>
 											</TableRow>
 										))
@@ -392,7 +417,9 @@ export function PortfolioResultDashboard({
 				<Card className='shadow-md ring-1 ring-foreground/5'>
 					<CardHeader className='border-b border-border/70'>
 						<CardTitle>Runtime evidence</CardTitle>
-						<CardDescription>What actually got routed and observed after the portfolio circuit left the solver.</CardDescription>
+						<CardDescription>
+							What actually got routed and observed after the portfolio circuit left the solver.
+						</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-5 pt-6'>
 						<div className='grid gap-3 sm:grid-cols-2'>
@@ -401,23 +428,31 @@ export function PortfolioResultDashboard({
 								<p className='mt-2 text-sm font-medium'>{hasPlan ? plan?.plan_id : 'Not returned'}</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Quality snapshot</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Quality snapshot
+								</p>
 								<p className='mt-2 text-sm font-medium'>
 									{hasPlan ? plan?.quality_snapshot_id || '-' : '-'}
 								</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Plan fragments</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Plan fragments
+								</p>
 								<p className='mt-2 text-lg font-semibold'>{planFragmentCount}</p>
 							</div>
 							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Observed basis states</p>
+								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+									Observed basis states
+								</p>
 								<p className='mt-2 text-lg font-semibold'>{observedBasisStates}</p>
 							</div>
 						</div>
 						<Separator />
 						<div className='space-y-3'>
-							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Fragment statuses</p>
+							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+								Fragment statuses
+							</p>
 							<div className='flex flex-wrap gap-2'>
 								{Object.keys(fragmentStatusCounts).length ? (
 									Object.entries(fragmentStatusCounts).map(([status, count]) => (
@@ -440,9 +475,13 @@ export function PortfolioResultDashboard({
 							<dt className='text-muted-foreground'>Measured qubits</dt>
 							<dd>{quantumResult?.measured_qubits?.join(', ') || '-'}</dd>
 							<dt className='text-muted-foreground'>Top counts</dt>
-							<dd>{quantumResult?.counts ? Object.keys(quantumResult.counts).slice(0, 4).join(', ') : '-'}</dd>
+							<dd>
+								{quantumResult?.counts ? Object.keys(quantumResult.counts).slice(0, 4).join(', ') : '-'}
+							</dd>
 							<dt className='text-muted-foreground'>Advantage flag</dt>
-							<dd>{result.benchmark.comparison.quantum_advantage_detected ? 'Detected' : 'Not detected'}</dd>
+							<dd>
+								{result.benchmark.comparison.quantum_advantage_detected ? 'Detected' : 'Not detected'}
+							</dd>
 						</dl>
 					</CardContent>
 				</Card>
@@ -452,7 +491,9 @@ export function PortfolioResultDashboard({
 				<Card className='shadow-md ring-1 ring-foreground/5'>
 					<CardHeader className='border-b border-border/70'>
 						<CardTitle>Screened asset universe</CardTitle>
-						<CardDescription>Annualized return and selection mass for the tickers that made the binary solve.</CardDescription>
+						<CardDescription>
+							Annualized return and selection mass for the tickers that made the binary solve.
+						</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-5 pt-6'>
 						<div className='h-72'>
@@ -498,15 +539,23 @@ export function PortfolioResultDashboard({
 									{result.asset_universe.map(asset => (
 										<TableRow key={asset.ticker}>
 											<TableCell className='font-medium'>{asset.ticker}</TableCell>
-											<TableCell className='text-right'>{formatPercent(asset.annualized_return)}</TableCell>
+											<TableCell className='text-right'>
+												{formatPercent(asset.annualized_return)}
+											</TableCell>
 											<TableCell className='text-right'>
 												{formatPercent(asset.annualized_volatility)}
 											</TableCell>
-											<TableCell className='text-right'>{formatPercent(asset.selection_probability)}</TableCell>
+											<TableCell className='text-right'>
+												{formatPercent(asset.selection_probability)}
+											</TableCell>
 											<TableCell>
 												<div className='flex flex-wrap gap-2'>
-													{asset.selected_classical ? <Badge variant='secondary'>classical</Badge> : null}
-													{asset.selected_quantum ? <Badge variant='outline'>quantum</Badge> : null}
+													{asset.selected_classical ? (
+														<Badge variant='secondary'>classical</Badge>
+													) : null}
+													{asset.selected_quantum ? (
+														<Badge variant='outline'>quantum</Badge>
+													) : null}
 												</div>
 											</TableCell>
 										</TableRow>
@@ -520,7 +569,9 @@ export function PortfolioResultDashboard({
 				<Card className='shadow-md ring-1 ring-foreground/5'>
 					<CardHeader className='border-b border-border/70'>
 						<CardTitle id='states'>Top quantum states</CardTitle>
-						<CardDescription>Highest-probability bitstrings seen in the QAOA state distribution after tuning.</CardDescription>
+						<CardDescription>
+							Highest-probability bitstrings seen in the QAOA state distribution after tuning.
+						</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-5 pt-6'>
 						<div className='max-h-[26rem] overflow-auto rounded-3xl border border-border/70'>
@@ -540,8 +591,12 @@ export function PortfolioResultDashboard({
 											<TableRow key={`${state.bitstring}-${state.rank ?? 0}`}>
 												<TableCell>{state.rank ?? '-'}</TableCell>
 												<TableCell className='font-mono'>{state.bitstring}</TableCell>
-												<TableCell className='text-right'>{formatPercent(state.probability)}</TableCell>
-												<TableCell className='text-right'>{formatSignedNumber(state.objective)}</TableCell>
+												<TableCell className='text-right'>
+													{formatPercent(state.probability)}
+												</TableCell>
+												<TableCell className='text-right'>
+													{formatSignedNumber(state.objective)}
+												</TableCell>
 												<TableCell>{state.selected_assets.join(', ') || '-'}</TableCell>
 											</TableRow>
 										))
@@ -564,9 +619,9 @@ export function PortfolioResultDashboard({
 								<p className='font-medium'>Benchmark interpretation</p>
 							</div>
 							<p className='mt-3 text-sm text-muted-foreground'>
-								The quantum benchmark is derived from the highest-probability feasible bitstring, not from a
-								classical post-hoc replacement. Non-feasible states stay visible here to show where amplitude
-								mass was actually concentrated.
+								The quantum benchmark is derived from the highest-probability feasible bitstring, not
+								from a classical post-hoc replacement. Non-feasible states stay visible here to show
+								where amplitude mass was actually concentrated.
 							</p>
 						</div>
 					</CardContent>
@@ -576,7 +631,9 @@ export function PortfolioResultDashboard({
 			<Card className='shadow-md ring-1 ring-foreground/5'>
 				<CardHeader className='border-b border-border/70'>
 					<CardTitle id='execution'>Quantum execution details</CardTitle>
-					<CardDescription>Compiled QASM, circuit size, and Hamiltonian terms that define the routed solve.</CardDescription>
+					<CardDescription>
+						Compiled QASM, circuit size, and Hamiltonian terms that define the routed solve.
+					</CardDescription>
 				</CardHeader>
 				<CardContent className='space-y-5 pt-6'>
 					<div className='grid gap-6 xl:grid-cols-[0.85fr_1.15fr]'>
@@ -620,7 +677,9 @@ export function PortfolioResultDashboard({
 											</Badge>
 										))
 									) : (
-										<span className='text-sm text-muted-foreground'>No circuit summary returned.</span>
+										<span className='text-sm text-muted-foreground'>
+											No circuit summary returned.
+										</span>
 									)}
 								</div>
 							</div>
@@ -642,7 +701,9 @@ export function PortfolioResultDashboard({
 							</div>
 						</div>
 						<div className='space-y-2'>
-							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Compiled OpenQASM</p>
+							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+								Compiled OpenQASM
+							</p>
 							<Textarea
 								readOnly
 								value={result.quantum_execution?.circuit_text ?? ''}
@@ -656,7 +717,9 @@ export function PortfolioResultDashboard({
 			<Card className='shadow-md ring-1 ring-foreground/5'>
 				<CardHeader className='border-b border-border/70'>
 					<CardTitle>Warnings and caveats</CardTitle>
-					<CardDescription>Carry these into any investor-facing quantum versus classical claim.</CardDescription>
+					<CardDescription>
+						Carry these into any investor-facing quantum versus classical claim.
+					</CardDescription>
 				</CardHeader>
 				<CardContent className='space-y-5 pt-6'>
 					<div className='grid gap-4 md:grid-cols-2'>

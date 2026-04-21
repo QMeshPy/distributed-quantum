@@ -53,3 +53,19 @@ class FinancialJobResponse(BaseModel):
     result: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
+
+
+class FinancialComparisonResponse(BaseModel):
+    """Investor-facing quantum-vs-classical comparison report for a finance job."""
+
+    job_id: str
+    filename: str
+    generated_at: datetime | str
+    fairness: dict[str, Any]
+    dataset: dict[str, Any]
+    problem: dict[str, Any]
+    classical: dict[str, Any]
+    quantum: dict[str, Any]
+    scorecard: dict[str, Any]
+    evidence: dict[str, Any]
+    verdict: dict[str, Any]

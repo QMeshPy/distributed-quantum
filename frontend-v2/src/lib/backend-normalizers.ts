@@ -1,10 +1,10 @@
-import type {
-	BackendJobFragmentResult,
-	BackendJobQuantumResult,
-	BackendPlanResponse
-} from '@/types/backend';
+import type { BackendJobFragmentResult, BackendJobQuantumResult, BackendPlanResponse } from '@/types/backend';
 import type {
 	FinancialAnalysisResult,
+	FinancialComparisonClaimReadiness,
+	FinancialComparisonPitchPosition,
+	FinancialComparisonReport,
+	FinancialComparisonWinner,
 	FinancialJobResponse,
 	FinancialJobStatus,
 	FinancialQuantumExecution,
@@ -89,8 +89,7 @@ function normalizePortfolioDatasetSummary(
 			asString(record.inferred_frequency) === 'yearly'
 				? (record.inferred_frequency as PortfolioDatasetSummary['inferred_frequency'])
 				: 'unknown',
-		return_method:
-			asString(record.return_method) === 'provided_returns' ? 'provided_returns' : 'simple_returns',
+		return_method: asString(record.return_method) === 'provided_returns' ? 'provided_returns' : 'simple_returns',
 		date_column: asString(record.date_column) ?? 'date',
 		ticker_column: asString(record.ticker_column),
 		value_column: asString(record.value_column),
@@ -105,8 +104,7 @@ function normalizePortfolioRequestSummary(value: unknown): PortfolioRequestSumma
 		asString(record.value_mode) === 'prices' || asString(record.value_mode) === 'returns'
 			? (record.value_mode as PortfolioRequestSummary['value_mode'])
 			: 'auto';
-	const resolvedValueMode =
-		asString(record.resolved_value_mode) === 'returns' ? 'returns' : 'prices';
+	const resolvedValueMode = asString(record.resolved_value_mode) === 'returns' ? 'returns' : 'prices';
 
 	return {
 		problem_type: 'portfolio_optimization',
@@ -219,6 +217,147 @@ function normalizePortfolioBenchmarkSummary(value: unknown): PortfolioBenchmarkS
 		timings: {
 			classical_duration_ms: asNumber(timings.classical_duration_ms) ?? 0,
 			quantum_duration_ms: asNumber(timings.quantum_duration_ms) ?? 0
+		}
+	};
+}
+
+function normalizeFinancialComparisonWinner(value: unknown): FinancialComparisonWinner {
+	const raw = asString(value);
+	if (raw === 'classical' || raw === 'quantum' || raw === 'tie' || raw === 'inconclusive') {
+		return raw;
+	}
+	return 'inconclusive';
+}
+
+function normalizeFinancialComparisonPitchPosition(value: unknown): FinancialComparisonPitchPosition {
+	const raw = asString(value);
+	if (raw === 'workflow_evidence' || raw === 'mixed' || raw === 'numerical_advantage' || raw === 'not_ready') {
+		return raw;
+	}
+	return 'not_ready';
+}
+
+function normalizeFinancialComparisonClaimReadiness(value: unknown): FinancialComparisonClaimReadiness {
+	const raw = asString(value);
+	if (raw === 'ready' || raw === 'qualified' || raw === 'not_ready') {
+		return raw;
+	}
+	return 'not_ready';
+}
+
+export function normalizeFinancialComparisonReport(value: unknown): FinancialComparisonReport | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	const fairness = isRecord(value.fairness) ? value.fairness : {};
+	const dataset = isRecord(value.dataset) ? value.dataset : {};
+	const problem = isRecord(value.problem) ? value.problem : {};
+	const classical = isRecord(value.classical) ? value.classical : {};
+	const quantum = isRecord(value.quantum) ? value.quantum : {};
+	const scorecard = isRecord(value.scorecard) ? value.scorecard : {};
+	const evidence = isRecord(value.evidence) ? value.evidence : {};
+	const verdict = isRecord(value.verdict) ? value.verdict : {};
+	const datasetRowCount = asNumber(dataset.row_count) ?? 0;
+	const datasetColCount = asNumber(dataset.col_count) ?? 0;
+
+	return {
+		job_id: asString(value.job_id) ?? 'fin-unknown',
+		filename: asString(value.filename) ?? 'financial.csv',
+		generated_at: normalizeIsoDate(value.generated_at, new Date(0).toISOString()),
+		fairness: {
+			same_dataset: fairness.same_dataset === true,
+			same_constraints: fairness.same_constraints === true,
+			same_objective: fairness.same_objective === true,
+			notes: asStringArray(fairness.notes)
+		},
+		dataset: {
+			input_layout: asString(dataset.input_layout) === 'wide' ? 'wide' : 'long',
+			inferred_frequency:
+				asString(dataset.inferred_frequency) === 'daily' ||
+				asString(dataset.inferred_frequency) === 'weekly' ||
+				asString(dataset.inferred_frequency) === 'monthly' ||
+				asString(dataset.inferred_frequency) === 'quarterly' ||
+				asString(dataset.inferred_frequency) === 'yearly'
+					? (dataset.inferred_frequency as PortfolioDatasetSummary['inferred_frequency'])
+					: 'unknown',
+			row_count: datasetRowCount,
+			col_count: datasetColCount,
+			period_count: asNumber(dataset.period_count) ?? 0,
+			asset_count: asNumber(dataset.asset_count) ?? 0,
+			raw_asset_count: asNumber(dataset.raw_asset_count) ?? 0,
+			start_date: normalizeIsoDate(dataset.start_date, new Date(0).toISOString()),
+			end_date: normalizeIsoDate(dataset.end_date, new Date(0).toISOString()),
+			selected_tickers: asStringArray(dataset.selected_tickers)
+		},
+		problem: {
+			problem_type: 'portfolio_optimization',
+			objective_label: asString(problem.objective_label) ?? 'objective',
+			allocation_model: asString(problem.allocation_model) ?? 'unknown',
+			budget: asNumber(problem.budget) ?? 0,
+			risk_aversion: asNumber(problem.risk_aversion) ?? 0,
+			penalty: asNumber(problem.penalty) ?? 0,
+			qaoa_reps: asNumber(problem.qaoa_reps) ?? 1,
+			parameter_search_steps: asNumber(problem.parameter_search_steps) ?? 0,
+			classical_strategy: asString(problem.classical_strategy) ?? 'unknown',
+			quantum_strategy: asString(problem.quantum_strategy) ?? 'unknown'
+		},
+		classical: {
+			...normalizePortfolioSelectionSummary(classical),
+			duration_ms: asNumber(classical.duration_ms) ?? 0,
+			strategy: asString(classical.strategy) ?? 'unknown',
+			evaluated_portfolios: asNumber(classical.evaluated_portfolios) ?? 0,
+			is_exact_optimum: classical.is_exact_optimum === true
+		},
+		quantum: {
+			...normalizePortfolioSelectionSummary(quantum),
+			duration_ms: asNumber(quantum.duration_ms) ?? 0,
+			strategy: asString(quantum.strategy) ?? 'unknown',
+			ansatz: asString(quantum.ansatz) ?? 'QAOA',
+			parameter_evaluations: asNumber(quantum.parameter_evaluations) ?? 0,
+			feasible_probability_mass: asNumber(quantum.feasible_probability_mass) ?? 0,
+			optimum_probability: asNumber(quantum.optimum_probability),
+			percentile: asNumber(quantum.percentile),
+			on_frontier: quantum.on_frontier === true,
+			plan_id: asString(quantum.plan_id),
+			fragments_executed: asNumber(quantum.fragments_executed) ?? 0,
+			distributed_nodes_used: asNumber(quantum.distributed_nodes_used) ?? 0,
+			circuit_qubits: asNumber(quantum.circuit_qubits),
+			circuit_depth: asNumber(quantum.circuit_depth),
+			circuit_size: asNumber(quantum.circuit_size),
+			has_qasm: quantum.has_qasm === true,
+			has_runtime_result: quantum.has_runtime_result === true
+		},
+		scorecard: {
+			winner_by_objective: normalizeFinancialComparisonWinner(scorecard.winner_by_objective),
+			winner_by_return: normalizeFinancialComparisonWinner(scorecard.winner_by_return),
+			winner_by_risk: normalizeFinancialComparisonWinner(scorecard.winner_by_risk),
+			winner_by_runtime: normalizeFinancialComparisonWinner(scorecard.winner_by_runtime),
+			objective_gap: asNumber(scorecard.objective_gap) ?? 0,
+			objective_ratio: asNumber(scorecard.objective_ratio),
+			return_gap: asNumber(scorecard.return_gap) ?? 0,
+			variance_gap: asNumber(scorecard.variance_gap) ?? 0,
+			overlap_count: asNumber(scorecard.overlap_count) ?? 0,
+			overlap_ratio: asNumber(scorecard.overlap_ratio) ?? 0,
+			quantum_advantage_detected: scorecard.quantum_advantage_detected === true
+		},
+		evidence: {
+			exact_baseline_available: evidence.exact_baseline_available === true,
+			efficient_frontier_points: asNumber(evidence.efficient_frontier_points) ?? 0,
+			top_state_count: asNumber(evidence.top_state_count) ?? 0,
+			fragment_count: asNumber(evidence.fragment_count) ?? 0,
+			observed_basis_state_count: asNumber(evidence.observed_basis_state_count) ?? 0,
+			warnings: asStringArray(evidence.warnings)
+		},
+		verdict: {
+			pitch_position: normalizeFinancialComparisonPitchPosition(verdict.pitch_position),
+			claim_readiness: normalizeFinancialComparisonClaimReadiness(verdict.claim_readiness),
+			headline: asString(verdict.headline) ?? 'Comparison unavailable.',
+			summary: asString(verdict.summary) ?? 'Comparison unavailable.',
+			strengths: asStringArray(verdict.strengths),
+			limitations: asStringArray(verdict.limitations),
+			recommended_claims: asStringArray(verdict.recommended_claims),
+			avoid_claims: asStringArray(verdict.avoid_claims)
 		}
 	};
 }
@@ -339,6 +478,7 @@ export function normalizeFinancialAnalysisResult(
 		request: normalizePortfolioRequestSummary(value.request),
 		asset_universe: asObjectArray(value.asset_universe).map(normalizePortfolioAssetMetrics),
 		benchmark: normalizePortfolioBenchmarkSummary(value.benchmark),
+		comparison_report: normalizeFinancialComparisonReport(value.comparison_report),
 		solver_diagnostics: normalizePortfolioSolverDiagnostics(value.solver_diagnostics),
 		warnings: asStringArray(value.warnings),
 		quantum_execution: normalizeFinancialQuantumExecution(value.quantum_execution),
@@ -382,9 +522,7 @@ export function normalizeFinancialJobListItem(value: unknown): BackendFinancialJ
 
 export function normalizeFinancialJobList(value: unknown) {
 	return Array.isArray(value)
-		? value
-				.map(normalizeFinancialJobListItem)
-				.filter((item): item is BackendFinancialJobListItem => item !== null)
+		? value.map(normalizeFinancialJobListItem).filter((item): item is BackendFinancialJobListItem => item !== null)
 		: [];
 }
 

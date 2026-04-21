@@ -24,6 +24,7 @@ class _StubFinancialJobService:
         self.get_calls: list[dict[str, object]] = []
         self.list_calls: list[dict[str, object]] = []
         self.last_result_detail = "full"
+        self.comparison_requests = 0
 
     async def submit(
         self,
@@ -87,6 +88,22 @@ class _StubFinancialJobService:
     def get_result_payload(self, record: object, *, detail: str = "full") -> dict[str, object]:
         self.last_result_detail = detail
         return {"detail": detail}
+
+    def get_comparison_payload(self, record: object) -> dict[str, object] | None:
+        self.comparison_requests += 1
+        return {
+            "job_id": getattr(record, "id", "fin-123"),
+            "filename": getattr(record, "filename", "portfolio.csv"),
+            "generated_at": _utc_now().isoformat(),
+            "fairness": {"same_dataset": True},
+            "dataset": {"asset_count": 6},
+            "problem": {"budget": 3},
+            "classical": {"bitstring": "101001"},
+            "quantum": {"bitstring": "010110"},
+            "scorecard": {"winner_by_objective": "classical"},
+            "evidence": {"exact_baseline_available": True},
+            "verdict": {"headline": "Workflow evidence"},
+        }
 
     async def process(self, *, job_id: str, csv_bytes: bytes) -> None:
         return None
@@ -177,3 +194,20 @@ async def test_list_financial_jobs_forwards_authenticated_user(
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert service.list_calls == [{"user_id": "carol", "limit": 5}]
+
+
+async def test_get_financial_comparison_forwards_authenticated_user(
+    app_and_service: tuple[FastAPI, _StubFinancialJobService],
+) -> None:
+    app, service = app_and_service
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/api/v1/finance/fin-123/comparison",
+            headers={"Authorization": "Bearer dev-dana"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["job_id"] == "fin-123"
+    assert service.get_calls == [{"job_id": "fin-123", "user_id": "dana"}]
+    assert service.comparison_requests == 1

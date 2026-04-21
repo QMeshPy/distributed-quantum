@@ -20,6 +20,7 @@ from quantum_backend_v2.api.errors.models import not_found
 from quantum_backend_v2.api.models.financial import (
     FinancialJobResponse,
     FinancialJobSummary,
+    FinancialComparisonResponse,
     FinancialSubmitResponse,
 )
 
@@ -118,6 +119,28 @@ def build_financial_router(*, financial_job_service: FinancialJobService) -> API
             created_at=record.created_at,
             updated_at=record.updated_at,
         )
+
+    @router.get(
+        "/{job_id}/comparison",
+        response_model=FinancialComparisonResponse,
+        summary="Get quantum-vs-classical comparison report for a finance job",
+    )
+    async def get_financial_comparison(
+        job_id: str,
+        current_user: CurrentUser,
+    ) -> FinancialComparisonResponse:
+        record = await financial_job_service.get_job(job_id, current_user=current_user)
+        if record is None:
+            raise not_found("Financial job", job_id)
+
+        comparison_payload = financial_job_service.get_comparison_payload(record)
+        if comparison_payload is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Comparison report is only available after the finance job completes.",
+            )
+
+        return FinancialComparisonResponse.model_validate(comparison_payload)
 
     @router.get(
         "",

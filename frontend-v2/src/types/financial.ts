@@ -223,6 +223,117 @@ export interface PortfolioBenchmarkSummary {
 	};
 }
 
+export type FinancialComparisonWinner = 'classical' | 'quantum' | 'tie' | 'inconclusive';
+export type FinancialComparisonPitchPosition = 'workflow_evidence' | 'mixed' | 'numerical_advantage' | 'not_ready';
+export type FinancialComparisonClaimReadiness = 'ready' | 'qualified' | 'not_ready';
+
+export interface FinancialComparisonFairness {
+	same_dataset: boolean;
+	same_constraints: boolean;
+	same_objective: boolean;
+	notes: string[];
+}
+
+export interface FinancialComparisonDataset {
+	input_layout: 'long' | 'wide';
+	inferred_frequency: PortfolioDatasetSummary['inferred_frequency'];
+	row_count: number;
+	col_count: number;
+	period_count: number;
+	asset_count: number;
+	raw_asset_count: number;
+	start_date: string;
+	end_date: string;
+	selected_tickers: string[];
+}
+
+export interface FinancialComparisonProblem {
+	problem_type: FinancialProblemType;
+	objective_label: string;
+	allocation_model: string;
+	budget: number;
+	risk_aversion: number;
+	penalty: number;
+	qaoa_reps: number;
+	parameter_search_steps: number;
+	classical_strategy: string;
+	quantum_strategy: string;
+}
+
+export interface FinancialComparisonClassicalSelection extends PortfolioSelectionSummary {
+	duration_ms: number;
+	strategy: string;
+	evaluated_portfolios: number;
+	is_exact_optimum: boolean;
+}
+
+export interface FinancialComparisonQuantumSelection extends PortfolioSelectionSummary {
+	duration_ms: number;
+	strategy: string;
+	ansatz: string;
+	parameter_evaluations: number;
+	feasible_probability_mass: number;
+	optimum_probability?: number | null;
+	percentile?: number | null;
+	on_frontier: boolean;
+	plan_id?: string | null;
+	fragments_executed: number;
+	distributed_nodes_used: number;
+	circuit_qubits?: number | null;
+	circuit_depth?: number | null;
+	circuit_size?: number | null;
+	has_qasm: boolean;
+	has_runtime_result: boolean;
+}
+
+export interface FinancialComparisonScorecard {
+	winner_by_objective: FinancialComparisonWinner;
+	winner_by_return: FinancialComparisonWinner;
+	winner_by_risk: FinancialComparisonWinner;
+	winner_by_runtime: FinancialComparisonWinner;
+	objective_gap: number;
+	objective_ratio?: number | null;
+	return_gap: number;
+	variance_gap: number;
+	overlap_count: number;
+	overlap_ratio: number;
+	quantum_advantage_detected: boolean;
+}
+
+export interface FinancialComparisonEvidence {
+	exact_baseline_available: boolean;
+	efficient_frontier_points: number;
+	top_state_count: number;
+	fragment_count: number;
+	observed_basis_state_count: number;
+	warnings: string[];
+}
+
+export interface FinancialComparisonVerdict {
+	pitch_position: FinancialComparisonPitchPosition;
+	claim_readiness: FinancialComparisonClaimReadiness;
+	headline: string;
+	summary: string;
+	strengths: string[];
+	limitations: string[];
+	recommended_claims: string[];
+	avoid_claims: string[];
+}
+
+export interface FinancialComparisonReport {
+	job_id: string;
+	filename: string;
+	generated_at: string;
+	fairness: FinancialComparisonFairness;
+	dataset: FinancialComparisonDataset;
+	problem: FinancialComparisonProblem;
+	classical: FinancialComparisonClassicalSelection;
+	quantum: FinancialComparisonQuantumSelection;
+	scorecard: FinancialComparisonScorecard;
+	evidence: FinancialComparisonEvidence;
+	verdict: FinancialComparisonVerdict;
+}
+
 export interface PortfolioCircuitSummary {
 	qubit_count: number;
 	depth: number;
@@ -296,6 +407,7 @@ export interface FinancialAnalysisResult {
 	request: PortfolioRequestSummary;
 	asset_universe: PortfolioAssetMetrics[];
 	benchmark: PortfolioBenchmarkSummary;
+	comparison_report?: FinancialComparisonReport;
 	solver_diagnostics: PortfolioSolverDiagnostics;
 	warnings: string[];
 	quantum_execution?: FinancialQuantumExecution | null;

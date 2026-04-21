@@ -14,6 +14,9 @@ from quantum_backend_v2.application.financial_portfolio import (
     PortfolioOptimizationConfig,
     build_portfolio_optimization_artifacts,
 )
+from quantum_backend_v2.application.financial_comparison import (
+    build_financial_comparison_report,
+)
 from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
 from quantum_backend_v2.identity.models import UserTokenClaims
 from quantum_backend_v2.persistence.postgres import (
@@ -379,6 +382,7 @@ class FinancialJobService:
             )
             result_payload["fragments_executed"] = len(serialized_fragment_results)
             result_payload["generated_at"] = _utc_now().isoformat()
+            result_payload = _attach_financial_comparison_report(result_payload)
 
             async with self._session_factory() as session:
                 record = await session.get(FinancialJobRecord, job_id)
@@ -443,9 +447,22 @@ class FinancialJobService:
         if record.status != _FIN_STATUS_COMPLETED or record.result_payload is None:
             return None
 
+        payload = _attach_financial_comparison_report(record.result_payload)
         if detail == "summary":
-            return _build_financial_summary_payload(record.result_payload)
-        return copy.deepcopy(record.result_payload)
+            return _build_financial_summary_payload(payload)
+        return copy.deepcopy(payload)
+
+    def get_comparison_payload(self, record: FinancialJobRecord) -> dict[str, Any] | None:
+        if record.status != _FIN_STATUS_COMPLETED or record.result_payload is None:
+            return None
+
+        payload = _attach_financial_comparison_report(record.result_payload)
+        comparison_report = payload.get("comparison_report")
+        return (
+            copy.deepcopy(comparison_report)
+            if isinstance(comparison_report, dict)
+            else None
+        )
 
 
 def _submission_request_snapshot(config: PortfolioOptimizationConfig) -> dict[str, Any]:
@@ -484,6 +501,18 @@ def _build_financial_summary_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     summary_payload["quantum_execution"] = summary_quantum_execution
     return summary_payload
+
+
+def _attach_financial_comparison_report(payload: dict[str, Any]) -> dict[str, Any]:
+    existing = payload.get("comparison_report")
+    if isinstance(existing, dict):
+        return payload
+
+    payload_with_report = dict(payload)
+    payload_with_report["comparison_report"] = build_financial_comparison_report(
+        payload_with_report
+    )
+    return payload_with_report
 
 
 def _config_from_record(record: FinancialJobRecord) -> PortfolioOptimizationConfig:
