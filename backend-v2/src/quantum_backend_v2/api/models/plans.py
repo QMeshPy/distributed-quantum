@@ -35,6 +35,33 @@ class AssignmentResponse(BaseModel):
     fragment_id: str
     primary_node_id: str
     fallback_node_ids: list[str]
+    block_id: str | None = None
+    stage_index: int | None = None
+    candidates: list[CandidateResponse]
+
+
+class StageResponse(BaseModel):
+    """Response model for an execution stage."""
+
+    stage_id: str
+    stage_index: int
+    block_ids: list[str]
+    fragment_ids: list[str]
+
+
+class BlockResponse(BaseModel):
+    """Response model for a parallel execution block."""
+
+    block_id: str
+    stage_index: int
+    fragment_ids: list[str]
+    service_types: list[str]
+    active_qubits: list[int]
+    state_qubits: list[int]
+    input_component_qubits: list[list[int]]
+    dependencies: list[str]
+    primary_node_id: str
+    fallback_node_ids: list[str]
     candidates: list[CandidateResponse]
 
 
@@ -45,4 +72,6 @@ class ExecutionPlanResponse(BaseModel):
     fragment_order: list[str]
     fragments: dict[str, FragmentResponse]
     assignments: dict[str, AssignmentResponse]
+    stages: list[StageResponse] = []
+    blocks: dict[str, BlockResponse] = {}
     quality_snapshot_id: str | None = None

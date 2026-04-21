@@ -509,6 +509,8 @@ function normalizeFinancialQuantumExecution(value: unknown): FinancialQuantumExe
 					fragment_order: [],
 					fragments: {},
 					assignments: {},
+					stages: [],
+					blocks: {},
 					quality_snapshot_id: null
 				}) as BackendPlanResponse,
 		fragment_results: (Array.isArray(value.fragment_results)

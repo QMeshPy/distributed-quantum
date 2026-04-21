@@ -10,7 +10,7 @@ from time import perf_counter
 import anyio
 
 from quantum_backend_v2.api.routers.service_quality import ServiceQualityTracker
-from quantum_backend_v2.application.distributed_statevector import apply_fragment_to_state
+from quantum_backend_v2.application.distributed_statevector import apply_fragments_to_state
 from quantum_backend_v2.protocols.execution import (
     ExecutionResultPayload,
     ExecutionTransition,
@@ -151,12 +151,14 @@ class PeerFragmentWorker:
 
         try:
             dispatch_input = FragmentDispatchInput.model_validate(request.input_payload)
+            fragments = dispatch_input.fragment_bundle()
             dispatch_output = await anyio.to_thread.run_sync(
                 partial(
-                    apply_fragment_to_state,
-                    fragment=dispatch_input.fragment,
+                    apply_fragments_to_state,
+                    fragments=fragments,
                     state=dispatch_input.state,
                     previous_peer_id=self._peer_id,
+                    block_id=dispatch_input.block_id,
                 )
             )
             result = ExecutionResultPayload(
@@ -166,10 +168,7 @@ class PeerFragmentWorker:
                 transition=ExecutionTransition.COMPLETED,
                 output_payload=dispatch_output.model_dump(mode="json"),
                 latency_ms=(perf_counter() - started_at) * 1000.0,
-                fidelity_score=self._quality.get_service_fidelity(
-                    dispatch_input.fragment.service_id,
-                    peer_id=self._peer_id,
-                ),
+                fidelity_score=self._bundle_fidelity(fragments),
             )
         except Exception as exc:
             result = ExecutionResultPayload(
@@ -185,6 +184,21 @@ class PeerFragmentWorker:
 
         self._execution_results[request.execution_id] = result
         return result.model_dump_json().encode("utf-8")
+
+    def _bundle_fidelity(self, fragments: tuple[object, ...]) -> float:
+        service_ids = sorted(
+            {
+                fragment.service_id
+                for fragment in fragments
+                if hasattr(fragment, "service_id")
+            }
+        )
+        if not service_ids:
+            return 0.0
+        return min(
+            self._quality.get_service_fidelity(service_id, peer_id=self._peer_id)
+            for service_id in service_ids
+        )
 
     def _purge_expired_reservations(self) -> None:
         now = _utc_now()

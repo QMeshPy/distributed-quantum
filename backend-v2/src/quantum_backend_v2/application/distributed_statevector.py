@@ -40,9 +40,90 @@ _NUMERIC_CONSTANTS = {
 }
 
 
-def make_initial_state_handoff(num_qubits: int) -> DistributedStateHandoff:
+def make_initial_state_handoff(
+    num_qubits: int,
+    *,
+    qubit_ids: tuple[int, ...] | None = None,
+) -> DistributedStateHandoff:
     """Build the initial all-zero state handoff for a plan."""
-    return DistributedStateHandoff(num_qubits=num_qubits)
+    resolved_qubit_ids = qubit_ids or tuple(range(num_qubits))
+    return DistributedStateHandoff(
+        num_qubits=num_qubits,
+        qubit_ids=resolved_qubit_ids,
+    )
+
+
+def handoff_qubit_ids(state: DistributedStateHandoff) -> tuple[int, ...]:
+    """Return the global qubit ids represented by a handoff."""
+    return state.qubit_ids or tuple(range(state.num_qubits))
+
+
+def combine_handoffs(
+    handoffs: tuple[DistributedStateHandoff, ...] | list[DistributedStateHandoff],
+) -> DistributedStateHandoff:
+    """Combine disjoint component handoffs into one larger factorized handoff."""
+    if not handoffs:
+        raise ValueError("Need at least one handoff to combine.")
+    if len(handoffs) == 1:
+        handoff = handoffs[0]
+        return DistributedStateHandoff(
+            num_qubits=handoff.num_qubits,
+            qubit_ids=handoff_qubit_ids(handoff),
+            amplitudes=handoff.amplitudes,
+            measured_qubits=handoff.measured_qubits,
+            previous_peer_id=handoff.previous_peer_id,
+        )
+
+    ordered_qubits = sorted(
+        qubit_id
+        for handoff in handoffs
+        for qubit_id in handoff_qubit_ids(handoff)
+    )
+    if len(ordered_qubits) != len(set(ordered_qubits)):
+        raise ValueError("Cannot combine overlapping state components.")
+
+    local_positions = {
+        qubit_id: position for position, qubit_id in enumerate(ordered_qubits)
+    }
+    component_vectors = [
+        statevector_from_handoff(handoff).data for handoff in handoffs
+    ]
+    combined_vector: list[complex] = []
+    for basis_index in range(2 ** len(ordered_qubits)):
+        amplitude = 1.0 + 0.0j
+        for handoff, component_vector in zip(handoffs, component_vectors, strict=True):
+            component_index = 0
+            for local_qubit_position, qubit_id in enumerate(handoff_qubit_ids(handoff)):
+                combined_position = local_positions[qubit_id]
+                bit = (basis_index >> combined_position) & 1
+                component_index |= bit << local_qubit_position
+            amplitude *= complex(component_vector[component_index])
+        combined_vector.append(amplitude)
+
+    measured_qubits = tuple(
+        sorted(
+            {
+                qubit_id
+                for handoff in handoffs
+                for qubit_id in handoff.measured_qubits
+            }
+        )
+    )
+    previous_peer_id = next(
+        (
+            handoff.previous_peer_id
+            for handoff in reversed(tuple(handoffs))
+            if handoff.previous_peer_id
+        ),
+        None,
+    )
+    return DistributedStateHandoff(
+        num_qubits=len(ordered_qubits),
+        qubit_ids=tuple(ordered_qubits),
+        amplitudes=serialize_statevector(Statevector(combined_vector)),
+        measured_qubits=measured_qubits,
+        previous_peer_id=previous_peer_id,
+    )
 
 
 def apply_fragment_to_state(
@@ -52,23 +133,47 @@ def apply_fragment_to_state(
     previous_peer_id: str,
 ) -> FragmentDispatchOutput:
     """Apply one fragment to the handed-off state and return the updated state."""
+    return apply_fragments_to_state(
+        fragments=(fragment,),
+        state=state,
+        previous_peer_id=previous_peer_id,
+    )
+
+
+def apply_fragments_to_state(
+    *,
+    fragments: tuple[FragmentDescriptor, ...] | list[FragmentDescriptor],
+    state: DistributedStateHandoff,
+    previous_peer_id: str,
+    block_id: str | None = None,
+) -> FragmentDispatchOutput:
+    """Apply one or more fragments to a local component state."""
     statevector = statevector_from_handoff(state)
     measured_qubits = list(state.measured_qubits)
+    qubit_ids = handoff_qubit_ids(state)
+    global_to_local = {qubit_id: index for index, qubit_id in enumerate(qubit_ids)}
     circuit = QuantumCircuit(state.num_qubits)
-    _apply_fragment_operation(
-        circuit,
-        fragment=fragment,
-        measured_qubits=measured_qubits,
-    )
+    for fragment in fragments:
+        _apply_fragment_operation(
+            circuit,
+            fragment=fragment,
+            measured_qubits=measured_qubits,
+            qubits=tuple(global_to_local[qubit_id] for qubit_id in fragment.qubits),
+            global_qubits=fragment.qubits,
+        )
     next_statevector = statevector.evolve(circuit) if circuit.data else statevector
     next_state = DistributedStateHandoff(
         num_qubits=state.num_qubits,
+        qubit_ids=qubit_ids,
         amplitudes=serialize_statevector(next_statevector),
         measured_qubits=tuple(measured_qubits),
         previous_peer_id=previous_peer_id,
     )
     return FragmentDispatchOutput(
         state=next_state,
+        block_id=block_id,
+        fragment_ids=tuple(fragment.fragment_id for fragment in fragments),
+        component_qubits=qubit_ids,
         gate_count=len(circuit.data),
         circuit_depth=circuit.depth() or 0,
         state_transfer_bytes=len(next_state.model_dump_json().encode("utf-8")),
@@ -84,16 +189,19 @@ def summarize_state_handoff(
     """Summarize a remote final state into backend-facing result fields."""
     statevector = statevector_from_handoff(state)
     measured_qubits = list(state.measured_qubits)
+    qubit_ids = handoff_qubit_ids(state)
+    local_positions = {qubit_id: index for index, qubit_id in enumerate(qubit_ids)}
 
     counts: dict[str, int] | None = None
     measured_probabilities: dict[str, float] | None = None
     if measured_qubits:
+        local_qargs = [local_positions[qubit_id] for qubit_id in measured_qubits]
         statevector.seed(seed)
         counts = _coerce_counts(
-            statevector.sample_counts(shots=shots, qargs=measured_qubits)
+            statevector.sample_counts(shots=shots, qargs=local_qargs)
         )
         measured_probabilities = _coerce_probabilities(
-            statevector.probabilities_dict(qargs=measured_qubits)
+            statevector.probabilities_dict(qargs=local_qargs)
         )
 
     return {
@@ -102,6 +210,7 @@ def summarize_state_handoff(
         "measured_probabilities": measured_probabilities,
         "statevector": list(state.amplitudes or serialize_statevector(statevector)),
         "measured_qubits": measured_qubits or None,
+        "qubit_ids": list(qubit_ids),
         "shots": shots if counts is not None else None,
     }
 
@@ -139,53 +248,57 @@ def _apply_fragment_operation(
     *,
     fragment: FragmentDescriptor,
     measured_qubits: list[int],
+    qubits: tuple[int, ...] | None = None,
+    global_qubits: tuple[int, ...] | None = None,
 ) -> None:
+    local_qubits = qubits or fragment.qubits
+    measurement_qubits = global_qubits or fragment.qubits
     if fragment.raw_text and _apply_raw_operation(
         circuit,
         raw_text=fragment.raw_text,
-        qubits=fragment.qubits,
+        qubits=local_qubits,
+        global_qubits=measurement_qubits,
         measured_qubits=measured_qubits,
     ):
         return
 
     service_id = fragment.service_id
-    qubits = fragment.qubits
 
     if service_id == "hadamard":
-        for qubit in qubits:
+        for qubit in local_qubits:
             circuit.h(qubit)
         return
 
-    if service_id == "bell_pair" and len(qubits) >= 2:
-        circuit.h(qubits[0])
-        circuit.cx(qubits[0], qubits[1])
+    if service_id == "bell_pair" and len(local_qubits) >= 2:
+        circuit.h(local_qubits[0])
+        circuit.cx(local_qubits[0], local_qubits[1])
         return
 
-    if service_id == "cnot" and len(qubits) >= 2:
-        circuit.cx(qubits[0], qubits[1])
+    if service_id == "cnot" and len(local_qubits) >= 2:
+        circuit.cx(local_qubits[0], local_qubits[1])
         return
 
-    if service_id == "cz" and len(qubits) >= 2:
-        circuit.cz(qubits[0], qubits[1])
+    if service_id == "cz" and len(local_qubits) >= 2:
+        circuit.cz(local_qubits[0], local_qubits[1])
         return
 
-    if service_id == "controlled_unitary" and len(qubits) >= 2:
-        control = qubits[0]
-        for target in qubits[1:]:
+    if service_id == "controlled_unitary" and len(local_qubits) >= 2:
+        control = local_qubits[0]
+        for target in local_qubits[1:]:
             if target != control:
                 circuit.cx(control, target)
         return
 
-    if service_id == "qft" and qubits:
-        circuit.compose(QFTGate(len(qubits)), qubits=list(qubits), inplace=True)
+    if service_id == "qft" and local_qubits:
+        circuit.compose(QFTGate(len(local_qubits)), qubits=list(local_qubits), inplace=True)
         return
 
-    if service_id == "teleportation" and len(qubits) >= 2:
-        circuit.swap(qubits[0], qubits[1])
+    if service_id == "teleportation" and len(local_qubits) >= 2:
+        circuit.swap(local_qubits[0], local_qubits[1])
         return
 
     if service_id == "measurement_feedforward":
-        for qubit in qubits:
+        for qubit in measurement_qubits:
             if qubit not in measured_qubits:
                 measured_qubits.append(qubit)
         return
@@ -193,8 +306,8 @@ def _apply_fragment_operation(
     if service_id in {"syndrome_extraction", "distillation"}:
         return
 
-    if service_id == "programmable_gate" and qubits:
-        circuit.append(UGate(0.12, 0.34, 0.56), [qubits[0]])
+    if service_id == "programmable_gate" and local_qubits:
+        circuit.append(UGate(0.12, 0.34, 0.56), [local_qubits[0]])
 
 
 def _apply_raw_operation(
@@ -202,6 +315,7 @@ def _apply_raw_operation(
     *,
     raw_text: str,
     qubits: tuple[int, ...],
+    global_qubits: tuple[int, ...],
     measured_qubits: list[int],
 ) -> bool:
     line = raw_text.split("//", 1)[0].strip().removesuffix(";")
@@ -218,7 +332,7 @@ def _apply_raw_operation(
         return False
 
     if gate_name == "measure":
-        for qubit in qubits:
+        for qubit in global_qubits:
             if qubit not in measured_qubits:
                 measured_qubits.append(qubit)
         return True

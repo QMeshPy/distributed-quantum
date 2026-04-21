@@ -132,6 +132,29 @@ export type BackendPlanAssignmentResponse = {
 	fragment_id: string;
 	primary_node_id: string;
 	fallback_node_ids: string[];
+	block_id?: string | null;
+	stage_index?: number | null;
+	candidates: BackendPlanCandidateResponse[];
+};
+
+export type BackendPlanStageResponse = {
+	stage_id: string;
+	stage_index: number;
+	block_ids: string[];
+	fragment_ids: string[];
+};
+
+export type BackendPlanBlockResponse = {
+	block_id: string;
+	stage_index: number;
+	fragment_ids: string[];
+	service_types: string[];
+	active_qubits: number[];
+	state_qubits: number[];
+	input_component_qubits: number[][];
+	dependencies: string[];
+	primary_node_id: string;
+	fallback_node_ids: string[];
 	candidates: BackendPlanCandidateResponse[];
 };
 
@@ -140,5 +163,7 @@ export type BackendPlanResponse = {
 	fragment_order: string[];
 	fragments: Record<string, BackendPlanFragmentResponse>;
 	assignments: Record<string, BackendPlanAssignmentResponse>;
+	stages?: BackendPlanStageResponse[];
+	blocks?: Record<string, BackendPlanBlockResponse>;
 	quality_snapshot_id: string | null;
 };
