@@ -97,9 +97,8 @@ QAOA encodes the cost function H as a cost Hamiltonian Hc and applies alternatin
 
 For p layers (QAOA depth), the circuit is:
 
-```
 $$|\psi(\beta,\gamma)\rangle = \prod_{k=1}^{p} e^{-i\beta_k H_M} e^{-i\gamma_k H_C} |+\rangle^{\otimes n}$$
-```
+
 
 The expectation value ⟨$ψ$(β,$γ$)|Hc|$ψ$(β,$γ$)⟩ approximates the ground state energy. Optimal parameters ($β$*, $γ$*) are found via classical optimization:
 
