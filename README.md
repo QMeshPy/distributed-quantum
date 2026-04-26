@@ -25,17 +25,17 @@ This project demonstrates **where quantum computers become useful** for portfoli
 
 ### I'm a researcher/academic
 
-**→ Start here:** `[docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)`  
+**→ Start here:** [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)  
 Complete 15,000-word paper with all findings, benchmarks, and proofs.
 
 ### I'm a developer/engineer
 
-**→ Start here:** `[docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)`  
+**→ Start here:** [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)  
 Technical journey from bottleneck discovery through optimization attempts.
 
 ### I want to run benchmarks
 
-**→ Start here:** `[backend-v2/README.md](backend-v2/README.md)`  
+**→ Start here:** [backend-v2/README.md](backend-v2/README.md)  
 Setup instructions, benchmark commands, and configuration options.
 
 ### I want the executive summary
@@ -130,25 +130,25 @@ pie title "Quantum Runtime Composition"
 
 ### 🎓 For Research & Publication
 
-**Main Paper** → `[docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)`
+**Main Paper** → [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)
 
 - 15,000 words, 9 sections, publication-ready
 - Abstract, introduction, methodology, results, conclusions
 - All experiments documented with exact numbers
 
-**Mathematical Proofs** → `[docs/research/MATHEMATICAL_APPENDIX.md](docs/research/MATHEMATICAL_APPENDIX.md)`
+**Mathematical Proofs** → [docs/research/MATHEMATICAL_APPENDIX.md](docs/research/MATHEMATICAL_APPENDIX.md)
 
 - 8,000 words of rigorous derivations
 - QUBO→Ising conversion, parameter-shift rule proof
 - Amdahl's Law analysis, complexity comparisons
 
-**Current Strategy** → `[docs/research/QUANTUM_SCALING_STRATEGY.md](docs/research/QUANTUM_SCALING_STRATEGY.md)`
+**Current Strategy** → [docs/research/QUANTUM_SCALING_STRATEGY.md](docs/research/QUANTUM_SCALING_STRATEGY.md)
 
 - Why we pivoted from speed to scaling
 - Crossover point predictions (N=35-45 assets)
 - Success criteria and backup plans
 
-**Alternative Problems** → `[docs/research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md](docs/research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md)`
+**Alternative Problems** → [docs/research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md](docs/research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md)
 
 - Option pricing via Quantum Amplitude Estimation (100× proven speedup)
 - Credit risk, yield curves, other quantum finance applications
@@ -156,25 +156,25 @@ pie title "Quantum Runtime Composition"
 
 ### 🔧 For Development & Implementation
 
-**Technical Timeline** → `[docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)`
+**Technical Timeline** → [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)
 
 - Complete optimization journey with code changes
 - Before/after benchmarks for each phase
 - File modifications with line numbers
 
-**Gradient Optimization Failure** → `[docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md](docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md)`
+**Gradient Optimization Failure** → [docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md](docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md)
 
 - Honest analysis of why gradients made it 2-3× slower
 - Root cause: 8× evaluation overhead dominated benefit
 - Lessons learned and when gradients actually work
 
-**Literature Review** → `[docs/technical/QAOA_OPTIMIZATION_RESEARCH.md](docs/technical/QAOA_OPTIMIZATION_RESEARCH.md)`
+**Literature Review** → [docs/technical/QAOA_OPTIMIZATION_RESEARCH.md](docs/technical/QAOA_OPTIMIZATION_RESEARCH.md)
 
 - Survey of 10+ papers on QAOA optimization (2024-2025)
 - L-BFGS-B, transfer learning, layer-selective strategies
 - What research says vs what worked in practice
 
-**Original Benchmarks** → `[docs/technical/BENCHMARK.md](docs/technical/BENCHMARK.md)`
+**Original Benchmarks** → [docs/technical/BENCHMARK.md](docs/technical/BENCHMARK.md)
 
 - Initial bottleneck discovery (77% parameter search)
 - Peer scaling results (why 100 nodes ≈ 5 nodes)
@@ -182,7 +182,7 @@ pie title "Quantum Runtime Composition"
 
 ### 📁 For Historical Context
 
-**Archive** → `[docs/archive/](docs/archive/)`
+**Archive** → [docs/archive/](docs/archive/)
 
 - Superseded documents and intermediate reports
 - Code reviews, optimization summaries
@@ -460,9 +460,9 @@ repeat 80 times:
 
 This is academic research code. For inquiries:
 
-- **Research questions**: See `[docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)`
-- **Technical details**: See `[docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)`
-- **Bugs/Issues**: Check `[backend-v2/README.md](backend-v2/README.md)` for troubleshooting
+- **Research questions**: See [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)
+- **Technical details**: See [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)
+- **Bugs/Issues**: Check [backend-v2/README.md](backend-v2/README.md) for troubleshooting
 
   
 
