@@ -128,7 +128,7 @@ def price_option_quantum(
 ) -> dict[str, Any]:
     """Price European call option using Quantum Amplitude Estimation."""
     
-    # Classical Monte Carlo baseline (1M samples for ε=0.01)
+    # Classical Monte Carlo baseline (1M samples for $\varepsilon=0.01$)
     classical_start = time.perf_counter()
     classical_price = monte_carlo_option_pricing(
         spot=spot_price,
@@ -140,7 +140,7 @@ def price_option_quantum(
     )
     classical_duration = time.perf_counter() - classical_start
     
-    # Quantum Amplitude Estimation (10K shots for ε=0.01)
+    # Quantum Amplitude Estimation (10K shots for $\varepsilon=0.01$)
     quantum_start = time.perf_counter()
     problem = EuropeanCallPricing(
         spot_price=spot_price,
@@ -154,7 +154,7 @@ def price_option_quantum(
         ),
     )
     qae = AmplitudeEstimation(
-        num_eval_qubits=5,  # Accuracy: ε ≈ 1/(2^5) = 0.03125
+        num_eval_qubits=5,  # Accuracy: $\varepsilon \approx 1/(2^5) = 0.03125$
         quantum_instance=AerSimulator(),
     )
     result = qae.estimate(problem)

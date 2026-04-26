@@ -464,7 +464,7 @@ Even with **ALL optimizations + 100 peers**, quantum remains **140x slower** tha
 
 | Aspect | Classical Monte Carlo | Quantum QAE |
 |--------|---------------------|-------------|
-| **Samples for ε=0.01** | 1,000,000 | 10,000 |
+| **Samples for $\varepsilon=0.01$** | 1,000,000 | 10,000 |
 | **Runtime** | ~10s | ~100ms |
 | **Speedup** | - | **100x** ✅ |
 | **Industry Relevance** | High | High |
@@ -493,7 +493,7 @@ Even with **ALL optimizations + 100 peers**, quantum remains **140x slower** tha
 |--------|---------|
 | **Graph Size** | 100 currencies × 10K exchanges = 1M edges |
 | **Classical** | O(V·E) Bellman-Ford |
-| **Quantum** | O(√(V·E)) Quantum Walk |
+| **Quantum** | $O(\sqrt{V\cdot E})$ Quantum Walk |
 | **Speedup** | **1000x** ✅ |
 | **Latency-Critical** | Sub-millisecond = millions in profit |
 

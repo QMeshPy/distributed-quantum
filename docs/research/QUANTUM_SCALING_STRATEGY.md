@@ -40,15 +40,15 @@ N=50, K=17: C(50,17) = 2.25×10¹³    → ~80 years (impossible)
 
 **Simulated Annealing** (Constant 50,000 iterations):
 ```
-Time ≈ 50,000 × T_eval
+$\text{Time} \approx 50{,}000 \times T_{\text{eval}}$
 
 T_eval grows with N:
-- N=10: T_eval ≈ 0.3μs  → Total ≈ 15ms
-- N=20: T_eval ≈ 1.0μs  → Total ≈ 50ms
-- N=30: T_eval ≈ 3.0μs  → Total ≈ 150ms
-- N=40: T_eval ≈ 8.0μs  → Total ≈ 400ms
-- N=50: T_eval ≈ 20μs   → Total ≈ 1000ms
-- N=60: T_eval ≈ 45μs   → Total ≈ 2250ms
+- $N=10$: $T_{\text{eval}} \approx 0.3\,\mu s \Rightarrow$ total $\approx 15\,\text{ms}$
+- $N=20$: $T_{\text{eval}} \approx 1.0\,\mu s \Rightarrow$ total $\approx 50\,\text{ms}$
+- $N=30$: $T_{\text{eval}} \approx 3.0\,\mu s \Rightarrow$ total $\approx 150\,\text{ms}$
+- $N=40$: $T_{\text{eval}} \approx 8.0\,\mu s \Rightarrow$ total $\approx 400\,\text{ms}$
+- $N=50$: $T_{\text{eval}} \approx 20\,\mu s \Rightarrow$ total $\approx 1000\,\text{ms}$
+- $N=60$: $T_{\text{eval}} \approx 45\,\mu s \Rightarrow$ total $\approx 2250\,\text{ms}$
 ```
 
 **Key Insight**: Classical SA time grows ~exponentially with N (matrix operations scale as O(K$²$), K ≈ N/3).
@@ -79,11 +79,26 @@ Total: ~1,200-2,500ms (mostly constant with N)
 
 ## Expected Scaling Behavior
 
+```mermaid
+flowchart LR
+    A["N=20<br/>Classical faster"] --> B["N=30<br/>Gap narrows"]
+    B --> C["N=35-40<br/>Crossover zone"]
+    C --> D["N=50+<br/>Quantum faster"]
+
+    Q["Quantum runtime<br/>~constant with N"] -.-> C
+    CL["Classical runtime<br/>grows with N and dataset size"] -.-> C
+    
+    style A fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+```
+
 ### Hypothesis
 
 **Quantum Time vs N**:
 ```
-T_quantum(N) ≈ 1,500ms + (N × 10ms)
+$T_{\text{quantum}}(N) \approx 1500\,\text{ms} + (N \times 10\,\text{ms})$
 
 N=10:  T_quantum ≈ 1,600ms
 N=20:  T_quantum ≈ 1,700ms
@@ -95,7 +110,7 @@ N=60:  T_quantum ≈ 2,100ms
 
 **Classical Time vs N** (Simulated Annealing):
 ```
-T_classical(N) ≈ 10ms × (N/10)^2.5
+$T_{\text{classical}}(N) \approx 10\,\text{ms} \times (N/10)^{2.5}$
 
 N=10:  T_classical ≈ 10ms
 N=20:  T_classical ≈ 57ms
@@ -171,19 +186,31 @@ N=60:  20,000ms → QUANTUM WINS! (10× faster)
 
 **Expected Crossover**: N = 35-40 assets
 
+```mermaid
+graph LR
+    A["N=20<br/>Quantum: 1700ms<br/>Classical: 621ms"] -->|Classical WINS| B["N=30<br/>Quantum: 1800ms<br/>Classical: 2500ms"]
+    B -->|Still Classical| C["N=35-40<br/>CROSSOVER POINT"]
+    C -->|Quantum WINS| D["N=40<br/>Quantum: 1900ms<br/>Classical: 6000ms"]
+    D -->|Gap Widens| E["N=60<br/>Quantum: 2100ms<br/>Classical: 20000ms"]
+    
+    style A fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+```
+
 ### Optimistic Estimate
 
 If quantum scales even better (truly constant):
 ```
-Crossover at N = 30 assets where T_quantum ≈ T_classical ≈ 1,800-2,500ms
+Crossover at $N = 30$ assets where $T_{\text{quantum}} \approx T_{\text{classical}} \approx 1{,}800$-$2{,}500\,\text{ms}$
 ```
 
 ### Pessimistic Estimate
 
 If classical implementation is more optimized than expected:
-```
 Crossover at N = 50-60 assets where classical finally exceeds 2,000ms
-```
 
 ---
 
@@ -246,14 +273,14 @@ If portfolio optimization doesn't show advantage even at N=60:
 
 **Classical** (Monte Carlo):
 ```
-Error: ε = O(1/√N)
+Error: $\varepsilon = O\left(\frac{1}{\sqrt{N}}\right)$
 For 1% accuracy: N = 10,000 samples
 Time: ~100-500ms
 ```
 
 **Quantum** (Amplitude Estimation):
 ```
-Error: ε = O(1/M)  
+Error: $\varepsilon = O\left(\frac{1}{M}\right)$  
 For 1% accuracy: M = 100 queries
 Time: ~1-5ms (100× faster!)
 Proven quadratic speedup (Montanaro, 2015)

@@ -72,6 +72,19 @@ making distributed execution nearly irrelevant.
 
 **Key Insight**: Reducing COBYLA iterations made the problem WORSE because it increased the percentage dominated by parameter search. We need a fundamentally different optimizer, not just fewer iterations.
 
+```mermaid
+timeline
+    title Optimization Timeline: From Bottleneck to Scaling Strategy
+    section Discovery
+        Initial Benchmark : 10,000ms quantum vs 23ms classical : 600× slower : 77% parameter search
+    section Phase 1
+        COBYLA Reduction : 1,400ms quantum : 94% parameter search : 65× slower : Made bottleneck WORSE
+    section Phase 2
+        Gradient Attempt : Parameter-shift + L-BFGS-B : 2-3× SLOWER : 8× evaluation overhead : REVERTED
+    section Phase 3
+        Scaling Strategy : Test N=20,30,40,50,60 : Find crossover point : Quantum constant vs classical exponential
+```
+
 ---
 
 ## Phase 2: Advanced Gradient-Based Optimizer (IMPLEMENTED ✅)
@@ -316,14 +329,14 @@ C(100, 33) = 3×10²⁸ portfolios   → Classical: INFEASIBLE
 
 **Classical Approach**:
 ```
-V̂ = (1/N) Σᵢ max(S_T^(i) - K, 0)
-Error: ε = O(1/√N)
+$$\hat{V} = \frac{1}{N}\sum_i \max\left(S_T^{(i)} - K, 0\right)$$
+Error: $\varepsilon = O\left(\frac{1}{\sqrt{N}}\right)$
 For 1% error: N = 10,000 samples
 ```
 
 **Quantum Approach** (Amplitude Estimation):
 ```
-Error: ε = O(1/M)
+Error: $\varepsilon = O\left(\frac{1}{M}\right)$
 For 1% error: M = 100 queries
 Speedup: 10,000 / 100 = 100×
 ```
@@ -338,6 +351,16 @@ Speedup: 10,000 / 100 = 100×
 ---
 
 ## Massive Dataset Benchmark: Testing at Scale
+
+```mermaid
+flowchart LR
+    A[Load 5-year top-100 dataset] --> B[Select scale N in {20,30,40,50,60}]
+    B --> C[Run classical SA baseline]
+    B --> D[Run QAOA with COBYLA]
+    C --> E[Measure wall-clock + objective quality]
+    D --> E
+    E --> F[Detect crossover where quantum < classical]
+```
 
 ### Dataset
 

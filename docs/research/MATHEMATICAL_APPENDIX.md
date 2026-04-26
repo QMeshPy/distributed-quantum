@@ -358,6 +358,44 @@ S(4) = 1 / (0.973 + 0.027/4) = 1 / 0.98 = 1.020×
 
 **Conclusion**: Amdahl's Law accurately predicts negligible scaling benefit when serial fraction is 97.3%.
 
+```mermaid
+graph TB
+    subgraph Speedup["Speedup vs Processors (Different Serial Fractions)"]
+    A["n=1: S=1.0×"] --> B["n=10"]
+    B --> C["n=100"]
+    C --> D["n=∞"]
+    
+    B1["s=10%: S=5.3×"]
+    B2["s=50%: S=1.8×"]
+    B3["s=97%: S=1.03×"]
+    
+    C1["s=10%: S=9.2×"]
+    C2["s=50%: S=2.0×"]
+    C3["s=97%: S=1.03×"]
+    
+    D1["s=10%: S=10×"]
+    D2["s=50%: S=2×"]
+    D3["s=97%: S=1.03×"]
+    
+    B --> B1
+    B --> B2
+    B --> B3
+    C --> C1
+    C --> C2
+    C --> C3
+    D --> D1
+    D --> D2
+    D --> D3
+    end
+    
+    style B3 fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style C3 fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style D3 fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style B1 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style C1 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style D1 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+```
+
 ### E.3 Required Serial Fraction for Significant Speedup
 
 **Question**: What serial fraction $s$ allows $10\times$ speedup with 100 processors?

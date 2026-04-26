@@ -19,61 +19,61 @@
 #### Classical Monte Carlo
 
 Price European call option with payoff:
-```
+$$
 V = max(S_T - K, 0)
-```
+$$
 
 **Monte Carlo Estimate**:
 ```
-V̂ = (1/N) Σᵢ₌₁ᴺ max(S_T^(i) - K, 0)
+$$\hat{V} = \frac{1}{N}\sum_{i=1}^{N} \max\left(S_T^{(i)} - K, 0\right)$$
 ```
 
 **Error Bound**:
 ```
-ε_MC = O(1/√N)
+$$\varepsilon_{\text{MC}} = O\left(\frac{1}{\sqrt{N}}\right)$$
 
-For 1% accuracy: ε = 0.01 → N = 1/(0.01)² = 10,000 samples
-For 0.1% accuracy: ε = 0.001 → N = 1/(0.001)² = 1,000,000 samples
+For 1% accuracy: $\varepsilon = 0.01 \Rightarrow N = 1/(0.01)^2 = 10{,}000$ samples
+For 0.1% accuracy: $\varepsilon = 0.001 \Rightarrow N = 1/(0.001)^2 = 1{,}000{,}000$ samples
 ```
 
 **Computational Cost**:
 ```
-Time = N × T_sample
+$$\text{Time} = N \times T_{\text{sample}}$$
 
 where T_sample = time to simulate one price path
 
-Typical: N = 10,000, T_sample = 10μs → Total = 100ms
+Typical: $N = 10{,}000$, $T_{\text{sample}} = 10\,\mu s \Rightarrow$ total $= 100\,\text{ms}$
 ```
 
 #### Quantum Amplitude Estimation
 
 **Encoding**: Encode payoff in quantum amplitude
 ```
-|ψ⟩ = √(1-a)|0⟩ + √a|payoff⟩
+$$|\psi\rangle = \sqrt{1-a}\,|0\rangle + \sqrt{a}\,|\text{payoff}\rangle$$
 
 where a = E[payoff] / max_payoff
 ```
 
 **Estimation**: Use M rounds of Quantum Phase Estimation
 ```
-ε_QAE = O(1/M)
+$$\varepsilon_{\text{QAE}} = O\left(\frac{1}{M}\right)$$
 
-For 1% accuracy: ε = 0.01 → M = 1/0.01 = 100 queries
-For 0.1% accuracy: ε = 0.001 → M = 1/0.001 = 1,000 queries
+For 1% accuracy: $\varepsilon = 0.01 \Rightarrow M = 1/0.01 = 100$ queries
+For 0.1% accuracy: $\varepsilon = 0.001 \Rightarrow M = 1/0.001 = 1{,}000$ queries
 ```
 
 **Computational Cost**:
 ```
-Time = M × T_circuit
+$$\text{Time} = M \times T_{\text{circuit}}$$
 
-Typical: M = 100, T_circuit = 500μs → Total = 50ms
+Typical: $M = 100$, $T_{\text{circuit}} = 500\,\mu s \Rightarrow$ total $= 50\,\text{ms}$
 ```
 
 **Speedup**:
 ```
-S = N_MC / M_QAE = 10,000 / 100 = 100×
+$$S = N_{\text{MC}} / M_{\text{QAE}} = 10{,}000 / 100 = 100\times$$
 
-For 0.1% accuracy: S = 1,000,000 / 1,000 = 1,000×
+For 0.1% accuracy: $S = 1{,}000{,}000 / 1{,}000 = 1{,}000\times$
 ```
 
 ### Why QAE Has No Parameter Search Bottleneck
@@ -83,7 +83,7 @@ For 0.1% accuracy: S = 1,000,000 / 1,000 = 1,000×
 QAOA (Portfolio):
 ```
 1. Encode problem in Hamiltonian
-2. Build parameterized ansatz with (β, γ)
+2. Build parameterized ansatz with $(\beta, \gamma)$
 3. Search parameter space via classical optimization ← 97% of time!
 4. Extract solution from best parameters
 ```
@@ -97,6 +97,27 @@ QAE (Option Pricing):
 ```
 
 **No Classical Loop**: QAE is a direct quantum algorithm, not variational!
+
+```mermaid
+graph TB
+    subgraph QAOA["QAOA (Portfolio) - Has Bottleneck"]
+    Q1["Problem Hamiltonian"] --> Q2["Parameterized Circuit<br/>β, γ"]
+    Q2 --> Q3["Measure Energy"]
+    Q3 --> Q4{"Classical Optimizer<br/>97% time"}
+    Q4 -->|Update params| Q2
+    Q4 -->|Converged| Q5["Solution"]
+    end
+    
+    subgraph QAE["QAE (Option Pricing) - No Bottleneck"]
+    A1["Payoff State"] --> A2["Fixed Grover Ops<br/>No parameters!"]
+    A2 --> A3["Quantum Phase Estimation"]
+    A3 --> A4["Measure Phase"]
+    A4 --> A5["Extract Price<br/>100× faster!"]
+    end
+    
+    style Q4 fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style A5 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+```
 
 ### Implementation Complexity
 
@@ -154,34 +175,34 @@ QAE (Option Pricing):
 
 Maximize margin between credit-worthy and risky borrowers:
 ```
-max_{w,b} 2/||w||  subject to  yᵢ(w·xᵢ + b) ≥ 1
+$$\max_{w,b}\; \frac{2}{\|w\|} \quad \text{subject to} \quad y_i(w \cdot x_i + b) \ge 1$$
 ```
 
 **Kernel Trick** (for non-linear decision boundaries):
 ```
-K(xᵢ, xⱼ) = φ(xᵢ)·φ(xⱼ)
+$$K(x_i, x_j) = \phi(x_i) \cdot \phi(x_j)$$
 
-where φ: ℝᵈ → ℝᴰ maps to high-dimensional feature space
+where $\phi: \mathbb{R}^d \to \mathbb{R}^D$ maps to high-dimensional feature space
 ```
 
 **Computational Cost**:
 ```
 Training: O(N³) for N samples (quadratic programming)
-Inference: O(N×d) for d features
+Inference: $O(N\times d)$ for $d$ features
 ```
 
 #### Quantum SVM
 
 **Quantum Feature Map**:
 ```
-|ψ(x)⟩ = U_φ(x)|0⟩
+$$|\psi(x)\rangle = U_{\phi}(x)|0\rangle$$
 
 where U_φ is parameterized quantum circuit
 ```
 
 **Quantum Kernel**:
 ```
-K_quantum(xᵢ, xⱼ) = |⟨ψ(xᵢ)|ψ(xⱼ)⟩|²
+$$K_{\text{quantum}}(x_i, x_j) = |\langle \psi(x_i)|\psi(x_j)\rangle|^2$$
 
 Computed via SWAP test in O(1) circuit depth!
 ```
@@ -223,7 +244,7 @@ Computed via SWAP test in O(1) circuit depth!
 
 Fit yield curve to observed bond prices:
 ```
-min Σᵢ (P_observed(tᵢ) - P_model(tᵢ, r))²
+$$\min \sum_i \left(P_{\text{observed}}(t_i) - P_{\text{model}}(t_i, r)\right)^2$$
 
 subject to: smoothness constraints on r(t)
 ```
@@ -274,8 +295,8 @@ This is a quadratic program $→$ Can be cast as QUBO $→$ Can use quantum anne
 
 Detect periodic patterns in price time series:
 ```
-Classical FFT: O(N log N) for N data points
-Quantum QFT: O(log² N) for N = 2ⁿ superposition states
+Classical FFT: $O(N \log N)$ for $N$ data points
+Quantum QFT: $O((\log N)^2)$ for $N = 2^n$ superposition states
 ```
 
 **Catch**: Data must be in quantum superposition (hard to prepare!)
@@ -294,6 +315,15 @@ Quantum QFT: O(log² N) for N = 2ⁿ superposition states
 ---
 
 ## Recommendation Matrix
+
+```mermaid
+flowchart TD
+    A[Portfolio scaling outcome] --> B{Quantum advantage observed?}
+    B -->|Yes| C[Continue QAOA portfolio track]
+    B -->|No| D[Pivot to Option Pricing via QAE]
+    D --> E[Implement state prep + oracle + amplitude estimation]
+    E --> F[Report provable quadratic speedup narrative]
+```
 
 | Problem | Proven Advantage | Implementation | Production Ready | Quantum Hardware | Recommendation |
 |---------|------------------|----------------|------------------|------------------|----------------|

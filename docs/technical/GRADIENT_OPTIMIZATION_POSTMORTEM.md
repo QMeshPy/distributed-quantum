@@ -35,6 +35,24 @@ Implementing parameter-shift gradients with L-BFGS-B optimizer resulted in **sig
 
 **Bottleneck**: Still 97-98% parameter search, but absolute time WORSE
 
+```mermaid
+graph LR
+    subgraph COBYLA["COBYLA Baseline"]
+    C1["80 iterations"] --> C2["1 eval per iter"] --> C3["80 total evals<br/>1,400ms"]
+    end
+    
+    subgraph LBFGSB["L-BFGS-B + Gradients"]
+    L1["30 iterations"] --> L2["8 evals per iter<br/>2 per param × 4 params"] --> L3["240 total evals<br/>3,500ms"]
+    end
+    
+    C3 -->|Baseline| R["Result"]
+    L3 -->|2.5× SLOWER| R
+    
+    style C3 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style L3 fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style R fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
+```
+
 ### 20-Asset Test (Catastrophic Failure)
 
 | Metric | Value |
@@ -48,6 +66,20 @@ Implementing parameter-shift gradients with L-BFGS-B optimizer resulted in **sig
 ---
 
 ## Root Cause Analysis
+
+```mermaid
+flowchart TD
+    A["Enable parameter-shift gradients"] --> B["2n circuit evaluations per step"]
+    B --> C["CVaR/statevector cost amplifies each evaluation"]
+    C --> D["L-BFGS-B wall-clock explodes"]
+    D --> E["Overall runtime worse than COBYLA baseline"]
+
+    F["Transfer-learning cache immature"] --> D
+    G["Problem size too small for gradient benefit"] --> E
+    
+    style E fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
+```
 
 ### 1. Gradient Computation Overhead
 
@@ -101,8 +133,8 @@ After 100 runs: ~80-90% (mature cache)
 **Literature Expectation**:
 ```
 Parameter-shift gradients effective when:
-1. n_qubits ≥ 20 (large parameter space benefits from gradient direction)
-2. QAOA depth p ≥ 3 (more parameters → gradient guidance more valuable)
+1. $n_{\text{qubits}} \ge 20$ (large parameter space benefits from gradient direction)
+2. QAOA depth $p \ge 3$ (more parameters $\Rightarrow$ gradient guidance more valuable)
 3. Objective landscape smooth (gradients point toward optimum)
 ```
 
@@ -123,7 +155,7 @@ Statevector size: 2^20 = 1,048,576 dimensions
 CVaR computation: Sort all 1M amplitudes, compute tail expectation
 Per-evaluation cost: ~100-1000ms (vs <1ms for 10 qubits)
 
-L-BFGS-B without gradients (n ≥ 8):
+L-BFGS-B without gradients ($n \ge 8$):
 - Falls back to numerical finite differences
 - Requires (n+1) evaluations per iteration for gradient approximation
 - For 20 qubits: (20+1) × 1000ms = 21 seconds per iteration!
@@ -189,7 +221,7 @@ if use_advanced:
     # Fast expectation (no CVaR overhead)
     # Gradients may help on smooth problems
 else:
-    # COBYLA for n ≥ 8 qubits
+    # COBYLA for $n \ge 8$ qubits
     # Designed for derivative-free optimization
     # Proven faster for expensive CVaR evaluation
 ```

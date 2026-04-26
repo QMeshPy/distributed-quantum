@@ -130,7 +130,7 @@ Decomposes large circuits into smaller subcircuits for distributed execution:
 
 | Metric | Classical Monte Carlo | Quantum QAE | Speedup |
 |--------|---------------------|-------------|---------|
-| **Samples (ε=0.01)** | 1,000,000 | 10,000 | **100x** |
+| **Samples ($\varepsilon=0.01$)** | 1,000,000 | 10,000 | **100x** |
 | **Runtime** | ~10s | ~100ms | **100x** |
 | **Implementation** | Medium (Qiskit has QAE) | - | - |
 
@@ -150,7 +150,7 @@ Decomposes large circuits into smaller subcircuits for distributed execution:
 
 | Metric | Classical | Quantum | Speedup |
 |--------|-----------|---------|---------|
-| **100 currencies, 10K exchanges** | O(V·E) | O(√(V·E)) | **1000x** |
+| **100 currencies, 10K exchanges** | $O(V\cdot E)$ | $O(\sqrt{V\cdot E})$ | **1000x** |
 | **Latency-Critical** | Yes (sub-ms = millions in profit) | - | - |
 | **Implementation** | Very High (research-level) | - | - |
 

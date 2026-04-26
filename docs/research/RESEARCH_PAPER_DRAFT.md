@@ -75,16 +75,14 @@ Section 2 reviews related work in QAOA optimization and distributed quantum comp
 
 Portfolio optimization can be formulated as a Quadratic Unconstrained Binary Optimization (QUBO) problem. Given N assets with expected returns $μ$ $∈$ $ℝ$^N and covariance matrix $Σ$ $∈$ $ℝ$^(N×N), we seek a binary selection vector x $∈$ {0,1}^N that maximizes risk-adjusted return:
 
-```
-maximize:  f(x) = μᵀx - λ(xᵀΣx)
-subject to: Σxᵢ = K  (budget constraint: select exactly K assets)
-```
+maximize: $f(x) = \mu^T x - \lambda (x^T \Sigma x)$
+subject to: $\sum_i x_i = K$ (budget constraint: select exactly $K$ assets)
 
 where $λ$ is a risk aversion parameter. This is equivalent to minimizing:
 
-```
-H = -μᵀx + λ(xᵀΣx) + P(Σxᵢ - K)²
-```
+$$
+H = -\mu^T x + \lambda(x^T\Sigma x) + P\left(\sum_i x_i - K\right)^2
+$$
 
 where $P$ is a penalty coefficient enforcing the budget constraint.
 
@@ -94,20 +92,20 @@ where $P$ is a penalty coefficient enforcing the budget constraint.
 
 QAOA encodes the cost function H as a cost Hamiltonian Hc and applies alternating layers of:
 
-1. **Cost operator**: e^(-iγHc) rotates quantum state based on problem structure
-2. **Mixer operator**: e^(-iβHm) explores solution space (typically X-rotations)
+1. **Cost operator**: $e^{-i\gamma H_C}$ rotates quantum state based on problem structure
+2. **Mixer operator**: $e^{-i\beta H_M}$ explores solution space (typically X-rotations)
 
 For p layers (QAOA depth), the circuit is:
 
 ```
-|ψ(β,γ)⟩ = ∏ₖ₌₁ᵖ e^(-iβₖHm) e^(-iγₖHc) |+⟩⊗ⁿ
+$$|\psi(\beta,\gamma)\rangle = \prod_{k=1}^{p} e^{-i\beta_k H_M} e^{-i\gamma_k H_C} |+\rangle^{\otimes n}$$
 ```
 
 The expectation value ⟨$ψ$(β,$γ$)|Hc|$ψ$(β,$γ$)⟩ approximates the ground state energy. Optimal parameters ($β$*, $γ$*) are found via classical optimization:
 
-```
-(β*, γ*) = argmin ⟨ψ(β,γ)|Hc|ψ(β,γ)⟩
-```
+$$
+(\beta^*, \gamma^*) = \arg\min \langle \psi(\beta,\gamma)|H_C|\psi(\beta,\gamma)\rangle
+$$
 
 **Key Challenge**: This optimization requires 100-1000 quantum circuit evaluations, each costing milliseconds to seconds.
 
@@ -196,7 +194,7 @@ Two classical strategies depending on problem size:
 **Circuit Construction**:
 ```python
 # Convert QUBO to Ising Hamiltonian
-H_cost = Σᵢⱼ Jᵢⱼ ZᵢZⱼ + Σᵢ hᵢZᵢ + constant
+$$H_{\text{cost}} = \sum_{i,j} J_{ij} Z_i Z_j + \sum_i h_i Z_i + \text{constant}$$
 
 # Build QAOA ansatz
 ansatz = QAOAAnsatz(
@@ -211,7 +209,7 @@ ansatz = QAOAAnsatz(
 **Mixer Design**: Standard X-mixer violates budget constraints. We use ring XY-mixer:
 
 ```
-H_mixer = Σᵢ (XᵢX_{i+1} + YᵢY_{i+1})
+$$H_{\text{mixer}} = \sum_i \left(X_i X_{i+1} + Y_i Y_{i+1}\right)$$
 ```
 
 This preserves Hamming weight (budget) while allowing state exploration.
@@ -413,9 +411,9 @@ Cache stored at `~/.cache/qaoa_parameters/parameter_cache.json`
 
 Amdahl's Law states that for a program with serial fraction s and parallel fraction (1-s):
 
-```
-Speedup(n) = 1 / (s + (1-s)/n)
-```
+$$
+\text{Speedup}(n) = \frac{1}{s + (1-s)/n}
+$$
 
 where n = number of parallel processors.
 
@@ -424,9 +422,9 @@ For our QAOA workflow:
 - Parallel: Distributed execution = 6% (1-s = 0.06)
 
 **Theoretical Maximum Speedup**:
-```
-Speedup(∞) = 1 / 0.94 = 1.064×
-```
+$$
+\text{Speedup}(\infty) = \frac{1}{0.94} = 1.064\times
+$$
 
 Even with infinite nodes, we can only achieve **$1.064\times$ speedup**!
 
@@ -453,6 +451,26 @@ Even with infinite nodes, we can only achieve **$1.064\times$ speedup**!
 | 20 | ~5000ms (est.) | **333× slower** 🔴 |
 
 **Critical Finding #4**: **Quantum is 67-$1250\times$ slower** than classical for small problems. Classical exact enumeration is simply too efficient.
+
+```mermaid
+graph TB
+    subgraph Classical["Classical (N=10)"]
+    C1["Exact Enumeration<br/>23ms"] 
+    C2["Simulated Annealing<br/>16-50ms"]
+    end
+    
+    subgraph Quantum["Quantum (N=10)"]
+    Q1["Parameter Search<br/>1408ms / 94%"] --> Q2["Circuit Execution<br/>88ms / 6%"]
+    Q3["Total: 1538ms"]
+    Q1 --> Q3
+    Q2 --> Q3
+    end
+    
+    style C1 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style C2 fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
+    style Q1 fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
+    style Q3 fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
+```
 
 ### 4.5 Optimizer Comparison (COBYLA vs. L-BFGS-B)
 
@@ -584,13 +602,13 @@ signature = f"portfolio_cvar_reps{p}_q{N}_b{K}"
 **Motivation**: L-BFGS-B uses finite-difference gradients (numerical approximation). QAOA admits exact gradients via the **parameter-shift rule**:
 
 ```
-∂⟨H⟩/∂θᵢ = [⟨H⟩(θ + sᵢ) - ⟨H⟩(θ - sᵢ)] / (2 sin(s))
+$$\frac{\partial \langle H \rangle}{\partial \theta_i} = \frac{\langle H \rangle(\theta + s_i) - \langle H \rangle(\theta - s_i)}{2\sin(s)}$$
 ```
 
 For s = $π$/2, this simplifies to:
 
 ```
-∂⟨H⟩/∂θᵢ = [⟨H⟩(θ + π/2·eᵢ) - ⟨H⟩(θ - π/2·eᵢ)] / 2
+$$\frac{\partial \langle H \rangle}{\partial \theta_i} = \frac{\langle H \rangle(\theta + \frac{\pi}{2} e_i) - \langle H \rangle(\theta - \frac{\pi}{2} e_i)}{2}$$
 ```
 
 **Advantage**: Exact gradient at cost of 2 circuit evaluations per parameter (vs. 2n for finite differences).
