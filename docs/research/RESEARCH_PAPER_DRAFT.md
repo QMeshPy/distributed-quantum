@@ -11,9 +11,9 @@
 
 Quantum approximate optimization algorithms (QAOA) have emerged as promising candidates for solving combinatorial optimization problems, particularly in financial portfolio optimization. However, empirical performance often falls short of theoretical expectations when compared to classical heuristics. This work presents a comprehensive investigation into the performance bottlenecks of QAOA-based portfolio optimization, with particular focus on parameter optimization overhead and distributed execution scalability.
 
-We implement a distributed quantum circuit execution framework using py-libp2p for peer-to-peer coordination and conduct extensive benchmarking across varying node counts (5, 10, 20, 50, 100 nodes). Our findings reveal that parameter optimization dominates 94-98% of total quantum runtime, fundamentally limiting the benefits of distributed circuit execution. Even with state-of-the-art L-BFGS-B optimizers and transfer learning techniques, quantum approaches remain 67-$140\times$ slower than classical exact enumeration for small-scale problems (10 assets).
+We implement a distributed quantum circuit execution framework using py-libp2p for peer-to-peer coordination and conduct extensive benchmarking across varying node counts (5, 10, 20, 50, 100 nodes). Our findings reveal that parameter optimization dominates 94-98% of total quantum runtime, fundamentally limiting the benefits of distributed circuit execution. Even with state-of-the-art L-BFGS-B optimizers and transfer learning techniques, quantum approaches remain $67$-$140\times$ slower than classical exact enumeration for small-scale problems (10 assets).
 
-We propose and implement gradient-based optimization using the parameter-shift rule, reducing parameter evaluations by 2-$3\times$. Additionally, we demonstrate that transfer learning across problem instances can achieve 4-$5\times$ speedup after initial training. Our work provides critical insights into when quantum methods become competitive and identifies specific problem characteristics where quantum advantage emerges.
+We propose and implement gradient-based optimization using the parameter-shift rule, reducing parameter evaluations by $2$-$3\times$. Additionally, we demonstrate that transfer learning across problem instances can achieve $4$-$5\times$ speedup after initial training. Our work provides critical insights into when quantum methods become competitive and identifies specific problem characteristics where quantum advantage emerges.
 
 **Keywords**: Quantum Computing, QAOA, Portfolio Optimization, Distributed Systems, Parameter Optimization, Transfer Learning
 
@@ -45,13 +45,13 @@ Our primary contributions are:
 
 1. **Comprehensive Performance Characterization**
    - Identified parameter optimization as 94-98% of quantum runtime bottleneck
-   - Quantified classical vs. quantum performance gap: 67-$140\times$ slower for 10-asset portfolios
+   - Quantified classical vs. quantum performance gap: $67$-$140\times$ slower for 10-asset portfolios
    - Demonstrated minimal scaling benefits from distributed execution ($1.2\times$ speedup at 20 nodes)
 
 2. **Advanced Parameter Optimization Implementation**
    - Replaced derivative-free COBYLA with bounded L-BFGS-B optimizer
-   - Implemented transfer learning cache achieving 4-$5\times$ speedup after training
-   - Integrated parameter-shift gradient computation (scaffolding for future 2-$3\times$ gains)
+   - Implemented transfer learning cache achieving $4$-$5\times$ speedup after training
+   - Integrated parameter-shift gradient computation (scaffolding for future $2$-$3\times$ gains)
 
 3. **Distributed Execution Framework**
    - Built production-grade py-libp2p-based quantum circuit distribution system
@@ -59,9 +59,9 @@ Our primary contributions are:
    - Handles fault tolerance, result aggregation, and consensus verification
 
 4. **Practical Recommendations**
-   - Portfolio optimization NOT suitable for quantum advantage at $≤$20 assets
+   - Portfolio optimization NOT suitable for quantum advantage at $\leq 20$ assets
    - Option pricing via Quantum Amplitude Estimation: proven $100\times$ speedup candidate
-   - Transfer learning critical for practical quantum workflows (10-$50\times$ speedup potential)
+   - Transfer learning critical for practical quantum workflows ($10$-$50\times$ speedup potential)
 
 ### 1.3 Paper Organization
 
@@ -73,12 +73,17 @@ Section 2 reviews related work in QAOA optimization and distributed quantum comp
 
 ### 2.1 Portfolio Optimization as QUBO
 
-Portfolio optimization can be formulated as a Quadratic Unconstrained Binary Optimization (QUBO) problem. Given N assets with expected returns $μ$ $∈$ $ℝ$^N and covariance matrix $Σ$ $∈$ $ℝ$^(N×N), we seek a binary selection vector x $∈$ {0,1}^N that maximizes risk-adjusted return:
+Portfolio optimization can be formulated as a Quadratic Unconstrained Binary Optimization (QUBO) problem. Given $N$ assets with expected returns $\mu \in \mathbb{R}^N$ and covariance matrix $\Sigma \in \mathbb{R}^{N \times N}$, we seek a binary selection vector $x \in \{0,1\}^N$ that maximizes risk-adjusted return:
 
-maximize: $f(x) = \mu^T x - \lambda (x^T \Sigma x)$
-subject to: $\sum_i x_i = K$ (budget constraint: select exactly $K$ assets)
+$$
+\text{maximize: } f(x) = \mu^T x - \lambda (x^T \Sigma x)
+$$
 
-where $λ$ is a risk aversion parameter. This is equivalent to minimizing:
+$$
+\text{subject to: } \sum_i x_i = K \text{ (budget constraint: select exactly } K \text{ assets)}
+$$
+
+where $\lambda$ is a risk aversion parameter. This is equivalent to minimizing:
 
 $$
 H = -\mu^T x + \lambda(x^T\Sigma x) + P\left(\sum_i x_i - K\right)^2
@@ -86,25 +91,25 @@ $$
 
 where $P$ is a penalty coefficient enforcing the budget constraint.
 
-**Complexity**: For $N$ assets and budget $K$, there are $\binom{N}{K} = \frac{N!}{K!(N-K)!}$ feasible portfolios. For $N=20$, $K=5$, this yields $15{,}504$ configurations—tractable for classical enumeration. For $N=100$, $K=10$, the search space explodes to $1.7 \times 10^{13}$ configurations, making exact classical solutions infeasible.
+**Complexity**: For $N$ assets and budget $K$, there are $\binom{N}{K} = \frac{N!}{K!(N-K)!}$ feasible portfolios. For $N=20$, $K=5$, this yields $15,504$ configurations—tractable for classical enumeration. For $N=100$, $K=10$, the search space explodes to $1.7 \times 10^{13}$ configurations, making exact classical solutions infeasible.
 
 ### 2.2 QAOA Fundamentals
 
-QAOA encodes the cost function H as a cost Hamiltonian Hc and applies alternating layers of:
+QAOA encodes the cost function $H$ as a cost Hamiltonian $H_C$ and applies alternating layers of:
 
 1. **Cost operator**: $e^{-i\gamma H_C}$ rotates quantum state based on problem structure
 2. **Mixer operator**: $e^{-i\beta H_M}$ explores solution space (typically X-rotations)
 
-For p layers (QAOA depth), the circuit is:
-
-```
-$$|\psi(\beta,\gamma)\rangle = \prod_{k=1}^{p} e^{-i\beta_k H_M} e^{-i\gamma_k H_C} |+\rangle^{\otimes n}$$
-```
-
-The expectation value ⟨$ψ$(β,$γ$)|Hc|$ψ$(β,$γ$)⟩ approximates the ground state energy. Optimal parameters ($β$*, $γ$*) are found via classical optimization:
+For $p$ layers (QAOA depth), the circuit is:
 
 $$
-(\beta^*, \gamma^*) = \arg\min \langle \psi(\beta,\gamma)|H_C|\psi(\beta,\gamma)\rangle
+|\psi(\beta,\gamma)\rangle = \prod_{k=1}^{p} e^{-i\beta_k H_M} e^{-i\gamma_k H_C} |+\rangle^{\otimes n}
+$$
+
+The expectation value $\langle \psi(\beta,\gamma)|H_C|\psi(\beta,\gamma)\rangle$ approximates the ground state energy. Optimal parameters $(\beta^*, \gamma^*)$ are found via classical optimization:
+
+$$
+(\beta^*, \gamma^*) = \arg\min_{\beta,\gamma} \langle \psi(\beta,\gamma)|H_C|\psi(\beta,\gamma)\rangle
 $$
 
 **Key Challenge**: This optimization requires 100-1000 quantum circuit evaluations, each costing milliseconds to seconds.
@@ -115,9 +120,9 @@ $$
 
 Classical parameter optimization dominates QAOA runtime. Recent work has explored:
 
-1. **Transfer Learning** (Montanez-Barrera et al., 2025): Reuse parameters from solved problems as warm-starts for new instances. Achieved "significant iteration reduction" (10-$50\times$ fewer evaluations after training).
+1. **Transfer Learning** (Montanez-Barrera et al., 2025): Reuse parameters from solved problems as warm-starts for new instances. Achieved "significant iteration reduction" ($10$-$50\times$ fewer evaluations after training).
 
-2. **Gradient-Based Methods** (Čepaitė et al., 2025): Replace derivative-free optimizers (COBYLA, Nelder-Mead) with bounded L-BFGS-B. Reported 2-$3\times$ faster convergence.
+2. **Gradient-Based Methods** (Čepaitė et al., 2025): Replace derivative-free optimizers (COBYLA, Nelder-Mead) with bounded L-BFGS-B. Reported $2$-$3\times$ faster convergence.
 
 3. **Layer-Selective Transfer** (Venturelli et al., 2025): Only transfer parameters for certain QAOA layers. Uses heat map analysis to identify transferable structure.
 
@@ -147,7 +152,7 @@ We evaluate portfolio optimization on real market data:
 
 **Dataset**: 
 - Source: Yahoo Finance historical adjusted close prices
-- Small-scale: 20 assets, 2 years daily data ($\sim$500 trading days)
+- Small-scale: 20 assets, 2 years daily data ($\sim 500$ trading days)
 - Large-scale: 100 assets, 5 years daily data ($\sim$1250 trading days)
 - Preprocessing: Convert prices to log returns, compute annualized mean returns and covariance
 
@@ -163,7 +168,7 @@ We evaluate portfolio optimization on real market data:
 
 Two classical strategies depending on problem size:
 
-1. **Exact Enumeration** (N $≤$ 10):
+1. **Exact Enumeration** (N $\leq 10$):
    ```python
    def solve_classically(assets, budget):
        portfolios = list(combinations(range(N), budget))
@@ -194,7 +199,7 @@ Two classical strategies depending on problem size:
 **Circuit Construction**:
 ```python
 # Convert QUBO to Ising Hamiltonian
-$$H_{\text{cost}} = \sum_{i,j} J_{ij} Z_i Z_j + \sum_i h_i Z_i + \text{constant}$$
+# H_cost = sum_{i,j} J_ij Z_i Z_j + sum_i h_i Z_i + constant
 
 # Build QAOA ansatz
 ansatz = QAOAAnsatz(
@@ -206,11 +211,17 @@ ansatz = QAOAAnsatz(
 )
 ```
 
+The cost Hamiltonian is:
+
+$$
+H_{\text{cost}} = \sum_{i,j} J_{ij} Z_i Z_j + \sum_i h_i Z_i + \text{constant}
+$$
+
 **Mixer Design**: Standard X-mixer violates budget constraints. We use ring XY-mixer:
 
-```
-$$H_{\text{mixer}} = \sum_i \left(X_i X_{i+1} + Y_i Y_{i+1}\right)$$
-```
+$$
+H_{\text{mixer}} = \sum_i \left(X_i X_{i+1} + Y_i Y_{i+1}\right)
+$$
 
 This preserves Hamming weight (budget) while allowing state exploration.
 
@@ -224,21 +235,21 @@ def greedy_initial_state(returns, budget):
     return bitstring
 ```
 
-Provides warm-start, reducing parameter search iterations by $\sim$20%.
+Provides warm-start, reducing parameter search iterations by $\sim 20\%$.
 
 #### 3.2.3 Parameter Optimization
 
 **Original Approach (COBYLA)**:
 - Derivative-free simplex method (Powell, 1994)
 - No gradient information
-- O(n$²$) function evaluations
+- $O(n^2)$ function evaluations
 - Convergence: 80-150 iterations
-- Runtime: $\sim$1200ms for p=1, N=10
+- Runtime: $\sim 1200$ms for p=1, N=10
 
 **Advanced Approach (L-BFGS-B)**:
 - Quasi-Newton bounded optimizer
 - Uses gradient history (BFGS approximation)
-- Respects parameter bounds: $β$ $∈$ [0, $π$/2], $γ$ $∈$ [0, $π$]
+- Respects parameter bounds: $\beta \in [0, \pi/2]$, $\gamma \in [0, \pi]$
 - Convergence: 40-60 iterations
 - Runtime: $\sim$600ms for p=1, N=10 ($2\times$ speedup)
 
@@ -409,19 +420,20 @@ Cache stored at `~/.cache/qaoa_parameters/parameter_cache.json`
 
 ### 4.3 Amdahl's Law Analysis
 
-Amdahl's Law states that for a program with serial fraction s and parallel fraction (1-s):
+Amdahl's Law states that for a program with serial fraction $s$ and parallel fraction $(1-s)$:
 
 $$
 \text{Speedup}(n) = \frac{1}{s + (1-s)/n}
 $$
 
-where n = number of parallel processors.
+where $n$ = number of parallel processors.
 
 For our QAOA workflow:
-- Serial: Parameter search = 94% (s = 0.94)
-- Parallel: Distributed execution = 6% (1-s = 0.06)
+- Serial: Parameter search = 94% ($s = 0.94$)
+- Parallel: Distributed execution = 6% ($1-s = 0.06$)
 
 **Theoretical Maximum Speedup**:
+
 $$
 \text{Speedup}(\infty) = \frac{1}{0.94} = 1.064\times
 $$
@@ -506,7 +518,7 @@ graph TB
 
 ### 5.1 L-BFGS-B Bounded Optimizer
 
-**Motivation**: COBYLA (Constrained Optimization BY Linear Approximations) is a derivative-free simplex method from 1994. It's robust but slow, requiring O(n$²$) function evaluations.
+**Motivation**: COBYLA (Constrained Optimization BY Linear Approximations) is a derivative-free simplex method from 1994. It's robust but slow, requiring $O(n^2)$ function evaluations.
 
 **L-BFGS-B** (Limited-memory Broyden–Fletcher–Goldfarb–Shanno with Bounds) offers:
 
@@ -601,17 +613,17 @@ signature = f"portfolio_cvar_reps{p}_q{N}_b{K}"
 
 **Motivation**: L-BFGS-B uses finite-difference gradients (numerical approximation). QAOA admits exact gradients via the **parameter-shift rule**:
 
-```
-$$\frac{\partial \langle H \rangle}{\partial \theta_i} = \frac{\langle H \rangle(\theta + s_i) - \langle H \rangle(\theta - s_i)}{2\sin(s)}$$
-```
+$$
+\frac{\partial \langle H \rangle}{\partial \theta_i} = \frac{\langle H \rangle(\theta + s_i) - \langle H \rangle(\theta - s_i)}{2\sin(s)}
+$$
 
-For s = $π$/2, this simplifies to:
+For $s = \pi/2$, this simplifies to:
 
-```
-$$\frac{\partial \langle H \rangle}{\partial \theta_i} = \frac{\langle H \rangle(\theta + \frac{\pi}{2} e_i) - \langle H \rangle(\theta - \frac{\pi}{2} e_i)}{2}$$
-```
+$$
+\frac{\partial \langle H \rangle}{\partial \theta_i} = \frac{\langle H \rangle(\theta + \frac{\pi}{2} e_i) - \langle H \rangle(\theta - \frac{\pi}{2} e_i)}{2}
+$$
 
-**Advantage**: Exact gradient at cost of 2 circuit evaluations per parameter (vs. 2n for finite differences).
+**Advantage**: Exact gradient at cost of 2 circuit evaluations per parameter (vs. $2n$ for finite differences).
 
 **Implementation**:
 
@@ -638,9 +650,9 @@ def compute_parameter_shift_gradient(objective, params, shift=np.pi/2):
 | **Finite Difference** | 1 + 2n = 5 | 50 × 5 = 250 | 1200ms |
 | **Parameter-Shift** | 1 + 2n = 5 | 50 × 5 = 250 | **1100ms** |
 
-**Unexpected Result**: Both methods require similar evaluations for p=1 (2 parameters). Gradient advantage emerges for p $≥$ 2 (4+ parameters).
+**Unexpected Result**: Both methods require similar evaluations for p=1 (2 parameters). Gradient advantage emerges for p $\geq 2$ (4+ parameters).
 
-**Conclusion**: Parameter-shift gradients provide **8-10% speedup** for p=1, **2-$3\times$ speedup** expected for p=2+. Worth implementing for deeper QAOA circuits.
+**Conclusion**: Parameter-shift gradients provide **8-10% speedup** for p=1, **$2$-$3\times$ speedup** expected for p=2+. Worth implementing for deeper QAOA circuits.
 
 ### 5.4 Informed Initialization
 
@@ -707,7 +719,7 @@ else:
 
 2. **Synchronization Barriers**: All fragments in a stage must complete before next stage begins. Slowest fragment determines stage completion time.
 
-3. **Load Imbalance**: Some fragments (involving many 2-qubit gates) take 2-$3\times$ longer than others (single-qubit gates only).
+3. **Load Imbalance**: Some fragments (involving many 2-qubit gates) take $2$-$3\times$ longer than others (single-qubit gates only).
 
 **Load Distribution** (20 nodes):
 
@@ -782,15 +794,15 @@ else:
 - Generate N random price paths
 - Compute payoff for each path
 - Average: E[payoff] ≈ (1/N) $Σ$ payoff(path_i)
-- Accuracy: $ε$ = O(1/$√$N)
-- For $ε$ = 0.01 (1% error), need N = 10,000 samples
+- Accuracy: $\varepsilon = O(1/\sqrt{N})$
+- For $\varepsilon = 0.01$ (1% error), need $N = 10,000$ samples
 - Runtime: $\sim$10 seconds
 
 **Quantum Approach** (Quantum Amplitude Estimation):
-- Encode payoff in quantum amplitude: |$ψ$⟩ = $√$(1-a)|0⟩ + $√$a|payoff⟩
+- Encode payoff in quantum amplitude: $|\psi\rangle = \sqrt{1-a}|0\rangle + \sqrt{a}|\text{payoff}\rangle$
 - Use QAE to estimate amplitude a
-- Accuracy: $ε$ = $O(1/M)$ where M = number of quantum queries
-- For $ε$ = 0.01, need M = 100 queries
+- Accuracy: $\varepsilon = O(1/M)$ where $M$ = number of quantum queries
+- For $\varepsilon = 0.01$, need M = 100 queries
 - Runtime: $\sim$100ms
 
 **Speedup**: **$100\times$ faster** (quadratic reduction in samples)
@@ -817,7 +829,7 @@ else:
 - Capture tail risk that classical sampling misses
 - Critical for regulatory compliance (Basel III)
 
-**Speedup**: **100-$1000\times$ faster** for N $≥$ 20
+**Speedup**: **100-$1000\times$ faster** for N $\geq 2$0
 
 **Why Quantum Wins**:
 1. **Exponential state space**: 2^N scenarios infeasible classically
@@ -831,11 +843,11 @@ else:
 **Problem**: Find negative-weight cycles in currency exchange graph (arbitrage opportunities).
 
 **Classical Approach**: Bellman-Ford algorithm
-- Complexity: $O(V × E)$ = $O(100 × 10,000)$ = 1M operations
+- Complexity: $O(V \times E)$ = $O(100 × 10,000)$ = 1M operations
 - Runtime: $\sim$1 second per query
 
 **Quantum Approach**: Quantum walk on graph
-- Complexity: O($√$(V × E)) = O($√$1M) = 1,000 operations
+- Complexity: $O(\sqrt{V \times E})$ = O($√$1M) = 1,000 operations
 - Runtime: $\sim$1ms per query
 
 **Speedup**: **$1000\times$ faster**
@@ -869,7 +881,7 @@ else:
 
 3. **Portfolio optimization is NOT suitable** for demonstrating quantum advantage at scales $≤$ 20 assets. Classical exact enumeration is simply too efficient (10-20ms).
 
-4. **Transfer learning is essential** for practical quantum workflows, providing 2-$3\times$ speedup after initial training. Without it, cold-start parameter optimization is prohibitive.
+4. **Transfer learning is essential** for practical quantum workflows, providing $2$-$3\times$ speedup after initial training. Without it, cold-start parameter optimization is prohibitive.
 
 5. **L-BFGS-B outperforms COBYLA** by 25-33%, but this is insufficient to achieve quantum advantage. Need 10-$100\times$ improvement, not $1.25\times$.
 
@@ -892,8 +904,8 @@ else:
 
 **What We Should Have Done**:
 - Started with option pricing (proven quantum advantage)
-- Focused on parameter-shift gradients from day 1 (2-$3\times$ potential)
-- Built larger training dataset for transfer learning (10-$50\times$ potential)
+- Focused on parameter-shift gradients from day 1 ($2$-$3\times$ potential)
+- Built larger training dataset for transfer learning ($10$-$50\times$ potential)
 
 ### 8.3 Future Directions
 
@@ -907,12 +919,12 @@ else:
 2. **Enable Parameter-Shift Gradients**:
    - Integrate with L-BFGS-B optimizer
    - Benchmark on p=2 QAOA circuits
-   - Expected: 2-$3\times$ speedup
+   - Expected: $2$-$3\times$ speedup
 
 3. **Build Transfer Learning Dataset**:
    - Solve 100+ portfolio instances
    - Train ML model to predict optimal parameters
-   - Target: 10-$50\times$ speedup via direct prediction
+   - Target: $10$-$50\times$ speedup via direct prediction
 
 **Medium-Term** (3-6 months):
 
@@ -954,7 +966,7 @@ else:
 
 **When to Use Quantum**:
 - ✅ Option pricing ($100\times$ speedup via QAE)
-- ✅ Credit risk VaR (exponential scenario space, N $≥$ 20)
+- ✅ Credit risk VaR (exponential scenario space, N $\geq 2$0)
 - ✅ Arbitrage detection (latency-critical, large graphs)
 - ✅ Portfolio optimization (N $≥$ 50 assets, classical infeasible)
 
@@ -968,10 +980,10 @@ else:
 1. **Always use transfer learning** (3-$5\times$ speedup after training)
 2. **Prefer L-BFGS-B over COBYLA** (25-33% faster)
 3. **Use informed initialization** (20% improvement)
-4. **Enable parameter-shift gradients for p $≥$ 2** (2-$3\times$ speedup)
+4. **Enable parameter-shift gradients for p $\geq 2$** ($2$-$3\times$ speedup)
 5. **Limit node count to 20-50** (beyond that, overhead dominates)
 6. **Start with p=1 QAOA** (deeper circuits worsen parameter search)
-7. **Build training dataset early** (10-$50\times$ long-term gains)
+7. **Build training dataset early** ($10$-$50\times$ long-term gains)
 
 ### 8.5 Open Questions
 
