@@ -320,22 +320,22 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	};
 
 	return (
-		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-transparent text-foreground'>
-			<header className='flex h-11 shrink-0 items-center gap-3 border-b border-[var(--clay-oat)] bg-[rgb(250_249_247_/_0.92)] px-3 backdrop-blur-sm'>
-				<div className='flex items-center gap-2'>
-					<span className='flex size-7 items-center justify-center rounded-xl border border-black/10 bg-[var(--clay-blueberry)] text-[10px] font-bold text-white shadow-[var(--clay-shadow)]'>
+		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-[#f5f5f5] text-foreground'>
+			<header className='relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-white px-4'>
+				<div className='flex items-center gap-3'>
+					<span className='flex size-8 items-center justify-center rounded-lg bg-primary text-[11px] font-bold text-primary-foreground shadow-sm'>
 						QG
 					</span>
 					<button
 						type='button'
-						className='flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium text-foreground transition-colors hover:bg-[var(--clay-oat-light)]'
+						className='flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted'
 					>
 						Quantum Gates
-						<ChevronDownIcon className='size-4 opacity-70' />
+						<ChevronDownIcon className='size-3.5 opacity-50' />
 					</button>
 					<button
 						type='button'
-						className='hidden rounded-full p-1.5 text-muted-foreground hover:bg-[var(--clay-oat-light)] hover:text-foreground sm:block'
+						className='hidden rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:block'
 						aria-label='Open calendar'
 					>
 						<CalendarIcon className='size-4' />
@@ -343,11 +343,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
 				</div>
 
 				<div className='mx-auto flex max-w-xl flex-1'>
-					<div className='flex w-full items-center gap-2 rounded-full border border-[var(--clay-oat)] bg-white/90 px-3 py-1.5 text-sm text-muted-foreground shadow-[var(--clay-shadow)]'>
-						<SearchIcon className='size-4 shrink-0 opacity-60' />
+					<div className='flex w-full items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted focus-within:border-primary focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10'>
+						<SearchIcon className='size-4 shrink-0 opacity-50' />
 						<span className='flex-1 truncate'>Search</span>
-						<kbd className='hidden rounded-full border border-[var(--clay-oat)] bg-[var(--clay-cream)] px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-block'>
-							⌘ K
+						<kbd className='hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-block'>
+							⌘K
 						</kbd>
 					</div>
 				</div>
@@ -371,22 +371,22 @@ export function DashboardShell({ children }: DashboardShellProps) {
 					</Button>
 					<button
 						type='button'
-						className='relative ml-1 flex size-8 items-center justify-center rounded-full border border-black/10 bg-[var(--clay-pomegranate)] text-[10px] font-semibold text-black shadow-[var(--clay-shadow)] ring-2 ring-[var(--clay-cream)]'
+						className='relative ml-2 flex size-8 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm'
 						aria-label='Account'
 					>
 						SB
-						<span className='absolute bottom-0.5 right-0.5 size-1.5 rounded-full bg-[var(--clay-matcha-dark)] ring-2 ring-[var(--clay-cream)]' />
+						<span className='absolute bottom-0 right-0 size-2 rounded-full border-2 border-background bg-green-500' />
 					</button>
 				</div>
 			</header>
 
-			<div className='flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden px-3 pb-3 pt-3'>
-				<aside className='flex min-h-0 w-16 shrink-0 flex-col items-center overflow-hidden rounded-[2rem] border border-[var(--clay-oat)] bg-[rgb(255_255_255_/_0.78)] py-2 shadow-[var(--clay-shadow)] backdrop-blur-sm'>
-					<div className='mb-1.5 flex size-8 items-center justify-center rounded-xl border border-black/10 bg-[var(--clay-matcha)] text-[9px] font-bold text-black shadow-[var(--clay-shadow)]'>
+			<div className='flex min-h-0 min-w-0 flex-1 gap-0 overflow-hidden'>
+				<aside className='relative z-0 flex min-h-0 w-14 shrink-0 flex-col items-center overflow-hidden border-r border-border/60 bg-[#fafafa] py-3'>
+					<div className='mb-4 flex size-8 items-center justify-center rounded-lg bg-primary text-[10px] font-bold text-primary-foreground shadow-sm'>
 						QG
 					</div>
 
-					<nav className='flex flex-1 flex-col items-center gap-1 px-0.5'>
+					<nav className='flex flex-1 flex-col items-center gap-1 px-1.5'>
 						{navItems.map(item => {
 							const Icon = item.icon;
 							const isActive = railItemActive(item.key);
@@ -403,10 +403,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
 											setManualActivePanelItem(null);
 										}}
 										className={cn(
-											'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
+											'relative flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 transition-all duration-150',
 											isActive
-												? 'bg-[var(--clay-matcha)] text-black shadow-[var(--clay-shadow)] ring-1 ring-black/10'
-												: 'text-muted-foreground hover:bg-[var(--clay-oat-light)] hover:text-foreground'
+												? 'bg-background text-primary shadow-sm'
+												: 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
 										)}
 									>
 										<Icon className='size-4 shrink-0' />
@@ -429,10 +429,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
 											setManualActivePanelItem('Run History');
 										}}
 										className={cn(
-											'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
+											'relative flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 transition-all duration-150',
 											isActive
-												? 'bg-[var(--clay-matcha)] text-black shadow-[var(--clay-shadow)] ring-1 ring-black/10'
-												: 'text-muted-foreground hover:bg-[var(--clay-oat-light)] hover:text-foreground'
+												? 'bg-background text-primary shadow-sm'
+												: 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
 										)}
 									>
 										<Icon className='size-4 shrink-0' />
@@ -454,10 +454,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
 										setManualActivePanelItem(null);
 									}}
 									className={cn(
-										'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
+										'flex w-full flex-col items-center gap-1 rounded-md px-1 py-2 transition-all duration-150',
 										isActive
-											? 'bg-[var(--clay-matcha)] text-black shadow-[var(--clay-shadow)] ring-1 ring-black/10'
-											: 'text-muted-foreground hover:bg-[var(--clay-oat-light)] hover:text-foreground'
+											? 'bg-primary/10 text-primary'
+											: 'text-muted-foreground hover:bg-muted hover:text-foreground'
 									)}
 								>
 									<Icon className='size-4 shrink-0' />
@@ -472,30 +472,30 @@ export function DashboardShell({ children }: DashboardShellProps) {
 					<button
 						type='button'
 						aria-label='Settings'
-						className='mt-1 flex size-8 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-[var(--clay-oat-light)] hover:text-foreground'
+						className='mt-2 flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-background/50 hover:text-foreground'
 					>
-						<SettingsIcon className='size-3.5' />
+						<SettingsIcon className='size-4' />
 					</button>
 				</aside>
 
 				<SidebarProvider className='!min-h-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent has-data-[variant=inset]:bg-transparent'>
-					<div className='relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-[var(--clay-oat)] bg-[rgb(255_255_255_/_0.74)] shadow-[var(--clay-shadow)] backdrop-blur-sm'>
-						<div className='relative z-[1] flex min-h-0 min-w-0 flex-1 overflow-hidden'>
+					<div className='relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-l border-border/60 bg-white'>
+						<div className='relative flex min-h-0 min-w-0 flex-1 overflow-hidden'>
 							<Sidebar
 								collapsible='none'
-								className='relative h-full min-h-0 shrink-0 overflow-hidden border-r border-[var(--clay-oat)] bg-[rgb(246_241_232_/_0.92)] text-sidebar-foreground before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_90%_45%_at_50%_-15%,rgb(59_211_253_/_0.2),transparent),radial-gradient(circle_at_bottom_left,rgb(193_176_255_/_0.16),transparent_60%)]'
+								className='relative h-full min-h-0 shrink-0 overflow-hidden border-r border-border/60 bg-[#fafafa] text-sidebar-foreground'
 							>
-								<SidebarHeader className='relative gap-2 border-b border-[var(--clay-oat)] bg-[rgb(250_249_247_/_0.78)] px-4 py-4 backdrop-blur-[2px]'>
+								<SidebarHeader className='relative gap-2 border-b border-border bg-background px-4 py-3'>
 									<div className='flex items-start justify-between gap-3'>
 										<div className='flex min-w-0 flex-1 items-start gap-3'>
-											<div className='flex size-10 shrink-0 items-center justify-center rounded-[1.25rem] border border-black/10 bg-[linear-gradient(135deg,rgba(132,231,165,0.45),rgba(255,255,255,0.95))] shadow-[var(--clay-shadow)]'>
-												<ActiveNavIcon className='size-5 text-[var(--clay-matcha-dark)]' />
+											<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10'>
+												<ActiveNavIcon className='size-5 text-primary' />
 											</div>
 											<div className='min-w-0'>
 												<p className='truncate text-sm font-semibold tracking-tight'>
 													{activeNav.label}
 												</p>
-												<p className='text-xs text-sidebar-foreground/65'>
+												<p className='text-xs text-muted-foreground'>
 													Workspace navigation
 												</p>
 											</div>
@@ -506,7 +506,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 													asChild
 													size='icon'
 													variant='outline'
-													className='size-8 shrink-0 rounded-2xl border-[var(--clay-oat)] bg-white/80 shadow-[var(--clay-shadow)] hover:bg-[rgb(248_204_101_/_0.32)]'
+													className='size-8 shrink-0 rounded-md border-border/50 bg-background hover:bg-muted'
 													aria-label='New analysis'
 												>
 													<Link href='/finance'>
@@ -518,7 +518,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 													asChild
 													size='icon'
 													variant='outline'
-													className='size-8 shrink-0 rounded-2xl border-[var(--clay-oat)] bg-white/80 shadow-[var(--clay-shadow)] hover:bg-[rgb(248_204_101_/_0.32)]'
+													className='size-8 shrink-0 rounded-md border-border/50 bg-background hover:bg-muted'
 													aria-label='New run'
 												>
 													<Link href='/runs/new'>
@@ -531,7 +531,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 												type='button'
 												size='icon'
 												variant='outline'
-												className='size-8 shrink-0 rounded-2xl border-[var(--clay-oat)] bg-white/80 shadow-[var(--clay-shadow)] hover:bg-[rgb(248_204_101_/_0.32)]'
+												className='size-8 shrink-0 rounded-md border-border/50 bg-background hover:bg-muted'
 												aria-label='Add'
 											>
 												<PlusIcon className='size-4' />
@@ -543,10 +543,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
 									{activeGroups.map((section, sectionIdx) => (
 										<div key={section.group}>
 											{sectionIdx > 0 && (
-												<SidebarSeparator className='my-3 bg-gradient-to-r from-transparent via-sidebar-border to-transparent' />
+												<SidebarSeparator className='my-3 bg-border/50' />
 											)}
-											<SidebarGroup className='gap-1.5'>
-												<SidebarGroupLabel className='px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50'>
+											<SidebarGroup className='gap-1'>
+												<SidebarGroupLabel className='px-4 text-[11px] font-medium uppercase tracking-wide text-muted-foreground'>
 													{section.group}
 												</SidebarGroupLabel>
 												<SidebarGroupContent>
@@ -668,8 +668,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 								</SidebarContent>
 							</Sidebar>
 
-							<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[rgb(250_249_247_/_0.72)]'>
-								<header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--clay-oat)] bg-[rgb(250_249_247_/_0.7)] px-4 py-3'>
+							<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background'>
+								<header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-3'>
 									<Breadcrumb>
 										<BreadcrumbList>
 											<BreadcrumbItem>
