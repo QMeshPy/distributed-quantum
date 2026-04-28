@@ -90,80 +90,147 @@ const navItems = [
 		railLabel: 'Home',
 		label: 'Home',
 		icon: HomeIcon,
-		emoji: 'HM'
+		emoji: 'HM',
+		href: '/dashboard'
 	},
 	{
 		key: 'network',
 		railLabel: 'Network',
 		label: 'Network',
 		icon: NetworkIcon,
-		emoji: 'NW'
+		emoji: 'NW',
+		href: '/network'
 	},
 	{
 		key: 'runs-projects',
 		railLabel: 'Runs',
 		label: 'Runs & Projects',
 		icon: FolderKanbanIcon,
-		emoji: 'RP'
+		emoji: 'RP',
+		href: '/runs'
 	},
 	{
 		key: 'analytics',
 		railLabel: 'Analytics',
 		label: 'Analytics',
 		icon: GaugeIcon,
-		emoji: 'AN'
+		emoji: 'AN',
+		href: '/analytics'
 	},
 	{
 		key: 'docs',
 		railLabel: 'Docs',
-		label: 'Docs',
+		label: 'Documentation',
 		icon: FileTextIcon,
-		emoji: 'DC'
-	},
-	{
-		key: 'ai',
-		railLabel: 'AI',
-		label: 'AI Assistant',
-		icon: BotIcon,
-		emoji: 'AI'
+		emoji: 'DC',
+		href: '/docs'
 	},
 	{
 		key: 'settings',
 		railLabel: 'Settings',
 		label: 'Settings',
 		icon: SettingsIcon,
-		emoji: 'ST'
+		emoji: 'ST',
+		href: '/settings'
 	}
 ] as const;
 
-const panelData: Record<string, { group: string; items: string[] }[]> = {
+const panelData: Record<string, { group: string; items: { label: string; href: string }[] }[]> = {
 	home: [
-		{ group: 'Home', items: ['Overview', 'Activity', 'Quick Actions'] },
-		{ group: 'Current Focus', items: ['Network Health', 'Open Runs', 'Recent Alerts'] }
+		{
+			group: 'Home',
+			items: [
+				{ label: 'Overview', href: '/dashboard' },
+				{ label: 'Network Health', href: '/dashboard/network-health' }
+			]
+		}
 	],
 	network: [
-		{ group: 'Network', items: ['Service Mesh', 'Nodes', 'Services', 'Fidelity'] },
-		{ group: 'Topology', items: ['DAG View', 'Circuit Paths', 'Zones'] }
+		{
+			group: 'Network',
+			items: [
+				{ label: 'Service Mesh', href: '/network/mesh' },
+				{ label: 'Nodes', href: '/network/nodes' },
+				{ label: 'Services', href: '/network/services' },
+				{ label: 'Fidelity', href: '/network/fidelity' }
+			]
+		},
+		{
+			group: 'Topology',
+			items: [
+				{ label: 'DAG View', href: '/network/dag' },
+				{ label: 'Circuit Paths', href: '/network/circuits' },
+				{ label: 'Zones', href: '/network/zones' }
+			]
+		}
 	],
 	'runs-projects': [
-		{ group: 'Runs', items: ['Active Run', 'Run History', 'Plans', 'Results'] },
-		{ group: 'Projects', items: ['All Projects', 'Experiments', 'Reports', 'Artifacts'] }
+		{
+			group: 'Runs',
+			items: [
+				{ label: 'Active Run', href: '/runs?status=running' },
+				{ label: 'Run History', href: '/runs' }
+			]
+		},
+		{
+			group: 'Projects',
+			items: [{ label: 'Financial', href: '/finance' }]
+		}
 	],
 	analytics: [
-		{ group: 'Analytics', items: ['Measurements', 'Geometry', 'Deep State', 'Comparisons'] },
-		{ group: 'Insights', items: ['Efficient Frontier', 'State Ranking', 'Solver Diagnostics'] }
+		{
+			group: 'Analytics',
+			items: [
+				{ label: 'Measurements', href: '/analytics/measurements' },
+				{ label: 'Geometry', href: '/analytics/geometry' },
+				{ label: 'Deep State', href: '/analytics/deep-state' },
+				{ label: 'Comparisons', href: '/analytics/comparisons' }
+			]
+		},
+		{
+			group: 'Insights',
+			items: [
+				{ label: 'Efficient Frontier', href: '/analytics/frontier' },
+				{ label: 'State Ranking', href: '/analytics/ranking' },
+				{ label: 'Solver Diagnostics', href: '/analytics/diagnostics' }
+			]
+		}
 	],
 	docs: [
-		{ group: 'Documentation', items: ['System Docs', 'Roadmap', 'API Reference'] },
-		{ group: 'Developer', items: ['Schemas', 'Examples', 'Playbooks'] }
-	],
-	ai: [
-		{ group: 'AI', items: ['Assistant', 'Prompt Studio', 'Automation'] },
-		{ group: 'Knowledge', items: ['Context Packs', 'Model Runs', 'Suggestions'] }
+		{
+			group: 'Documentation',
+			items: [
+				{ label: 'System Docs', href: '/docs' },
+				{ label: 'Roadmap', href: '/docs/roadmap' },
+				{ label: 'API Reference', href: '/docs/api' }
+			]
+		},
+		{
+			group: 'Developer',
+			items: [
+				{ label: 'Schemas', href: '/docs/schemas' },
+				{ label: 'Examples', href: '/docs/examples' },
+				{ label: 'Playbooks', href: '/docs/playbooks' }
+			]
+		}
 	],
 	settings: [
-		{ group: 'Workspace', items: ['General', 'Integrations', 'Users'] },
-		{ group: 'System', items: ['Security', 'Observability', 'Audit Logs'] }
+		{
+			group: 'Workspace',
+			items: [
+				{ label: 'General', href: '/settings' },
+				{ label: 'Integrations', href: '/settings/integrations' },
+				{ label: 'Users', href: '/settings/users' }
+			]
+		},
+		{
+			group: 'System',
+			items: [
+				{ label: 'Security', href: '/settings/security' },
+				{ label: 'Observability', href: '/settings/observability' },
+				{ label: 'Audit Logs', href: '/settings/audit' }
+			]
+		}
 	]
 };
 
