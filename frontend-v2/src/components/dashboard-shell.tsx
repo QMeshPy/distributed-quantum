@@ -361,6 +361,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	const activeNav = navItems.find(item => item.key === activeItem) ?? navItems[0];
 	const ActiveNavIcon = activeNav.icon;
 	const activeGroups = panelData[activeItem] ?? [];
+	const [activePanelItem, setManualActivePanelItem] = useState<string | null>(null);
 
 	return (
 		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-plane-bg-base text-foreground'>
@@ -539,28 +540,28 @@ export function DashboardShell({ children }: DashboardShellProps) {
 												<SidebarGroupContent>
 													<SidebarMenu className='gap-0.5 px-2'>
 														{section.items.map(item => {
-															const NavIcon = iconForSidebarItem(item);
+															const NavIcon = iconForSidebarItem(item.label);
 															const runsHref =
 																activeItem === 'runs-projects'
-																	? runsProjectsItemHref[item]
+																	? runsProjectsItemHref[item.label]
 																	: undefined;
 
 															if (runsHref) {
 																const onRunsList = pathname === '/runs';
 																const isRunHistoryActive =
-																	item === 'Run History' &&
+																	item.label === 'Run History' &&
 																	onRunsList &&
 																	!runId &&
 																	statusFilter !== 'current';
 																const isActiveRunLinkActive =
-																	item === 'Active Run' &&
+																	item.label === 'Active Run' &&
 																	onRunsList &&
 																	!runId &&
 																	(statusFilter === 'running' ||
 																		statusFilter === 'current');
 
 																return (
-																	<SidebarMenuItem key={item}>
+																	<SidebarMenuItem key={item.label}>
 																		<SidebarMenuButton
 																			asChild
 																			isActive={
@@ -572,11 +573,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
 																			<Link
 																				href={runsHref}
 																				onClick={() =>
-																					setManualActivePanelItem(item)
+																					setManualActivePanelItem(item.label)
 																				}
 																			>
 																				<NavIcon className='opacity-80' />
-																				<span className='truncate'>{item}</span>
+																				<span className='truncate'>{item.label}</span>
 																			</Link>
 																		</SidebarMenuButton>
 																	</SidebarMenuItem>
@@ -584,15 +585,16 @@ export function DashboardShell({ children }: DashboardShellProps) {
 															}
 
 															return (
-																<SidebarMenuItem key={item}>
+																<SidebarMenuItem key={item.href}>
 																	<SidebarMenuButton
-																		type='button'
-																		isActive={activePanelItem === item}
-																		onClick={() => setManualActivePanelItem(item)}
+																		asChild
+																		isActive={pathname === item.href}
 																		className='px-3'
 																	>
-																		<NavIcon className='opacity-80' />
-																		<span className='truncate'>{item}</span>
+																		<Link href={item.href}>
+																			<NavIcon className='opacity-80' />
+																			<span className='truncate'>{item.label}</span>
+																		</Link>
 																	</SidebarMenuButton>
 																</SidebarMenuItem>
 															);
