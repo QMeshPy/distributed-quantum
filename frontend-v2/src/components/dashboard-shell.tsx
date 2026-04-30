@@ -242,20 +242,17 @@ const runsProjectsItemHref: Record<string, string> = {
 	'Run History': '/runs'
 };
 
-/** Financial submenu under Runs → Projects (hash matches analytics tabs). */
+/** Financial submenu under Runs → Projects (separate pages instead of hash links). */
 const FINANCIAL_SUBMENU_LINKS: { label: string; href: string }[] = [
 	{ label: 'Upload & Analyse', href: '/finance' },
-	{ label: 'Benchmark', href: '/finance#benchmark' },
-	{ label: 'Frontier', href: '/finance#frontier' },
-	{ label: 'Execution', href: '/finance#execution' },
-	{ label: 'Top States', href: '/finance#states' }
+	{ label: 'Benchmark', href: '/finance/benchmark' },
+	{ label: 'Frontier', href: '/finance/frontier' },
+	{ label: 'Execution', href: '/finance/execution' },
+	{ label: 'Top States', href: '/finance/states' }
 ];
 
 function financialSubLinkIsActive(href: string, pathname: string, hash: string): boolean {
-	if (!pathname.startsWith('/finance')) return false;
-	const hashIdx = href.indexOf('#');
-	if (hashIdx === -1) return !hash;
-	return hash === href.slice(hashIdx + 1);
+	return pathname === href || pathname.startsWith(href + '/');
 }
 
 const SIDEBAR_ITEM_ICONS: Record<string, LucideIcon> = {
