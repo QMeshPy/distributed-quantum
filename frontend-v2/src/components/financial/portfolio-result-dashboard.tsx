@@ -381,7 +381,7 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 							<div className='space-y-2'>
 								<p className={LABEL_CLASS_NAME}>Exact benchmark summary</p>
 								<h2
-									id='benchmark'
+									id='benchmark' style='scroll-margin-top: 5rem'
 									className='text-3xl font-semibold leading-[0.98] tracking-[-0.05em] text-foreground md:text-4xl'
 								>
 									Exact classical enumeration versus the best feasible quantum state.
@@ -444,7 +444,7 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 					</div>
 
 					<div
-						id='frontier'
+						id='frontier' style='scroll-margin-top: 5rem'
 						className={WHITE_CARD_CLASS_NAME}
 					>
 						<div className='space-y-2'>
@@ -695,7 +695,7 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 
 					<div className='rounded-[2.4rem] border border-black/10 bg-[var(--clay-blueberry)] p-4 text-white shadow-[var(--clay-shadow)] md:p-6'>
 						<div
-							id='execution'
+							id='execution' style='scroll-margin-top: 5rem'
 							className='space-y-5'
 						>
 							<div className='space-y-2'>
@@ -860,7 +860,7 @@ export function PortfolioResultDashboard({ result, jobId }: { result: FinancialA
 
 				<div className={WHITE_CARD_CLASS_NAME}>
 					<div
-						id='states'
+						id='states' style='scroll-margin-top: 5rem'
 						className='space-y-5'
 					>
 						<div className='space-y-2'>

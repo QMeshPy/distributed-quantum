@@ -324,6 +324,7 @@ function UploadPanel({
 	return (
 		<Card
 			id='upload'
+			style={{ scrollMarginTop: '5rem' }}
 			className='clay-section overflow-hidden border-[var(--clay-oat)] bg-[rgb(255_255_255_/_0.76)] shadow-[var(--clay-shadow)]'
 		>
 			<CardHeader className='border-b border-[var(--clay-oat)]'>
@@ -792,6 +793,19 @@ export function FinancialAnalyticsClient() {
 	const [isJobRefreshing, setIsJobRefreshing] = React.useState(false);
 	const [isRecentJobsRefreshing, setIsRecentJobsRefreshing] = React.useState(false);
 	const [lastSubmittedFileName, setLastSubmittedFileName] = React.useState<string | null>(null);
+
+	// Handle hash-based navigation for section scrolling
+	React.useEffect(() => {
+		const hash = window.location.hash.slice(1);
+		if (hash) {
+			setTimeout(() => {
+				const element = document.getElementById(hash);
+				if (element) {
+					element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			}, 100);
+		}
+	}, [job]);
 
 	const loadRecentJobs = React.useEffectEvent(async () => {
 		setIsRecentJobsRefreshing(true);
