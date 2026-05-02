@@ -1,0 +1,1 @@
+@AGENTS.md @DESIGN.md @SKILL.md @ARCHITECTURE.md

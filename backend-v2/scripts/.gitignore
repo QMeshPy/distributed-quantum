@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Node
+node_modules/
+.next/
+.cache/
+out/
+build/
+dist/
+
+# Benchmark data (keep structure, ignore large files)
+benchmark-data/*.csv
+benchmark-data/*.xls
+benchmark-data/*.xlsx
+!benchmark-data/README.md
+!benchmark-data/*.json
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local

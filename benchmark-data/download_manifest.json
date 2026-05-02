@@ -1,0 +1,26 @@
+{
+  "download_date": "2026-05-01T03:35:11.832057",
+  "total_size_gb": 0.009,
+  "damodaran_files": [
+    "histretSP.xls",
+    "histimpl.xls",
+    "betaGlobal.xls",
+    "totalbetaGlobal.xls",
+    "waccGlobal.xls",
+    "marginGlobal.xls",
+    "roeGlobal.xls",
+    "fundgrGlobal.xls",
+    "ctryprem.xlsx",
+    "ctrypremApr26.xlsx"
+  ],
+  "ticker_files": [
+    "AAPL_max.csv",
+    "GOOG_max.csv",
+    "MSFT_max.csv",
+    "NVDA_max.csv",
+    "TSLA_max.csv",
+    "JPM_max.csv",
+    "XOM_max.csv",
+    "JNJ_max.csv"
+  ]
+}

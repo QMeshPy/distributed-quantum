@@ -10,13 +10,10 @@ import {
 	ActivityIcon,
 	AlertTriangleIcon,
 	BarChart3Icon,
-	BellIcon,
 	BookOpenIcon,
 	BotIcon,
 	BoxIcon,
 	BrainIcon,
-	CalendarIcon,
-	ChevronDownIcon,
 	ChevronRightIcon,
 	CircleDotIcon,
 	ClipboardListIcon,
@@ -40,13 +37,11 @@ import {
 	PlayCircleIcon,
 	PlusIcon,
 	RadioIcon,
-	SearchIcon,
 	ServerIcon,
 	SettingsIcon,
 	ShieldIcon,
 	SparklesIcon,
 	UsersIcon,
-	VideoIcon,
 	WrenchIcon,
 	ZapIcon
 } from 'lucide-react';
@@ -359,109 +354,67 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	const [activePanelItem, setManualActivePanelItem] = useState<string | null>(null);
 
 	return (
-		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-plane-bg-base text-foreground'>
-			<header className='relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-plane-bg-elevated px-4'>
-				<div className='flex items-center gap-3'>
-					<span className='flex size-8 items-center justify-center rounded-lg bg-primary text-[11px] font-bold text-primary-foreground shadow-sm'>
-						QG
-					</span>
-					<button
-						type='button'
-						className='flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted'
-					>
-						Quantum Gates
-						<ChevronDownIcon className='size-3.5 opacity-50' />
-					</button>
-					<button
-						type='button'
-						className='hidden rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:block'
-						aria-label='Open calendar'
-					>
-						<CalendarIcon className='size-4' />
-					</button>
+		<div className='flex h-svh max-h-svh overflow-hidden bg-plane-bg-base text-foreground'>
+			{/* Rail */}
+			<aside className='relative z-0 flex min-h-0 w-[4.5rem] shrink-0 flex-col overflow-x-visible overflow-y-auto'>
+				{/* Logo */}
+				<div className='flex h-14 shrink-0 items-center justify-center text-[13px] font-black leading-none tracking-tighter text-foreground'>
+					<span className='text-primary'>Q</span>G
 				</div>
 
-				<div className='mx-auto flex max-w-xl flex-1'>
-					<div className='flex w-full items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted focus-within:border-primary focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10'>
-						<SearchIcon className='size-4 shrink-0 opacity-50' />
-						<span className='flex-1 truncate'>Search</span>
-						<kbd className='hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-block'>
-							⌘K
-						</kbd>
-					</div>
-				</div>
+				{/* Nav items */}
+				<nav className='flex flex-1 flex-col items-center gap-5 py-2'>
+					{navItems.map(item => {
+						const Icon = item.icon;
+						const isActive = activeItem === item.key;
 
-				<div className='flex items-center gap-1'>
-					<Button
-						type='button'
-						variant='ghost'
-						size='icon-sm'
-						aria-label='Notifications'
-					>
-						<BellIcon className='size-4' />
-					</Button>
-					<Button
-						type='button'
-						variant='ghost'
-						size='icon-sm'
-						aria-label='Video'
-					>
-						<VideoIcon className='size-4' />
-					</Button>
-					<button
-						type='button'
-						className='relative ml-2 flex size-8 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm'
-						aria-label='Account'
-					>
-						SB
-						<span className='absolute bottom-0 right-0 size-2 rounded-full border-2 border-background bg-green-500' />
-					</button>
-				</div>
-			</header>
-
-			<div className='flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden p-3 bg-plane-rail'>
-				<aside className='relative z-0 flex min-h-0 w-14 shrink-0 flex-col items-center overflow-hidden rounded-lg border border-border/60 bg-plane-bg-elevated shadow-sm py-3'>
-					<div className='mb-4 flex size-8 items-center justify-center rounded-lg bg-primary text-[10px] font-bold text-primary-foreground shadow-sm'>
-						QG
-					</div>
-
-					<nav className='flex flex-1 flex-col items-center gap-1 px-1.5'>
-						{navItems.map(item => {
-							const Icon = item.icon;
-							const isActive = activeItem === item.key;
-
-							return (
-								<Link
-									key={item.key}
-									href={item.href}
-									aria-label={item.label}
-									aria-current={isActive ? 'page' : undefined}
+						return (
+							<Link
+								key={item.key}
+								href={item.href}
+								aria-label={item.label}
+								aria-current={isActive ? 'page' : undefined}
+								className='flex flex-col items-center gap-[5px]'
+							>
+								<span
 									className={cn(
-										'relative flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 transition-all duration-150',
+										'flex size-11 items-center justify-center rounded-[14px] transition-all duration-150',
 										isActive
-											? 'bg-background text-primary shadow-sm'
-											: 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+											? 'bg-white text-foreground shadow'
+											: 'text-muted-foreground/60 hover:text-foreground'
 									)}
 								>
-									<Icon className='size-4 shrink-0' />
-									<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
-										{item.railLabel}
-									</span>
-								</Link>
-							);
-						})}
-					</nav>
+									<Icon className='size-[18px] shrink-0' strokeWidth={isActive ? 2 : 1.5} />
+								</span>
+								<span
+									className={cn(
+										'text-[10px] leading-none',
+										isActive
+											? 'font-semibold text-foreground'
+											: 'font-medium text-muted-foreground/60'
+									)}
+								>
+									{item.railLabel}
+								</span>
+							</Link>
+						);
+					})}
+				</nav>
 
-					<button
-						type='button'
-						aria-label='Settings'
-						className='mt-2 flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-background/50 hover:text-foreground'
-					>
-						<SettingsIcon className='size-4' />
-					</button>
-				</aside>
+				{/* User avatar pinned to bottom */}
+				<button
+					type='button'
+					aria-label='Account'
+					className='flex h-14 w-full shrink-0 items-center justify-center'
+				>
+					<span className='relative flex size-8 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground'>
+						SB
+						<span className='absolute bottom-0 right-0 size-2 rounded-full border-2 border-plane-bg-base bg-green-500' />
+					</span>
+				</button>
+			</aside>
 
-				<SidebarProvider className='!min-h-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent has-data-[variant=inset]:bg-transparent'>
+			<SidebarProvider className='!min-h-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent has-data-[variant=inset]:bg-transparent'>
 					<div className='relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/60 bg-plane-bg-elevated shadow-sm'>
 						<div className='relative flex min-h-0 min-w-0 flex-1 overflow-hidden'>
 							<Sidebar
@@ -793,7 +746,6 @@ export function DashboardShell({ children }: DashboardShellProps) {
 						</div>
 					</div>
 				</SidebarProvider>
-			</div>
 		</div>
 	);
 }
