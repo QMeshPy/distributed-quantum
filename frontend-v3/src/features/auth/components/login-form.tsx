@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -22,44 +21,12 @@ import {
   InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { useAuthStore } from '@/features/auth';
-import type { UserTier } from '@/types/user';
 
-/**
- * Step 1 - Email Schema
- */
-const emailSchema = z.object({
-  email: z.string().email(),
-});
-
-/**
- * API Response types
- */
-interface ApiErrorResponse {
-  error?: {
-    message?: string;
-  };
-}
-
-interface VerifyOtpResponse {
-  user: {
-    _id: string;
-    email: string;
-    name: string;
-    organisation?: string;
-    roleInOrg?: string;
-    city?: string;
-    otpExpiry?: string;
-    otpVerified?: boolean;
-    tier: UserTier;
-    freeTrialExpiresAt: string;
-    createdAt: string;
-    preferences?: {
-      theme?: 'light' | 'dark';
-      defaultClusterId?: string;
-    };
-  };
-}
+import { useSendLoginOtp } from '../mutations/use-login';
+import { useVerifyOtp } from '../mutations/use-verify-otp';
+import { useResendOtp } from '../mutations/use-resend-otp';
+import { useAuthStore } from '../store/auth-store';
+import { emailSchema } from '../schemas/auth-schemas';
 
 /**
  * Step indicators component
@@ -108,10 +75,14 @@ export function LoginForm() {
   // UI state
   const [emailError, setEmailError] = useState<string>('');
   const [generalError, setGeneralError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
 
   // Resend OTP cooldown (60 seconds)
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Mutations
+  const sendOtp = useSendLoginOtp();
+  const verifyOtp = useVerifyOtp();
+  const resendOtp = useResendOtp();
 
   // Cooldown timer
   useEffect(() => {
@@ -144,27 +115,8 @@ export function LoginForm() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Call send-otp API
-      const response = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as ApiErrorResponse;
-        const errorMessage =
-          errorData.error?.message ?? 'Failed to send code. Please try again.';
-        throw new Error(errorMessage);
-      }
-
-      // Move to step 2
+      await sendOtp.mutateAsync({ email });
       setStep(2);
       setResendCooldown(60);
       toast.success('Code sent to your email');
@@ -174,8 +126,6 @@ export function LoginForm() {
           ? error.message
           : 'Failed to send code. Please try again.',
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -191,50 +141,10 @@ export function LoginForm() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Verify OTP
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          otp,
-        }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as ApiErrorResponse;
-        const errorMessage =
-          errorData.error?.message ?? 'Invalid code. Please try again.';
-        throw new Error(errorMessage);
-      }
-
-      const data = (await response.json()) as VerifyOtpResponse;
+      const user = await verifyOtp.mutateAsync({ email, otp });
 
       // Update auth store with user data
-      const user = {
-        _id: data.user._id,
-        email: data.user.email,
-        name: data.user.name,
-        organisation: data.user.organisation ?? '',
-        roleInOrg: data.user.roleInOrg ?? '',
-        city: data.user.city ?? '',
-        otpExpiry: data.user.otpExpiry ? new Date(data.user.otpExpiry) : null,
-        otpVerified: data.user.otpVerified ?? false,
-        tier: data.user.tier,
-        freeTrialExpiresAt: new Date(data.user.freeTrialExpiresAt),
-        createdAt: new Date(data.user.createdAt),
-        preferences: {
-          theme: (data.user.preferences?.theme ?? 'light') as 'light' | 'dark',
-          defaultClusterId: data.user.preferences?.defaultClusterId,
-        },
-      };
-
       useAuthStore.getState()._setUser(user);
 
       // Show success toast
@@ -248,8 +158,6 @@ export function LoginForm() {
           ? error.message
           : 'Verification failed. Please try again.',
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -259,31 +167,18 @@ export function LoginForm() {
   const handleResendOtp = async () => {
     if (resendCooldown > 0) return;
 
-    setIsLoading(true);
     setGeneralError('');
 
     try {
-      const response = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to resend code');
-      }
-
+      await resendOtp.mutateAsync({ email });
       setResendCooldown(60);
       toast.success('Code sent to your email');
     } catch {
       setGeneralError('Failed to resend code. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  const isLoading = sendOtp.isPending || verifyOtp.isPending || resendOtp.isPending;
 
   return (
     <Card>

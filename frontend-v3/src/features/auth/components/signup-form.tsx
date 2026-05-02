@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -22,55 +21,13 @@ import {
   InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { useAuthStore } from '@/features/auth';
-import type { UserTier } from '@/types/user';
 
-/**
- * Step 1 - User Details Schema
- */
-const userDetailsSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required'),
-  organisation: z.string().min(1, 'Organisation is required'),
-  role: z.string().min(1, 'Role is required'),
-  city: z.string().min(1, 'City is required'),
-  email: z.string().email(),
-});
-
-type UserDetailsData = z.infer<typeof userDetailsSchema>;
-
-/**
- * API Response types
- */
-interface ApiErrorResponse {
-  error?: {
-    message?: string;
-  };
-}
-
-interface VerifyOtpResponse {
-  user: {
-    _id: string;
-    email: string;
-    name: string;
-    organisation?: string;
-    roleInOrg?: string;
-    city?: string;
-    otpExpiry?: string;
-    otpVerified?: boolean;
-    tier: UserTier;
-    freeTrialExpiresAt?: string;
-    createdAt?: string;
-    preferences?: {
-      theme?: 'light' | 'dark';
-      defaultClusterId?: string;
-    };
-  };
-}
-
-interface ValidationError {
-  path: (string | number)[];
-  message: string;
-}
+import { useSignup } from '../mutations/use-signup';
+import { useVerifyOtp } from '../mutations/use-verify-otp';
+import { useResendOtp } from '../mutations/use-resend-otp';
+import { useAuthStore } from '../store/auth-store';
+import { userDetailsSchema, type UserDetailsData } from '../schemas/auth-schemas';
+import type { ValidationError } from '../types';
 
 /**
  * Step indicators component
@@ -127,10 +84,14 @@ export function SignupForm() {
     Partial<Record<keyof UserDetailsData, string>>
   >({});
   const [generalError, setGeneralError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
 
   // Resend OTP cooldown (60 seconds)
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Mutations
+  const signup = useSignup();
+  const verifyOtp = useVerifyOtp();
+  const resendOtp = useResendOtp();
 
   // Cooldown timer
   useEffect(() => {
@@ -166,34 +127,14 @@ export function SignupForm() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Call signup API to create user and send OTP
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.fullName,
-          organisation: formData.organisation,
-          role: formData.role,
-          city: formData.city,
-          email: formData.email,
-        }),
-        credentials: 'include',
+      await signup.mutateAsync({
+        name: formData.fullName,
+        organisation: formData.organisation,
+        role: formData.role,
+        city: formData.city,
+        email: formData.email,
       });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as ApiErrorResponse;
-        const errorMessage =
-          errorData.error?.message ??
-          `Signup failed: ${response.status} ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-
-      // Move to step 2
       setStep(2);
       setResendCooldown(60);
       toast.success('OTP sent to your email');
@@ -203,8 +144,6 @@ export function SignupForm() {
           ? error.message
           : 'Signup failed. Please try again.',
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -220,55 +159,13 @@ export function SignupForm() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Verify OTP
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          otp,
-        }),
-        credentials: 'include',
+      const user = await verifyOtp.mutateAsync({
+        email: formData.email,
+        otp,
       });
 
-      if (!response.ok) {
-        const errorData = (await response.json()) as ApiErrorResponse;
-        const errorMessage =
-          errorData.error?.message ?? 'Invalid OTP. Please try again.';
-        throw new Error(errorMessage);
-      }
-
-      const data = (await response.json()) as VerifyOtpResponse;
-
       // Update auth store with user data
-      const user = {
-        _id: data.user._id,
-        email: data.user.email,
-        name: data.user.name,
-        organisation: data.user.organisation ?? '',
-        roleInOrg: data.user.roleInOrg ?? '',
-        city: data.user.city ?? '',
-        otpExpiry: data.user.otpExpiry ? new Date(data.user.otpExpiry) : null,
-        otpVerified: data.user.otpVerified ?? false,
-        tier: data.user.tier,
-        freeTrialExpiresAt: new Date(
-          data.user.freeTrialExpiresAt ??
-            (data.user.tier === 'free'
-              ? Date.now() + 14 * 24 * 60 * 60 * 1000
-              : 0),
-        ),
-        createdAt: new Date(data.user.createdAt ?? Date.now()),
-        preferences: {
-          theme: (data.user.preferences?.theme ?? 'light') as 'light' | 'dark',
-          defaultClusterId: data.user.preferences?.defaultClusterId,
-        },
-      };
-
       useAuthStore.getState()._setUser(user);
 
       // Show success toast
@@ -284,8 +181,6 @@ export function SignupForm() {
           ? error.message
           : 'Verification failed. Please try again.',
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -295,33 +190,18 @@ export function SignupForm() {
   const handleResendOtp = async () => {
     if (resendCooldown > 0) return;
 
-    setIsLoading(true);
     setGeneralError('');
 
     try {
-      const response = await fetch('/api/auth/resend-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-        }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to resend OTP');
-      }
-
+      await resendOtp.mutateAsync({ email: formData.email });
       setResendCooldown(60);
       toast.success('OTP sent to your email');
     } catch {
       setGeneralError('Failed to resend OTP. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  const isLoading = signup.isPending || verifyOtp.isPending || resendOtp.isPending;
 
   return (
     <Card>

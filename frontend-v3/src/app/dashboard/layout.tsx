@@ -1,5 +1,5 @@
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { FreeTierBanner } from '@/components/free-tier-banner';
+import { DashboardSidebar } from '@/features/shell';
+import { FreeTierBanner } from '@/features/shell';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 import type { ReactNode } from 'react';

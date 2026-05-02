@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { WelcomeModal } from '@/components/welcome-modal';
+import { WelcomeModal } from '@/features/shell';
 
 export default function DashboardPage() {
   return (
