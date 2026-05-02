@@ -227,7 +227,7 @@ export function FinancialAnalyticsClient() {
 	const displayedFileName = lastSubmittedFileName ?? job?.filename ?? 'No file submitted in this session.';
 
 	return (
-		<div className='space-y-8 p-4 pb-12 md:p-6 lg:p-8'>
+		<div className='space-y-6 p-4 pb-12 md:p-6'>
 			<FinanceHero displayedFileName={displayedFileName} />
 
 			{uploadError ? (
@@ -238,29 +238,35 @@ export function FinancialAnalyticsClient() {
 				</Alert>
 			) : null}
 
-			<div className='grid gap-6 xl:grid-cols-[1.16fr_0.84fr]'>
-				<FinanceUploadPanel
-					form={form}
-					fileName={lastSubmittedFileName}
-					uploading={isUploading}
-					onChange={handleFormChange}
-					onFileSelected={handleFileSelected}
-				/>
-				<div className='space-y-6'>
+			{activeJobId ? (
+				<div className='space-y-4'>
 					<FinanceJobCard
 						job={job}
 						jobId={activeJobId}
 						loadError={loadError}
 						loading={isJobLoading}
 						isRefreshing={isJobRefreshing}
-						onRefresh={() => {
-							if (activeJobId) {
-								void loadJob(activeJobId, { silent: true });
-							}
-						}}
+						onRefresh={() => void loadJob(activeJobId, { silent: true })}
 						onClear={() => navigateToJob(null)}
 					/>
 					{job && !isTerminalStatus(job.status) ? <FinanceJobProgress status={job.status} /> : null}
+					{job && !result && job.status !== 'FAILED' ? (
+						<div className='flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground'>
+							<ActivityIcon className='size-3.5 shrink-0' />
+							Polling — result payload not yet persisted.
+						</div>
+					) : null}
+					{result && job ? <PortfolioResultDashboard result={result} jobId={job.job_id} /> : null}
+				</div>
+			) : (
+				<div className='grid gap-6 lg:grid-cols-[1fr_320px]'>
+					<FinanceUploadPanel
+						form={form}
+						fileName={lastSubmittedFileName}
+						uploading={isUploading}
+						onChange={handleFormChange}
+						onFileSelected={handleFileSelected}
+					/>
 					<FinanceRecentJobs
 						jobs={recentJobs}
 						activeJobId={activeJobId}
@@ -269,20 +275,7 @@ export function FinancialAnalyticsClient() {
 						onSelect={navigateToJob}
 					/>
 				</div>
-			</div>
-
-			{job && !result && job.status !== 'FAILED' ? (
-				<Alert>
-					<ActivityIcon className='size-4' />
-					<AlertTitle>Awaiting result payload</AlertTitle>
-					<AlertDescription>
-						The job record exists, but the final benchmark payload has not been persisted yet. Polling stays
-						active until the backend returns the completed portfolio result.
-					</AlertDescription>
-				</Alert>
-			) : null}
-
-			{result && job ? <PortfolioResultDashboard result={result} jobId={job.job_id} /> : null}
+			)}
 		</div>
 	);
 }
