@@ -5,13 +5,16 @@
  *
  * Wraps the app with all necessary providers:
  * - QueryClientProvider for TanStack Query (zero-caching)
+ * - Toaster for toast notifications
  * - Store initialization for Zustand
  *
  * @module app/providers
  */
 
-import { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { useEffect } from 'react';
+
+import { Toaster } from '@/components/ui/sonner';
 import { queryClient } from '@/lib/react-query';
 import { initializeStores } from '@/store';
 
@@ -24,6 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
+      <Toaster />
     </QueryClientProvider>
   );
 }

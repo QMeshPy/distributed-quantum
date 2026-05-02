@@ -49,8 +49,8 @@ export const clusterConfigSchema = z
     clusterId: z.string().min(1),
     name: z.string().min(1),
     protocol: z.enum(['rest', 'jsonrpc']),
-    restUrl: z.string().url().optional(),
-    rpcUrl: z.string().url().optional(),
+    restUrl: z.url().optional(),
+    rpcUrl: z.url().optional(),
     region: z.string().optional(),
     provider: z.string().optional(),
     tags: z.array(z.string()),
@@ -60,13 +60,18 @@ export const clusterConfigSchema = z
   .refine(
     (data) => {
       // Ensure appropriate URL is provided based on protocol
-      if (data.protocol === 'rest' && !data.restUrl) return false;
-      if (data.protocol === 'jsonrpc' && !data.rpcUrl) return false;
+      if (data.protocol === 'rest' && data.restUrl === undefined) {
+        return false;
+      }
+      if (data.protocol === 'jsonrpc' && data.rpcUrl === undefined) {
+        return false;
+      }
       return true;
     },
     {
-      message: 'URL must match selected protocol (restUrl for rest, rpcUrl for jsonrpc)',
-    }
+      message:
+        'URL must match selected protocol (restUrl for rest, rpcUrl for jsonrpc)',
+    },
   );
 
 /**
@@ -77,21 +82,25 @@ export const createClusterConfigSchema = z
     clusterId: z.string().min(1, 'Cluster ID is required'),
     name: z.string().min(1, 'Cluster name is required'),
     protocol: z.enum(['rest', 'jsonrpc']),
-    restUrl: z.string().url().optional(),
-    rpcUrl: z.string().url().optional(),
+    restUrl: z.url().optional(),
+    rpcUrl: z.url().optional(),
     region: z.string().optional(),
     provider: z.string().optional(),
     tags: z.array(z.string()).default([]),
   })
   .refine(
     (data) => {
-      if (data.protocol === 'rest' && !data.restUrl) return false;
-      if (data.protocol === 'jsonrpc' && !data.rpcUrl) return false;
+      if (data.protocol === 'rest' && data.restUrl === undefined) {
+        return false;
+      }
+      if (data.protocol === 'jsonrpc' && data.rpcUrl === undefined) {
+        return false;
+      }
       return true;
     },
     {
       message: 'URL must match selected protocol',
-    }
+    },
   );
 
 /**
@@ -101,8 +110,8 @@ export const updateClusterConfigSchema = z
   .object({
     name: z.string().min(1).optional(),
     protocol: z.enum(['rest', 'jsonrpc']).optional(),
-    restUrl: z.string().url().optional(),
-    rpcUrl: z.string().url().optional(),
+    restUrl: z.url().optional(),
+    rpcUrl: z.url().optional(),
     region: z.string().optional(),
     provider: z.string().optional(),
     tags: z.array(z.string()).optional(),
@@ -111,23 +120,28 @@ export const updateClusterConfigSchema = z
     (data) => {
       // If protocol is specified, validate URL accordingly
       if (data.protocol === 'rest' && data.restUrl === undefined) return false;
-      if (data.protocol === 'jsonrpc' && data.rpcUrl === undefined) return false;
+      if (data.protocol === 'jsonrpc' && data.rpcUrl === undefined)
+        return false;
       return true;
     },
     {
       message: 'When changing protocol, provide corresponding URL',
-    }
+    },
   );
 
 /**
  * Type for cluster creation input
  */
-export type CreateClusterConfigInput = z.infer<typeof createClusterConfigSchema>;
+export type CreateClusterConfigInput = z.infer<
+  typeof createClusterConfigSchema
+>;
 
 /**
  * Type for cluster update input
  */
-export type UpdateClusterConfigInput = z.infer<typeof updateClusterConfigSchema>;
+export type UpdateClusterConfigInput = z.infer<
+  typeof updateClusterConfigSchema
+>;
 
 /**
  * Client-side cluster config (same as full config - no sensitive data to hide)

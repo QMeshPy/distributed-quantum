@@ -26,24 +26,42 @@ export interface Session {
  * Zod schema for session document validation
  */
 export const sessionSchema = z.object({
-  _id: z.instanceof(ObjectId),
-  userId: z.instanceof(ObjectId),
+  _id: z.custom<ObjectId>((val) => val instanceof ObjectId),
+  userId: z.custom<ObjectId>((val) => val instanceof ObjectId),
   token: z.string().min(1),
   expiresAt: z.date(),
   createdAt: z.date(),
   userAgent: z.string(),
-  ipAddress: z.string().ip(),
+  ipAddress: z.string().refine(
+    (val) => {
+      // IPv4 or IPv6 validation
+      const ipv4Regex =
+        /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+      return ipv4Regex.test(val) || ipv6Regex.test(val);
+    },
+    { message: 'Invalid IP address' },
+  ),
 });
 
 /**
  * Zod schema for session creation input
  */
 export const createSessionSchema = z.object({
-  userId: z.instanceof(ObjectId),
+  userId: z.custom<ObjectId>((val) => val instanceof ObjectId),
   token: z.string().min(1),
   expiresAt: z.date(),
   userAgent: z.string(),
-  ipAddress: z.string().ip(),
+  ipAddress: z.string().refine(
+    (val) => {
+      // IPv4 or IPv6 validation
+      const ipv4Regex =
+        /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+      return ipv4Regex.test(val) || ipv6Regex.test(val);
+    },
+    { message: 'Invalid IP address' },
+  ),
 });
 
 /**
@@ -65,8 +83,8 @@ export interface ClientSession {
  * Zod schema for client-safe session data
  */
 export const clientSessionSchema = z.object({
-  _id: z.instanceof(ObjectId),
-  userId: z.instanceof(ObjectId),
+  _id: z.custom<ObjectId>((val) => val instanceof ObjectId),
+  userId: z.custom<ObjectId>((val) => val instanceof ObjectId),
   expiresAt: z.date(),
   createdAt: z.date(),
 });

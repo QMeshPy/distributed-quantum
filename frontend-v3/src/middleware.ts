@@ -1,20 +1,24 @@
 /**
  * Next.js Middleware - Authentication & Authorization
  *
- * Validates JWT tokens and session state for protected routes.
+ * Validates JWT tokens for protected routes (Edge Runtime compatible).
  * - Checks session cookie on protected routes
  * - Redirects to /login if not authenticated
  * - Passes through for public routes
- * - Validates JWT and checks session in DB
+ * - Validates JWT only (no DB check in edge runtime)
  * - Sets user info in headers for route handlers
+ *
+ * Note: Database session validation happens in API routes, not middleware.
+ * Middleware runs in Edge Runtime and cannot access Node.js APIs like MongoDB.
  *
  * @module middleware
  */
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+
 import { verifyToken } from '@/lib/auth/jwt';
-import { getSession } from '@/lib/auth/session';
+
+import type { NextRequest } from 'next/server';
 
 /**
  * Public routes that don't require authentication
@@ -85,10 +89,10 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Verify JWT token
+    // Verify JWT token (edge-compatible, no DB access)
     const payload = await verifyToken(sessionToken);
 
-    if (!payload) {
+    if (payload === null || payload === undefined) {
       // Invalid or expired JWT - redirect to login
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('from', pathname);
@@ -100,22 +104,8 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Check session in database
-    const session = await getSession(sessionToken);
-
-    if (!session) {
-      // Session not found or expired in DB - redirect to login
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('from', pathname);
-      const response = NextResponse.redirect(loginUrl);
-
-      // Clear invalid session cookie
-      response.cookies.delete('session');
-
-      return response;
-    }
-
-    // Session is valid - continue request with user info in headers
+    // JWT is valid - continue request with user info in headers
+    // Note: Database session validation happens in API routes if needed
     const response = NextResponse.next();
 
     // Set user info in headers for route handlers to access

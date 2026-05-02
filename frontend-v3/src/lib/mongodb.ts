@@ -1,27 +1,57 @@
 /**
  * MongoDB Connection Utility
  *
- * Implements singleton pattern for connection pooling following Next.js best practices.
- * Ensures only one connection is maintained across hot reloads in development.
+ * Optimized for Vercel serverless functions with direct connections.
+ * Uses singleton pattern to reuse connections during warm starts while
+ * handling cold starts efficiently.
  *
  * @module lib/mongodb
- * @see https://github.com/vercel/next.js/tree/canary/examples/with-mongodb
+ * @see https://www.mongodb.com/docs/drivers/node/current/fundamentals/connection/
+ * @see https://vercel.com/docs/functions/runtimes#request-lifecycle
+ *
+ * ## Serverless Optimization Strategy
+ *
+ * Vercel serverless functions have two states:
+ * - **Cold start**: New instance, no existing connection (5s timeout)
+ * - **Warm start**: Reuses existing connection from global cache
+ *
+ * This module optimizes for both:
+ * 1. Fast cold start timeouts (5s) to fail fast
+ * 2. Connection reuse during warm starts (automatic via singleton)
+ * 3. No explicit pooling (serverless handles this at infrastructure level)
+ * 4. Graceful handling of stale connections
+ *
+ * ## MongoDB Atlas Recommendation
+ *
+ * For best serverless performance:
+ * - Use MongoDB Atlas (not local MongoDB)
+ * - Enable connection string format: `mongodb+srv://...`
+ * - Consider Data API for edge functions (optional)
+ *
+ * @example Connection String Format
+ * ```
+ * MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority
+ * ```
  */
 
-import { MongoClient, Db, MongoClientOptions } from 'mongodb';
+import { MongoClient } from 'mongodb';
+
 import { env } from '@/lib/env';
+
+import type { Db, MongoClientOptions } from 'mongodb';
 
 /**
  * MongoDB client options
  *
- * Optimized for serverless environments with connection pooling.
+ * Optimized for Vercel serverless environment:
+ * - Short timeouts for fast cold-start failures
+ * - No explicit pooling (serverless doesn't benefit from it)
+ * - Connection reuse happens automatically during warm invocations
  */
 const options: MongoClientOptions = {
-  maxPoolSize: 10,
-  minPoolSize: 2,
-  maxIdleTimeMS: 30000,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 5000, // Fast cold-start timeout
+  socketTimeoutMS: 45000, // Keep reasonable operation timeout
+  // NO pooling config - serverless handles connections at infrastructure level
 };
 
 /**
@@ -31,46 +61,45 @@ const options: MongoClientOptions = {
  * In production, the module cache handles this naturally.
  */
 declare global {
-  // eslint-disable-next-line no-var
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
-
-let clientPromise: Promise<MongoClient>;
 
 /**
  * Initialize MongoDB client
  *
- * Creates a singleton MongoClient instance with connection pooling.
+ * Creates a singleton MongoClient instance optimized for serverless.
  * In development, the client is cached globally to survive hot reloads.
+ * In production, the client is cached at module level and reused during warm starts.
  *
  * @returns Promise that resolves to MongoClient instance
  */
 function initializeClient(): Promise<MongoClient> {
   const client = new MongoClient(env.MONGODB_URI, options);
 
-  return client.connect().catch((error) => {
-    console.error('Failed to connect to MongoDB:', error);
-    throw new Error(`MongoDB connection failed: ${error.message}`);
+  return client.connect().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to connect to MongoDB:', message);
+    throw new Error(`MongoDB connection failed: ${message}`);
   });
 }
 
 // Initialize client based on environment
-if (process.env.NODE_ENV === 'development') {
-  // In development, use global variable to preserve connection across hot reloads
-  if (!global._mongoClientPromise) {
-    global._mongoClientPromise = initializeClient();
+const clientPromise: Promise<MongoClient> = (() => {
+  if (process.env.NODE_ENV === 'development') {
+    // In development, use global variable to preserve connection across hot reloads
+    global._mongoClientPromise ??= initializeClient();
+    return global._mongoClientPromise;
   }
-  clientPromise = global._mongoClientPromise;
-} else {
-  // In production, use module-level variable
-  clientPromise = initializeClient();
-}
+  // In production (Vercel serverless), use module-level variable
+  // Connection automatically reused during warm starts
+  return initializeClient();
+})();
 
 /**
  * Get MongoDB client
  *
  * Returns the singleton MongoClient instance.
- * Connection is established lazily on first use.
+ * Connection is established lazily on first use and reused during warm starts.
  *
  * @returns Promise that resolves to MongoClient
  *
@@ -85,7 +114,8 @@ if (process.env.NODE_ENV === 'development') {
  */
 export async function getClient(): Promise<MongoClient> {
   try {
-    return await clientPromise;
+    const client = await clientPromise;
+    return client;
   } catch (error) {
     console.error('Error getting MongoDB client:', error);
     throw error;
@@ -96,7 +126,11 @@ export async function getClient(): Promise<MongoClient> {
  * Get MongoDB database
  *
  * Returns the configured database instance from environment variables.
- * This is the primary method for accessing the database.
+ * This is the lightweight method - use connectDB() if you need connection validation.
+ *
+ * In serverless:
+ * - Reuses connection from warm starts automatically
+ * - No explicit validation (faster for trusted connections)
  *
  * @returns Promise that resolves to Db instance
  *
@@ -104,6 +138,7 @@ export async function getClient(): Promise<MongoClient> {
  * ```ts
  * import { getDB } from '@/lib/mongodb';
  *
+ * // Quick access (no validation)
  * const db = await getDB();
  * const users = await db.collection('users').findOne({ email: 'user@example.com' });
  * ```
@@ -122,21 +157,30 @@ export async function getDB(): Promise<Db> {
  * Connect to MongoDB
  *
  * Explicitly connects to MongoDB and returns the database instance.
- * Useful for initialization and health checks.
+ * Validates the connection is alive and reusable.
+ *
+ * In serverless environments:
+ * - Cold start: Establishes new connection (5s timeout)
+ * - Warm start: Reuses existing connection after validation
+ * - Stale connection: Automatically reconnects
  *
  * @returns Promise that resolves to Db instance
- * @throws {Error} If connection fails
+ * @throws {Error} If connection fails or times out
  *
  * @example
  * ```ts
  * import { connectDB } from '@/lib/mongodb';
  *
  * // In API route or server component
- * try {
- *   const db = await connectDB();
- *   console.log('Connected to MongoDB');
- * } catch (error) {
- *   console.error('Failed to connect:', error);
+ * export async function GET() {
+ *   try {
+ *     const db = await connectDB();
+ *     const users = await db.collection('users').find().toArray();
+ *     return Response.json({ users });
+ *   } catch (error) {
+ *     console.error('Database error:', error);
+ *     return Response.json({ error: 'Database unavailable' }, { status: 503 });
+ *   }
  * }
  * ```
  */
@@ -145,7 +189,7 @@ export async function connectDB(): Promise<Db> {
     const client = await clientPromise;
     const db = client.db(env.MONGODB_DATABASE);
 
-    // Verify connection with a ping
+    // Validate connection is alive (handles stale connections gracefully)
     await db.admin().ping();
 
     return db;
@@ -160,16 +204,29 @@ export async function connectDB(): Promise<Db> {
  * Close MongoDB connection
  *
  * Closes the MongoDB connection. Only use this during application shutdown.
- * In serverless environments, you typically don't need to call this.
+ *
+ * **IMPORTANT:** In Vercel serverless functions, you should NOT call this.
+ * Vercel automatically manages function lifecycle and connection cleanup.
+ * Manually closing connections can cause errors in subsequent warm invocations.
+ *
+ * Use this only in:
+ * - Long-running Node.js servers (non-serverless)
+ * - Test suites (cleanup after tests)
+ * - CLI scripts
  *
  * @example
  * ```ts
  * import { closeConnection } from '@/lib/mongodb';
  *
- * // In shutdown handler
+ * // In traditional Node.js server (NOT Vercel)
  * process.on('SIGTERM', async () => {
  *   await closeConnection();
  *   process.exit(0);
+ * });
+ *
+ * // In test suite
+ * afterAll(async () => {
+ *   await closeConnection();
  * });
  * ```
  */
@@ -177,7 +234,7 @@ export async function closeConnection(): Promise<void> {
   try {
     const client = await clientPromise;
     await client.close();
-    console.log('MongoDB connection closed');
+    // Connection closed successfully
   } catch (error) {
     console.error('Error closing MongoDB connection:', error);
     throw error;
@@ -187,8 +244,13 @@ export async function closeConnection(): Promise<void> {
 /**
  * Check MongoDB connection health
  *
- * Performs a ping to verify the connection is healthy.
- * Useful for health check endpoints.
+ * Performs a ping to verify the connection is healthy and reusable.
+ * Essential for health check endpoints in serverless environments.
+ *
+ * In serverless:
+ * - Validates connection works after cold start
+ * - Detects stale connections from warm starts
+ * - Fast timeout (5s) prevents hanging health checks
  *
  * @returns Promise that resolves to true if healthy, false otherwise
  *
@@ -199,7 +261,10 @@ export async function closeConnection(): Promise<void> {
  * // In health check API route
  * export async function GET() {
  *   const isHealthy = await checkHealth();
- *   return Response.json({ mongodb: isHealthy ? 'healthy' : 'unhealthy' });
+ *   return Response.json({
+ *     mongodb: isHealthy ? 'healthy' : 'unhealthy',
+ *     timestamp: new Date().toISOString()
+ *   });
  * }
  * ```
  */

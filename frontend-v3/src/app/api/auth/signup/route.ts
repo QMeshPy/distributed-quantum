@@ -1,49 +1,58 @@
 /**
  * User Signup API Route
  *
- * POST /api/auth/signup - Register a new user
- * - Validates email/password/name with Zod
- * - Checks password requirements (PasswordSchema)
+ * POST /api/auth/signup - Register a new user with OTP verification
+ * - Validates email, fullName, organisation, roleInOrg, city with Zod
  * - Verifies email doesn't already exist
- * - Hashes password (bcrypt cost 12)
- * - Creates user in MongoDB
- * - Sets freeTrialExpiresAt based on FREE_TRIAL_DAYS
- * - Generates JWT token
- * - Creates session in database
- * - Sets HttpOnly cookie
- * - Returns user (without passwordHash)
+ * - Generates 6-digit OTP and sends via Resend
+ * - Creates user in MongoDB with unverified status
+ * - Returns success message with email
  *
  * @see ARCHITECTURE.md lines 336-341
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getDB } from '@/lib/mongodb';
+
+import { generateAndHashOTP, sendOTPEmail } from '@/lib/auth/otp';
 import { env } from '@/lib/env';
-import { validateAndHashPassword } from '@/lib/auth/password';
-import { createSession } from '@/lib/auth/session';
-import type { User, ClientUser } from '@/types/user';
+import { getDB } from '@/lib/mongodb';
+import type { User } from '@/types/user';
+
+import type { NextRequest } from 'next/server';
 
 /**
  * Signup request schema
  *
- * Validates user registration input including email, password, and name.
- * Password validation delegates to PasswordSchema (min 12 chars, complexity requirements).
+ * Validates user registration input including email and profile information.
  */
 const signupSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string(), // Will be validated by validateAndHashPassword
-  name: z
+  email: z.email({ message: 'Invalid email address' }),
+  fullName: z
     .string()
-    .min(1, 'Name is required')
+    .min(1, 'Full name is required')
     .max(100, 'Name must be 100 characters or less'),
+  organisation: z
+    .string()
+    .min(1, 'Organisation is required')
+    .max(100, 'Organisation must be 100 characters or less'),
+  roleInOrg: z
+    .string()
+    .min(1, 'Role is required')
+    .max(100, 'Role must be 100 characters or less'),
+  city: z
+    .string()
+    .min(1, 'City is required')
+    .max(100, 'City must be 100 characters or less'),
 });
 
 /**
- * Signup response with user and session
+ * Signup response
  */
 interface SignupResponse {
-  user: ClientUser;
+  success: boolean;
+  email: string;
+  message: string;
 }
 
 /**
@@ -57,31 +66,31 @@ interface ErrorResponse {
 /**
  * GET handler - not supported
  */
-export async function GET() {
+export function GET(): NextResponse {
   return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
 /**
- * POST handler - user registration
+ * POST handler - user registration with OTP
  *
  * Creates a new user account with the following steps:
- * 1. Validate input (email, password, name)
- * 2. Check password complexity requirements
- * 3. Verify email is not already registered
- * 4. Hash password with bcrypt cost 12
- * 5. Create user document in MongoDB
- * 6. Generate JWT token and create session
- * 7. Set HttpOnly cookie with token
- * 8. Return user data (without password hash)
+ * 1. Validate input (email, fullName, organisation, roleInOrg, city)
+ * 2. Verify email is not already registered
+ * 3. Generate 6-digit OTP and hash it
+ * 4. Send OTP via email
+ * 5. Create user document in MongoDB with unverified status
+ * 6. Return success message
  */
 export async function POST(request: NextRequest) {
   try {
     // Parse and validate request body
-    const body = await request.json();
+    const body: unknown = await request.json();
     const validationResult = signupSchema.safeParse(body);
 
     if (!validationResult.success) {
-      const errors = validationResult.error.errors.map((err) => err.message);
+      const errors: string[] = validationResult.error.issues.map(
+        (issue) => issue.message,
+      );
       return NextResponse.json(
         {
           error: 'Invalid input',
@@ -91,7 +100,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password, name } = validationResult.data;
+    const { email, fullName, organisation, roleInOrg, city } =
+      validationResult.data;
 
     // Get database connection
     const db = await getDB();
@@ -101,7 +111,7 @@ export async function POST(request: NextRequest) {
       .collection('users')
       .findOne({ email: email.toLowerCase() });
 
-    if (existingUser) {
+    if (existingUser !== null) {
       return NextResponse.json(
         {
           error: 'Email already registered',
@@ -110,22 +120,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate and hash password (throws if validation fails)
-    let passwordHash: string;
+    // Generate OTP
+    const { code, hash, expiry } = generateAndHashOTP();
+
+    // Send OTP via email
     try {
-      passwordHash = await validateAndHashPassword(password);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors = error.errors.map((err) => err.message);
-        return NextResponse.json(
-          {
-            error: 'Password does not meet requirements',
-            details: errors,
-          } satisfies ErrorResponse,
-          { status: 400 },
-        );
-      }
-      throw error;
+      await sendOTPEmail(email, code, fullName);
+    } catch (emailError: unknown) {
+      console.error('Failed to send OTP email:', emailError);
+      return NextResponse.json(
+        {
+          error: 'Failed to send verification email',
+          details: ['Please try again later'],
+        } satisfies ErrorResponse,
+        { status: 500 },
+      );
     }
 
     // Calculate free trial expiration
@@ -138,8 +147,13 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const userDoc: Omit<User, '_id'> = {
       email: email.toLowerCase(),
-      passwordHash,
-      name,
+      name: fullName,
+      organisation,
+      roleInOrg,
+      city,
+      otpCode: hash,
+      otpExpiry: expiry,
+      otpVerified: false,
       tier: 'free',
       freeTrialExpiresAt,
       createdAt: now,
@@ -148,51 +162,19 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const result = await db.collection('users').insertOne(userDoc);
+    await db.collection('users').insertOne(userDoc);
 
-    // Create session
-    const userAgent = request.headers.get('user-agent') || 'unknown';
-    const ipAddress =
-      request.headers.get('x-forwarded-for') ||
-      request.headers.get('x-real-ip') ||
-      '0.0.0.0';
-
-    const session = await createSession(
-      result.insertedId.toString(),
-      userAgent,
-      ipAddress,
-    );
-
-    // Prepare response user (without passwordHash)
-    const responseUser: ClientUser = {
-      _id: result.insertedId,
-      email: userDoc.email,
-      name: userDoc.name,
-      tier: userDoc.tier,
-      freeTrialExpiresAt: userDoc.freeTrialExpiresAt,
-      createdAt: userDoc.createdAt,
-      preferences: userDoc.preferences,
-    };
-
-    // Create response with cookie
-    const response = NextResponse.json(
+    // Return success response
+    return NextResponse.json(
       {
-        user: responseUser,
+        success: true,
+        email: email.toLowerCase(),
+        message:
+          'Verification code sent to your email. Please check your inbox.',
       } satisfies SignupResponse,
       { status: 201 },
     );
-
-    // Set HttpOnly cookie with session token
-    response.cookies.set('session', session.token, {
-      httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-      path: '/',
-    });
-
-    return response;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Signup error:', error);
 
     const message =

@@ -13,13 +13,12 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { ClientClusterConfig } from '@/types/cluster';
 
 /**
  * Simplified cluster config for client-side storage
  * Only stores connection information, not health status
  */
-interface StoredClusterConfig {
+export interface StoredClusterConfig {
   clusterId: string;
   name: string;
   protocol: 'rest' | 'jsonrpc';
@@ -62,7 +61,10 @@ interface ClusterStore {
    * @param clusterId - ID of cluster to update
    * @param updates - Partial configuration updates
    */
-  updateCluster: (clusterId: string, updates: Partial<StoredClusterConfig>) => void;
+  updateCluster: (
+    clusterId: string,
+    updates: Partial<StoredClusterConfig>,
+  ) => void;
 
   /**
    * Remove a cluster configuration
@@ -108,10 +110,10 @@ const EncryptionUtils = {
       new TextEncoder().encode('cluster-encryption-key-v1-change-in-prod'),
       'PBKDF2',
       false,
-      ['deriveBits', 'deriveKey']
+      ['deriveBits', 'deriveKey'],
     );
 
-    return crypto.subtle.deriveKey(
+    return await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
         salt: new TextEncoder().encode('cluster-salt'),
@@ -121,7 +123,7 @@ const EncryptionUtils = {
       keyMaterial,
       { name: 'AES-GCM', length: 256 },
       false,
-      ['encrypt', 'decrypt']
+      ['encrypt', 'decrypt'],
     );
   },
 
@@ -137,7 +139,7 @@ const EncryptionUtils = {
       const encryptedData = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
-        encodedData
+        encodedData,
       );
 
       // Combine IV and encrypted data
@@ -162,7 +164,9 @@ const EncryptionUtils = {
       const key = await this.getEncryptionKey();
 
       // Decode from base64
-      const combined = Uint8Array.from(atob(encryptedData), (c) => c.charCodeAt(0));
+      const combined = Uint8Array.from(atob(encryptedData), (c) =>
+        c.charCodeAt(0),
+      );
 
       // Extract IV and encrypted data
       const iv = combined.slice(0, 12);
@@ -171,7 +175,7 @@ const EncryptionUtils = {
       const decryptedData = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv },
         key,
-        data
+        data,
       );
 
       return new TextDecoder().decode(decryptedData);
@@ -190,7 +194,9 @@ const createEncryptedStorage = () => {
   return {
     getItem: async (name: string): Promise<string | null> => {
       const encryptedValue = localStorage.getItem(name);
-      if (!encryptedValue) return null;
+      if (encryptedValue === null || encryptedValue.length === 0) {
+        return null;
+      }
 
       try {
         // Try to decrypt
@@ -213,7 +219,7 @@ const createEncryptedStorage = () => {
       }
     },
 
-    removeItem: (name: string): void => {
+    removeItem: async (name: string): Promise<void> => {
       localStorage.removeItem(name);
     },
   };
@@ -233,7 +239,7 @@ export const useClusterStore = create<ClusterStore>()(
 
       setActiveCluster: (clusterId) => {
         // Validate cluster exists if not null
-        if (clusterId !== null && !get().clusters[clusterId]) {
+        if (clusterId !== null && !(clusterId in get().clusters)) {
           console.warn(`Cluster ${clusterId} not found, cannot set as active`);
           return;
         }
@@ -245,8 +251,10 @@ export const useClusterStore = create<ClusterStore>()(
         const clusters = get().clusters;
 
         // Check if cluster already exists
-        if (clusters[config.clusterId]) {
-          console.warn(`Cluster ${config.clusterId} already exists, use updateCluster instead`);
+        if (config.clusterId in clusters) {
+          console.warn(
+            `Cluster ${config.clusterId} already exists, use updateCluster instead`,
+          );
           return;
         }
 
@@ -263,12 +271,13 @@ export const useClusterStore = create<ClusterStore>()(
 
       updateCluster: (clusterId, updates) => {
         const clusters = get().clusters;
-        const existing = clusters[clusterId];
 
-        if (!existing) {
+        if (!(clusterId in clusters)) {
           console.warn(`Cluster ${clusterId} not found, cannot update`);
           return;
         }
+
+        const existing = clusters[clusterId];
 
         set({
           clusters: {
@@ -285,6 +294,7 @@ export const useClusterStore = create<ClusterStore>()(
 
       removeCluster: (clusterId) => {
         const clusters = get().clusters;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [clusterId]: removed, ...remaining } = clusters;
 
         // If removing active cluster, clear active selection
@@ -323,6 +333,6 @@ export const useClusterStore = create<ClusterStore>()(
         activeClusterId: state.activeClusterId,
         clusters: state.clusters,
       }),
-    }
-  )
+    },
+  ),
 );

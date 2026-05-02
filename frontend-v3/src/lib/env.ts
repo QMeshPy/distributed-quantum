@@ -19,8 +19,14 @@ const envSchema = z.object({
   // Authentication
   JWT_SECRET: z
     .string()
-    .min(64, 'JWT_SECRET must be at least 64 hexadecimal characters (32 bytes). Generate with: openssl rand -hex 32')
-    .regex(/^[0-9a-fA-F]+$/, 'JWT_SECRET must contain only hexadecimal characters'),
+    .min(
+      64,
+      'JWT_SECRET must be at least 64 hexadecimal characters (32 bytes). Generate with: openssl rand -hex 32',
+    )
+    .regex(
+      /^[0-9a-fA-F]+$/,
+      'JWT_SECRET must contain only hexadecimal characters',
+    ),
   JWT_EXPIRES_IN: z.string().default('7d'),
 
   // Database
@@ -31,7 +37,10 @@ const envSchema = z.object({
       (uri) => uri.startsWith('mongodb://') || uri.startsWith('mongodb+srv://'),
       'MONGODB_URI must start with mongodb:// or mongodb+srv://',
     ),
-  MONGODB_DATABASE: z.string().min(1, 'MONGODB_DATABASE is required').default('quantum_frontend'),
+  MONGODB_DATABASE: z
+    .string()
+    .min(1, 'MONGODB_DATABASE is required')
+    .default('quantum_frontend'),
 
   // Free Tier Configuration
   FREE_TRIAL_DAYS: z.coerce.number().int().positive().default(14),
@@ -39,7 +48,9 @@ const envSchema = z.object({
   RATE_LIMIT_FREE_RPM: z.coerce.number().int().positive().default(100),
 
   // Environment & Security
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   DEV_MODE_BYPASS_AUTH: z
     .string()
     .optional()
@@ -48,7 +59,7 @@ const envSchema = z.object({
     .refine(
       (val) => {
         // In production, DEV_MODE_BYPASS_AUTH must be false
-        if (process.env.NODE_ENV === 'production' && val === true) {
+        if (process.env.NODE_ENV === 'production' && val) {
           return false;
         }
         return true;
@@ -63,7 +74,6 @@ const envSchema = z.object({
 
   // Quantum Backend
   QUANTUM_BACKEND_URL: z
-    .string()
     .url('QUANTUM_BACKEND_URL must be a valid URL')
     .default('http://localhost:8000'),
 });
@@ -107,7 +117,9 @@ function parseEnv(): Env {
 
       console.error('\n❌ Environment variable validation failed:\n');
       console.error(errorMessages.join('\n'));
-      console.error('\n💡 Copy .env.example to .env.local and configure all required variables.\n');
+      console.error(
+        '\n💡 Copy .env.example to .env.local and configure all required variables.\n',
+      );
 
       throw new Error('Invalid environment configuration');
     }

@@ -12,9 +12,11 @@
  * @see {@link https://github.com/pmndrs/zustand}
  */
 
-// Export all stores
-export { useAuthStore } from './auth-store';
-export { useClusterStore } from './cluster-store';
+// Import and export all stores
+import { useAuthStore } from './auth-store';
+import { useClusterStore } from './cluster-store';
+
+export { useAuthStore, useClusterStore };
 
 // Re-export types for convenience
 export type { StoredClusterConfig } from './cluster-store';
@@ -32,10 +34,6 @@ export type { StoredClusterConfig } from './cluster-store';
  * ```
  */
 export function useStore() {
-  // Import hooks dynamically to avoid circular dependencies
-  const { useAuthStore } = require('./auth-store');
-  const { useClusterStore } = require('./cluster-store');
-
   return {
     auth: useAuthStore(),
     cluster: useClusterStore(),
@@ -59,12 +57,9 @@ export function useStore() {
  * ```
  */
 export function initializeStores() {
-  const { useAuthStore } = require('./auth-store');
-  const { useClusterStore } = require('./cluster-store');
-
   // Check session validity on app load
   const authStore = useAuthStore.getState();
-  authStore.checkSession();
+  void authStore.checkSession();
 
   // Enable devtools in development
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -80,9 +75,6 @@ export function initializeStores() {
  * Clears both memory state and localStorage.
  */
 export function resetAllStores() {
-  const { useAuthStore } = require('./auth-store');
-  const { useClusterStore } = require('./cluster-store');
-
   // Reset auth store
   const authStore = useAuthStore.getState();
   authStore._setUser(null);
@@ -107,12 +99,12 @@ export function resetAllStores() {
  * @returns Object with hydration status for each store
  */
 export function useStoreHydration() {
-  const { useAuthStore } = require('./auth-store');
-  const { useClusterStore } = require('./cluster-store');
-
   // Zustand persist adds _hasHydrated flag to stores
-  const authHydrated = useAuthStore.persist?.hasHydrated() ?? true;
-  const clusterHydrated = useClusterStore.persist?.hasHydrated() ?? true;
+  // Default to true if persist is not available (not initialized yet)
+
+  const authHydrated = useAuthStore.persist?.hasHydrated?.() ?? true;
+
+  const clusterHydrated = useClusterStore.persist?.hasHydrated?.() ?? true;
 
   return {
     auth: authHydrated,

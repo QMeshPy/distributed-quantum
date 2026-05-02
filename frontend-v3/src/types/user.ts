@@ -33,10 +33,20 @@ export interface User {
   _id: ObjectId;
   /** Unique email address for authentication */
   email: string;
-  /** Bcrypt-hashed password (cost factor 12) */
-  passwordHash: string;
-  /** User's display name */
+  /** User's full name */
   name: string;
+  /** Organisation name */
+  organisation: string;
+  /** User's role in the organisation */
+  roleInOrg: string;
+  /** User's city */
+  city: string;
+  /** Current OTP code (SHA-256 hashed) - null when not set or expired */
+  otpCode: string | null;
+  /** OTP expiry timestamp - null when not set */
+  otpExpiry: Date | null;
+  /** Whether user has verified their email via OTP */
+  otpVerified: boolean;
   /** Current subscription tier */
   tier: UserTier;
   /** Timestamp when free trial expires */
@@ -49,8 +59,11 @@ export interface User {
 
 /**
  * User data for client-side use (without sensitive fields)
+ * Note: _id is string in client (serialized ObjectId from server)
  */
-export type ClientUser = Omit<User, 'passwordHash'>;
+export type ClientUser = Omit<User, 'otpCode' | '_id'> & {
+  _id: string;
+};
 
 /**
  * Zod schema for user preferences validation
@@ -66,9 +79,14 @@ export const userPreferencesSchema = z.object({
  */
 export const userSchema = z.object({
   _id: z.instanceof(ObjectId),
-  email: z.string().email(),
-  passwordHash: z.string().min(1),
+  email: z.email(),
   name: z.string().min(1),
+  organisation: z.string().min(1),
+  roleInOrg: z.string().min(1),
+  city: z.string().min(1),
+  otpCode: z.string().nullable(),
+  otpExpiry: z.date().nullable(),
+  otpVerified: z.boolean(),
   tier: z.enum(['free', 'pro', 'enterprise']),
   freeTrialExpiresAt: z.date(),
   createdAt: z.date(),
@@ -76,17 +94,19 @@ export const userSchema = z.object({
 });
 
 /**
- * Zod schema for client-safe user data (without password)
+ * Zod schema for client-safe user data (without OTP code)
  */
-export const clientUserSchema = userSchema.omit({ passwordHash: true });
+export const clientUserSchema = userSchema.omit({ otpCode: true });
 
 /**
  * Zod schema for user creation input
  */
 export const createUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().min(1, 'Name is required'),
+  email: z.email(),
+  fullName: z.string().min(1, 'Full name is required'),
+  organisation: z.string().min(1, 'Organisation is required'),
+  roleInOrg: z.string().min(1, 'Role is required'),
+  city: z.string().min(1, 'City is required'),
 });
 
 /**

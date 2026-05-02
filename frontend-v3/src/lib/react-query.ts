@@ -25,18 +25,18 @@ export function createQueryClient(): QueryClient {
     defaultOptions: {
       queries: {
         // CRITICAL: Zero caching policy for quantum job data
-        staleTime: 0,              // Data immediately stale
-        gcTime: 0,                 // Don't cache responses (gcTime replaces cacheTime in v5)
-        refetchOnMount: true,      // Always fetch on component mount
+        staleTime: 0, // Data immediately stale
+        gcTime: 0, // Don't cache responses (gcTime replaces cacheTime in v5)
+        refetchOnMount: true, // Always fetch on component mount
         refetchOnWindowFocus: true, // Refetch on tab switch
-        refetchInterval: 5000,     // Poll every 5s for updates
+        refetchInterval: 5000, // Poll every 5s for updates
 
         // Retry configuration
-        retry: 1,                  // Retry once on failure
-        retryDelay: 1000,          // Wait 1s between retries
+        retry: 1, // Retry once on failure
+        retryDelay: 1000, // Wait 1s between retries
 
         // Network mode
-        networkMode: 'online',     // Only fetch when online
+        networkMode: 'online', // Only fetch when online
       },
       mutations: {
         // Mutations don't need retry by default

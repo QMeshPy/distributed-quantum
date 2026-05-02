@@ -10,10 +10,13 @@
  * @module lib/auth/session
  */
 
+import crypto from 'node:crypto';
+
 import { ObjectId } from 'mongodb';
-import crypto from 'crypto';
+
 import { getDB } from '@/lib/mongodb';
 import type { Session } from '@/types/session';
+
 import { generateToken, getTokenExpiration } from './jwt';
 
 /**

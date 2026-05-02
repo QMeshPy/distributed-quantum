@@ -1,41 +1,40 @@
 /**
  * User Login API Route
  *
- * POST /api/auth/login - Authenticate existing user
- * - Validates email/password with Zod
+ * POST /api/auth/login - Authenticate existing user with OTP
+ * - Validates email with Zod
  * - Finds user by email
- * - Verifies password with bcrypt
- * - Generates JWT token
- * - Creates new session in database
- * - Sets HttpOnly cookie with token
- * - Returns user (without passwordHash)
+ * - Generates 6-digit OTP and sends via email
+ * - Returns success message
  *
  * @see ARCHITECTURE.md lines 336-341
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
+
+import { generateAndHashOTP, sendOTPEmail } from '@/lib/auth/otp';
 import { getDB } from '@/lib/mongodb';
-import { env } from '@/lib/env';
-import { verifyPassword } from '@/lib/auth/password';
-import { createSession } from '@/lib/auth/session';
-import type { User, ClientUser } from '@/types/user';
+import type { User } from '@/types/user';
+
+import type { NextRequest } from 'next/server';
 
 /**
  * Login request schema
  *
- * Validates user login credentials.
+ * Validates user login credentials (email only for OTP-based auth).
  */
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.email({ message: 'Invalid email address' }),
 });
 
 /**
- * Login response with user data
+ * Login response
  */
 interface LoginResponse {
-  user: ClientUser;
+  success: boolean;
+  email: string;
+  message: string;
 }
 
 /**
@@ -49,29 +48,31 @@ interface ErrorResponse {
 /**
  * GET handler - not supported
  */
-export async function GET() {
+export function GET(): NextResponse {
   return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
 /**
- * POST handler - user authentication
+ * POST handler - user authentication with OTP
  *
  * Authenticates a user with the following steps:
- * 1. Validate input (email, password)
+ * 1. Validate input (email)
  * 2. Find user by email in database
- * 3. Verify password against stored hash
- * 4. Generate JWT token and create session
- * 5. Set HttpOnly cookie with token
- * 6. Return user data (without password hash)
+ * 3. Generate 6-digit OTP and hash it
+ * 4. Send OTP via email
+ * 5. Update user with OTP hash and expiry
+ * 6. Return success message
  */
 export async function POST(request: NextRequest) {
   try {
     // Parse and validate request body
-    const body = await request.json();
+    const body: unknown = await request.json();
     const validationResult = loginSchema.safeParse(body);
 
     if (!validationResult.success) {
-      const errors = validationResult.error.errors.map((err) => err.message);
+      const errors: string[] = validationResult.error.issues.map(
+        (issue) => issue.message,
+      );
       return NextResponse.json(
         {
           error: 'Invalid input',
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password } = validationResult.data;
+    const { email } = validationResult.data;
 
     // Get database connection
     const db = await getDB();
@@ -91,67 +92,59 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase(),
     });
 
-    if (!user) {
+    if (user === null) {
       // Don't reveal whether email exists
       return NextResponse.json(
         {
-          error: 'Invalid email or password',
+          error: 'Invalid email address',
         } satisfies ErrorResponse,
         { status: 401 },
       );
     }
 
-    // Verify password
-    const isPasswordValid = await verifyPassword(password, user.passwordHash);
+    // Generate OTP
+    const { code, hash, expiry } = generateAndHashOTP();
 
-    if (!isPasswordValid) {
+    // Send OTP via email
+    try {
+      await sendOTPEmail(email, code, user.name);
+    } catch (emailError: unknown) {
+      console.error('Failed to send OTP email:', emailError);
       return NextResponse.json(
         {
-          error: 'Invalid email or password',
+          error: 'Failed to send verification email',
+          details: ['Please try again later'],
         } satisfies ErrorResponse,
-        { status: 401 },
+        { status: 500 },
       );
     }
 
-    // Create session
-    const userAgent = request.headers.get('user-agent') || 'unknown';
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '0.0.0.0';
-
-    const session = await createSession(user._id.toString(), userAgent, ipAddress);
-
-    // Prepare response user (without passwordHash)
-    const responseUser: ClientUser = {
-      _id: user._id,
-      email: user.email,
-      name: user.name,
-      tier: user.tier,
-      freeTrialExpiresAt: user.freeTrialExpiresAt,
-      createdAt: user.createdAt,
-      preferences: user.preferences,
-    };
-
-    // Create response with cookie
-    const response = NextResponse.json(
+    // Update user with new OTP
+    await db.collection('users').updateOne(
+      { email: email.toLowerCase() },
       {
-        user: responseUser,
+        $set: {
+          otpCode: hash,
+          otpExpiry: expiry,
+        },
+      },
+    );
+
+    // Return success response
+    return NextResponse.json(
+      {
+        success: true,
+        email: email.toLowerCase(),
+        message:
+          'Verification code sent to your email. Please check your inbox.',
       } satisfies LoginResponse,
       { status: 200 },
     );
-
-    // Set HttpOnly cookie with session token
-    response.cookies.set('session', session.token, {
-      httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-      path: '/',
-    });
-
-    return response;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Login error:', error);
 
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message =
+      error instanceof Error ? error.message : 'Internal server error';
 
     return NextResponse.json(
       {

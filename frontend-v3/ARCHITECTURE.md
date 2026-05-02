@@ -24,7 +24,8 @@
 
 ## Executive Summary
 
-**Frontend V3** is a Next.js-based dashboard for managing decentralized quantum computing clusters with:
+**Frontend V3** is a Next.js-based dashboard for managing decentralized quantum
+computing clusters with:
 
 - **Centralized Authentication**: User management in frontend MongoDB
 - **Decentralized Backend**: Open, unauthenticated quantum clusters (REST API)
@@ -35,13 +36,13 @@
 
 **Key Decisions:**
 
-| Decision | Rationale |
-|----------|-----------|
-| **Auth in Frontend Only** | Backend is decentralized; auth breaks consensus model |
-| **MongoDB Only (No Neon)** | NoSQL flexibility for users, sessions, configs |
-| **REST + JSON-RPC Stub** | Backend REST-only now; stub client for future migration |
-| **NO Data Caching** | Quantum job states change rapidly; always fetch fresh |
-| **Server-Side Proxy** | Next.js /api routes validate + forward to clusters |
+| Decision                      | Rationale                                                    |
+| ----------------------------- | ------------------------------------------------------------ |
+| **Auth in Frontend Only**     | Backend is decentralized; auth breaks consensus model        |
+| **MongoDB Only (No Neon)**    | NoSQL flexibility for users, sessions, configs               |
+| **REST + JSON-RPC Stub**      | Backend REST-only now; stub client for future migration      |
+| **NO Data Caching**           | Quantum job states change rapidly; always fetch fresh        |
+| **Server-Side Proxy**         | Next.js /api routes validate + forward to clusters           |
 | **Cluster-Agnostic Frontend** | Frontend knows URLs only; discovers capabilities dynamically |
 
 ---
@@ -124,12 +125,14 @@ All capabilities discovered dynamically:
 **CRITICAL:** Quantum job data is NEVER cached.
 
 **Why:**
+
 - Job states change rapidly (QUEUED → RUNNING → COMPLETED)
 - Cache invalidation across clusters is complex
 - Stale data = poor UX (user sees wrong job status)
 - Real-time accuracy > performance
 
 **What's NOT Cached:**
+
 - ❌ Job lists (`GET /api/v1/jobs`)
 - ❌ Job details (`GET /api/v1/jobs/:id`)
 - ❌ Peer data (`GET /api/v1/discovery/peers`)
@@ -137,21 +140,23 @@ All capabilities discovered dynamically:
 - ❌ Financial analysis outputs
 
 **What IS Stored (Not Cached):**
+
 - ✅ Cluster configs (user-provided URLs) → localStorage
 - ✅ User preferences → MongoDB
 - ✅ Session tokens → HttpOnly cookies
 - ✅ Health status → in-memory only (discarded on refresh)
 
 **TanStack Query Configuration:**
+
 ```typescript
 // CORRECT: No stale time, no caching
 useQuery({
   queryKey: ['runs', clusterId],
   queryFn: () => fetchJobs(clusterId),
-  staleTime: 0,              // Always fetch fresh
-  cacheTime: 0,              // Don't cache responses
+  staleTime: 0, // Always fetch fresh
+  cacheTime: 0, // Don't cache responses
   refetchOnWindowFocus: true, // Refetch on tab switch
-  refetchInterval: 5000       // Poll every 5s for updates
+  refetchInterval: 5000, // Poll every 5s for updates
 });
 ```
 
@@ -162,6 +167,7 @@ Client → /api/proxy/:clusterId/* (authenticated) → Backend (open)
 ```
 
 **Benefits:**
+
 - Cluster URLs hidden from client
 - Rate limiting at Next.js layer
 - SSRF prevention (validate URLs server-side)
@@ -225,6 +231,7 @@ Layer 3: Browser Storage
 ### Zustand Stores
 
 **Auth Store:**
+
 ```typescript
 // store/auth-store.ts
 type AuthStore = {
@@ -236,13 +243,14 @@ type AuthStore = {
 ```
 
 **Cluster Store:**
+
 ```typescript
 // store/cluster-store.ts
 type ClusterStore = {
   activeClusterId: string | null;
   clusters: Record<string, ClusterConfig>; // URLs only
   setActiveCluster: (id: string) => void;
-  
+
   // NO health status caching!
   // Health checked live via API on each load
 };
@@ -282,6 +290,7 @@ DEV_MODE_BYPASS_AUTH=true  # Dev only!
 ```
 
 **Trial Check:**
+
 ```typescript
 if (user.tier === 'free' && new Date() > user.freeTrialExpiresAt) {
   return redirect('/upgrade');
@@ -298,29 +307,30 @@ if (user.tier === 'free' && new Date() > user.freeTrialExpiresAt) {
 type ClusterConfig = {
   _id: ObjectId;
   userId: ObjectId;
-  clusterId: string;        // User-defined ID
+  clusterId: string; // User-defined ID
   name: string;
-  
+
   // Connection (ONLY URLs)
   protocol: 'rest' | 'jsonrpc';
   restUrl?: string;
   rpcUrl?: string;
-  
+
   // User metadata (NOT backend details)
   region?: string;
   provider?: string;
   tags: string[];
   color?: string;
-  
+
   // NO backend-specific fields
   // NO health caching in DB
-  
+
   createdAt: Date;
   updatedAt: Date;
 };
 ```
 
 **Health Checks:**
+
 - In-memory only (Zustand, not persisted)
 - Checked live on app load
 - Polled every 30s while app open
@@ -333,6 +343,7 @@ type ClusterConfig = {
 ### Routes
 
 **Authentication:**
+
 ```
 POST   /api/auth/signup
 POST   /api/auth/login
@@ -341,6 +352,7 @@ GET    /api/auth/session
 ```
 
 **User Management:**
+
 ```
 GET    /api/user/profile
 GET    /api/user/clusters
@@ -349,6 +361,7 @@ DELETE /api/user/clusters/:id
 ```
 
 **Proxy (Authenticated):**
+
 ```
 ALL    /api/proxy/:clusterId/*
 
@@ -365,6 +378,7 @@ GET    /api/proxy/prod-us/api/v1/health
 ### MongoDB Collections
 
 **users:**
+
 ```typescript
 {
   _id: ObjectId,
@@ -382,6 +396,7 @@ GET    /api/proxy/prod-us/api/v1/health
 ```
 
 **sessions:**
+
 ```typescript
 {
   _id: ObjectId,
@@ -395,6 +410,7 @@ GET    /api/proxy/prod-us/api/v1/health
 ```
 
 **cluster_configs:**
+
 ```typescript
 {
   _id: ObjectId,
@@ -404,15 +420,15 @@ GET    /api/proxy/prod-us/api/v1/health
   protocol: 'rest' | 'jsonrpc',
   restUrl?: string,
   rpcUrl?: string,
-  
+
   // User metadata
   region?: string,
   provider?: string,
   tags: string[],
-  
+
   // NO health status in DB
   // NO backend capabilities
-  
+
   createdAt: Date,
   updatedAt: Date
 }
@@ -425,9 +441,11 @@ GET    /api/proxy/prod-us/api/v1/health
 ### Critical Security Measures
 
 **1. Password Security:**
+
 ```typescript
 // Bcrypt cost 12, password complexity enforced
-const PasswordSchema = z.string()
+const PasswordSchema = z
+  .string()
   .min(12)
   .regex(/[A-Z]/, 'Uppercase required')
   .regex(/[a-z]/, 'Lowercase required')
@@ -436,6 +454,7 @@ const PasswordSchema = z.string()
 ```
 
 **2. JWT Security:**
+
 ```typescript
 // 256-bit secret, HttpOnly cookies
 const JWT_SECRET = process.env.JWT_SECRET; // Min 64 hex chars
@@ -446,18 +465,19 @@ res.cookies.set('session', token, {
   httpOnly: true,
   secure: true,
   sameSite: 'lax',
-  maxAge: 7 * 24 * 60 * 60
+  maxAge: 7 * 24 * 60 * 60,
 });
 ```
 
 **3. SSRF Prevention:**
+
 ```typescript
 // Block private IPs
 const blockedPatterns = [
-  /^(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/
+  /^(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/,
 ];
 
-if (blockedPatterns.some(p => p.test(hostname))) {
+if (blockedPatterns.some((p) => p.test(hostname))) {
   throw new Error('Invalid cluster URL');
 }
 
@@ -468,27 +488,32 @@ if (NODE_ENV === 'production' && protocol !== 'https:') {
 ```
 
 **4. Rate Limiting:**
+
 ```typescript
 // 100 req/min for general API
 // 60 req/min for proxy routes
 const limiter = new RateLimiter({
   interval: 60 * 1000,
-  limit: 100
+  limit: 100,
 });
 ```
 
 **5. Security Headers:**
+
 ```typescript
 // Strict CSP, HSTS, X-Frame-Options
-response.headers.set('Content-Security-Policy',
-  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval';"
+response.headers.set(
+  'Content-Security-Policy',
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval';",
 );
-response.headers.set('Strict-Transport-Security',
-  'max-age=31536000; includeSubDomains'
+response.headers.set(
+  'Strict-Transport-Security',
+  'max-age=31536000; includeSubDomains',
 );
 ```
 
 **6. Input Validation:**
+
 ```typescript
 // All inputs validated with Zod
 // XSS sanitization
@@ -502,6 +527,7 @@ response.headers.set('Strict-Transport-Security',
 ### What's NEVER Cached
 
 **Backend Quantum Data:**
+
 - ❌ Job lists
 - ❌ Job details
 - ❌ Circuit results
@@ -514,11 +540,13 @@ response.headers.set('Strict-Transport-Security',
 ### What's Stored (Not Cached)
 
 **Persistent:**
+
 - ✅ Cluster configs (localStorage, encrypted)
 - ✅ User preferences (MongoDB)
 - ✅ Session tokens (HttpOnly cookies)
 
 **Transient (In-Memory):**
+
 - ✅ Health status (Zustand, discarded on refresh)
 - ✅ Active cluster selection (Zustand)
 
@@ -527,11 +555,11 @@ response.headers.set('Strict-Transport-Security',
 ```typescript
 // ALWAYS fetch fresh data
 const queryConfig = {
-  staleTime: 0,              // Data immediately stale
-  cacheTime: 0,              // Don't cache responses
+  staleTime: 0, // Data immediately stale
+  cacheTime: 0, // Don't cache responses
   refetchOnMount: true,
   refetchOnWindowFocus: true,
-  refetchInterval: 5000      // Poll every 5s
+  refetchInterval: 5000, // Poll every 5s
 };
 ```
 

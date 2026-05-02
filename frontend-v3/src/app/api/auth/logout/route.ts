@@ -10,8 +10,11 @@
  * @see ARCHITECTURE.md lines 336-341
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+
 import { deleteSession } from '@/lib/auth/session';
+
+import type { NextRequest } from 'next/server';
 
 /**
  * Logout response
@@ -31,7 +34,7 @@ interface ErrorResponse {
 /**
  * GET handler - not supported
  */
-export async function GET() {
+export function GET(): NextResponse {
   return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Get session token from cookie
     const token = request.cookies.get('session')?.value;
 
-    if (!token) {
+    if (token === undefined || token === '') {
       // No session to log out from
       return NextResponse.json(
         {
@@ -75,10 +78,11 @@ export async function POST(request: NextRequest) {
     response.cookies.delete('session');
 
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Logout error:', error);
 
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message =
+      error instanceof Error ? error.message : 'Internal server error';
 
     return NextResponse.json(
       {

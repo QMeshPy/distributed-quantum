@@ -11,11 +11,14 @@
  * @see ARCHITECTURE.md lines 336-341
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getDB } from '@/lib/mongodb';
+import { NextResponse } from 'next/server';
+
 import { verifyToken } from '@/lib/auth/jwt';
 import { getSession } from '@/lib/auth/session';
+import { getDB } from '@/lib/mongodb';
 import type { User, ClientUser } from '@/types/user';
+
+import type { NextRequest } from 'next/server';
 
 /**
  * Session response with user data
@@ -34,7 +37,7 @@ interface ErrorResponse {
 /**
  * POST handler - not supported
  */
-export async function POST() {
+export function POST(): NextResponse {
   return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
     // Get session token from cookie
     const token = request.cookies.get('session')?.value;
 
-    if (!token) {
+    if (token === undefined || token === '') {
       // No session cookie
       return NextResponse.json(
         {
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest) {
     // Verify JWT token
     const payload = await verifyToken(token);
 
-    if (!payload) {
+    if (payload === null) {
       // Invalid or expired JWT
       return NextResponse.json(
         {
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
     // Get session from database
     const session = await getSession(token);
 
-    if (!session) {
+    if (session === null) {
       // Session not found or expired
       return NextResponse.json(
         {
@@ -98,7 +101,7 @@ export async function GET(request: NextRequest) {
       _id: session.userId,
     });
 
-    if (!user) {
+    if (user === null) {
       // User not found (should not happen)
       return NextResponse.json(
         {
@@ -108,11 +111,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Prepare response user (without passwordHash)
+    // Prepare response user (without otpCode)
+    // Convert ObjectId to string for client
     const responseUser: ClientUser = {
-      _id: user._id,
+      _id: user._id.toString(),
       email: user.email,
       name: user.name,
+      organisation: user.organisation,
+      roleInOrg: user.roleInOrg,
+      city: user.city,
+      otpExpiry: user.otpExpiry,
+      otpVerified: user.otpVerified,
       tier: user.tier,
       freeTrialExpiresAt: user.freeTrialExpiresAt,
       createdAt: user.createdAt,
@@ -125,10 +134,11 @@ export async function GET(request: NextRequest) {
       } satisfies SessionResponse,
       { status: 200 },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Session retrieval error:', error);
 
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message =
+      error instanceof Error ? error.message : 'Internal server error';
 
     return NextResponse.json(
       {

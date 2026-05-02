@@ -80,14 +80,14 @@ export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 export const apiErrorSchema = z.object({
   code: z.string(),
   message: z.string(),
-  details: z.record(z.unknown()).optional(),
-  fieldErrors: z.record(z.array(z.string())).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
+  fieldErrors: z.record(z.string(), z.array(z.string())).optional(),
 });
 
 /**
  * Zod schema for success response
  */
-export const apiSuccessResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+export const apiSuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
   z.object({
     success: z.literal(true),
     data: dataSchema,
@@ -104,7 +104,7 @@ export const apiErrorResponseSchema = z.object({
 /**
  * Create a typed API response schema
  */
-export const apiResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+export const apiResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
   z.union([apiSuccessResponseSchema(dataSchema), apiErrorResponseSchema]);
 
 /**
@@ -154,7 +154,18 @@ export interface LoginResponse {
     _id: string;
     email: string;
     name: string;
+    organisation?: string;
+    roleInOrg?: string;
+    city?: string;
+    otpExpiry?: string;
+    otpVerified?: boolean;
     tier: string;
+    freeTrialExpiresAt?: string;
+    createdAt?: string;
+    preferences?: {
+      theme?: 'light' | 'dark';
+      defaultClusterId?: string;
+    };
   };
   token: string;
   expiresAt: string;
@@ -201,12 +212,12 @@ export interface RefreshTokenResponse {
  */
 
 export const loginRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
 
 export const signupRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(1, 'Name is required'),
 });
@@ -232,7 +243,7 @@ export function createErrorResponse(
   code: ApiErrorCode | string,
   message: string,
   details?: Record<string, unknown>,
-  fieldErrors?: Record<string, string[]>
+  fieldErrors?: Record<string, string[]>,
 ): ApiErrorResponse {
   return {
     success: false,
@@ -249,14 +260,16 @@ export function createErrorResponse(
  * Type guard to check if response is successful
  */
 export function isSuccessResponse<T>(
-  response: ApiResponse<T>
+  response: ApiResponse<T>,
 ): response is ApiSuccessResponse<T> {
-  return response.success === true;
+  return response.success;
 }
 
 /**
  * Type guard to check if response is an error
  */
-export function isErrorResponse(response: ApiResponse): response is ApiErrorResponse {
-  return response.success === false;
+export function isErrorResponse(
+  response: ApiResponse,
+): response is ApiErrorResponse {
+  return !response.success;
 }

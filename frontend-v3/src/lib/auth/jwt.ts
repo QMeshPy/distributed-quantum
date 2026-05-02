@@ -13,6 +13,7 @@
  */
 
 import { SignJWT, jwtVerify } from 'jose';
+
 import { env } from '@/lib/env';
 
 /**
@@ -38,15 +39,17 @@ export interface JWTPayload {
  * @returns Number of seconds until expiration
  */
 function parseExpiresIn(expiresIn: string): number {
-  const match = expiresIn.match(/^(\d+)([dhms])?$/);
+  const match = /^(\d+)([dhms])?$/.exec(expiresIn);
 
-  if (!match) {
-    console.warn(`Invalid JWT_EXPIRES_IN format: ${expiresIn}, defaulting to 7 days`);
+  if (match === null || match === undefined) {
+    console.warn(
+      `Invalid JWT_EXPIRES_IN format: ${expiresIn}, defaulting to 7 days`,
+    );
     return 7 * 24 * 60 * 60; // 7 days in seconds
   }
 
   const value = parseInt(match[1], 10);
-  const unit = match[2] || 's'; // Default to seconds if no unit
+  const unit = match[2] !== '' && match[2] !== undefined ? match[2] : 's'; // Default to seconds if no unit
 
   switch (unit) {
     case 'd':
@@ -154,8 +157,8 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
     if (
       typeof payload.userId !== 'string' ||
       typeof payload.email !== 'string' ||
-      !payload.userId ||
-      !payload.email
+      payload.userId === '' ||
+      payload.email === ''
     ) {
       console.error('Invalid JWT payload structure:', payload);
       return null;

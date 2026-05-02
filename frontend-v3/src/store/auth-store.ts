@@ -13,9 +13,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+
+import type { LoginResponse } from '@/types/api';
 import type { ClientUser } from '@/types/user';
-import type { LoginResponse, LogoutResponse } from '@/types/api';
-import { ApiErrorCode } from '@/types/api';
 
 /**
  * Authentication store state and actions
@@ -67,7 +67,9 @@ interface AuthStore {
    *
    * @param preferences - Partial preferences to update
    */
-  updateUserPreferences: (preferences: Partial<ClientUser['preferences']>) => void;
+  updateUserPreferences: (
+    preferences: Partial<ClientUser['preferences']>,
+  ) => void;
 
   /**
    * Internal: Set user state
@@ -103,26 +105,40 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = (await response.json()) as {
+              error?: { message?: string };
+            };
+            const errorMessage = errorData.error?.message;
             throw new Error(
-              errorData.error?.message ||
-              `Login failed: ${response.status} ${response.statusText}`
+              typeof errorMessage === 'string' && errorMessage.length > 0
+                ? errorMessage
+                : `Login failed: ${response.status} ${response.statusText}`,
             );
           }
 
-          const data: LoginResponse = await response.json();
+          const data = (await response.json()) as LoginResponse;
 
           // Convert API response to ClientUser format
           const user: ClientUser = {
-            _id: data.user._id as any, // ObjectId will be serialized as string from API
+            _id: data.user._id,
             email: data.user.email,
             name: data.user.name,
-            tier: data.user.tier as any,
-            freeTrialExpiresAt: new Date(data.user.tier === 'free' ? Date.now() + 14 * 24 * 60 * 60 * 1000 : 0),
-            createdAt: new Date(),
+            organisation: data.user.organisation ?? '',
+            roleInOrg: data.user.roleInOrg ?? '',
+            city: data.user.city ?? '',
+            otpExpiry: data.user.otpExpiry ? new Date(data.user.otpExpiry) : null,
+            otpVerified: data.user.otpVerified ?? false,
+            tier: data.user.tier as 'free' | 'pro' | 'enterprise',
+            freeTrialExpiresAt: new Date(
+              data.user.freeTrialExpiresAt ??
+                (data.user.tier === 'free'
+                  ? Date.now() + 14 * 24 * 60 * 60 * 1000
+                  : 0),
+            ),
+            createdAt: new Date(data.user.createdAt ?? Date.now()),
             preferences: {
-              theme: 'light',
-              defaultClusterId: undefined,
+              theme: data.user.preferences?.theme ?? 'light',
+              defaultClusterId: data.user.preferences?.defaultClusterId,
             },
           };
 
@@ -178,19 +194,42 @@ export const useAuthStore = create<AuthStore>()(
             return;
           }
 
-          const data = await response.json();
+          const data = (await response.json()) as {
+            user: {
+              _id: string;
+              email: string;
+              name: string;
+              organisation?: string;
+              roleInOrg?: string;
+              city?: string;
+              otpExpiry?: string;
+              otpVerified?: boolean;
+              tier: string;
+              freeTrialExpiresAt: string;
+              createdAt: string;
+              preferences?: {
+                theme: 'light' | 'dark';
+                defaultClusterId?: string;
+              };
+            };
+          };
 
           // Convert API response to ClientUser format
           const user: ClientUser = {
-            _id: data.user._id as any,
+            _id: data.user._id,
             email: data.user.email,
             name: data.user.name,
-            tier: data.user.tier as any,
+            organisation: data.user.organisation ?? '',
+            roleInOrg: data.user.roleInOrg ?? '',
+            city: data.user.city ?? '',
+            otpExpiry: data.user.otpExpiry ? new Date(data.user.otpExpiry) : null,
+            otpVerified: data.user.otpVerified ?? false,
+            tier: data.user.tier as 'free' | 'pro' | 'enterprise',
             freeTrialExpiresAt: new Date(data.user.freeTrialExpiresAt),
             createdAt: new Date(data.user.createdAt),
-            preferences: data.user.preferences || {
-              theme: 'light',
-              defaultClusterId: undefined,
+            preferences: {
+              theme: data.user.preferences?.theme ?? 'light',
+              defaultClusterId: data.user.preferences?.defaultClusterId,
             },
           };
 
@@ -212,7 +251,7 @@ export const useAuthStore = create<AuthStore>()(
 
       updateUserPreferences: (preferences) => {
         const currentUser = get().user;
-        if (!currentUser) {
+        if (currentUser === null) {
           console.warn('Cannot update preferences: no user logged in');
           return;
         }
@@ -247,11 +286,11 @@ export const useAuthStore = create<AuthStore>()(
 
       // Restore preferences on mount
       onRehydrateStorage: () => (state) => {
-        if (state) {
+        if (state !== undefined) {
           // Trigger session check to restore full user state
-          state.checkSession();
+          void state.checkSession();
         }
       },
-    }
-  )
+    },
+  ),
 );

@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -106,9 +106,14 @@
   --spacing-section: 96px;
 
   /* Typography - Font Families */
-  --font-haas: "Haas Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
-  --font-haas-display: "Haas Groot Disp", "Haas Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-inter-display: "Inter Display", system-ui, -apple-system, sans-serif;
+  --font-haas:
+    'Haas Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  --font-haas-display:
+    'Haas Groot Disp', 'Haas Grotesk', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+  --font-inter-display: 'Inter Display', system-ui, -apple-system, sans-serif;
 
   /* Shadcn/UI Compatibility Mappings */
   --background: var(--color-canvas);
