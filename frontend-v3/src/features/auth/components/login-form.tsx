@@ -35,20 +35,20 @@ function StepIndicator({ currentStep }: { currentStep: 1 | 2 }) {
   return (
     <div className='flex items-center justify-center gap-2 mb-6'>
       <div
-        className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+        className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
           currentStep === 1
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-surface-soft text-muted-foreground'
+            ? 'bg-primary text-on-primary'
+            : 'bg-surface-soft text-body'
         }`}
       >
         1
       </div>
       <div className='w-12 h-px bg-border' />
       <div
-        className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+        className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
           currentStep === 2
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-surface-soft text-muted-foreground'
+            ? 'bg-primary text-on-primary'
+            : 'bg-surface-soft text-body'
         }`}
       >
         2
@@ -214,7 +214,7 @@ export function LoginForm() {
                   }
                 />
                 {emailError.length > 0 && (
-                  <p id='email-error' className='text-sm text-destructive'>
+                  <p id='email-error' className='text-sm text-info'>
                     {emailError}
                   </p>
                 )}
@@ -222,7 +222,7 @@ export function LoginForm() {
 
               {/* General Error */}
               {generalError.length > 0 && (
-                <div className='rounded-lg bg-destructive/10 p-3 text-sm text-destructive'>
+                <div className='rounded-lg bg-surface-soft border border-hairline p-3 text-sm text-body'>
                   {generalError}
                 </div>
               )}
@@ -239,11 +239,11 @@ export function LoginForm() {
               {isLoading ? 'Sending code...' : 'Send Code'}
             </Button>
 
-            <p className='text-sm text-muted-foreground'>
+            <p className='text-sm text-body'>
               Don&apos;t have an account?{' '}
               <Link
                 href='/signup'
-                className='text-link hover:text-link-active underline-offset-4 hover:underline'
+                className='text-link underline-offset-4'
               >
                 Create account
               </Link>
@@ -282,7 +282,7 @@ export function LoginForm() {
                   type='button'
                   onClick={handleResendOtp}
                   disabled={resendCooldown > 0 || isLoading}
-                  className='text-sm text-link hover:text-link-active underline-offset-4 hover:underline disabled:opacity-50 disabled:pointer-events-none'
+                  className='text-sm text-link underline-offset-4 disabled:opacity-50 disabled:pointer-events-none'
                 >
                   {resendCooldown > 0
                     ? `Resend code in ${resendCooldown}s`
@@ -292,7 +292,7 @@ export function LoginForm() {
 
               {/* General Error */}
               {generalError.length > 0 && (
-                <div className='rounded-lg bg-destructive/10 p-3 text-sm text-destructive'>
+                <div className='rounded-lg bg-surface-soft border border-hairline p-3 text-sm text-body'>
                   {generalError}
                 </div>
               )}
@@ -316,7 +316,7 @@ export function LoginForm() {
                 setOtp('');
               }}
               disabled={isLoading}
-              className='text-sm text-muted-foreground hover:text-foreground disabled:opacity-50'
+              className='text-sm text-body disabled:opacity-50'
             >
               Back to email
             </button>

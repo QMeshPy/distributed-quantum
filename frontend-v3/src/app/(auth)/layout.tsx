@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
     <div className='min-h-screen bg-canvas flex flex-col items-center justify-center p-4'>
       {/* Logo/Brand */}
       <div className='mb-8'>
-        <h1 className='text-2xl font-medium text-ink'>Quantum Computing</h1>
+        <h1 className='text-2xl font-normal text-ink'>Quantum Computing</h1>
       </div>
 
       {/* Card Container */}

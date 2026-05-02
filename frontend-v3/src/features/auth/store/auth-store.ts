@@ -213,8 +213,17 @@ export const useAuthStore = create<AuthStore>()(
                 theme: 'light' | 'dark';
                 defaultClusterId?: string;
               };
-            };
+            } | null;
           };
+
+          if (!data.user) {
+            set({
+              user: null,
+              isAuthenticated: false,
+              isCheckingSession: false,
+            });
+            return;
+          }
 
           // Convert API response to ClientUser format
           const user: ClientUser = {
