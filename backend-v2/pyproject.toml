@@ -30,6 +30,8 @@ dependencies = [
   "python-multipart>=0.0.26",
   "qiskit>=1.2.0",
   "qiskit-aer>=0.15.0",
+  "qiskit-algorithms>=0.3.0",
+  "qiskit-finance>=0.4.0",
   "scipy>=1.12.0",
   "numpy>=1.26.0",
 ]

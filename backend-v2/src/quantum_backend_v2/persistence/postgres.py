@@ -155,6 +155,21 @@ class FinancialJobRecord(TimestampedRecordMixin, PostgresBase):
     result_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
 
+class OptionsJobRecord(TimestampedRecordMixin, PostgresBase):
+    """Durable real options pricing job state."""
+
+    __tablename__ = "options_jobs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("platform_users.id"), nullable=True, index=True
+    )
+    option_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+
+
 class ReservationEventRecord(PostgresBase):
     """Append-only reservation event log — never updated, only inserted.
 

@@ -22,6 +22,7 @@ from quantum_backend_v2.identity.models import UserTokenClaims
 from quantum_backend_v2.persistence.postgres import (
     ExecutionPlanRecord,
     FinancialJobRecord,
+    OptionsJobRecord,
     PlatformUserRecord,
     WorkflowRunRecord,
 )
@@ -44,6 +45,12 @@ _FIN_STATUS_COMPLETED = "completed"
 _FIN_STATUS_FAILED = "failed"
 _TERMINAL_FINANCIAL_STATUSES = {_FIN_STATUS_COMPLETED, _FIN_STATUS_FAILED}
 _FINANCIAL_PROBLEM_TYPE = "portfolio_optimization"
+
+_OPT_STATUS_QUEUED = "queued"
+_OPT_STATUS_RUNNING = "running"
+_OPT_STATUS_COMPLETED = "completed"
+_OPT_STATUS_FAILED = "failed"
+_TERMINAL_OPTIONS_STATUSES = {_OPT_STATUS_COMPLETED, _OPT_STATUS_FAILED}
 
 
 def _utc_now() -> datetime:
@@ -626,3 +633,97 @@ async def _ensure_platform_user(session: Any, user_id: str) -> None:
         )
     )
     await session.flush()
+
+
+class OptionsJobService:
+    """Durable Track C real options pricing service (QAE vs Black-Scholes)."""
+
+    def __init__(self, *, session_factory: Any) -> None:
+        if session_factory is None:
+            raise RuntimeError("OptionsJobService requires a configured Postgres session factory")
+        self._session_factory = session_factory
+
+    async def submit(
+        self,
+        *,
+        option_type: str,
+        owner_user_id: str,
+        request_payload: dict[str, Any],
+    ) -> OptionsJobRecord:
+        job_id = f"opt-{uuid.uuid4()}"
+        async with self._session_factory() as session:
+            await _ensure_platform_user(session, owner_user_id)
+            record = OptionsJobRecord(
+                id=job_id,
+                owner_user_id=owner_user_id,
+                option_type=option_type,
+                status=_OPT_STATUS_QUEUED,
+                error=None,
+                result_payload=None,
+            )
+            session.add(record)
+            await session.commit()
+            await session.refresh(record)
+            return record
+
+    async def process(self, *, job_id: str, request_payload: dict[str, Any]) -> None:
+        from quantum_backend_v2.application.real_options_pricing import price_options
+
+        async with self._session_factory() as session:
+            record = await session.get(OptionsJobRecord, job_id)
+            if record is None or record.status in _TERMINAL_OPTIONS_STATUSES:
+                return
+            record.status = _OPT_STATUS_RUNNING
+            await session.commit()
+
+        try:
+            payload_with_id = dict(request_payload)
+            payload_with_id["job_id"] = job_id
+            result = price_options(payload_with_id)
+
+            async with self._session_factory() as session:
+                record = await session.get(OptionsJobRecord, job_id)
+                if record is None:
+                    return
+                record.status = _OPT_STATUS_COMPLETED
+                record.error = None
+                record.result_payload = result
+                await session.commit()
+        except Exception as exc:
+            async with self._session_factory() as session:
+                record = await session.get(OptionsJobRecord, job_id)
+                if record is None:
+                    return
+                record.status = _OPT_STATUS_FAILED
+                record.error = str(exc)
+                await session.commit()
+
+    async def get_job(
+        self,
+        job_id: str,
+        *,
+        current_user: UserTokenClaims,
+    ) -> OptionsJobRecord | None:
+        async with self._session_factory() as session:
+            stmt = select(OptionsJobRecord).where(OptionsJobRecord.id == job_id)
+            if not current_user.is_admin():
+                stmt = stmt.where(OptionsJobRecord.owner_user_id == current_user.user_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+
+    async def list_jobs(
+        self,
+        *,
+        current_user: UserTokenClaims,
+        limit: int = 20,
+    ) -> list[OptionsJobRecord]:
+        async with self._session_factory() as session:
+            stmt = (
+                select(OptionsJobRecord)
+                .order_by(OptionsJobRecord.created_at.desc())
+                .limit(limit)
+            )
+            if not current_user.is_admin():
+                stmt = stmt.where(OptionsJobRecord.owner_user_id == current_user.user_id)
+            result = await session.execute(stmt)
+            return list(result.scalars().all())

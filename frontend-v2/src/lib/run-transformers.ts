@@ -40,6 +40,8 @@ type BuildRunsListSnapshotInput = {
 	jobsListUnavailable?: boolean;
 	/** Financial CSV analysis jobs (merged into run history). */
 	financialJobs?: BackendFinancialJobListItem[];
+	/** Real options pricing jobs (merged into run history). */
+	optionsJobs?: BackendOptionsJobListItem[];
 };
 
 type BuildRunDetailSnapshotInput = {
@@ -289,6 +291,76 @@ function formatFinancialPreview(filename: string, problemType?: string | null) {
 	return `${label} - ${filename}`;
 }
 
+/** Shape returned by GET /api/v1/options?limit=N */
+export type BackendOptionsJobListItem = {
+	job_id: string;
+	option_type: string;
+	status: string;
+	error: string | null;
+	created_at: string;
+	updated_at: string;
+};
+
+const OPTION_TYPE_LABELS: Record<string, string> = {
+	european_call_short: 'European Call (Short-term)',
+	european_put_long: 'European Put (Long-term)',
+	expand: 'Option to Expand',
+	delay: 'Option to Delay',
+	abandon: 'Option to Abandon',
+	patent: 'Patent / R&D Option',
+	natural_resource: 'Natural Resource Option',
+	financial_flexibility: 'Financial Flexibility Option'
+};
+
+function optionsStatusToGroup(status: string): import('@/types/runs').RunStatusGroup {
+	switch (status.toLowerCase()) {
+		case 'queued':
+			return 'queued';
+		case 'running':
+			return 'running';
+		case 'completed':
+			return 'completed';
+		default:
+			return 'failed';
+	}
+}
+
+function optionsBadgeVariant(status: string): import('@/types/runs').RunBadgeVariant {
+	switch (status.toLowerCase()) {
+		case 'queued':
+			return 'secondary';
+		case 'running':
+			return 'default';
+		case 'completed':
+			return 'outline';
+		default:
+			return 'destructive';
+	}
+}
+
+function toRunSummaryFromOptionsListItem(row: BackendOptionsJobListItem, referenceDate: Date): RunSummary {
+	const label = OPTION_TYPE_LABELS[row.option_type] ?? row.option_type;
+	const statusLabel =
+		row.status.charAt(0).toUpperCase() + row.status.slice(1).toLowerCase();
+	return {
+		id: row.job_id,
+		jobKind: 'options',
+		backendStatus: row.status as import('@/types/runs').RunListBackendStatus,
+		statusLabel,
+		statusGroup: optionsStatusToGroup(row.status),
+		badgeVariant: optionsBadgeVariant(row.status),
+		circuitPreview: `Real Options Pricing – ${label}`,
+		planId: null,
+		error: row.error,
+		resultAvailable: row.status.toLowerCase() === 'completed',
+		createdAt: row.created_at,
+		createdAtLabel: formatAbsoluteDateTime(row.created_at),
+		updatedAt: row.updated_at,
+		updatedAtLabel: formatRelativeTime(row.updated_at, referenceDate),
+		progress: null
+	};
+}
+
 function toTrackBRunSummaryFromFinancialListItem(
 	row: BackendFinancialJobListItem,
 	referenceDate: Date
@@ -432,12 +504,14 @@ export function buildRunsListSnapshot({
 	jobs,
 	warnings = [],
 	jobsListUnavailable = false,
-	financialJobs = []
+	financialJobs = [],
+	optionsJobs = []
 }: BuildRunsListSnapshotInput): RunsListSnapshot {
 	const referenceDate = new Date(generatedAt);
 	const circuitRuns = jobs.map(job => toRunSummaryFromListItem(job, referenceDate));
 	const financialRuns = financialJobs.map(row => toTrackBRunSummaryFromFinancialListItem(row, referenceDate));
-	const runs = sortRunSummaries([...circuitRuns, ...financialRuns]);
+	const optionsRuns = optionsJobs.map(row => toRunSummaryFromOptionsListItem(row, referenceDate));
+	const runs = sortRunSummaries([...circuitRuns, ...financialRuns, ...optionsRuns]);
 
 	return {
 		generatedAt,

@@ -468,9 +468,11 @@ export function RunsPageClient() {
 										</TableHeader>
 										<TableBody>
 											{rows.map(row => {
-												const detailHref =
-													row.jobKind === 'financial'
-														? `/finance?jobId=${encodeURIComponent(row.id)}`
+											const detailHref =
+												row.jobKind === 'financial'
+													? `/finance?jobId=${encodeURIComponent(row.id)}`
+													: row.jobKind === 'options'
+														? `/options?jobId=${encodeURIComponent(row.id)}`
 														: `/runs/${encodeURIComponent(row.id)}`;
 												return (
 													<TableRow key={row.id}>
@@ -491,6 +493,11 @@ export function RunsPageClient() {
 																	row.backendStatus === 'COMPLETED'
 																		? ' · result ready'
 																		: ''}
+																</div>
+															) : row.jobKind === 'options' ? (
+																<div className='mt-1 text-xs text-muted-foreground'>
+																	Options pricing
+																	{row.resultAvailable ? ' · result ready' : ''}
 																</div>
 															) : null}
 															{row.planId ? (

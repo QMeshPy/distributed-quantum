@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BackendClientError, fetchBackendJson, getBackendBaseUrl } from '@/lib/backend-client';
 import { normalizeFinancialJobList } from '@/lib/backend-normalizers';
 import { buildRunsListSnapshot } from '@/lib/run-transformers';
+import type { BackendOptionsJobListItem } from '@/lib/run-transformers';
 import type {
 	BackendCircuitSubmitRequest,
 	BackendCircuitSubmitResponse,
@@ -41,15 +42,17 @@ export async function GET(request: NextRequest) {
 			jobsPath.append('status', status);
 		}
 
-		const [healthResult, jobsResult, financeResult] = await Promise.allSettled([
+		const [healthResult, jobsResult, financeResult, optionsResult] = await Promise.allSettled([
 			fetchBackendJson<BackendHealthResponse>('/api/v1/health'),
 			fetchBackendJson<BackendJobListItemResponse[]>(`/api/v1/jobs?${jobsPath.toString()}`),
-			fetchBackendJson<unknown[]>(`/api/v1/finance?limit=${limit}`)
+			fetchBackendJson<unknown[]>(`/api/v1/finance?limit=${limit}`),
+			fetchBackendJson<BackendOptionsJobListItem[]>(`/api/v1/options?limit=${limit}`)
 		]);
 
 		let jobs: BackendJobListItemResponse[] = [];
 		let jobsListUnavailable = false;
 		let financialJobs: BackendFinancialJobListItem[] = [];
+		let optionsJobs: BackendOptionsJobListItem[] = [];
 
 		if (jobsResult.status === 'fulfilled') {
 			jobs = jobsResult.value;
@@ -93,12 +96,24 @@ export async function GET(request: NextRequest) {
 			}
 		}
 
+		if (optionsResult.status === 'fulfilled') {
+			optionsJobs = Array.isArray(optionsResult.value) ? optionsResult.value : [];
+		} else if (optionsResult.status === 'rejected') {
+			const reason = optionsResult.reason;
+			if (!(reason instanceof BackendClientError && reason.status === 404)) {
+				warnings.push(
+					`Options pricing history could not be loaded (${reason instanceof BackendClientError ? (reason.details ?? reason.message) : 'unknown error'}).`
+				);
+			}
+		}
+
 		return NextResponse.json(
 			buildRunsListSnapshot({
 				generatedAt,
 				health: healthResult.status === 'fulfilled' ? healthResult.value : null,
 				jobs,
 				financialJobs,
+				optionsJobs,
 				warnings,
 				jobsListUnavailable
 			})

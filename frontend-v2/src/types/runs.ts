@@ -50,8 +50,8 @@ export type RunProgressSummary = {
 
 export type RunSummary = {
 	id: string;
-	/** Circuit execution vs financial CSV analysis (default circuit). */
-	jobKind?: 'circuit' | 'financial';
+	/** Circuit execution vs financial CSV analysis vs real options pricing. */
+	jobKind?: 'circuit' | 'financial' | 'options';
 	backendStatus: RunListBackendStatus;
 	statusLabel: string;
 	statusGroup: RunStatusGroup;
