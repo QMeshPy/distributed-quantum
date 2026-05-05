@@ -44,6 +44,7 @@ export const BACKEND = {
       `${BASE_URL}/api/v1/discovery/peers/${id}` as const,
     TOPOLOGY: `${BASE_URL}/api/v1/discovery/topology`,
     NETWORK_TOPOLOGY: `${BASE_URL}/api/v1/discovery/network/topology`,
+    STATS: `${BASE_URL}/api/v1/discovery/stats`,
   },
   SERVICES: {
     LIST: `${BASE_URL}/api/v1/services`,

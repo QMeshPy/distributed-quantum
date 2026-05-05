@@ -8,6 +8,7 @@ export { ServiceTable } from "./components/service-table";
 // Hooks
 export { useNetworkFidelity } from "./hooks/use-network-fidelity";
 export { useNetworkNodes } from "./hooks/use-network-nodes";
+export { useNetworkStats } from "./hooks/use-network-stats";
 export { useNetworkTopology } from "./hooks/use-network-topology";
 
 // Types
@@ -17,5 +18,6 @@ export type {
   ServiceNode,
   FidelityMetrics,
   NetworkTopology,
+  NetworkStats,
   HealthSummary,
 } from "./types";

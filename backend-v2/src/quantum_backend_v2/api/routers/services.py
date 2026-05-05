@@ -50,6 +50,8 @@ def build_services_router(*, discovery_service: DiscoveryService) -> APIRouter:
                         qubit_max=capabilities.qubit_max,
                         availability=peer.health_status == "healthy",
                         updated_at=peer.last_seen_at,
+                        gate_set=capabilities.gate_set,
+                        connectivity=capabilities.connectivity,
                     )
                 )
         

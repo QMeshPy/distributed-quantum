@@ -4,11 +4,13 @@ import type {
   BackendTopologyResponse,
   BackendServiceResponse,
   BackendFidelityMetrics,
+  BackendNetworkStats,
   PeerSummary,
   PeerDetail,
   NetworkTopology,
   ServiceNode,
   FidelityMetrics,
+  NetworkStats,
 } from "../types";
 
 export function transformPeerSummary(p: BackendPeerSummary): PeerSummary {
@@ -46,17 +48,19 @@ export function transformPeerDetail(p: BackendPeerDetail): PeerDetail {
 }
 
 export function transformTopology(t: BackendTopologyResponse): NetworkTopology {
+  const peers = (t.peers ?? []).map((p) => ({
+    peerId: p.peer_id,
+    trustTier: p.trust_tier,
+    healthStatus: p.health_status,
+    lastSeenAt: p.last_seen_at,
+    isStale: p.is_stale ?? false,
+  }));
+  const activePeers = peers.filter((p) => !p.isStale).length;
   return {
-    peers: t.peers.map((p) => ({
-      peerId: p.peer_id,
-      trustTier: p.trust_tier,
-      healthStatus: p.health_status,
-      lastSeenAt: p.last_seen_at,
-      isStale: p.is_stale,
-    })),
-    totalPeers: t.total_peers,
-    activePeers: t.active_peers,
-    stalePeers: t.stale_peers,
+    peers,
+    totalPeers: t.total ?? peers.length,
+    activePeers,
+    stalePeers: peers.length - activePeers,
   };
 }
 
@@ -70,6 +74,21 @@ export function transformService(s: BackendServiceResponse): ServiceNode {
     qubitMax: s.qubit_max,
     availability: s.availability,
     updatedAt: s.updated_at,
+    gateSet: s.gate_set ?? [],
+    connectivity: s.connectivity ?? "all-to-all",
+  };
+}
+
+export function transformNetworkStats(s: BackendNetworkStats): NetworkStats {
+  return {
+    totalPeers: s.total_peers,
+    activePeers: s.active_peers,
+    stalePeers: s.stale_peers,
+    totalServices: s.total_services,
+    uniqueServiceTypes: s.unique_service_types,
+    avgFidelity: s.avg_fidelity,
+    avgServicesPerPeer: s.avg_services_per_peer,
+    generatedAt: s.generated_at,
   };
 }
 

@@ -43,7 +43,7 @@ export function ServiceTable() {
           key={`${svc.nodeId}-${svc.serviceType}`}
           className={`grid grid-cols-5 gap-4 items-center px-4 py-3 hover:bg-white/3 transition-colors ${i > 0 ? "border-t border-white/5" : ""}`}
         >
-          <span className="font-mono text-xs text-white/50">{svc.nodeId.slice(0, 18)}…</span>
+          <span className="font-mono text-xs text-white/50">{(svc.nodeId ?? "").slice(0, 18)}…</span>
           <span className="text-sm text-white/70">{svc.serviceType}</span>
           <span className="tabular-nums text-sm font-medium text-indigo-400">
             {(svc.fidelity * 100).toFixed(1)}%

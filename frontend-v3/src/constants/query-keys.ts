@@ -40,6 +40,7 @@ export const QUERY_KEYS = {
     peer: (id: string) => ["network", "peer", id] as const,
     services: () => ["network", "services"] as const,
     fidelity: (nodeId: string) => ["network", "fidelity", nodeId] as const,
+    stats: () => ["network", "stats"] as const,
     status: () => ["network", "status"] as const,
     nodes: () => ["network", "nodes"] as const,
   },

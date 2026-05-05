@@ -17,6 +17,10 @@ export function useTrial(): UseTrialReturn {
   const { user, loading } = useAuth();
 
   return useMemo<UseTrialReturn>(() => {
+    if (process.env.NEXT_PUBLIC_TRIAL_DISABLED === "true") {
+      return { trialStatus: "bypass", trialEndsAt: null, msLeft: null, isLoading: false };
+    }
+
     if (loading || !user) {
       return { trialStatus: "active", trialEndsAt: null, msLeft: null, isLoading: true };
     }

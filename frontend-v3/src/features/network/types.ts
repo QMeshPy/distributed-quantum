@@ -46,9 +46,8 @@ export interface BackendTopologyEntry {
 
 export interface BackendTopologyResponse {
   peers: BackendTopologyEntry[];
-  total_peers: number;
-  active_peers: number;
-  stale_peers: number;
+  total: number;
+  include_stale: boolean;
 }
 
 export interface BackendNetworkTopologyResponse {
@@ -65,6 +64,8 @@ export interface BackendServiceResponse {
   fidelity: number;
   qubit_min: number;
   qubit_max: number;
+  gate_set?: string[];
+  connectivity?: string;
   availability: boolean;
   updated_at: string;
 }
@@ -134,6 +135,8 @@ export interface ServiceNode {
   qubitMax: number;
   availability: boolean;
   updatedAt: string;
+  gateSet: string[];
+  connectivity: string;
 }
 
 export interface FidelityMetrics {
@@ -169,4 +172,26 @@ export interface HealthSummary {
   environment: string;
   version: string;
   uptimeSeconds: number;
+}
+
+export interface BackendNetworkStats {
+  total_peers: number;
+  active_peers: number;
+  stale_peers: number;
+  total_services: number;
+  unique_service_types: number;
+  avg_fidelity: number;
+  avg_services_per_peer: number;
+  generated_at: string;
+}
+
+export interface NetworkStats {
+  totalPeers: number;
+  activePeers: number;
+  stalePeers: number;
+  totalServices: number;
+  uniqueServiceTypes: number;
+  avgFidelity: number;
+  avgServicesPerPeer: number;
+  generatedAt: string;
 }

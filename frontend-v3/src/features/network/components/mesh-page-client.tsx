@@ -21,6 +21,8 @@ function formatRelativeTime(iso: string): string {
 export function MeshPageClient() {
   const { data: topology, isLoading } = useNetworkTopology();
 
+  console.log("topology", topology);
+
   return (
     <div className="relative flex flex-col gap-6 p-6">
 

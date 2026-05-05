@@ -149,3 +149,18 @@ class NetworkTopologyResponse(BaseModel):
     generated_at: datetime
     services: list[dict[str, Any]] = Field(default_factory=list)
     registry_snapshot: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class NetworkStatsResponse(BaseModel):
+    """Aggregate network health and capability statistics."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    total_peers: int = Field(ge=0, description="All known peers (including stale)")
+    active_peers: int = Field(ge=0, description="Non-stale peers")
+    stale_peers: int = Field(ge=0, description="Stale peers")
+    total_services: int = Field(ge=0, description="Total service instances across all peers")
+    unique_service_types: int = Field(ge=0, description="Distinct service types offered")
+    avg_fidelity: float = Field(ge=0.0, le=1.0, description="Mean fidelity across all services")
+    avg_services_per_peer: float = Field(ge=0.0, description="Average services per active peer")
+    generated_at: datetime

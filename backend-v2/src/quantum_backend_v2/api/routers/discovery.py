@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from quantum_backend_v2.api.deps.auth import require_authenticated
 from quantum_backend_v2.api.models.discovery import (
+    NetworkStatsResponse,
     NetworkTopologyResponse,
     PeerDetail,
     PeerListResponse,
@@ -125,6 +126,39 @@ def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
                 }
                 for e in all_entries
             ],
+        )
+
+    @router.get("/stats", response_model=NetworkStatsResponse)
+    async def network_stats() -> NetworkStatsResponse:
+        """Aggregate network statistics: peer counts, service counts, avg fidelity."""
+        registry = _registry()
+        all_entries = registry.list_peers(include_stale=True)
+        active_entries = [e for e in all_entries if not registry.is_peer_stale(e.peer_id)]
+        stale_entries = [e for e in all_entries if registry.is_peer_stale(e.peer_id)]
+
+        # Gather all services from active peers
+        fidelities: list[float] = []
+        service_type_set: set[str] = set()
+        total_services = 0
+        for peer in active_entries:
+            for svc_id in peer.service_ids:
+                caps = quality_tracker.get_service_capabilities(svc_id)
+                fidelities.append(quality_tracker.get_peer_fidelity(peer.peer_id, caps.fidelity))
+                service_type_set.add(svc_id)
+                total_services += 1
+
+        avg_fidelity = sum(fidelities) / len(fidelities) if fidelities else 0.0
+        avg_svc_per_peer = total_services / len(active_entries) if active_entries else 0.0
+
+        return NetworkStatsResponse(
+            total_peers=len(all_entries),
+            active_peers=len(active_entries),
+            stale_peers=len(stale_entries),
+            total_services=total_services,
+            unique_service_types=len(service_type_set),
+            avg_fidelity=avg_fidelity,
+            avg_services_per_peer=avg_svc_per_peer,
+            generated_at=_utc_now(),
         )
 
     return router

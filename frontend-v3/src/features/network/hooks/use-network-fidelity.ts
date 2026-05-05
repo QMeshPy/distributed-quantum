@@ -1,8 +1,8 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/constants";
-import { transformFidelityMetrics } from "../lib/network-transformers";
-import type { BackendFidelityMetrics } from "../types";
+import { transformFidelityMetrics, transformService } from "../lib/network-transformers";
+import type { BackendFidelityMetrics, BackendServiceResponse } from "../types";
 
 export function useNetworkFidelity(nodeId: string) {
   return useQuery({
@@ -24,7 +24,8 @@ export function useNetworkServices() {
     queryFn: async () => {
       const res = await fetch("/api/network/services");
       if (!res.ok) throw new Error("Failed to fetch services");
-      return res.json();
+      const data = (await res.json()) as BackendServiceResponse[];
+      return data.map(transformService);
     },
     staleTime: 15_000,
     refetchInterval: 30_000,

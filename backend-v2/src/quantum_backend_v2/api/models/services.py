@@ -33,6 +33,8 @@ class ServiceResponse(BaseModel):
     qubit_max: int = Field(ge=1, description="Maximum qubits supported")
     availability: bool = Field(description="Service availability")
     updated_at: datetime = Field(description="Last update timestamp")
+    gate_set: list[str] = Field(default_factory=list, description="Supported native gates")
+    connectivity: str = Field(default="all-to-all", description="Qubit connectivity topology")
 
 
 class FidelitySampleResponse(BaseModel):

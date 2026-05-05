@@ -38,5 +38,6 @@ export const API = {
     SERVICES: "/api/network/services",
     FIDELITY: (nodeId: string) =>
       `/api/network/fidelity/${nodeId}` as const,
+    STATS: "/api/network/stats",
   },
 } as const;
