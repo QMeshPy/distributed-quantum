@@ -2,7 +2,6 @@ import {
   Home,
   Globe,
   FlaskConical,
-  BookOpen,
   Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -125,35 +124,7 @@ export const NAV_CONFIG: RailItem[] = [
     },
     matchPrefixes: ["/runs", "/options", "/risk", "/finance"],
   },
-  {
-    id: "docs",
-    label: "Docs",
-    icon: BookOpen,
-    href: "/docs",
-    hasSidebar: true,
-    sidebar: {
-      type: "static",
-      groups: [
-        {
-          heading: "Documentation",
-          links: [
-            { label: "System Docs", href: "/docs" },
-            { label: "API Reference", href: "/docs/api" },
-            { label: "Roadmap", href: "/docs/roadmap" },
-          ],
-        },
-        {
-          heading: "Developer",
-          links: [
-            { label: "Schemas", href: "/docs/schemas" },
-            { label: "Examples", href: "/docs/examples" },
-            { label: "Playbooks", href: "/docs/playbooks" },
-          ],
-        },
-      ],
-    },
-    matchPrefixes: ["/docs"],
-  },
+
   {
     id: "settings",
     label: "Settings",
