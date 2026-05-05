@@ -8,26 +8,52 @@ export default function DashboardPage() {
   return (
     <div className="relative flex flex-col gap-6 p-6">
 
-      {/* ── Ambient background glows ── */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* ── Ambient glows — one per column, anchored to card positions ── */}
+      <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "420px" }}>
+        {/* Col 1 — left edge — indigo */}
         <div
-          className="absolute -left-32 -top-24 h-[500px] w-[500px] rounded-full opacity-25 blur-[120px]"
-          style={{ background: "radial-gradient(circle, rgba(99,102,241,0.55) 0%, transparent 70%)" }}
+          className="absolute h-[320px] w-[280px] rounded-full opacity-25 blur-[90px]"
+          style={{
+            left: "0%",
+            top: "-60px",
+            background: "radial-gradient(circle, rgba(99,102,241,0.7) 0%, transparent 70%)",
+          }}
         />
+        {/* Col 2 — center-left — cyan */}
         <div
-          className="absolute -right-24 top-0 h-[400px] w-[400px] rounded-full opacity-15 blur-[100px]"
-          style={{ background: "radial-gradient(circle, rgba(34,211,238,0.5) 0%, transparent 70%)" }}
+          className="absolute h-[280px] w-[260px] rounded-full opacity-20 blur-[80px]"
+          style={{
+            left: "25%",
+            transform: "translateX(-50%)",
+            top: "-40px",
+            background: "radial-gradient(circle, rgba(34,211,238,0.65) 0%, transparent 70%)",
+          }}
         />
+        {/* Col 3 — center-right — violet */}
         <div
-          className="absolute -bottom-20 left-8 h-[300px] w-[400px] rounded-full opacity-15 blur-[100px]"
-          style={{ background: "radial-gradient(circle, rgba(52,211,153,0.5) 0%, transparent 70%)" }}
+          className="absolute h-[280px] w-[260px] rounded-full opacity-20 blur-[80px]"
+          style={{
+            left: "65%",
+            transform: "translateX(-50%)",
+            top: "-40px",
+            background: "radial-gradient(circle, rgba(167,139,250,0.65) 0%, transparent 70%)",
+          }}
+        />
+        {/* Col 4 — right edge — emerald */}
+        <div
+          className="absolute h-[320px] w-[280px] rounded-full opacity-25 blur-[90px]"
+          style={{
+            right: "0%",
+            top: "-60px",
+            background: "radial-gradient(circle, rgba(52,211,153,0.7) 0%, transparent 70%)",
+          }}
         />
       </div>
 
       {/* ── Content ── */}
       <div className="relative z-10 flex flex-col gap-6">
 
-        {/* Page header — title left, status pills right */}
+        {/* Page header */}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
