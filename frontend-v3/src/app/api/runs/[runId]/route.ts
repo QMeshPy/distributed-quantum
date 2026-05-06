@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const { runId } = await params;
-    const res = await fetch(BACKEND.WORKFLOWS.RUN(runId));
+    const res = await fetch(BACKEND.JOBS.DETAIL(runId));
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {

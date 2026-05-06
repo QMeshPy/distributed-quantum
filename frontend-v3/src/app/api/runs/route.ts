@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body: unknown = await req.json();
-    const res = await fetch(BACKEND.WORKFLOWS.RUNS, {
+    const res = await fetch(BACKEND.CIRCUITS.SUBMIT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

@@ -41,8 +41,10 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - Backend `ServiceQualityTracker` in `api/routers/service_quality.py` provides gate_set/connectivity/fidelity from Qiskit transpilation
 - Proxy middleware is in `frontend-v3/src/proxy.ts` (not `src/middleware.ts`)
 - Backend is FastAPI on port 8081; frontend-v3 is Next.js 16 on port 3000
-- Backend only exposes `POST /api/v1/workflows/runs` (no GET); frontend hooks must account for this
+- Circuit submission uses `BACKEND.CIRCUITS.SUBMIT` (`POST /api/v1/circuits/submit` accepts `{circuit: "..."}`); job detail uses `BACKEND.JOBS.DETAIL` (`GET /api/v1/jobs/{id}`) — do NOT use `BACKEND.WORKFLOWS.RUNS` for these
+- Parity system uses uppercase statuses (QUEUED, COMPILING, EXECUTING, COMPLETED, FAILED) stored in `workflow_runs` table — incompatible with `WorkflowRunStatus` enum (lowercase: submitted, planning, running, etc.)
+- Circuit jobs use `job-{uuid}` prefix; workflows use `run-{uuid}` prefix
+- The shadcn `SidebarProvider` wrapper has `w-full min-h-svh` which breaks flex layouts when used as a child — must override with `!w-auto !min-h-0 flex-none`
 - frontend-v3 was migrated from frontend-v2; architecture docs live in `frontend-v3/architecture.md`, `frontend-v3/DESIGN.md`, `frontend-v3/SKILLS.md`
 - CSS variables from `globals.css` should be used everywhere for theming consistency
 - Always follow @frontend-v3/AGENT.md, @frontend-v3/SKILL.md, @frontend-v3/CLAUDE.md, @frontend-v3/DESIGN.md
-- If something new color discovered or any new font or some astheticness observed in the lines of @frontend-v3/DESIGN.md then append it
