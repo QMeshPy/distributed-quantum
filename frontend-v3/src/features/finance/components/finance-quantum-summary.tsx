@@ -16,6 +16,7 @@ import {
 } from "@/shared/components/detail";
 import { ROUTES } from "@/constants";
 import { fmt, pct, num, str, bool, obj, arr } from "./finance-result-summary";
+import { CircuitFragmentFlow, type CircuitPlan } from "./circuit-fragment-flow";
 import type { FinanceJobDetail } from "../types";
 
 interface FinanceQuantumSummaryProps {
@@ -365,6 +366,11 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
   const assetUniverse = arr(result.asset_universe);
   const encodedAssets = arr(quantumExec.encoded_assets).map(str);
 
+  // Circuit fragment plan and execution results
+  const planRaw = quantumExec.plan;
+  const plan: CircuitPlan | null = planRaw && typeof planRaw === "object" ? planRaw as CircuitPlan : null;
+  const fragmentResultsArr = arr(quantumExec.fragment_results).map((r) => r as Record<string, unknown>);
+
   // Bloch sphere data: one sphere per encoded asset
   const assetProbMap = new Map<string, number>(
     assetUniverse.map((a) => {
@@ -521,6 +527,21 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
           </div>
         </GlassCard>
       )}
+
+      {/* ── Circuit Fragment Flow ────────────────────────────────────────── */}
+      <GlassCard>
+        <SectionTitle
+          icon={GitBranch}
+          title="Circuit Fragment Execution Flow"
+          accentColor="emerald"
+          badge={
+            <span className="text-[11px] text-white/30">
+              {plan ? `${Object.keys(plan?.fragments ?? {}).length} fragments` : "plan pending"}
+            </span>
+          }
+        />
+        <CircuitFragmentFlow plan={plan} fragmentResults={fragmentResultsArr} />
+      </GlassCard>
 
       {/* ── Execution Pipeline ────────────────────────────────────────────── */}
       <GlassCard>
