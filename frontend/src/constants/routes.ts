@@ -52,4 +52,11 @@ export const ROUTES = {
   SETTINGS_OBSERVABILITY: "/settings/observability",
   SETTINGS_SECURITY: "/settings/security",
   SETTINGS_USERS: "/settings/users",
+  VAULT: "/vault",
+  VAULT_CIRCUITS: "/vault/circuits",
+  VAULT_RUNS: "/vault/runs",
+  VAULT_MY_CIRCUITS: "/vault/my/circuits",
+  VAULT_MY_RUNS: "/vault/my/runs",
+  vaultCircuitDetail: (cid: string) => `/vault/circuits/${cid}` as const,
+  vaultRunDetail: (cid: string) => `/vault/runs/${cid}` as const,
 } as const;

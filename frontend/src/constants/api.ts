@@ -41,4 +41,11 @@ export const API = {
       `/api/network/fidelity/${nodeId}` as const,
     STATS: "/api/network/stats",
   },
+  VAULT: {
+    PIN: "/api/vault/pin",
+    UNPIN: (cid: string) => `/api/vault/pin/${cid}` as const,
+    QUOTA: (service: string) => `/api/vault/quota/${service}` as const,
+    PINS: "/api/vault/pins",
+    PIN_METADATA: (cid: string) => `/api/vault/pins/${cid}` as const,
+  },
 } as const;

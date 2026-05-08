@@ -2,6 +2,7 @@ import {
   Home,
   Globe,
   FlaskConical,
+  HardDrive,
   Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -124,7 +125,33 @@ export const NAV_CONFIG: RailItem[] = [
     },
     matchPrefixes: ["/runs", "/options", "/risk", "/finance"],
   },
-
+  {
+    id: "vault",
+    label: "Vault",
+    icon: HardDrive,
+    href: "/vault/circuits",
+    hasSidebar: true,
+    sidebar: {
+      type: "static",
+      groups: [
+        {
+          heading: "Discover",
+          links: [
+            { label: "Circuit Library", href: "/vault/circuits" },
+            { label: "Shared Runs", href: "/vault/runs" },
+          ],
+        },
+        {
+          heading: "My Vault",
+          links: [
+            { label: "My Circuits", href: "/vault/my/circuits" },
+            { label: "My Runs", href: "/vault/my/runs" },
+          ],
+        },
+      ],
+    },
+    matchPrefixes: ["/vault"],
+  },
   {
     id: "settings",
     label: "Settings",

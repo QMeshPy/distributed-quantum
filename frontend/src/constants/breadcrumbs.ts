@@ -29,6 +29,8 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   security: "Security",
   observability: "Observability",
   audit: "Audit Logs",
+  vault: "Vault",
+  my: "My Vault",
 } as const;
 
 export const RAIL_LABEL_FOR_PREFIX: Record<string, string> = {
@@ -40,4 +42,5 @@ export const RAIL_LABEL_FOR_PREFIX: Record<string, string> = {
   "/finance": "Lab",
   "/docs": "Docs",
   "/settings": "Settings",
+  "/vault": "Vault",
 } as const;
