@@ -522,3 +522,192 @@ Tasks 19, 20, 21, 22 (integrations) depend on Tasks 9, 6, 7, 10
 - [ ] Heavy libs wrapped: `next/dynamic` + `ssr: false` for HeliaProvider, ShareToVaultButton, PublishCircuitButton, VaultDisplayNameField
 - [ ] All page.tsx files ≤10 lines (shell only)
 - [ ] `bun lint` passes on every changed file
+
+---
+
+## Phase 7 — Pinata Full Integration (Phase 2)
+
+> Prerequisite: all Phase 1 tasks complete. `PINATA_ENABLED = false` stub replaced with real implementation.
+> **Estimate:** ~10–12 hours across 8 tasks.
+
+---
+
+### Task P1 — Pinata SDK install
+**Estimate:** 0.25h
+
+```bash
+cd frontend
+bun add pinata
+```
+
+Done when: `bun build` succeeds with no TS error.
+
+---
+
+### Task P2 — Settings: Pinata API key storage
+**File MODIFIED:** `frontend/src/app/(main)/settings/integrations/page.tsx`
+**New file:** `frontend/src/features/ipfs/components/pinata-settings-card.tsx`
+**Estimate:** 1.5h
+
+**`pinata-settings-card.tsx`** ("use client"):
+- Reads/writes Pinata JWT to `localStorage` key `vault:pinata_jwt`
+- Two fields: "Pinata JWT" (password input, masked) + optional "Gateway domain" (e.g. `myapp.mypinata.cloud`)
+- Save button: on save, calls `verifyPinataJwt(jwt)` (see Task P3) → shows inline success ("Connected") or error ("Invalid JWT")
+- Disconnect button: clears localStorage key, resets state
+- Design tokens: `GlassCard` container, `h-11 rounded-sm border border-hairline bg-canvas` inputs, primary near-black Save pill, `text-emerald-400` for Connected badge, `text-red-400` for error
+
+**Modification to `settings/integrations/page.tsx`:**
+- Remove "Coming soon" disabled state from Pinata card
+- Replace with `<PinataSettingsCard />` (dynamic import, ssr:false)
+
+---
+
+### Task P3 — `features/ipfs/pinata.ts` — real implementation
+**File MODIFIED:** `frontend/src/features/ipfs/pinata.ts`
+**Estimate:** 2h
+
+Replace the stub with full implementation:
+
+```typescript
+// features/ipfs/pinata.ts
+export const PINATA_ENABLED = true; // runtime check via getPinataJwt() !== null
+
+export function getPinataJwt(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("vault:pinata_jwt");
+}
+
+export function getPinataGateway(): string {
+  if (typeof window === "undefined") return "https://gateway.pinata.cloud";
+  return localStorage.getItem("vault:pinata_gateway") ?? "https://gateway.pinata.cloud";
+}
+
+// Verifies the JWT is valid by calling Pinata's /data/testAuthentication
+export async function verifyPinataJwt(jwt: string): Promise<boolean>;
+
+// Pins a CID via Pinata's pinByHash endpoint
+export async function pinToCid(cid: string): Promise<void>;
+
+// Unpins a CID from Pinata
+export async function unpinFromCid(cid: string): Promise<void>;
+
+// Lists all CIDs pinned by this account
+export async function listPinnedCids(): Promise<string[]>;
+
+// Uploads bytes directly to Pinata (returns IPFS CID)
+// Used as fallback when Helia P2P unavailable
+export async function uploadToPinata(
+  bytes: Uint8Array,
+  name: string
+): Promise<string>;
+```
+
+All functions throw `PinataError` (custom error class with `code: "auth_failed" | "pin_failed" | "network_error"`) on failure.
+
+No backend involvement — all calls go **browser → Pinata API** directly.
+
+---
+
+### Task P4 — `useIpfsUpload` hook: Pinata pin-after-upload
+**File MODIFIED:** `frontend/src/features/ipfs/hooks.ts`
+**Estimate:** 1h
+
+Modify `useIpfsUpload.upload()` to accept an optional `options: { pinToPinata?: boolean }` parameter:
+
+```typescript
+export function useIpfsUpload(): {
+  upload: (data: unknown, options?: { pinToPinata?: boolean }) => Promise<string>;
+  uploading: boolean;
+  pinning: boolean; // separate state for Pinata pin-after-upload
+};
+```
+
+After successful Helia upload:
+1. If `options.pinToPinata === true` AND `getPinataJwt() !== null`: call `pinToCid(cid)` asynchronously (non-blocking, fire-and-forget with error toast on failure)
+2. `pinning` state is true while the Pinata call is in flight
+3. Error from Pinata does **not** fail the overall upload — CID is already on the IPFS network
+
+---
+
+### Task P5 — `ShareToVaultButton`: Pinata pin toggle
+**File MODIFIED:** `frontend/src/features/ipfs/components/share-to-vault-button.tsx`
+**Estimate:** 1h
+
+After a run is shared (CID exists):
+- Show a secondary `[📌 Pin for permanence]` button (only if `getPinataJwt() !== null`)
+- On click: calls `pinToCid(cid)` → shows "Pinned ✓" inline or error toast
+- Pinned state persisted in `localStorage` under `vault:pinned_cids` (Set of CID strings)
+- If already pinned: shows `[📌 Pinned]` (disabled, emerald color)
+
+---
+
+### Task P6 — `PublishCircuitButton`: Pinata pin toggle
+**File MODIFIED:** `frontend/src/features/ipfs/components/publish-circuit-button.tsx`
+**Estimate:** 0.75h
+
+Same pattern as Task P5 — after circuit is published, show `[📌 Pin for permanence]` button when Pinata is configured. Mirror the exact state/UI from `ShareToVaultButton`.
+
+---
+
+### Task P7 — `useIpfsFetch` hook: Pinata gateway fallback
+**File MODIFIED:** `frontend/src/features/ipfs/hooks.ts`
+**Estimate:** 1.5h
+
+When the 10s Helia P2P timeout fires, before showing the "Content unavailable" error, attempt a fallback:
+
+```
+1. Check if getPinataJwt() !== null AND getPinataGateway() is set
+2. If yes: fetch `${getPinataGateway()}/ipfs/${cid}` via standard fetch()
+3. On 200: parse bytes → Zod validate → setData(record) — success
+4. On failure: setError("Content unavailable — peer offline and not pinned")
+```
+
+This means content pinned to Pinata remains accessible even when the original creator's browser is offline.
+
+---
+
+### Task P8 — My Vault pages: pinned status column + bulk pin
+**Files MODIFIED:** `frontend/src/features/ipfs/components/my-vault-client.tsx`
+**Estimate:** 1.5h
+
+Add to the My Circuits and My Runs tables:
+- New column: **"Pinata"** — shows `📌 Pinned` (emerald badge) or `[Pin ↑]` button (only visible when Pinata is configured)
+- Bulk action: checkbox select + `[Pin selected]` button in table header
+- Bulk unpin: `[Unpin selected]` (calls `unpinFromCid` for each)
+- On mount: calls `listPinnedCids()` to sync pinned state from Pinata account (cached in TanStack Query, `QUERY_KEYS.vault.pinnedCids`, 5min stale time)
+
+---
+
+## Pinata Dependency Graph
+
+```
+Task P1 (bun add pinata)
+    └──> Task P3 (pinata.ts implementation)
+              ├──> Task P4 (upload hook pinning)
+              │         ├──> Task P5 (ShareToVaultButton pin toggle)
+              │         └──> Task P6 (PublishCircuitButton pin toggle)
+              ├──> Task P7 (fetch hook gateway fallback)
+              └──> Task P8 (My Vault pinned status)
+
+Task P2 (settings card) ──> Task P3 (reads the JWT set by P2)
+```
+
+## Pinata Parallelism
+
+**Round P-1:** Task P1 + Task P2 (independent)
+**Round P-2:** Task P3 (depends on P1)
+**Round P-3:** Tasks P4, P7 in parallel (both depend on P3)
+**Round P-4:** Tasks P5, P6, P8 in parallel (all depend on P4/P3)
+
+---
+
+## Pinata Verification Checklist
+
+- [ ] No Pinata JWT ever sent to the backend — all calls are browser → `api.pinata.cloud` directly
+- [ ] `getPinataJwt()` SSR-guards `typeof window` — never throws on server
+- [ ] Pinata failure never blocks or fails the primary Helia upload
+- [ ] Gateway fallback fires only after Helia timeout — Helia P2P is always attempted first
+- [ ] `listPinnedCids()` result cached via TanStack Query, not re-fetched on every render
+- [ ] `vault:pinata_jwt` excluded from any logging, error reporting, or analytics
+- [ ] All new components use `next/dynamic` + `ssr:false` (they read localStorage)
+- [ ] `bun lint` passes on all modified files
