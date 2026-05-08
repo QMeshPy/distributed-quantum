@@ -1,8 +1,0 @@
-node_modules
-package-lock.json
-bun.lock
-yarn.lock
-.vercel
-.next
-.env
-*.d.ts
