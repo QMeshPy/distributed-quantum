@@ -1,17 +1,99 @@
-{$CADDY_FRONTEND_SITE_ADDRESS:http://localhost:3000} {
+# Production Caddyfile for AWS Lightsail deployment
+# This handles the backend API with automatic HTTPS
+
+{$API_DOMAIN:api.yourdomain.com} {
+	# Security headers
+	header {
+		# Enable HSTS
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# Prevent clickjacking
+		X-Frame-Options "DENY"
+		# Prevent MIME sniffing
+		X-Content-Type-Options "nosniff"
+		# XSS protection
+		X-XSS-Protection "1; mode=block"
+		# Referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Remove server header
+		-Server
+	}
+
+	# CORS configuration for frontend on Vercel
+	@cors_preflight {
+		method OPTIONS
+	}
+
+	handle @cors_preflight {
+		header {
+			Access-Control-Allow-Origin "{$FRONTEND_DOMAIN:https://yourdomain.com}"
+			Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+			Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			Access-Control-Max-Age "3600"
+			Access-Control-Allow-Credentials "true"
+		}
+		respond 204
+	}
+
+	# Add CORS headers to all responses
+	header {
+		Access-Control-Allow-Origin "{$FRONTEND_DOMAIN:https://yourdomain.com}"
+		Access-Control-Allow-Credentials "true"
+	}
+
+	# Compression
 	encode zstd gzip
 
-	reverse_proxy host.docker.internal:3000
-}
+	# Health check endpoint (no auth required)
+	handle /api/v1/health {
+		reverse_proxy backend:8080
+	}
 
-{$CADDY_LEGACY_FRONTEND_SITE_ADDRESS:http://localhost:3003} {
-	encode zstd gzip
+	# Metrics endpoint (optional, consider auth)
+	handle /api/v1/metrics {
+		reverse_proxy backend:8080
+	}
 
-	reverse_proxy host.docker.internal:3003
-}
+	# All other API routes
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			# Backend health checks
+			health_uri /api/v1/health
+			health_interval 10s
+			health_timeout 5s
 
-{$CADDY_API_SITE_ADDRESS:http://localhost:8080} {
-	encode zstd gzip
+			# Request buffering
+			flush_interval -1
 
-	reverse_proxy backend:8080
+			# Timeouts
+			transport http {
+				read_timeout 300s
+				write_timeout 300s
+			}
+		}
+	}
+
+	# WebSocket support for libp2p/real-time features
+	handle /ws/* {
+		reverse_proxy backend:8080 {
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+
+	# Default response for unknown paths
+	handle {
+		respond "Quantum Backend API - Use /api/v1/* endpoints" 404
+	}
+
+	# Access logging
+	log {
+		output file /data/access.log {
+			roll_size 100mb
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
+	}
 }

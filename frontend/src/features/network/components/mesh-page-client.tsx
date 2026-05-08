@@ -10,7 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent,
+  Dialog, DialogContent, DialogTitle,
 } from "@/components/ui/dialog";
 import { QUERY_KEYS } from "@/constants";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -205,6 +205,7 @@ export function MeshPageClient() {
       {/* ═══ Peer Detail Modal ═══ */}
       <Dialog open={selectedPeerId !== null} onOpenChange={(open) => { if (!open) setSelectedPeerId(null); }}>
         <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-lg border-white/10 bg-[#0f1218] ring-1 ring-white/8">
+          <DialogTitle className="sr-only">Peer Dossier</DialogTitle>
           <PageHeader
             icon={Server}
             label="Peer Intelligence"
@@ -300,6 +301,7 @@ export function MeshPageClient() {
       {/* ═══ Service Detail Modal ═══ */}
       <Dialog open={selectedService !== null} onOpenChange={(open) => { if (!open) setSelectedService(null); }}>
         <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-lg border-white/10 bg-[#0f1218] ring-1 ring-white/8">
+          <DialogTitle className="sr-only">Service Specification</DialogTitle>
           <PageHeader
             icon={Zap}
             label="Quantum Service"

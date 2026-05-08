@@ -1,3 +1,5 @@
+# Production deployment configuration for AWS Lightsail
+# Frontend is hosted separately on Vercel
 services:
   backend:
     build:
@@ -6,27 +8,29 @@ services:
     environment:
       QB2_API_HOST: "${QB2_API_HOST:-0.0.0.0}"
       QB2_API_PORT: "${QB2_API_PORT:-8080}"
-      QB2_ENVIRONMENT: "${QB2_ENVIRONMENT:-development}"
+      QB2_ENVIRONMENT: "${QB2_ENVIRONMENT:-production}"
       QB2_SERVICE_NAME: "${QB2_SERVICE_NAME:-quantum-backend}"
       QB2_JSON_LOGS: "${QB2_JSON_LOGS:-true}"
       QB2_LOG_LEVEL: "${QB2_LOG_LEVEL:-INFO}"
-      QB2_AUTH_REQUIRED: "${QB2_AUTH_REQUIRED:-false}"
+      QB2_AUTH_REQUIRED: "${QB2_AUTH_REQUIRED:-true}"
       QB2_POSTGRES_TARGET: "${QB2_POSTGRES_TARGET:-neon}"
-      QB2_POSTGRES_NEON_POOLED_DSN: "${QB2_POSTGRES_NEON_POOLED_DSN:-}"
-      QB2_POSTGRES_NEON_DIRECT_DSN: "${QB2_POSTGRES_NEON_DIRECT_DSN:-}"
+      QB2_POSTGRES_NEON_POOLED_DSN: "${QB2_POSTGRES_NEON_POOLED_DSN}"
+      QB2_POSTGRES_NEON_DIRECT_DSN: "${QB2_POSTGRES_NEON_DIRECT_DSN}"
       QB2_POSTGRES_DATABASE: "${QB2_POSTGRES_DATABASE:-neondb}"
       QB2_MONGODB_TARGET: "${QB2_MONGODB_TARGET:-remote}"
-      QB2_MONGODB_REMOTE_URI: "${QB2_MONGODB_REMOTE_URI:-}"
+      QB2_MONGODB_REMOTE_URI: "${QB2_MONGODB_REMOTE_URI}"
       QB2_MONGODB_DATABASE: "${QB2_MONGODB_DATABASE:-qds}"
       QB2_PEER_LOG_DIR: "${QB2_PEER_LOG_DIR:-/workspace/backend/quantum-backend/peer-logs}"
-      QB2_PEER_ID: "${QB2_PEER_ID:-qb2-local-peer}"
+      QB2_PEER_ID: "${QB2_PEER_ID:-qb2-production-peer}"
       QB2_LIBP2P_ENABLED: "${QB2_LIBP2P_ENABLED:-true}"
-      QB2_LIBP2P_PEER_ID: "${QB2_LIBP2P_PEER_ID:-qb2-local-peer}"
+      QB2_LIBP2P_PEER_ID: "${QB2_LIBP2P_PEER_ID:-qb2-production-peer}"
       QB2_LIBP2P_LISTEN_MULTIADDRS: "${QB2_LIBP2P_LISTEN_MULTIADDRS:-/ip4/0.0.0.0/tcp/4011}"
       QB2_LIBP2P_PEERSTORE_PATH: "${QB2_LIBP2P_PEERSTORE_PATH:-/workspace/backend/quantum-backend/libp2p/peerstore.sqlite3}"
       QB2_LIBP2P_ACTIVATE_LISTENERS: "${QB2_LIBP2P_ACTIVATE_LISTENERS:-true}"
-      QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-4}"
+      QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-0}"
       QB2_LIBP2P_DEV_SERVICE_BASE_PORT: "${QB2_LIBP2P_DEV_SERVICE_BASE_PORT:-4021}"
+      # CORS configuration - set your frontend domain
+      CORS_ORIGINS: "${CORS_ORIGINS:-https://yourdomain.com}"
     volumes:
       - backend_runtime:/workspace/backend/quantum-backend
     healthcheck:
@@ -42,31 +46,41 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
-
+    # Only expose to Caddy, not to host network
+    networks:
+      - backend_network
 
   caddy:
     image: caddy:2.10-alpine
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      CADDY_FRONTEND_SITE_ADDRESS: "${CADDY_FRONTEND_SITE_ADDRESS:-http://localhost:3000}"
-      CADDY_LEGACY_FRONTEND_SITE_ADDRESS: "${CADDY_LEGACY_FRONTEND_SITE_ADDRESS:-http://localhost:3003}"
-      CADDY_API_SITE_ADDRESS: "${CADDY_API_SITE_ADDRESS:-http://localhost:8080}"
+      # Production domain configuration
+      API_DOMAIN: "${API_DOMAIN:-api.yourdomain.com}"
+      FRONTEND_DOMAIN: "${FRONTEND_DOMAIN:-yourdomain.com}"
     ports:
       - "80:80"
       - "443:443"
-      - "127.0.0.1:3000:3000"
-      - "127.0.0.1:8080:8080"
+      - "443:443/udp"  # HTTP/3 support
+      # libp2p port for peer-to-peer communication
+      - "4011:4011"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
+    networks:
+      - backend_network
 
 volumes:
   backend_runtime:
+    driver: local
   caddy_data:
+    driver: local
   caddy_config:
+    driver: local
+
+networks:
+  backend_network:
+    driver: bridge
