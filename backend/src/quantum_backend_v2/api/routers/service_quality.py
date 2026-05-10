@@ -150,7 +150,7 @@ class ServiceQualityTracker:
         backend_qubits = self._backend.num_qubits
         if backend_qubits is not None:
             return int(backend_qubits)
-        return int(BasicSimulator.MAX_QUBITS_STATEVECTOR)
+        return 30  # BasicSimulator default; MAX_QUBITS_STATEVECTOR removed in Qiskit 1.x
 
     def _build_service_defaults(self) -> dict[str, ServiceCapabilities]:
         capabilities: dict[str, ServiceCapabilities] = {}
