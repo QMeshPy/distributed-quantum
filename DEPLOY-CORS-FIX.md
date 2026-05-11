@@ -1,28 +1,34 @@
-# CORS Fix Deployment - Caddy Configuration
+# CORS Fix Deployment - Remove Duplicate Headers
 
 ## 🎯 Root Cause
 
-**The Caddy reverse proxy was overriding FastAPI's CORS configuration**, returning a hardcoded single origin that didn't match the requesting origin.
+**Both Caddy (reverse proxy) AND FastAPI (backend) were adding CORS headers**, causing duplicate headers that browsers reject.
 
 **Error:**
 ```
-Access-Control-Allow-Origin: https://distributed-quantum.com
+The 'Access-Control-Allow-Origin' header contains multiple values 
+'https://www.distributed-quantum.com, https://www.distributed-quantum.com', 
+but only one is allowed.
 ```
 
-**But browser was requesting from:**
-```
-https://www.distributed-quantum.com (with www)
-```
-
-**The `Access-Control-Allow-Origin` header MUST exactly match the requesting origin.**
+**What was happening:**
+1. Request → Caddy proxy adds `Access-Control-Allow-Origin: https://www.distributed-quantum.com`
+2. → FastAPI backend adds `Access-Control-Allow-Origin: https://www.distributed-quantum.com`
+3. → Response has DUPLICATE headers
+4. → Browser rejects the response
 
 ## ✅ What Was Fixed
 
-Modified `deploy/Caddyfile` to:
-1. Match requests from **both** `www.distributed-quantum.com` AND `distributed-quantum.com`
-2. Return the **requesting origin** in the response (dynamic, not hardcoded)
-3. Handle preflight OPTIONS requests correctly for each origin
-4. Support localhost for development
+**Removed ALL CORS configuration from Caddy** (`deploy/Caddyfile`):
+1. ❌ Deleted all `Access-Control-*` header directives from Caddy
+2. ❌ Deleted preflight OPTIONS handling from Caddy
+3. ✅ Let FastAPI's CORSMiddleware handle CORS exclusively
+
+**FastAPI already correctly handles CORS:**
+- ✅ Reads `CORS_ORIGINS` from environment (supports multiple origins)
+- ✅ Returns single, correct origin header matching the request
+- ✅ Handles preflight OPTIONS requests
+- ✅ Supports www, non-www, and localhost
 
 ## 📋 Deployment Steps
 
@@ -118,34 +124,29 @@ This is a separate issue (Next.js build/deployment). The CORS fix addresses the 
 
 ## 🎓 Technical Explanation
 
-### Why Caddy Was the Problem
+### Why Duplicate Headers?
 
 1. **FastAPI CORS middleware** was correctly configured with both origins
-2. **But Caddy sits in front of FastAPI** as a reverse proxy
-3. **Caddy was adding its own CORS headers** that overrode FastAPI's
-4. **Caddy was using a single hardcoded origin** from `FRONTEND_DOMAIN` env var
+2. **Caddy reverse proxy** was ALSO adding CORS headers
+3. **Request flow:** Browser → Caddy (adds header) → FastAPI (adds same header) → Duplicate!
+4. **Browsers reject** responses with duplicate `Access-Control-Allow-Origin` headers
 
 ### The Fix
 
-Caddy now:
-- **Matches the requesting Origin header**
-- **Returns that same origin** in `Access-Control-Allow-Origin`
-- **Supports multiple origins** (www, non-www, localhost)
+**Only ONE layer should add CORS headers.**
 
-This is called "**origin reflection**" - the server echoes back the requesting origin if it's in the allowed list.
+We chose: **FastAPI handles CORS, Caddy just proxies**
 
-### Why Not Remove Caddy CORS?
+**Why FastAPI (not Caddy)?**
+- ✅ FastAPI CORSMiddleware already reads `CORS_ORIGINS` env var
+- ✅ Simpler configuration (single source of truth)
+- ✅ FastAPI correctly handles multiple origins
+- ✅ Caddy stays focused on proxying + security headers
 
-Option 1: Remove Caddy CORS, let FastAPI handle it
-- ✅ Simpler configuration
-- ❌ Requires removing all Caddy CORS directives
-- ❌ FastAPI CORS only works if request reaches FastAPI
-
-Option 2: Configure Caddy CORS properly (chosen)
-- ✅ Works at proxy layer (faster)
-- ✅ Consistent with existing architecture
-- ✅ Handles preflight before reaching backend
-- ❌ Slightly more complex config
+**Caddy now only:**
+- Proxies requests to backend
+- Adds security headers (HSTS, X-Frame-Options, etc.)
+- Does NOT touch CORS headers
 
 ## 🚀 Quick Deploy Command
 
