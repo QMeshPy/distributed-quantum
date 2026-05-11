@@ -26,6 +26,10 @@ export function useOptionsList() {
       const data = (await res.json()) as BackendOptionsJobSummary[];
       return data.map(transform);
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const data = query.state.data ?? [];
+      return data.some((j) => j.status === "queued" || j.status === "running" || j.status === "compiling" || j.status === "executing") ? 5_000 : 30_000;
+    },
   });
 }

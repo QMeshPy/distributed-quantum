@@ -40,7 +40,11 @@ export function useRecentRuns(enabled: boolean) {
           createdAt: item.created_at,
         }));
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const data = query.state.data ?? [];
+      return data.some((r) => r.status === "queued" || r.status === "compiling" || r.status === "executing" || r.status === "running") ? 5_000 : 30_000;
+    },
     enabled: enabled && trialEnabled,
   });
 }
