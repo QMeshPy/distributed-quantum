@@ -1,0 +1,96 @@
+topic: "Top Startup Accelerators Priorities and Autonomous Quantum Research Lab Alignment Analysis"
+
+description: |
+  Comprehensive research into what Y Combinator, a16z, and other top accelerators are looking for,
+  competitive analysis of YC batch companies (2023-2025) in quantum/research automation space,
+  and alignment assessment for our autonomous quantum computing research lab platform.
+
+# Research Objects (Accelerators/VCs)
+items:
+  - name: "Y Combinator (YC)"
+    description: "Most prolific accelerator, 2x/year batches, broad portfolio"
+    priority: "critical"
+
+  - name: "Andreessen Horowitz (a16z)"
+    description: "Strong in deep tech, AI/ML, infrastructure - bio+health, American Dynamism"
+    priority: "critical"
+
+  - name: "Sequoia Capital"
+    description: "Focus on category-defining companies, Arc program for pre-seed"
+    priority: "high"
+
+  - name: "Lux Capital"
+    description: "Deep tech, science-driven startups, contrarian moonshots"
+    priority: "critical"
+
+  - name: "DCVC (Data Collective)"
+    description: "Deep tech, computational sciences, data infrastructure"
+    priority: "critical"
+
+  - name: "Innovation Endeavors"
+    description: "AI, quantum computing, computational sciences - Eric Schmidt backed"
+    priority: "high"
+
+  - name: "Founders Fund"
+    description: "Peter Thiel's fund, contrarian deep tech bets, long-term horizon"
+    priority: "high"
+
+  - name: "Khosla Ventures"
+    description: "Frontier tech, moonshots, willing to fund 10-year bets"
+    priority: "high"
+
+  - name: "Greylock Partners"
+    description: "Infrastructure, dev tools, AI platforms"
+    priority: "medium"
+
+  - name: "IQT (In-Q-Tel)"
+    description: "CIA venture arm, government-backed, national security tech"
+    priority: "high"
+
+  - name: "Creative Destruction Lab (CDL)"
+    description: "Science-based ventures, quantum stream program"
+    priority: "high"
+
+  - name: "Techstars"
+    description: "Multiple vertical programs, mentor-driven, global reach"
+    priority: "medium"
+
+  - name: "SOSV (HAX)"
+    description: "Hardware acceleration, deep tech focus, China+US operations"
+    priority: "medium"
+
+  - name: "Protocol Labs"
+    description: "IPFS creators, libp2p infrastructure, decentralized tech"
+    priority: "critical"
+
+  - name: "Unitary Fund"
+    description: "Quantum computing open source microgrants"
+    priority: "medium"
+
+  - name: "Entrepreneur First"
+    description: "Deep tech talent-first, helps form founding teams"
+    priority: "medium"
+
+  - name: "NSF I-Corps"
+    description: "Government-backed commercialization program for research"
+    priority: "low"
+
+# YC Batch Competitors to Research
+yc_competitor_analysis:
+  batches_to_search: ["W23", "S23", "W24", "S24", "W25", "S25", "W26"]
+  search_domains:
+    - "quantum computing platforms"
+    - "research lab automation"
+    - "scientific computing infrastructure"
+    - "autonomous research / AI-driven discovery"
+    - "computational chemistry / drug discovery"
+    - "distributed computing / peer-to-peer networks"
+    - "developer tools for scientists"
+
+# Execution Configuration
+execution:
+  batch_size: 3  # Number of parallel research agents
+  items_per_agent: 6  # Items per agent
+  output_dir: "./accelerator-research/results"
+  time_range: "since 2024"
+  current_date: "2026-05-12"

@@ -1,0 +1,203 @@
+# Research Field Definitions for Accelerator Analysis
+
+field_categories:
+
+  # Category A: Investment Thesis & Focus Areas
+  investment_thesis:
+    - name: "current_focus_areas_2024_2026"
+      description: "What sectors/technologies they're actively seeking in 2024-2026"
+      detail_level: "detailed"
+      source_types: ["RFS documents", "blog posts", "partner tweets", "portfolio announcements"]
+
+    - name: "quantum_computing_interest"
+      description: "Explicit interest in quantum computing - mentions, portfolio companies, thesis statements"
+      detail_level: "detailed"
+
+    - name: "ai_ml_autonomous_systems"
+      description: "Interest in AI/ML and autonomous systems - relevant for autonomous lab vision"
+      detail_level: "moderate"
+
+    - name: "scientific_computing_research_infra"
+      description: "Interest in research infrastructure, lab automation, scientific computing platforms"
+      detail_level: "detailed"
+
+    - name: "decentralized_p2p_infrastructure"
+      description: "Interest in peer-to-peer, libp2p, IPFS, decentralized infrastructure"
+      detail_level: "detailed"
+
+    - name: "contrarian_moonshot_appetite"
+      description: "Willingness to fund moonshots, long-horizon projects (5-10 years), contrarian bets"
+      detail_level: "moderate"
+
+  # Category B: Project Characteristics They Seek
+  project_characteristics:
+    - name: "problem_scale_importance"
+      description: "Scale of problem they want solved - startup vs platform vs infrastructure"
+      detail_level: "moderate"
+
+    - name: "technical_moat_requirements"
+      description: "Importance of technical differentiation, IP, novel algorithms"
+      detail_level: "moderate"
+
+    - name: "market_timing_view"
+      description: "Their view on market readiness for quantum/autonomous research - too early vs perfect timing"
+      detail_level: "detailed"
+
+    - name: "founder_profile_preferences"
+      description: "What founder backgrounds they prefer - PhD researchers vs repeat founders vs domain experts"
+      detail_level: "moderate"
+
+    - name: "business_model_preferences"
+      description: "B2B SaaS, infrastructure, marketplace, developer tools, open-source commercial"
+      detail_level: "moderate"
+
+    - name: "traction_expectations"
+      description: "Do they fund pre-product, need LOIs, need revenue, need users?"
+      detail_level: "detailed"
+
+  # Category C: Recent Portfolio Investments (2024-2026)
+  portfolio_analysis:
+    - name: "quantum_computing_portfolio"
+      description: "Companies they've funded in quantum computing space with descriptions"
+      detail_level: "detailed"
+      companies_to_track: []
+
+    - name: "research_infrastructure_portfolio"
+      description: "Lab tools, scientific computing platforms, research automation"
+      detail_level: "detailed"
+      companies_to_track: []
+
+    - name: "autonomous_research_ai_discovery"
+      description: "AI-driven research tools, autonomous discovery, computational science"
+      detail_level: "detailed"
+      companies_to_track: []
+
+    - name: "p2p_decentralized_infrastructure"
+      description: "libp2p, IPFS, distributed systems, blockchain-adjacent but not crypto"
+      detail_level: "detailed"
+      companies_to_track: []
+
+  # Category D: Application Signals (What They Publish)
+  application_intelligence:
+    - name: "published_rfs_thesis_docs"
+      description: "Request for Startups, thesis documents, blog posts explicitly stating what they want"
+      detail_level: "detailed"
+      source_urls: []
+      key_excerpts: []
+
+    - name: "application_requirements_process"
+      description: "What they explicitly ask for in applications - deck, demo, metrics, team"
+      detail_level: "moderate"
+
+    - name: "red_flags_what_they_avoid"
+      description: "What they explicitly say to avoid or what doesn't fit their thesis"
+      detail_level: "moderate"
+
+    - name: "success_stories_similar_companies"
+      description: "Similar companies they've funded that succeeded - learning from portfolio"
+      detail_level: "detailed"
+      companies_to_track: []
+
+  # Category E: Funding Terms & Program Details
+  funding_terms:
+    - name: "typical_check_size"
+      description: "Investment amounts for seed/pre-seed/Series A"
+      detail_level: "brief"
+
+    - name: "equity_stake_typical"
+      description: "Typical equity taken (YC=7%, others vary)"
+      detail_level: "brief"
+
+    - name: "program_duration"
+      description: "Length of accelerator program if applicable"
+      detail_level: "brief"
+
+    - name: "follow_on_funding_track_record"
+      description: "Do they lead Series A? Introduce to other VCs? Pass rate to next round"
+      detail_level: "moderate"
+
+  # Category F: Network & Resources Beyond Capital
+  network_resources:
+    - name: "technical_resources"
+      description: "Lab access, compute credits (AWS/GCP), technical advisors, quantum hardware access"
+      detail_level: "detailed"
+
+    - name: "go_to_market_support"
+      description: "Sales, marketing, customer intro support, design partners"
+      detail_level: "moderate"
+
+    - name: "geographic_focus"
+      description: "Where they invest - US-only, global, specific regions"
+      detail_level: "brief"
+
+    - name: "domain_expertise"
+      description: "Partners with quantum/scientific computing/research background"
+      detail_level: "moderate"
+
+  # Category G: YC Batch Competitive Intelligence (2023-2025)
+  yc_competitor_analysis:
+    - name: "direct_competitors"
+      description: "YC companies doing quantum computing, distributed quantum, research automation"
+      detail_level: "detailed"
+      competitor_matrix:
+        fields: ["company_name", "yc_batch", "description", "url", "funding", "status", "key_features"]
+
+    - name: "adjacent_competitors"
+      description: "Scientific computing platforms, lab automation, computational research tools"
+      detail_level: "detailed"
+      competitor_matrix:
+        fields: ["company_name", "yc_batch", "description", "url", "focus_area", "differentiation"]
+
+    - name: "platform_competitors"
+      description: "Developer platforms, infrastructure tools, distributed computing"
+      detail_level: "moderate"
+      competitor_matrix:
+        fields: ["company_name", "yc_batch", "what_they_built", "lessons_learned"]
+
+  # Category H: Market Fit & Positioning Analysis
+  market_positioning:
+    - name: "quantum_lab_platform_fit_score"
+      description: "How well autonomous quantum research lab aligns with this accelerator (1-10 scale)"
+      detail_level: "detailed"
+      scoring_criteria: ["technical_fit", "timing_fit", "market_fit", "founder_fit", "traction_fit"]
+
+    - name: "key_alignment_factors"
+      description: "Specific strengths of our platform for this accelerator"
+      detail_level: "detailed"
+      factors_to_assess:
+        - "distributed_quantum_computing_novel_approach"
+        - "libp2p_technical_moat"
+        - "autonomous_research_future_vision"
+        - "open_source_community"
+        - "quantum_finance_proven_use_case"
+        - "ipfs_decentralization_story"
+
+    - name: "potential_concerns_objections"
+      description: "Likely objections or concerns this accelerator would raise"
+      detail_level: "detailed"
+      common_concerns:
+        - "market_timing_too_early"
+        - "quantum_hardware_dependency"
+        - "go_to_market_unclear"
+        - "team_gaps"
+        - "competitive_moat_questioned"
+
+    - name: "positioning_recommendations"
+      description: "How to position our project for this specific accelerator"
+      detail_level: "detailed"
+      messaging_angles: []
+
+    - name: "competitive_differentiation"
+      description: "What we have that competitors don't - features, collaborations, technical advantages"
+      detail_level: "detailed"
+      differentiation_matrix:
+        our_features: []
+        competitor_gaps: []
+        unique_advantages: []
+
+# Reserved Fields (auto-filled during deep research phase)
+uncertain_fields:
+  - "portfolio companies where information is not public"
+  - "unpublished investment theses"
+  - "internal selection criteria not documented"
+  - "follow-on funding statistics (often confidential)"

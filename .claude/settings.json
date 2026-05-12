@@ -1,5 +1,10 @@
 {
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": true
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch"
+    ]
   }
 }
