@@ -10,11 +10,10 @@
 [![Qiskit](https://img.shields.io/badge/Qiskit-1.x-6929C4?logo=ibm&logoColor=white)](https://qiskit.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-[![GitHub Stars](https://img.shields.io/github/stars/Winter-Soren/pylibp2p-nodes-as-quantum-gates?style=social)](https://github.com/Winter-Soren/pylibp2p-nodes-as-quantum-gates/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/Winter-Soren/pylibp2p-nodes-as-quantum-gates?style=social)](https://github.com/Winter-Soren/pylibp2p-nodes-as-quantum-gates/network/members)
-[![GitHub Watchers](https://img.shields.io/github/watchers/Winter-Soren/pylibp2p-nodes-as-quantum-gates?style=social)](https://github.com/Winter-Soren/pylibp2p-nodes-as-quantum-gates/watchers)
-[![Last Commit](https://img.shields.io/github/last-commit/Winter-Soren/pylibp2p-nodes-as-quantum-gates?color=brightgreen)](https://github.com/Winter-Soren/pylibp2p-nodes-as-quantum-gates/commits/main)
-[![Hits](https://hits.sh/github.com/Winter-Soren/pylibp2p-nodes-as-quantum-gates.svg?label=visitors&color=6929C4)](https://hits.sh/github.com/Winter-Soren/pylibp2p-nodes-as-quantum-gates/)
+
+[![GitHub Watchers](https://img.shields.io/github/watchers/Winter-Soren/distributed-quantum-services?style=social)](https://github.com/Winter-Soren/distributed-quantum-services/watchers)
+[![Last Commit](https://img.shields.io/github/last-commit/Winter-Soren/distributed-quantum-services?color=brightgreen)](https://github.com/Winter-Soren/distributed-quantum-services/commits/main)
+[![Hits](https://hits.sh/github.com/Winter-Soren/distributed-quantum-services.svg?label=visitors&color=6929C4)](https://hits.sh/github.com/Winter-Soren/distributed-quantum-services/)
 
 </div>
 
