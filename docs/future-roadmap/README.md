@@ -4,7 +4,7 @@ Back to [Future Roadmap](../FUTURE_ROADMAP.md) | Back to [Docs Index](../README.
 
 This folder contains the detailed breakdown for the long-term roadmap.
 
-Start with [../FUTURE_ROADMAP.md](../FUTURE_ROADMAP.md), then use the pages below:
+Start with [../FUTURE_ROADMAP.md](../FUTURE_ROADMAP.md) for the big picture, then dive into the per-milestone pages below:
 
 1. [00-sequencing-and-program-plan.md](00-sequencing-and-program-plan.md)
 2. [01-production-sdk-and-platform.md](01-production-sdk-and-platform.md)
@@ -13,9 +13,5 @@ Start with [../FUTURE_ROADMAP.md](../FUTURE_ROADMAP.md), then use the pages belo
 5. [04-torrent-native-service-network.md](04-torrent-native-service-network.md)
 6. [05-hydra-self-healing-network.md](05-hydra-self-healing-network.md)
 
-Suggested reading order:
-
-- roadmap overview
-- sequencing plan
-- milestone 1 through milestone 5 in order
+**Suggested reading order**: roadmap overview → sequencing plan → milestones 1–5 in order.
 

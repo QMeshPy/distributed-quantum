@@ -11,17 +11,12 @@ Back to [Docs Index](README.md)
 
 ## 1. Why This Document Exists
 
-The repository currently has two different finance stories:
+The repository's finance workflow uses **QAOA-based portfolio optimization**: the user uploads a CSV of asset returns, the backend formulates a QUBO, runs the QAOA circuit, and returns both a quantum result and a classical (Simulated Annealing) comparison.
 
-- the legacy `backend/` contains a richer finance workflow with correlations, time-series analysis, a simplified DCF path, anomaly detection, and a finance-derived quantum execution artifact
-- `backend/` currently exposes a much narrower finance parity flow that profiles uploaded CSVs and returns row counts, column categories, and simple per-column statistics
-
-That difference matters because "financial modeling" is not the same thing as "reading a CSV and computing summary statistics."
-
-Before extending `backend`, the project needs a shared definition of:
+This document provides the theoretical grounding for that workflow and defines the boundary between:
 
 - what kind of finance problem the platform is trying to solve
-- what dataset shape that problem actually needs
+- what dataset shape that problem needs
 - where classical analysis ends and where quantum computation begins
 
 ## 2. What Financial Modeling Actually Means

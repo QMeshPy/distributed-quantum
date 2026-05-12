@@ -315,24 +315,24 @@ Recovery policy:
 - transient/resource -> retry then fallback
 - quality degradation -> re-score candidates and migrate remaining fragments if safe
 
-## 10. Data Model (SQLite)
+## 10. Data Model
 
-Core tables:
-- `jobs`
-- `job_events`
-- `service_nodes`
-- `service_ads`
-- `reservations`
-- `fragment_executions`
-- `quality_metrics`
-- `experiment_runs`
-- `experiment_results`
+### Postgres (SQLAlchemy ORM) — transactional, event-sourced
 
-Suggested indexes:
-- `jobs(status, submitted_at)`
-- `service_ads(service_type, availability, updated_at)`
-- `quality_metrics(node_id, service_type, timestamp)`
-- `reservations(job_id, status)`
+Core tables: `users`, `enrollments`, `workflow_runs`, `execution_plans`, `financial_jobs`, `reservation_events`, `execution_events`
+
+Key indexes:
+- `workflow_runs(status, created_at)`
+- `reservation_events(job_id, event_type)`
+- `execution_events(plan_id, fragment_id)`
+
+### MongoDB (Beanie ODM) — projections and documents
+
+Collections: `peer_capabilities`, `topology_projections`, `benchmark_results`, `provenance_bundles`
+
+### Local JSONL — append-only peer log
+
+File per coordinator: protocol events, reservation/execution transitions, package installs, sync checkpoints.
 
 ## 11. Configuration Model
 
@@ -397,25 +397,32 @@ Output artifacts:
 
 Related requirements: FR-013, NFR-003.
 
-## 15. Suggested Python Package Structure
+## 15. Python Package Structure
+
+The implementation lives at `backend/src/quantum_backend_v2/`:
 
 ```text
-src/quantum_coordinator/
-  api/
-  application/
-  domain/
-  infra/libp2p/
-  infra/persistence/
-  planning/
-  runtime/
-  monitoring/
-  experiments/
-  config/
+src/quantum_backend_v2/
+  api/            # FastAPI routers, models, auth deps, errors
+  application/    # CircuitJobService, FinancialJobService, EnrollmentService
+  identity/       # User roles, trust tiers, token claims, API keys
+  libp2p/         # py-libp2p host (Ed25519), GossipSub, stream RPC, Trio bridge
+  discovery/      # DiscoveryService + PeerRegistry → MongoDB projections
+  protocols/      # Wire schemas: execution, reservation, quality, peersync
+  reservations/   # Event-sourced state machine (REQUESTED → COMMITTED)
+  runtime/        # Execution state machine, crash recovery
+  quality/        # Qiskit transpilation for service fidelity catalog
+  workflows/      # Benchmark models and service
+  persistence/    # postgres.py (SQLAlchemy), mongodb.py (Beanie), local_log.py
+  planning/       # DAG planning models
+  provenance/     # Provenance bundle models
+  packages/       # Package signing and replication
+  bootstrap/      # application.py → create_application()
 ```
 
 Design rule:
-- `domain/` and `planning/` must not import libp2p directly.
-- libp2p specifics stay in `infra/libp2p/` adapters.
+- `planning/` and `protocols/` must not import libp2p directly.
+- libp2p specifics stay in the `libp2p/` module behind adapter interfaces.
 
 ## 16. Key Risks and Mitigations
 

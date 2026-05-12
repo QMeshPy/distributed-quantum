@@ -32,6 +32,8 @@ The core research idea is simple:
 
 That makes this system more than a parser plus simulator. It is a **coordination layer for distributed quantum services**.
 
+The implementation lives in `backend/src/quantum_backend_v2/` — a FastAPI application with a real py-libp2p runtime (Trio), Qiskit-backed quantum analysis, SQLAlchemy on Postgres, and Beanie on MongoDB.
+
 ## 2. Architectural View
 
 The system is easiest to understand as three connected planes.
@@ -61,10 +63,10 @@ Responsible for making the distributed work actually happen.
 
 Responsible for making the system inspectable and recoverable.
 
-- SQLite job store
-- SQLite runtime event store
-- SQLite service registry snapshot
-- structured response models
+- **Postgres** (SQLAlchemy): users, enrollments, workflow runs, execution plans, financial jobs, reservation events, execution events (all append-only)
+- **MongoDB** (Beanie): peer capabilities, topology projections, benchmark results, provenance bundles
+- **Local JSONL**: append-only peer log with fsync (protocol events, reservation/execution transitions)
+- Structured response models
 - Qiskit result generation
 
 ## 3. Full System Diagram
@@ -213,15 +215,31 @@ Primary responsibilities:
 
 The API is intentionally thin. It does not contain planning or runtime logic. It delegates that work to `JobManager` and related application/runtime services.
 
-#### API endpoints
+#### API endpoints (28+)
 
-- `GET /api/v1/health`
-- `POST /api/v1/circuits/submit`
-- `GET /api/v1/jobs/{job_id}`
-- `GET /api/v1/plans/{plan_id}`
-- `GET /api/v1/services`
-- `GET /api/v1/metrics/fidelity/{node_id}`
-- `WS /api/v1/jobs/{job_id}/ws`
+**System**: `GET /`, `GET /api/v1/health`, `GET /api/v1/ready`
+
+**Bootstrap**: `GET /api/v1/bootstrap/libp2p`, `GET /api/v1/bootstrap/libp2p/runtime`
+
+**Discovery**: `GET /api/v1/discovery/peers`, `GET /api/v1/discovery/peers/{peer_id}`, `GET /api/v1/discovery/topology`, `GET /api/v1/discovery/network/topology`
+
+**Enrollment**: `POST /api/v1/enrollment/peers`, `GET /api/v1/enrollment/peers`, `GET /api/v1/enrollment/peers/{peer_id}`, `POST /api/v1/enrollment/peers/{peer_id}/action`
+
+**Circuits**: `POST /api/v1/circuits/submit`
+
+**Jobs**: `GET /api/v1/jobs`, `GET /api/v1/jobs/{job_id}`
+
+**Plans**: `GET /api/v1/plans/{plan_id}`
+
+**Services**: `GET /api/v1/services`
+
+**Metrics**: `GET /api/v1/metrics/fidelity/{node_id}`
+
+**Finance**: `POST /api/v1/finance/submit`, `GET /api/v1/finance/{job_id}`, `GET /api/v1/finance/{job_id}/comparison`, `GET /api/v1/finance`
+
+**Workflows**: `POST /api/v1/workflows/runs`, `GET /api/v1/workflows/runs/{run_id}`, `POST /api/v1/workflows/benchmarks`, `GET /api/v1/workflows/benchmarks/{benchmark_id}`
+
+**Reservations**: `POST /api/v1/reservations`, `GET /api/v1/reservations/{reservation_id}`, `POST /api/v1/reservations/{reservation_id}/cancel`
 
 ### 5.2 Job Manager
 
@@ -558,10 +576,9 @@ stateDiagram-v2
 
 ### State meanings
 
-- `QUEUED`: job record exists, execution has not started
-- `COMPILING`: circuit is being normalized and planned
-- `RESERVING`: runtime is preparing to reserve execution windows
-- `EXECUTING`: fragment-level work is actively being invoked
+- `QUEUED`: job record created, execution has not started
+- `COMPILING`: circuit is being normalized and planned against the service registry
+- `EXECUTING`: fragment-level work is actively being invoked over libp2p streams
 - `COMPLETED`: result JSON is persisted and fetchable
 - `FAILED`: planning or execution terminated with a permanent error
 
@@ -569,42 +586,24 @@ stateDiagram-v2
 
 The system persists more than final outcomes.
 
-### Job store
+### Postgres (event-sourced, transactional)
 
-Stores:
+Tables: `users`, `enrollments`, `workflow_runs`, `execution_plans`, `financial_jobs`, `reservation_events` (append-only), `execution_events` (append-only)
 
-- `job_id`
-- raw circuit text
-- lifecycle status
-- `plan_id`
-- error text
-- serialized result JSON
-- timestamps
+### MongoDB (projections / documents)
 
-### Runtime event store
+Collections: peer capabilities, topology projections, benchmark results, provenance bundles
 
-Stores:
+### Local JSONL (append-only peer log)
 
-- reservation transitions
-- fragment execution events
-- attempt-level outcomes
-- observed fidelity
-- failure reason
+Protocol events, reservation/execution transitions, package installs, sync checkpoints — fsync'd on write.
 
-### Service registry snapshot store
+This model enables:
 
-Stores:
-
-- latest advertisements
-- freshness-related timestamps
-- availability view used by the planner
-
-This persistence model enables:
-
-- restart recovery
-- post-mortem analysis
-- demo introspection
-- future experiment reporting
+- crash recovery at startup (reload unfinished jobs from Postgres)
+- post-mortem analysis on any job
+- live topology inspection from MongoDB projections
+- future experiment reporting from benchmark collections
 
 ## 10. Recovery Model
 

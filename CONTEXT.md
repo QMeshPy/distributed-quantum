@@ -158,7 +158,7 @@ Framework: Next.js 16 (App Router), React 19, TypeScript.
 
 The browser never calls the Python backend directly. Next.js API routes (`src/app/api/`) proxy all requests:
 
-- `src/lib/backend-client.ts` — server-only HTTP client, reads `QUANTUM_BACKEND_URL`
+- `src/lib/backend-client.ts` — server-only HTTP client (reads `QUANTUM_BACKEND_URL`)
 - `src/proxy.ts` — proxy middleware
 - `src/lib/*-transformers.ts` — reshape backend snake_case to frontend camelCase
 
@@ -189,7 +189,7 @@ Services: `backend` (port 8081), `frontend` (port 3000), `caddy` (ports 80/443).
 
 1. **Trio/asyncio bridge**: The libp2p layer runs in a Trio thread, bridged to asyncio via `queue.SimpleQueue`. Do not mix Trio and asyncio primitives.
 
-2. **No WebSockets**: Both backend and frontend use polling (SSE for runs, REST for everything else). The legacy backend had a WS endpoint but it has been removed.
+2. **No WebSockets**: Both backend and frontend use REST polling. No WS endpoints exist.
 
 3. **Auth is dev-mode**: `QB2_AUTH_REQUIRED=false` by default. Production JWT is a stub. Do not build features that assume real auth exists.
 

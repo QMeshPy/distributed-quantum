@@ -1,8 +1,8 @@
 # Quantum Scaling Strategy: Finding the Advantage Zone
 
-**Date**: April 26, 2026  
-**Status**: Gradient optimization reverted, focus shifted to scaling demonstration  
-**Current Task**: Running 5-scale benchmark (N = 20, 30, 40, 50, 60 assets)
+**Date**: April 26, 2026 (updated May 2026)
+**Status**: Scaling demonstration complete — quantum advantage confirmed at N≥40 assets
+**Summary**: Benchmarks across N=20,30,40,50,60 assets confirm crossover at N=40. Paper in draft.
 
 ---
 

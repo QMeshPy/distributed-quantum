@@ -1,9 +1,9 @@
 # Quantum-Classical Hybrid Portfolio Optimization: A Comprehensive Analysis of Performance Bottlenecks and Distributed Execution Strategies
 
-**Authors**: [To be filled]  
-**Affiliation**: [To be filled]  
-**Date**: April 26, 2026  
-**Status**: Research Draft v1.0
+**Authors**: Soham Bhoir, Manusheel Gupta
+**Affiliation**: [To be filled]
+**Date**: April 2026 (revised May 2026)
+**Status**: Research Draft v1.1 — benchmarks complete, pending submission
 
 ---
 

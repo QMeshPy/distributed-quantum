@@ -52,7 +52,7 @@
 - Zero config needed
 - Auto-deploys from GitHub
 
-**What you'll deploy**: Your `/frontend` directory (Next.js app)
+**What you'll deploy**: Your `frontend/` directory (Next.js app)
 
 **Environment variables needed in Vercel**:
 - `NEXT_PUBLIC_API_URL` → https://api.yourdomain.com
