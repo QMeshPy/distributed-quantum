@@ -9,9 +9,6 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Qiskit](https://img.shields.io/badge/Qiskit-1.x-6929C4?logo=ibm&logoColor=white)](https://qiskit.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-
-
-[![GitHub Watchers](https://img.shields.io/github/watchers/Winter-Soren/distributed-quantum-services?style=social)](https://github.com/Winter-Soren/distributed-quantum-services/watchers)
 [![Last Commit](https://img.shields.io/github/last-commit/Winter-Soren/distributed-quantum-services?color=brightgreen)](https://github.com/Winter-Soren/distributed-quantum-services/commits/main)
 [![Hits](https://hits.sh/github.com/Winter-Soren/distributed-quantum-services.svg?label=visitors&color=6929C4)](https://hits.sh/github.com/Winter-Soren/distributed-quantum-services/)
 
