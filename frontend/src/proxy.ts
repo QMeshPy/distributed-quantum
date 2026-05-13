@@ -4,7 +4,7 @@ import { ROUTES } from "@/constants";
 
 const AUTH_PATHS = [ROUTES.SIGNIN, ROUTES.SIGNUP];
 
-const PUBLIC_PATHS = [...AUTH_PATHS, "/api/auth"];
+const PUBLIC_PATHS = [...AUTH_PATHS, "/api/auth", "/api/network/node-script", "/api/network/coordinator-info"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
