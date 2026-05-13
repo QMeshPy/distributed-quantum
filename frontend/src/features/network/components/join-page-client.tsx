@@ -16,7 +16,7 @@ import { NodeAppearanceDetector } from "./node-appearance-detector";
 import { useRegisterNode } from "../hooks/use-my-nodes";
 import { API } from "@/constants/api";
 
-const PIP_INSTALL = "pip install py-libp2p qiskit qiskit-aer pydantic";
+const PIP_INSTALL = "pip install libp2p qiskit qiskit-aer pydantic";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);

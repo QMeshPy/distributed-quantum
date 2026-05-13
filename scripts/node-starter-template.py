@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-# pip install py-libp2p qiskit qiskit-aer pydantic
+# pip install libp2p qiskit qiskit-aer pydantic
 # Imports are deferred to _check_deps() so --help works without dependencies installed.
 new_host = create_new_key_pair = KeyType = info_from_p2p_addr = TProtocol = None
 BasicHost = INetStream = GossipSub = Pubsub = None
@@ -39,7 +39,7 @@ def _check_deps() -> None:
         info_from_p2p_addr, TProtocol = _ifpa, _TP
         BasicHost, INetStream, GossipSub, Pubsub = _BH, _INS, _GS, _PB
     except ImportError as e:
-        sys.exit(f"py-libp2p not installed: {e}\nRun: pip install py-libp2p")
+        sys.exit(f"libp2p not installed: {e}\nRun: pip install libp2p")
     try:
         from qiskit import QuantumCircuit as _QC
         from qiskit.quantum_info import Statevector as _SV
