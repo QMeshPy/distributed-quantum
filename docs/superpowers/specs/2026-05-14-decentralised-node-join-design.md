@@ -214,7 +214,7 @@ pip install py-libp2p qiskit pydantic trio anyio multiaddr
 Numbered steps:
 1. Install dependencies (install command above)
 2. Download the node script (primary CTA button — `GET /api/network/node-script`)
-3. Run it (run command with `--coordinator` pre-filled from `/api/network/health`)
+3. Run it — copy the command below and replace `<COORDINATOR_MULTIADDR>` with the multiaddr from your deployment config (`QB2_LIBP2P_LISTEN_MULTIADDRS` + coordinator peer ID)
 4. Watch for your node to appear below
 
 **Inline script viewer**
@@ -261,7 +261,7 @@ Returns 409 if `(userId, peerId)` already exists.
 
 `useMyNodes` hook → `GET /api/network/nodes/mine` (TanStack Query, staleTime 60s).
 `useNetworkNodes` hook → `GET /api/network/peers` (already exists, polls every 30s).
-Client-side cross-reference: for each registered peer ID, find matching entry in live peers list. If found → live stats. If not found → "offline / not yet seen."
+Client-side cross-reference: for each registered peer ID, find matching entry in live peers list. If found → live stats. If not found → shows grey "Offline" badge with "Not seen by coordinator yet."
 
 ### 5.2 Zero My Nodes
 
