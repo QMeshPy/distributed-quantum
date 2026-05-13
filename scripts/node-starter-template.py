@@ -40,7 +40,7 @@ def _check_deps() -> None:
         info_from_p2p_addr, TProtocol = _ifpa, _TP
         BasicHost, INetStream, GossipSub, Pubsub = _BH, _INS, _GS, _PB
     except ImportError as e:
-        sys.exit(f"libp2p not installed: {e}\nRun: pip install "git+https://github.com/libp2p/py-libp2p.git@main"")
+        sys.exit(f"libp2p not installed: {e}\nRun: pip install 'git+https://github.com/libp2p/py-libp2p.git@main'")
     try:
         from qiskit import QuantumCircuit as _QC
         from qiskit.quantum_info import Statevector as _SV
