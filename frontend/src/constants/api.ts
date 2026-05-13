@@ -49,9 +49,10 @@ export const API = {
     PIN_METADATA: (cid: string) => `/api/vault/pins/${cid}` as const,
   },
   PHARMA: {
-    SUBMIT: "/api/v1/pharma/submit",
-    LIST: "/api/v1/pharma/jobs",
-    JOB: (id: string) => `/api/v1/pharma/jobs/${id}` as const,
-    CANCEL: (id: string) => `/api/v1/pharma/jobs/${id}` as const,
+    LIST: "/api/pharma",
+    SUBMIT: "/api/pharma",
+    JOB: (id: string) => `/api/pharma/${id}` as const,
+    CANCEL: (id: string) => `/api/pharma/${id}` as const,
+    LIVE: (id: string) => `/api/pharma/${id}/live` as const,
   },
 } as const;

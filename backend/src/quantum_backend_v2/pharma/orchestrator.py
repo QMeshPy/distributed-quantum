@@ -248,7 +248,7 @@ class PharmaOrchestrator:
         vqc_score = self._scorer.score(pose)
         admet_result = self._admet.evaluate(smiles)
         if vqc_score:
-            self._log("score", f"  Binding affinity: {vqc_score.binding_affinity_kcal:.2f} kcal/mol  confidence [{vqc_score.confidence_interval[0]:.2f}, {vqc_score.confidence_interval[1]:.2f}]", "scoring")
+            self._log("score", f"  Binding affinity: {vqc_score.binding_affinity_kcal:.2f} kcal/mol  confidence [{vqc_score.confidence_interval[0]:.2f}, {vqc_score.confidence_interval[1]:.2f}]  SMILES:{smiles}", "scoring")
             self._live(smiles=smiles, score=vqc_score.binding_affinity_kcal)
         if admet_result:
             self._log("admet", f"  ADMET {'PASS' if admet_result.passes else 'FAIL'} — MW={admet_result.molecular_weight:.1f}  LogP={admet_result.logp:.2f}  QED={admet_result.qed_score:.3f}  SA={admet_result.synthetic_accessibility:.2f}", "scoring")

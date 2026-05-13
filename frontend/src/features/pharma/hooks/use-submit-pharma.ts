@@ -1,13 +1,13 @@
 "use client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { QUERY_KEYS, BACKEND } from "@/constants";
+import { QUERY_KEYS, API } from "@/constants";
 import type { PharmaSubmitPayload, PharmaSubmitResponse } from "../types";
 
 export function useSubmitPharma() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: PharmaSubmitPayload): Promise<PharmaSubmitResponse> => {
-      const res = await fetch(BACKEND.PHARMA.SUBMIT, {
+      const res = await fetch(API.PHARMA.SUBMIT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

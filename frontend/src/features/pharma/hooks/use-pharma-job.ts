@@ -1,22 +1,19 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { QUERY_KEYS, BACKEND } from "@/constants";
+import { QUERY_KEYS, API } from "@/constants";
 import type { PharmaJob } from "../types";
 
-async function fetchPharmaJob(jobId: string): Promise<PharmaJob> {
-  const res = await fetch(BACKEND.PHARMA.JOB(jobId));
-  if (!res.ok) throw new Error(`Pharma job ${jobId} not found`);
-  return res.json() as Promise<PharmaJob>;
-}
-
 export function usePharmaJob(jobId: string) {
-  return useQuery({
+  return useQuery<PharmaJob>({
     queryKey: QUERY_KEYS.pharma.job(jobId),
-    queryFn: () => fetchPharmaJob(jobId),
-    // Poll every 3s while the job is still running/queued
+    queryFn: async () => {
+      const res = await fetch(API.PHARMA.JOB(jobId));
+      if (!res.ok) throw new Error(`Pharma job ${jobId} not found`);
+      return res.json() as Promise<PharmaJob>;
+    },
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      if (status === "queued" || status === "running") return 3000;
+      if (status === "queued" || status === "running") return 3_000;
       return false;
     },
     enabled: !!jobId,

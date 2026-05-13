@@ -134,7 +134,14 @@ def _make_live_callback(job_id: str, start_time: float) -> Callable[..., None]:
     return _update
 
 
-async def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> None:
+def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> None:
+    """Sync entry point — Starlette runs sync background tasks in a thread pool,
+    keeping the ASGI event loop free to process new requests immediately."""
+    import asyncio as _asyncio
+    _asyncio.run(_run_pharma_pipeline_async(job_id, config))
+
+
+async def _run_pharma_pipeline_async(job_id: str, config: PharmaWorkflowConfig) -> None:
     from quantum_backend_v2.pharma.cache import FragmentCache
     from quantum_backend_v2.pharma.orchestrator import PharmaOrchestrator
 

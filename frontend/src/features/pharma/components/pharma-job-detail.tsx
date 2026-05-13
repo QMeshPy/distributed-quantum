@@ -3,10 +3,11 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import {
-  Loader2,
-  FlaskConical,
-  Star,
+  Activity,
   Ban,
+  FlaskConical,
+  Loader2,
+  Star,
 } from "lucide-react";
 import { usePharmaJob } from "@/features/pharma/hooks/use-pharma-job";
 import { useCancelPharma } from "@/features/pharma/hooks/use-cancel-pharma";
