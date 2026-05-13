@@ -629,10 +629,28 @@ class QuantumNode:
         self._heartbeat_topic = f"{args.namespace}.peer-heartbeat.v1"
         self._shutdown_event = trio.Event()
 
+    def _load_or_generate_identity(self):
+        """Load identity from file or generate a new random one.
+        Each node instance gets its own unique identity persisted to disk,
+        so you can run multiple nodes from the same script."""
+        identity_dir = os.path.join(os.path.expanduser("~"), ".qb2-nodes")
+        os.makedirs(identity_dir, exist_ok=True)
+        identity_file = os.path.join(identity_dir, f"{self.args.label}.key")
+
+        if os.path.exists(identity_file):
+            with open(identity_file, "rb") as f:
+                seed = f.read(32)
+            logger.info("Loaded existing identity from %s", identity_file)
+        else:
+            seed = os.urandom(32)
+            with open(identity_file, "wb") as f:
+                f.write(seed)
+            logger.info("Generated new identity, saved to %s", identity_file)
+
+        return create_new_key_pair(seed)
+
     async def start(self) -> None:
-        # Deterministic Ed25519 key from label
-        seed = hashlib.sha256(self.args.label.encode()).digest()
-        key_pair = create_new_key_pair(seed)
+        key_pair = self._load_or_generate_identity()
 
         listen_addr = f"/ip4/0.0.0.0/tcp/{self.args.port}"
 
@@ -691,6 +709,9 @@ class QuantumNode:
                     # Connect to coordinator
                     await self._connect_coordinator()
 
+                    # Subscribe to advertisement topic to discover other peers
+                    advert_sub = await self.pubsub.subscribe(self._advertisement_topic)
+
                     # Print startup banner
                     print("=" * 60)
                     print(f"  QB2 Node running")
@@ -706,9 +727,10 @@ class QuantumNode:
                     # Publish initial advertisement
                     await self._publish_advertisement(services, advertise_addr)
 
-                    # Run heartbeat in nursery until shutdown
+                    # Run heartbeat + peer exchange in nursery until shutdown
                     async with trio.open_nursery() as nursery:
                         nursery.start_soon(self._heartbeat_loop, services, advertise_addr)
+                        nursery.start_soon(self._peer_exchange_loop, advert_sub)
                         await self._shutdown_event.wait()
                         nursery.cancel_scope.cancel()
 
@@ -723,6 +745,43 @@ class QuantumNode:
             finally:
                 await stream.close()
         return _handle_stream
+
+    async def _peer_exchange_loop(self, subscription) -> None:
+        """Listen for peer advertisements and connect to new peers.
+        This creates a true mesh topology where nodes talk directly to each other."""
+        connected_peers: set[str] = set()
+        while not self._shutdown_event.is_set():
+            try:
+                msg = await subscription.get()
+                try:
+                    advert = PeerAdvertisement.model_validate_json(msg.data)
+                except Exception:
+                    continue
+
+                if advert.peer_id == self.peer_id:
+                    continue
+                if advert.peer_id in connected_peers:
+                    continue
+
+                for addr_str in advert.network_addresses:
+                    if "/p2p/" not in addr_str:
+                        continue
+                    try:
+                        from multiaddr import Multiaddr as _MA3
+                        peer_info = info_from_p2p_addr(_MA3(addr_str))
+                        await self.host.connect(peer_info)
+                        connected_peers.add(advert.peer_id)
+                        logger.info("Mesh: connected to peer %s at %s",
+                                    advert.peer_id[:16], addr_str)
+                        break
+                    except Exception as exc:
+                        logger.debug("Mesh: failed to connect to %s: %s",
+                                     advert.peer_id[:16], exc)
+            except trio.Cancelled:
+                break
+            except Exception as exc:
+                logger.debug("Peer exchange error: %s", exc)
+                await trio.sleep(1)
 
     async def _connect_coordinator(self) -> None:
         coordinator_addr = self.args.coordinator

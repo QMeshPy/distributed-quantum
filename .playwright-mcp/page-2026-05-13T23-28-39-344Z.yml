@@ -1,0 +1,21 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - heading "Quantum Platform" [level=2] [ref=e8]
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - heading "Sign in to your account" [level=1] [ref=e12]
+        - paragraph [ref=e13]: Enter your email to receive a one-time code
+      - group [ref=e15]:
+        - generic [ref=e16]: Email
+        - textbox "Email" [ref=e17]:
+          - /placeholder: you@company.com
+      - button "Continue" [ref=e18]
+      - paragraph [ref=e19]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=e20] [cursor=pointer]:
+          - /url: /signup
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e26] [cursor=pointer]:
+    - img [ref=e27]

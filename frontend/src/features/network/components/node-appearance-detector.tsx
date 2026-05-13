@@ -63,6 +63,12 @@ export function NodeAppearanceDetector({ knownPeerIds }: NodeAppearanceDetectorP
               if (!cancelled) {
                 setFoundPeerId(id);
                 setState("found");
+                // Auto-register the detected node in user's account
+                fetch(API.NETWORK.NODES_MINE, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ peerId: id, host: "127.0.0.1", port: 4020 }),
+                }).catch(() => {});
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.network.myNodes() });
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.network.nodes() });
               }
