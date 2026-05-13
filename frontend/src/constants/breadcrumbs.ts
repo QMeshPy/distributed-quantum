@@ -3,6 +3,7 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   network: "Network",
   mesh: "Topology",
   nodes: "Nodes",
+  join: "Join",
   services: "Services",
   fidelity: "Fidelity",
   dag: "DAG View",
@@ -48,3 +49,4 @@ export const RAIL_LABEL_FOR_PREFIX: Record<string, string> = {
   "/settings": "Settings",
   "/vault": "Vault",
 } as const;
+

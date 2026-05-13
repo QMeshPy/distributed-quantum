@@ -43,6 +43,7 @@ export const QUERY_KEYS = {
     stats: () => ["network", "stats"] as const,
     status: () => ["network", "status"] as const,
     nodes: () => ["network", "nodes"] as const,
+    myNodes: () => ["network", "my-nodes"] as const,
   },
   vault: {
     all: () => ["vault"] as const,
@@ -63,3 +64,4 @@ export const QUERY_KEYS = {
     live: (id: string) => ["pharma", "live", id] as const,
   },
 } as const;
+

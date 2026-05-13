@@ -40,6 +40,8 @@ export const API = {
     FIDELITY: (nodeId: string) =>
       `/api/network/fidelity/${nodeId}` as const,
     STATS: "/api/network/stats",
+    NODES_MINE: "/api/network/nodes/mine",
+    NODE_SCRIPT: "/api/network/node-script",
   },
   VAULT: {
     PIN: "/api/vault/pin",
@@ -56,3 +58,4 @@ export const API = {
     LIVE: (id: string) => `/api/pharma/${id}/live` as const,
   },
 } as const;
+

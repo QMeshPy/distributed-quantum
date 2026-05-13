@@ -195,3 +195,22 @@ export interface NetworkStats {
   avgServicesPerPeer: number;
   generatedAt: string;
 }
+
+export interface MyNode {
+  peerId: string;
+  label: string | null;
+  host: string | null;
+  port: number | null;
+  registeredAt: string;
+}
+
+export interface MyNodesResponse {
+  nodes: MyNode[];
+}
+
+export interface RegisterNodeRequest {
+  peerId: string;
+  host: string;
+  port: number;
+  label?: string;
+}
