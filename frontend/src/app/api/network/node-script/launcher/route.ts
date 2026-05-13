@@ -88,7 +88,7 @@ info "Python OK"
 
 # 2. Dependencies
 info "Installing dependencies…"
-pip3 install --quiet libp2p qiskit qiskit-aer pydantic
+pip3 install --quiet "git+https://github.com/libp2p/py-libp2p.git@main" qiskit qiskit-aer pydantic
 info "Dependencies ready"
 
 # 3. Download node script
