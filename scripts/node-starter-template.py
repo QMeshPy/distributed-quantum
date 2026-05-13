@@ -28,7 +28,8 @@ def _check_deps() -> None:
     global QuantumCircuit, Statevector, AerSimulator, QFTGate, UGate
     try:
         from libp2p import new_host as _new_host
-        from libp2p.crypto.keys import create_new_key_pair as _cnkp, KeyType as _KT
+        from libp2p import create_new_ed25519_key_pair as _cnkp
+        from libp2p.crypto.keys import KeyType as _KT
         from libp2p.peer.peerinfo import info_from_p2p_addr as _ifpa
         from libp2p.typing import TProtocol as _TP
         from libp2p.host.basic_host import BasicHost as _BH
@@ -628,7 +629,7 @@ class QuantumNode:
     async def start(self) -> None:
         # Deterministic Ed25519 key from label
         seed = hashlib.sha256(self.args.label.encode()).digest()
-        key_pair = create_new_key_pair(KeyType.Ed25519, seed)
+        key_pair = create_new_key_pair(seed)
 
         listen_addr = f"/ip4/0.0.0.0/tcp/{self.args.port}"
 
