@@ -60,5 +60,6 @@ export const QUERY_KEYS = {
     all: () => ["pharma"] as const,
     list: () => ["pharma", "list"] as const,
     job: (id: string) => ["pharma", "job", id] as const,
+    live: (id: string) => ["pharma", "live", id] as const,
   },
 } as const;

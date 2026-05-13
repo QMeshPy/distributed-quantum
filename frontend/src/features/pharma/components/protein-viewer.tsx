@@ -8,6 +8,7 @@ type RepStyle = "cartoon" | "surface" | "ball+stick";
 interface Props {
   pdbId: string;
   height?: number;
+  onStageReady?: (stage: any) => void;
 }
 
 const REP_LABELS: { key: RepStyle; label: string }[] = [
@@ -16,7 +17,7 @@ const REP_LABELS: { key: RepStyle; label: string }[] = [
   { key: "ball+stick", label: "Ball+Stick" },
 ];
 
-export function ProteinViewer({ pdbId, height = 380 }: Props) {
+export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stageRef = useRef<any>(null);
@@ -83,6 +84,7 @@ export function ProteinViewer({ pdbId, height = 380 }: Props) {
 
           stage.autoView();
           setLoading(false);
+          onStageReady?.(stage);
         })
         .catch((err: Error) => {
           if (!cancelled) setError(`Could not load ${pdbId}: ${err.message}`);

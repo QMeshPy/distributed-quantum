@@ -51,11 +51,13 @@ class PharmaOrchestrator:
         cache: FragmentCache | None,
         execution_service: Any | None,
         log_callback: Callable[[str, str, str | None], None] | None = None,
+        live_callback: Callable[..., None] | None = None,
     ) -> None:
         self._cfg = config
         self._cache = cache or FragmentCache(mongo_runtime=None)
         self._execution_service = execution_service
         self._log = log_callback or (lambda level, msg, stage=None: None)
+        self._live = live_callback or (lambda **kw: None)
         self.state = PharmaState.IDLE
         self._job_id: str = ""
         self._scaffold_history: list[ScaffoldIteration] = []
@@ -94,6 +96,7 @@ class PharmaOrchestrator:
             for iteration in range(self._cfg.max_iterations):
                 logger.info("[%s] Iteration %d/%d", job_id, iteration + 1, self._cfg.max_iterations)
                 self._log("iter", f"Iteration {iteration + 1}/{self._cfg.max_iterations}", "iteration")
+                self._live(iteration=iteration + 1)
 
                 fragments, descriptors = await self._run_stages_3_4(candidate_smiles)
                 docking_result = await self._run_stage_5(
@@ -114,6 +117,7 @@ class PharmaOrchestrator:
 
                 if self._cfg.iterative and iteration < self._cfg.max_iterations - 1 and admet_result:
                     self.state = PharmaState.REFINING
+                    self._live(stage="refining")
                     hop = self._hopper.hop(
                         smiles=candidate_smiles[0] if candidate_smiles else "",
                         admet=admet_result,
@@ -151,6 +155,7 @@ class PharmaOrchestrator:
     async def _run_stage_1(self) -> None:
         self.state = PharmaState.FILTERING
         self._log("stage", "Stage 1 — Lipinski filter: validating seed scaffold", "filtering")
+        self._live(stage="filtering")
         if self._cfg.mode == PharmaMode.OPTIMIZATION and self._cfg.initial_ligand_smiles:
             from quantum_backend_v2.pharma.models import VQEDescriptors
 
@@ -168,6 +173,7 @@ class PharmaOrchestrator:
     async def _run_stage_2(self) -> list[str]:
         self.state = PharmaState.GENERATING
         self._log("stage", f"Stage 2 — QWGAN: generating candidate pool (mode={self._cfg.mode.value})", "generating")
+        self._live(stage="generating")
         if self._cfg.mode == PharmaMode.OPTIMIZATION and self._cfg.initial_ligand_smiles:
             return [self._cfg.initial_ligand_smiles]
         out = self._generator.generate(
@@ -182,10 +188,12 @@ class PharmaOrchestrator:
     ) -> tuple[list[MolecularFragment], dict[str, VQEDescriptors]]:
         self.state = PharmaState.FRAGMENTING
         self._log("stage", f"Stage 3 — fragment decomposition: {candidate_smiles[0][:40] if candidate_smiles else 'n/a'}", "fragmenting")
+        self._live(stage="fragmenting")
         ligand = candidate_smiles[0] if candidate_smiles else "c1ccccc1"
         fragments = self._decomposer.decompose(ligand)
 
         self.state = PharmaState.VQE_COMPUTING
+        self._live(stage="vqe_computing")
         descriptors: dict[str, VQEDescriptors] = {}
         for i, frag in enumerate(fragments):
             logger.info("[%s] VQE %d/%d: %s", self._job_id, i + 1, len(fragments), frag.fragment_id)
@@ -209,6 +217,7 @@ class PharmaOrchestrator:
     ) -> Any:
         self.state = PharmaState.DOCKING
         self._log("stage", f"Stage 5 — QAOA docking: placing {len(fragments)} fragment(s) on binding grid", "docking")
+        self._live(stage="docking")
         n_sites = max(len(fragments), 3)
         clash = np.zeros((n_sites, n_sites))
         binding_grid = np.zeros((n_sites, n_sites, 3, 3))
@@ -224,6 +233,7 @@ class PharmaOrchestrator:
     async def _run_stage_6(self, smiles: str, docking_result: Any) -> tuple:
         self.state = PharmaState.SCORING
         self._log("stage", "Stage 6 — VQC scoring + ADMET filter", "scoring")
+        self._live(stage="scoring")
         if docking_result is None or not smiles:
             return None, None
         pose = DockingPose(
@@ -239,8 +249,11 @@ class PharmaOrchestrator:
         admet_result = self._admet.evaluate(smiles)
         if vqc_score:
             self._log("score", f"  Binding affinity: {vqc_score.binding_affinity_kcal:.2f} kcal/mol  confidence [{vqc_score.confidence_interval[0]:.2f}, {vqc_score.confidence_interval[1]:.2f}]", "scoring")
+            self._live(smiles=smiles, score=vqc_score.binding_affinity_kcal)
         if admet_result:
             self._log("admet", f"  ADMET {'PASS' if admet_result.passes else 'FAIL'} — MW={admet_result.molecular_weight:.1f}  LogP={admet_result.logp:.2f}  QED={admet_result.qed_score:.3f}  SA={admet_result.synthetic_accessibility:.2f}", "scoring")
+            if admet_result.passes:
+                self._live(admet_pass=True)
         return vqc_score, admet_result
 
     def _check_convergence(self, vqc_score: Any, admet_result: Any) -> bool:

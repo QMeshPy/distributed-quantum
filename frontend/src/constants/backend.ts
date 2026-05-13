@@ -64,5 +64,6 @@ export const BACKEND = {
     LIST: `${BASE_URL}/api/v1/pharma/jobs`,
     JOB: (id: string) => `${BASE_URL}/api/v1/pharma/jobs/${id}` as const,
     CANCEL: (id: string) => `${BASE_URL}/api/v1/pharma/jobs/${id}` as const,
+    LIVE: (id: string) => `${BASE_URL}/api/v1/pharma/jobs/${id}/live` as const,
   },
 } as const;

@@ -1,14 +1,23 @@
 """Pharma docking API router."""
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Any, Callable
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from quantum_backend_v2.pharma.config import PharmaMode, PharmaWorkflowConfig
+from quantum_backend_v2.pharma.live_state import (
+    LiveJobState,
+    ScorePoint,
+    clear_live,
+    get_live,
+    init_live,
+    update_live,
+)
 
 router = APIRouter(prefix="/api/v1/pharma", tags=["pharma"])
 
@@ -89,18 +98,60 @@ def _make_log_callback(job_id: str) -> Callable[[str, str, str | None], None]:
     return _push
 
 
+def _make_live_callback(job_id: str, start_time: float) -> Callable[..., None]:
+    """Return a function that updates the in-memory live canvas state."""
+    def _update(
+        stage: str | None = None,
+        smiles: str | None = None,
+        score: float | None = None,
+        admet_pass: bool = False,
+        iteration: int | None = None,
+    ) -> None:
+        live = get_live(job_id)
+        if live is None:
+            return
+        kwargs: dict[str, Any] = {"elapsed_seconds": time.monotonic() - start_time}
+        if stage is not None:
+            kwargs["current_stage"] = stage
+        if iteration is not None:
+            kwargs["iteration_count"] = iteration
+        if smiles is not None:
+            kwargs["best_smiles"] = smiles
+        if score is not None and (live.best_score is None or score < live.best_score):
+            kwargs["best_score"] = score
+            kwargs["score_history"] = [
+                p.model_dump() for p in live.score_history
+            ] + [
+                ScorePoint(
+                    iteration=live.iteration_count,
+                    score=score,
+                    ts=datetime.now(timezone.utc).isoformat(),
+                ).model_dump()
+            ]
+        if admet_pass:
+            kwargs["admet_passes"] = live.admet_passes + 1
+        update_live(job_id, **kwargs)
+    return _update
+
+
 async def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> None:
     from quantum_backend_v2.pharma.cache import FragmentCache
     from quantum_backend_v2.pharma.orchestrator import PharmaOrchestrator
 
     _JOB_STORE[job_id]["status"] = "running"
+    start_time = time.monotonic()
+    init_live(job_id)
+
     log = _make_log_callback(job_id)
+    live = _make_live_callback(job_id, start_time)
+
     log("info", f"Pipeline started — mode={config.mode.value} target={config.target_pdb_id}", "init")
     orch = PharmaOrchestrator(
         config=config,
         cache=FragmentCache(None),
         execution_service=None,
         log_callback=log,
+        live_callback=live,
     )
     try:
         result = await orch.run(job_id=job_id)
@@ -119,11 +170,21 @@ async def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> Non
             error=str(exc),
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
+    finally:
+        clear_live(job_id)
 
 
 @router.get("/jobs", response_model=list[PharmaJobStatus])
 async def list_pharma_jobs() -> list[PharmaJobStatus]:
     return [PharmaJobStatus(**job) for job in _JOB_STORE.values()]
+
+
+@router.get("/jobs/{job_id}/live", response_model=LiveJobState)
+async def get_pharma_job_live(job_id: str) -> LiveJobState:
+    state = get_live(job_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"No live state for job {job_id!r}")
+    return state
 
 
 @router.get("/jobs/{job_id}", response_model=PharmaJobStatus)
