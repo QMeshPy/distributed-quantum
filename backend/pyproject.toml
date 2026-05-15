@@ -44,6 +44,8 @@ dependencies = [
   "pyscf>=2.7.0",
   "torch>=2.4.0",
   "biopython>=1.84",
+  # Agent orchestration
+  "anthropic>=0.18.0",
 ]
 
 [project.optional-dependencies]
