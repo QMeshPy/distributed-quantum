@@ -12,8 +12,6 @@ WORKDIR /workspace/backend
 COPY backend/pyproject.toml backend/uv.lock backend/README.md ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-COPY backend/alembic ./alembic
-COPY backend/alembic.ini ./alembic.ini
 COPY backend/scripts ./scripts
 COPY backend/src ./src
 RUN uv sync --frozen --no-dev
@@ -36,8 +34,7 @@ ENV PATH="/workspace/backend/.venv/bin:$PATH" \
 WORKDIR /workspace/backend
 
 COPY --from=builder /workspace/backend/.venv ./.venv
-COPY backend/Makefile backend/README.md backend/pyproject.toml backend/alembic.ini ./
-COPY backend/alembic ./alembic
+COPY backend/Makefile backend/README.md backend/pyproject.toml ./
 COPY backend/scripts ./scripts
 COPY backend/src ./src
 
