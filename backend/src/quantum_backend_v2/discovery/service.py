@@ -62,7 +62,6 @@ class DiscoveryService:
     settings: Libp2pSettings
     libp2p_runtime: Libp2pRuntime
     mongo_runtime: MongoRuntime | None
-    session_factory: object | None = None
     enforce_enrollment: bool = False
 
     _event_queue: queue.SimpleQueue[DiscoveryEvent] = field(
@@ -103,7 +102,6 @@ class DiscoveryService:
         self._registry = PeerRegistry(
             mongo_runtime=self.mongo_runtime,
             stale_peer_ttl_seconds=self.settings.stale_peer_ttl_seconds,
-            session_factory=self.session_factory,
             enforce_enrollment=self.enforce_enrollment,
             trusted_peer_ids=trusted_peer_ids,
         )
@@ -374,7 +372,6 @@ def build_discovery_service(
     settings: Libp2pSettings,
     libp2p_runtime: Libp2pRuntime,
     mongo_runtime: MongoRuntime | None,
-    session_factory: object | None = None,
     enforce_enrollment: bool = False,
 ) -> DiscoveryService:
     """Factory: construct a ``DiscoveryService`` from its dependencies."""
@@ -382,6 +379,5 @@ def build_discovery_service(
         settings=settings,
         libp2p_runtime=libp2p_runtime,
         mongo_runtime=mongo_runtime,
-        session_factory=session_factory,
         enforce_enrollment=enforce_enrollment,
     )

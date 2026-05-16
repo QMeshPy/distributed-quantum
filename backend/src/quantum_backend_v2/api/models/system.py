@@ -19,12 +19,6 @@ class HealthResponse(BaseModel):
                 "version": "0.1.0",
                 "uptime_seconds": 12.4,
                 "persistence": {
-                    "postgres": {
-                        "mode": "ready",
-                        "backend": "postgresql",
-                        "target": "local",
-                        "reachable": True,
-                    },
                     "mongodb": {
                         "mode": "ready",
                         "backend": "mongodb",
@@ -58,12 +52,6 @@ class ReadinessResponse(BaseModel):
                 "environment": "development",
                 "version": "0.1.0",
                 "persistence": {
-                    "postgres": {
-                        "mode": "ready",
-                        "backend": "postgresql",
-                        "target": "local",
-                        "reachable": True,
-                    },
                     "mongodb": {
                         "mode": "ready",
                         "backend": "mongodb",

@@ -55,7 +55,6 @@ def create_app(
         allow_dev_bearer_tokens=settings.allow_dev_bearer_tokens,
     )
     started_monotonic = time.monotonic()
-    postgres_session_factory = persistence_runtime.postgres_session_factory
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> Any:
@@ -88,13 +87,10 @@ def create_app(
         lifespan=lifespan,
     )
 
-    # Read CORS origins from environment or use localhost defaults
     cors_origins_env = os.getenv("CORS_ORIGINS", "")
     if cors_origins_env:
-        # Split comma-separated origins
         cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
     else:
-        # Default to localhost for development
         cors_origins = [
             "http://localhost:3000",
             "http://localhost:3001",
@@ -131,16 +127,10 @@ def create_app(
         )
     )
     app.include_router(discovery_router(discovery_service=discovery_service))
-    if postgres_session_factory is not None:
-        app.include_router(
-            build_enrollment_router(session_factory=postgres_session_factory)
-        )
-        app.include_router(
-            build_workflows_router(
-                session_factory=postgres_session_factory,
-                mongo_runtime=persistence_runtime.mongodb,
-            )
-        )
+    app.include_router(build_enrollment_router())
+    app.include_router(
+        build_workflows_router(mongo_runtime=persistence_runtime.mongodb)
+    )
     if circuit_job_service is not None:
         app.include_router(build_circuits_router(job_service=circuit_job_service))
     app.include_router(build_services_router(discovery_service=discovery_service))
@@ -152,19 +142,12 @@ def create_app(
         app.include_router(build_options_router(options_job_service=options_job_service))
     if risk_job_service is not None:
         app.include_router(build_risk_router(risk_job_service=risk_job_service))
-
-    if reservation_service is not None and postgres_session_factory is not None:
+    if reservation_service is not None:
         app.include_router(
-            build_reservations_router(
-                reservation_service=reservation_service,
-                session_factory=postgres_session_factory,
-            )
+            build_reservations_router(reservation_service=reservation_service)
         )
 
-    # Benchmark endpoint - no dependencies, uses core portfolio optimization
     app.include_router(benchmark_router)
-
-    # Pharma docking pipeline — quantum drug discovery
     app.include_router(pharma_router)
 
     return app

@@ -22,7 +22,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
 
 from quantum_backend_v2.discovery.events import DiscoveryEvent, DiscoveryEventKind
 from quantum_backend_v2.discovery.models import PeerAdvertisement, PeerHeartbeat
@@ -30,9 +29,9 @@ from quantum_backend_v2.identity.models import PeerTrustTier
 from quantum_backend_v2.persistence.mongodb import (
     MongoRuntime,
     PeerCapabilityDocument,
+    PeerEnrollmentDocument,
     TopologyProjectionDocument,
 )
-from quantum_backend_v2.persistence.postgres import PeerEnrollmentRecord
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +91,6 @@ class PeerRegistry:
 
     mongo_runtime: MongoRuntime | None
     stale_peer_ttl_seconds: int
-    session_factory: object | None = None
     enforce_enrollment: bool = False
     trusted_peer_ids: set[str] = field(default_factory=set)
     _entries: dict[str, PeerRegistryEntry] = field(default_factory=dict, init=False)
@@ -483,12 +481,7 @@ class PeerRegistry:
 
         return record.trust_tier, False, "pending_approval"
 
-    async def _load_enrollment(self, peer_id: str) -> PeerEnrollmentRecord | None:
-        if self.session_factory is None:
-            return None
-
-        async with self.session_factory() as session:  # type: ignore[operator]
-            result = await session.execute(
-                select(PeerEnrollmentRecord).where(PeerEnrollmentRecord.peer_id == peer_id)
-            )
-            return result.scalar_one_or_none()
+    async def _load_enrollment(self, peer_id: str) -> PeerEnrollmentDocument | None:
+        return await PeerEnrollmentDocument.find_one(
+            PeerEnrollmentDocument.peer_id == peer_id
+        )

@@ -8,10 +8,7 @@ from datetime import datetime, timezone
 
 from quantum_backend_v2.api.errors.models import forbidden
 from quantum_backend_v2.identity.models import PeerTrustTier
-from quantum_backend_v2.persistence.postgres import (
-    AsyncSession,
-    PeerEnrollmentRecord,
-)
+from quantum_backend_v2.persistence.mongodb import PeerEnrollmentDocument
 
 logger = logging.getLogger(__name__)
 
@@ -25,24 +22,20 @@ class PeerEnrollmentStatus(str):
 
 async def enroll_peer(
     *,
-    session: AsyncSession,
     peer_id: str,
     owner_user_id: str | None,
     actor_user_id: str,
     actor_can_manage_foreign: bool = False,
     trust_tier: PeerTrustTier,
     capability_summary: dict[str, object],
-) -> PeerEnrollmentRecord:
+) -> PeerEnrollmentDocument:
     """Create or update a peer enrollment record.
 
     Idempotent — calling again for the same peer_id updates the record.
     """
-    from sqlalchemy import select
-
-    result = await session.execute(
-        select(PeerEnrollmentRecord).where(PeerEnrollmentRecord.peer_id == peer_id)
+    existing = await PeerEnrollmentDocument.find_one(
+        PeerEnrollmentDocument.peer_id == peer_id
     )
-    existing = result.scalar_one_or_none()
 
     if existing is not None:
         if (
@@ -58,11 +51,12 @@ async def enroll_peer(
             existing.owner_user_id = owner_user_id
         existing.capability_summary = capability_summary
         existing.last_seen_at = datetime.now(timezone.utc)
-        await session.flush()
+        existing.updated_at = datetime.now(timezone.utc)
+        await existing.save()
         logger.info("updated enrollment for peer %s (tier=%s)", peer_id, trust_tier.value)
         return existing
 
-    record = PeerEnrollmentRecord(
+    record = PeerEnrollmentDocument(
         id=uuid.uuid4().hex,
         peer_id=peer_id,
         owner_user_id=owner_user_id,
@@ -70,28 +64,24 @@ async def enroll_peer(
         enrollment_status=PeerEnrollmentStatus.PENDING_APPROVAL,
         capability_summary=capability_summary,
     )
-    session.add(record)
-    await session.flush()
+    await record.insert()
     logger.info("enrolled new peer %s (tier=%s)", peer_id, trust_tier.value)
     return record
 
 
 async def approve_peer(
     *,
-    session: AsyncSession,
     peer_id: str,
-) -> PeerEnrollmentRecord | None:
+) -> PeerEnrollmentDocument | None:
     """Transition a pending peer to READY status."""
-    from sqlalchemy import select
-
-    result = await session.execute(
-        select(PeerEnrollmentRecord).where(PeerEnrollmentRecord.peer_id == peer_id)
+    record = await PeerEnrollmentDocument.find_one(
+        PeerEnrollmentDocument.peer_id == peer_id
     )
-    record = result.scalar_one_or_none()
     if record is None:
         return None
 
     record.enrollment_status = PeerEnrollmentStatus.READY
-    await session.flush()
+    record.updated_at = datetime.now(timezone.utc)
+    await record.save()
     logger.info("approved peer %s", peer_id)
     return record

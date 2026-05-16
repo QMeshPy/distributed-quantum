@@ -1,7 +1,7 @@
 """ReservationService — event-log-backed reservation lifecycle manager.
 
 No authoritative in-memory state.  Conflict detection is always derived
-from the append-only ``reservation_events`` table.
+from the append-only ``reservation_events`` collection.
 """
 
 from __future__ import annotations
@@ -11,10 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from quantum_backend_v2.persistence.postgres import ReservationEventRecord
+from quantum_backend_v2.persistence.mongodb import ReservationEventDocument
 from quantum_backend_v2.reservations.models import (
     ReservationConflictState,
     ReservationState,
@@ -25,14 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 class ReservationService:
-    """Manages durable reservation lifecycle over the Postgres event log.
+    """Manages durable reservation lifecycle over the MongoDB event log.
 
     All reads reconstruct state by replaying events.
-    All writes are single-row appends (never updates).
+    All writes are single-document inserts (never updates).
     """
-
-    def __init__(self, *, session_factory: Any) -> None:
-        self._session_factory = session_factory
 
     async def request(
         self,
@@ -45,41 +39,29 @@ class ReservationService:
         ttl_seconds: int = 60,
         idempotency_key: str | None = None,
     ) -> ReservationState:
-        """Append a REQUESTED event and return the initial state."""
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            existing_by_idempotency = await _load_state_by_idempotency_key(session, idem_key)
-            if existing_by_idempotency is not None:
-                logger.info("reservation idempotency hit for key %s", idem_key)
-                return existing_by_idempotency
 
-            existing = await _load_state(session, reservation_id)
-            if existing is not None:
-                logger.info("reservation %s already exists — skipping", reservation_id)
-                return existing
+        existing = await _load_state_by_idempotency_key(idem_key)
+        if existing is not None:
+            return existing
 
-            await _append_event(
-                session,
-                reservation_id=reservation_id,
-                workflow_run_id=workflow_run_id,
-                fragment_id=fragment_id,
-                transition=ReservationTransition.REQUESTED,
-                requesting_peer_id=requesting_peer_id,
-                service_id=service_id,
-                idempotency_key=idem_key,
-                payload={"ttl_seconds": ttl_seconds},
-            )
-            await session.commit()
-
-        state = ReservationState(
+        await _append_event(
             reservation_id=reservation_id,
             workflow_run_id=workflow_run_id,
             fragment_id=fragment_id,
-            service_id=service_id,
+            transition=ReservationTransition.REQUESTED,
             requesting_peer_id=requesting_peer_id,
-            ttl_seconds=ttl_seconds,
+            service_id=service_id,
+            idempotency_key=idem_key,
+            payload={"ttl_seconds": ttl_seconds},
         )
-        logger.info("reservation %s REQUESTED", reservation_id)
+        state = await _require_state(reservation_id)
+        logger.info(
+            "reservation %s REQUESTED by %s for fragment %s",
+            reservation_id,
+            requesting_peer_id,
+            fragment_id,
+        )
         return state
 
     async def accept(
@@ -89,23 +71,22 @@ class ReservationService:
         accepting_peer_id: str,
         idempotency_key: str | None = None,
     ) -> ReservationState:
-        """Append an ACCEPTED event and return updated state."""
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            state = await _require_state(session, reservation_id)
-            updated = state.apply(ReservationTransition.ACCEPTED, accepting_peer_id=accepting_peer_id)
-            await _append_event(
-                session,
-                reservation_id=reservation_id,
-                workflow_run_id=state.workflow_run_id,
-                fragment_id=state.fragment_id,
-                transition=ReservationTransition.ACCEPTED,
-                requesting_peer_id=state.requesting_peer_id,
-                accepting_peer_id=accepting_peer_id,
-                service_id=state.service_id,
-                idempotency_key=idem_key,
-            )
-            await session.commit()
+        state = await _require_state(reservation_id)
+        await _append_event(
+            reservation_id=reservation_id,
+            workflow_run_id=state.workflow_run_id,
+            fragment_id=state.fragment_id,
+            transition=ReservationTransition.ACCEPTED,
+            requesting_peer_id=state.requesting_peer_id,
+            service_id=state.service_id,
+            idempotency_key=idem_key,
+            accepting_peer_id=accepting_peer_id,
+        )
+        updated = state.apply(
+            ReservationTransition.ACCEPTED,
+            accepting_peer_id=accepting_peer_id,
+        )
         logger.info("reservation %s ACCEPTED by %s", reservation_id, accepting_peer_id)
         return updated
 
@@ -115,23 +96,18 @@ class ReservationService:
         reservation_id: str,
         idempotency_key: str | None = None,
     ) -> ReservationState:
-        """Append a COMMITTED event."""
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            state = await _require_state(session, reservation_id)
-            updated = state.apply(ReservationTransition.COMMITTED)
-            await _append_event(
-                session,
-                reservation_id=reservation_id,
-                workflow_run_id=state.workflow_run_id,
-                fragment_id=state.fragment_id,
-                transition=ReservationTransition.COMMITTED,
-                requesting_peer_id=state.requesting_peer_id,
-                accepting_peer_id=state.accepting_peer_id,
-                service_id=state.service_id,
-                idempotency_key=idem_key,
-            )
-            await session.commit()
+        state = await _require_state(reservation_id)
+        await _append_event(
+            reservation_id=reservation_id,
+            workflow_run_id=state.workflow_run_id,
+            fragment_id=state.fragment_id,
+            transition=ReservationTransition.COMMITTED,
+            requesting_peer_id=state.requesting_peer_id,
+            service_id=state.service_id,
+            idempotency_key=idem_key,
+        )
+        updated = state.apply(ReservationTransition.COMMITTED)
         logger.info("reservation %s COMMITTED", reservation_id)
         return updated
 
@@ -142,25 +118,41 @@ class ReservationService:
         reason: str | None = None,
         idempotency_key: str | None = None,
     ) -> ReservationState:
-        """Append a CANCELLED event."""
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            state = await _require_state(session, reservation_id)
-            updated = state.apply(ReservationTransition.CANCELLED)
-            await _append_event(
-                session,
-                reservation_id=reservation_id,
-                workflow_run_id=state.workflow_run_id,
-                fragment_id=state.fragment_id,
-                transition=ReservationTransition.CANCELLED,
-                requesting_peer_id=state.requesting_peer_id,
-                accepting_peer_id=state.accepting_peer_id,
-                service_id=state.service_id,
-                idempotency_key=idem_key,
-                reason=reason,
-            )
-            await session.commit()
+        state = await _require_state(reservation_id)
+        await _append_event(
+            reservation_id=reservation_id,
+            workflow_run_id=state.workflow_run_id,
+            fragment_id=state.fragment_id,
+            transition=ReservationTransition.CANCELLED,
+            requesting_peer_id=state.requesting_peer_id,
+            service_id=state.service_id,
+            idempotency_key=idem_key,
+            reason=reason,
+        )
+        updated = state.apply(ReservationTransition.CANCELLED)
         logger.info("reservation %s CANCELLED reason=%s", reservation_id, reason)
+        return updated
+
+    async def expire(
+        self,
+        *,
+        reservation_id: str,
+        idempotency_key: str | None = None,
+    ) -> ReservationState:
+        idem_key = idempotency_key or uuid.uuid4().hex
+        state = await _require_state(reservation_id)
+        await _append_event(
+            reservation_id=reservation_id,
+            workflow_run_id=state.workflow_run_id,
+            fragment_id=state.fragment_id,
+            transition=ReservationTransition.EXPIRED,
+            requesting_peer_id=state.requesting_peer_id,
+            service_id=state.service_id,
+            idempotency_key=idem_key,
+        )
+        updated = state.apply(ReservationTransition.EXPIRED)
+        logger.info("reservation %s EXPIRED", reservation_id)
         return updated
 
     async def reject(
@@ -168,86 +160,76 @@ class ReservationService:
         *,
         reservation_id: str,
         reason: str | None = None,
-        accepting_peer_id: str | None = None,
         idempotency_key: str | None = None,
     ) -> ReservationState:
-        """Append a REJECTED event."""
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            state = await _require_state(session, reservation_id)
-            updated = state.apply(
-                ReservationTransition.REJECTED,
-                accepting_peer_id=accepting_peer_id or state.accepting_peer_id,
-            )
-            await _append_event(
-                session,
-                reservation_id=reservation_id,
-                workflow_run_id=state.workflow_run_id,
-                fragment_id=state.fragment_id,
-                transition=ReservationTransition.REJECTED,
-                requesting_peer_id=state.requesting_peer_id,
-                accepting_peer_id=accepting_peer_id or state.accepting_peer_id,
-                service_id=state.service_id,
-                idempotency_key=idem_key,
-                reason=reason,
-            )
-            await session.commit()
+        state = await _require_state(reservation_id)
+        await _append_event(
+            reservation_id=reservation_id,
+            workflow_run_id=state.workflow_run_id,
+            fragment_id=state.fragment_id,
+            transition=ReservationTransition.REJECTED,
+            requesting_peer_id=state.requesting_peer_id,
+            service_id=state.service_id,
+            idempotency_key=idem_key,
+            reason=reason,
+        )
+        updated = state.apply(ReservationTransition.REJECTED)
         logger.info("reservation %s REJECTED reason=%s", reservation_id, reason)
         return updated
 
     async def get_state(self, reservation_id: str) -> ReservationState | None:
-        """Reconstruct current state by replaying events from Postgres."""
-        async with self._session_factory() as session:
-            return await _load_state(session, reservation_id)
+        return await _load_state(reservation_id)
 
-    async def get_peer_conflict_state(
-        self, peer_id: str
+    async def check_conflict(
+        self,
+        *,
+        service_id: str,
+        fragment_id: str,
     ) -> ReservationConflictState:
-        """Return active/committed reservation counts for a peer from event log."""
-        async with self._session_factory() as session:
-            result = await session.execute(
-                select(ReservationEventRecord).where(
-                    ReservationEventRecord.accepting_peer_id == peer_id
+        events = await ReservationEventDocument.find(
+            ReservationEventDocument.service_id == service_id,
+            ReservationEventDocument.fragment_id == fragment_id,
+        ).sort("occurred_at").to_list()
+
+        if not events:
+            return ReservationConflictState(has_conflict=False)
+
+        states: dict[str, ReservationState] = {}
+        for event in events:
+            rid = event.reservation_id
+            if rid not in states:
+                states[rid] = ReservationState(
+                    reservation_id=rid,
+                    workflow_run_id=event.workflow_run_id,
+                    fragment_id=event.fragment_id,
+                    service_id=event.service_id,
+                    requesting_peer_id=event.requesting_peer_id,
+                    ttl_seconds=event.payload.get("ttl_seconds", 60),
+                    last_event_at=event.occurred_at,
                 )
-            )
-            events = result.scalars().all()
+            else:
+                try:
+                    t = ReservationTransition(event.transition)
+                    kwargs: dict[str, Any] = {}
+                    if event.accepting_peer_id:
+                        kwargs["accepting_peer_id"] = event.accepting_peer_id
+                    states[rid] = states[rid].apply(t, occurred_at=event.occurred_at, **kwargs)
+                except ValueError:
+                    pass
 
-        active: set[str] = set()
-        committed: set[str] = set()
-
-        res_events: dict[str, list[ReservationEventRecord]] = {}
-        for e in events:
-            res_events.setdefault(e.reservation_id, []).append(e)
-
-        for res_id, evts in res_events.items():
-            sorted_evts = sorted(evts, key=lambda x: x.occurred_at)
-            last_transition = sorted_evts[-1].transition
-            if last_transition == ReservationTransition.ACCEPTED.value:
-                active.add(res_id)
-            elif last_transition == ReservationTransition.COMMITTED.value:
-                committed.add(res_id)
-
+        active = [s for s in states.values() if s.is_active]
         return ReservationConflictState(
-            peer_id=peer_id,
-            active_reservation_ids=frozenset(active),
-            committed_reservation_ids=frozenset(committed),
+            has_conflict=len(active) > 0,
+            conflicting_reservation_id=active[0].reservation_id if active else None,
         )
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+async def _load_state(reservation_id: str) -> ReservationState | None:
+    events = await ReservationEventDocument.find(
+        ReservationEventDocument.reservation_id == reservation_id
+    ).sort("occurred_at").to_list()
 
-
-async def _load_state(
-    session: AsyncSession, reservation_id: str
-) -> ReservationState | None:
-    result = await session.execute(
-        select(ReservationEventRecord)
-        .where(ReservationEventRecord.reservation_id == reservation_id)
-        .order_by(ReservationEventRecord.occurred_at)
-    )
-    events = result.scalars().all()
     if not events:
         return None
 
@@ -263,41 +245,41 @@ async def _load_state(
     )
 
     for event in events[1:]:
-        transition = ReservationTransition(event.transition)
-        kwargs: dict[str, Any] = {}
-        if event.accepting_peer_id:
-            kwargs["accepting_peer_id"] = event.accepting_peer_id
-        state = state.apply(transition, occurred_at=event.occurred_at, **kwargs)
+        try:
+            transition = ReservationTransition(event.transition)
+            kwargs: dict[str, Any] = {}
+            if event.accepting_peer_id:
+                kwargs["accepting_peer_id"] = event.accepting_peer_id
+            state = state.apply(transition, occurred_at=event.occurred_at, **kwargs)
+        except ValueError:
+            logger.warning(
+                "skipping invalid transition %s for reservation %s",
+                event.transition,
+                reservation_id,
+            )
 
     return state
 
 
 async def _load_state_by_idempotency_key(
-    session: AsyncSession,
     idempotency_key: str,
 ) -> ReservationState | None:
-    result = await session.execute(
-        select(ReservationEventRecord).where(
-            ReservationEventRecord.idempotency_key == idempotency_key
-        )
+    record = await ReservationEventDocument.find_one(
+        ReservationEventDocument.idempotency_key == idempotency_key
     )
-    record = result.scalar_one_or_none()
     if record is None:
         return None
-    return await _load_state(session, record.reservation_id)
+    return await _load_state(record.reservation_id)
 
 
-async def _require_state(
-    session: AsyncSession, reservation_id: str
-) -> ReservationState:
-    state = await _load_state(session, reservation_id)
+async def _require_state(reservation_id: str) -> ReservationState:
+    state = await _load_state(reservation_id)
     if state is None:
         raise ValueError(f"Reservation '{reservation_id}' not found in event log.")
     return state
 
 
 async def _append_event(
-    session: AsyncSession,
     *,
     reservation_id: str,
     workflow_run_id: str,
@@ -310,7 +292,7 @@ async def _append_event(
     reason: str | None = None,
     payload: dict[str, Any] | None = None,
 ) -> None:
-    record = ReservationEventRecord(
+    record = ReservationEventDocument(
         id=uuid.uuid4().hex,
         reservation_id=reservation_id,
         workflow_run_id=workflow_run_id,
@@ -324,4 +306,4 @@ async def _append_event(
         payload=payload or {},
         occurred_at=datetime.now(timezone.utc),
     )
-    session.add(record)
+    await record.insert()

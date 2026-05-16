@@ -20,7 +20,6 @@ export async function getHelia(): Promise<Helia> {
     console.log("[helia-init] starting…");
 
     const { createHelia } = await import("helia");
-    const { createLibp2p } = await import("libp2p");
     const { IDBBlockstore } = await import("blockstore-idb");
     const { IDBDatastore } = await import("datastore-idb");
 
@@ -46,26 +45,12 @@ export async function getHelia(): Promise<Helia> {
     });
     console.log("[helia-init] datastore open ✓");
 
-    console.log("[helia-init] creating libp2p…");
-    // Minimal libp2p — no transports, no peer discovery, no DHT.
-    // This node is used only for local CID generation and IDB storage;
-    // it does not need to dial any external peers.
-    const libp2p = await withTimeout(
-      createLibp2p({
-        addresses: { listen: [] },
-        transports: [],
-        connectionEncrypters: [],
-        streamMuxers: [],
-        services: {},
-      }),
-      10_000,
-      "createLibp2p()",
-    );
-    console.log("[helia-init] libp2p created ✓");
-
     console.log("[helia-init] creating Helia…");
+    // No explicit libp2p instance — Helia 6.x creates its own minimal internal
+    // node. This avoids the 'libp2p' package dependency and is sufficient for
+    // local CID generation and IDB storage without dialing external peers.
     const helia = await withTimeout(
-      createHelia({ blockstore, datastore, libp2p }),
+      createHelia({ blockstore, datastore }),
       10_000,
       "createHelia()",
     );

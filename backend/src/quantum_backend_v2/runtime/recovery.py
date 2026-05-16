@@ -9,10 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from quantum_backend_v2.persistence.postgres import ExecutionEventRecord, ReservationEventRecord
+from quantum_backend_v2.persistence.mongodb import ExecutionEventDocument, ReservationEventDocument
 from quantum_backend_v2.reservations.models import ReservationState, ReservationTransition
 from quantum_backend_v2.runtime.models import ExecutionState, ExecutionTransition, InFlightExecution
 
@@ -20,30 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class RuntimeRecoveryService:
-    """Replays event logs on startup to rebuild the coordinator's runtime view.
-
-    Usage::
-
-        recovery = RuntimeRecoveryService(session_factory=session_factory)
-        in_flight = await recovery.recover_in_flight_executions()
-        open_reservations = await recovery.recover_open_reservations()
-    """
-
-    def __init__(self, *, session_factory: Any) -> None:
-        self._session_factory = session_factory
+    """Replays event logs on startup to rebuild the coordinator's runtime view."""
 
     async def recover_in_flight_executions(self) -> list[InFlightExecution]:
-        """Return all executions that are not yet in a terminal state.
-
-        This replays all execution_events rows from Postgres and filters
-        for non-terminal transitions.  The result is the coordinator's
-        authoritative view of what is currently running.
-        """
-        async with self._session_factory() as session:
-            result = await session.execute(
-                select(ExecutionEventRecord).order_by(ExecutionEventRecord.occurred_at)
-            )
-            all_events = result.scalars().all()
+        """Return all executions that are not yet in a terminal state."""
+        all_events = await ExecutionEventDocument.find().sort("occurred_at").to_list()
 
         states = _replay_execution_states(all_events)
         in_flight = [
@@ -69,11 +47,7 @@ class RuntimeRecoveryService:
 
     async def recover_open_reservations(self) -> list[ReservationState]:
         """Return reservations that are REQUESTED or ACCEPTED (not yet terminal)."""
-        async with self._session_factory() as session:
-            result = await session.execute(
-                select(ReservationEventRecord).order_by(ReservationEventRecord.occurred_at)
-            )
-            all_events = result.scalars().all()
+        all_events = await ReservationEventDocument.find().sort("occurred_at").to_list()
 
         states = _replay_reservation_states(all_events)
         open_reservations = [s for s in states.values() if not s.is_terminal]
@@ -87,11 +61,8 @@ class RuntimeRecoveryService:
 
     async def summary(self) -> dict[str, int]:
         """Return a counts summary useful for readiness checks and monitoring."""
-        async with self._session_factory() as session:
-            exec_result = await session.execute(select(ExecutionEventRecord))
-            exec_events = exec_result.scalars().all()
-            res_result = await session.execute(select(ReservationEventRecord))
-            res_events = res_result.scalars().all()
+        exec_events = await ExecutionEventDocument.find().to_list()
+        res_events = await ReservationEventDocument.find().to_list()
 
         exec_states = _replay_execution_states(exec_events)
         res_states = _replay_reservation_states(res_events)
@@ -104,15 +75,10 @@ class RuntimeRecoveryService:
         }
 
 
-# ---------------------------------------------------------------------------
-# Pure replay helpers
-# ---------------------------------------------------------------------------
-
-
 def _replay_execution_states(
-    events: list[ExecutionEventRecord],
+    events: list[ExecutionEventDocument],
 ) -> dict[str, ExecutionState]:
-    by_execution: dict[str, list[ExecutionEventRecord]] = {}
+    by_execution: dict[str, list[ExecutionEventDocument]] = {}
     for e in events:
         by_execution.setdefault(e.execution_id, []).append(e)
 
@@ -154,9 +120,9 @@ def _replay_execution_states(
 
 
 def _replay_reservation_states(
-    events: list[ReservationEventRecord],
+    events: list[ReservationEventDocument],
 ) -> dict[str, ReservationState]:
-    by_reservation: dict[str, list[ReservationEventRecord]] = {}
+    by_reservation: dict[str, list[ReservationEventDocument]] = {}
     for e in events:
         by_reservation.setdefault(e.reservation_id, []).append(e)
 

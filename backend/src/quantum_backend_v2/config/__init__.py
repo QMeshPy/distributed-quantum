@@ -9,8 +9,6 @@ from quantum_backend_v2.config.models import (
     MongoTarget,
     PeerLogSettings,
     PersistenceSettings,
-    PostgresSettings,
-    PostgresTarget,
 )
 
 __all__ = [
@@ -21,7 +19,5 @@ __all__ = [
     "MongoTarget",
     "PeerLogSettings",
     "PersistenceSettings",
-    "PostgresSettings",
-    "PostgresTarget",
     "load_settings",
 ]

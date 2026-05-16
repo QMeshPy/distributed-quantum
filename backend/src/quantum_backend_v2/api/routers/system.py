@@ -66,7 +66,4 @@ def build_router(
 
 
 def _has_unavailable_dependency(persistence: PersistenceReadiness) -> bool:
-    return any(
-        dependency.mode == PersistenceMode.UNAVAILABLE
-        for dependency in (persistence.postgres, persistence.mongodb)
-    )
+    return persistence.mongodb.mode == PersistenceMode.UNAVAILABLE

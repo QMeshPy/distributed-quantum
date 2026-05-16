@@ -64,7 +64,6 @@ class PersistenceReadiness(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    postgres: DatabaseReadiness
     mongodb: DatabaseReadiness
     peer_log: LocalPeerLogReadiness
 

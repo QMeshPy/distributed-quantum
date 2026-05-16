@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from enum import Enum
 from pathlib import Path
-from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,57 +26,11 @@ class LoggingSettings(BaseModel):
     json_logs: bool = True
 
 
-class PostgresTarget(str, Enum):
-    """Supported Postgres deployment targets."""
-
-    LOCAL = "local"
-    NEON = "neon"
-
-
 class MongoTarget(str, Enum):
     """Supported MongoDB deployment targets."""
 
     LOCAL = "local"
     REMOTE = "remote"
-
-
-class PostgresSettings(BaseModel):
-    """Transactional persistence configuration for local and Neon Postgres."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    target: PostgresTarget = PostgresTarget.LOCAL
-    local_dsn: str | None = Field(default=None, min_length=1)
-    neon_pooled_dsn: str | None = Field(default=None, min_length=1)
-    neon_direct_dsn: str | None = Field(default=None, min_length=1)
-    database: str = Field(default="quantum_backend_v2", min_length=1)
-    echo: bool = False
-    pool_pre_ping: bool = True
-
-    @property
-    def configured(self) -> bool:
-        return self.effective_app_dsn is not None
-
-    @property
-    def effective_app_dsn(self) -> str | None:
-        if self.target == PostgresTarget.LOCAL:
-            return self.local_dsn
-        return self.neon_pooled_dsn or self.neon_direct_dsn
-
-    @property
-    def effective_migration_dsn(self) -> str | None:
-        if self.target == PostgresTarget.LOCAL:
-            return self.local_dsn
-        return self.neon_direct_dsn or self.neon_pooled_dsn
-
-    @property
-    def resolved_database(self) -> str:
-        dsn = self.effective_app_dsn or self.effective_migration_dsn
-        if dsn is None:
-            return self.database
-        parsed = urlparse(dsn)
-        database = parsed.path.lstrip("/")
-        return database or self.database
 
 
 class MongoSettings(BaseModel):
@@ -113,11 +66,10 @@ class PeerLogSettings(BaseModel):
 
 
 class PersistenceSettings(BaseModel):
-    """Hybrid persistence settings for backend v2."""
+    """Persistence settings for backend v2."""
 
     model_config = ConfigDict(extra="forbid")
 
-    postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     mongodb: MongoSettings = Field(default_factory=MongoSettings)
     peer_log: PeerLogSettings = Field(default_factory=PeerLogSettings)
 
@@ -193,15 +145,6 @@ class AppSettings(BaseModel):
                 json_logs=_parse_bool(env.get("QB2_JSON_LOGS", "true")),
             ),
             persistence=PersistenceSettings(
-                postgres=PostgresSettings(
-                    target=PostgresTarget(env.get("QB2_POSTGRES_TARGET", "local")),
-                    local_dsn=_optional(env.get("QB2_POSTGRES_LOCAL_DSN")),
-                    neon_pooled_dsn=_optional(env.get("QB2_POSTGRES_NEON_POOLED_DSN")),
-                    neon_direct_dsn=_optional(env.get("QB2_POSTGRES_NEON_DIRECT_DSN")),
-                    database=env.get("QB2_POSTGRES_DATABASE", "quantum_backend_v2"),
-                    echo=_parse_bool(env.get("QB2_POSTGRES_ECHO", "false")),
-                    pool_pre_ping=_parse_bool(env.get("QB2_POSTGRES_POOL_PRE_PING", "true")),
-                ),
                 mongodb=MongoSettings(
                     target=MongoTarget(env.get("QB2_MONGODB_TARGET", "local")),
                     local_uri=_optional(env.get("QB2_MONGODB_LOCAL_URI")),

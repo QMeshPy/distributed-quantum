@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy import func, select
 
 from quantum_backend_v2.api.deps.auth import AdminUser, CurrentUser
 from quantum_backend_v2.api.deps.pagination import PageParams, PagedResponse
@@ -17,15 +16,12 @@ from quantum_backend_v2.api.models.enrollment import (
 )
 from quantum_backend_v2.application.enrollment import approve_peer, enroll_peer
 from quantum_backend_v2.identity.models import PeerTrustTier
-from quantum_backend_v2.persistence.postgres import AsyncSession, PeerEnrollmentRecord
+from quantum_backend_v2.persistence.mongodb import PeerEnrollmentDocument
 
 
-def build_enrollment_router(*, session_factory: object) -> APIRouter:
-    """Build the enrollment router, capturing the session factory via closure."""
+def build_enrollment_router() -> APIRouter:
+    """Build the enrollment router."""
     router = APIRouter(prefix="/api/v1/enrollment", tags=["enrollment"])
-
-    def _session() -> AsyncSession:
-        return session_factory()  # type: ignore[operator]
 
     @router.post(
         "/peers",
@@ -37,24 +33,15 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
         body: EnrollPeerRequest,
         current_user: CurrentUser,
     ) -> EnrollmentResponse:
-        """Enroll a new peer or update an existing enrollment record.
-
-        Ordinary developers can only enroll USER_CONTRIBUTED peers.
-        Admins and operators may use any trust tier.
-        """
         _guard_trust_tier(body.trust_tier, current_user)
-
-        async with _session() as session:  # type: ignore[attr-defined]
-            async with session.begin():
-                record = await enroll_peer(
-                    session=session,
-                    peer_id=body.peer_id,
-                    owner_user_id=current_user.user_id,
-                    actor_user_id=current_user.user_id,
-                    actor_can_manage_foreign=current_user.is_admin(),
-                    trust_tier=body.trust_tier,
-                    capability_summary=body.capability_summary,
-                )
+        record = await enroll_peer(
+            peer_id=body.peer_id,
+            owner_user_id=current_user.user_id,
+            actor_user_id=current_user.user_id,
+            actor_can_manage_foreign=current_user.is_admin(),
+            trust_tier=body.trust_tier,
+            capability_summary=body.capability_summary,
+        )
         return _to_response(record)
 
     @router.get(
@@ -68,24 +55,16 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
         trust_tier: str | None = Query(default=None),
         status_filter: str | None = Query(default=None, alias="status"),
     ) -> EnrollmentListResponse:
-        async with _session() as session:  # type: ignore[attr-defined]
-            stmt = select(PeerEnrollmentRecord)
-            if trust_tier:
-                stmt = stmt.where(PeerEnrollmentRecord.trust_tier == trust_tier)
-            if status_filter:
-                stmt = stmt.where(PeerEnrollmentRecord.enrollment_status == status_filter)
-            if not current_user.is_admin():
-                stmt = stmt.where(PeerEnrollmentRecord.owner_user_id == current_user.user_id)
+        query = PeerEnrollmentDocument.find()
+        if trust_tier:
+            query = query.find(PeerEnrollmentDocument.trust_tier == trust_tier)
+        if status_filter:
+            query = query.find(PeerEnrollmentDocument.enrollment_status == status_filter)
+        if not current_user.is_admin():
+            query = query.find(PeerEnrollmentDocument.owner_user_id == current_user.user_id)
 
-            result = await session.execute(
-                stmt.offset(pagination.offset).limit(pagination.limit)
-            )
-            records = result.scalars().all()
-
-            total_result = await session.execute(
-                select(func.count()).select_from(stmt.subquery())
-            )
-            total = int(total_result.scalar_one())
+        total = await query.count()
+        records = await query.skip(pagination.offset).limit(pagination.limit).to_list()
 
         return EnrollmentListResponse(
             enrollments=[_to_response(r) for r in records],
@@ -101,18 +80,13 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
         peer_id: str,
         current_user: CurrentUser,
     ) -> EnrollmentResponse:
-        async with _session() as session:  # type: ignore[attr-defined]
-            result = await session.execute(
-                select(PeerEnrollmentRecord).where(PeerEnrollmentRecord.peer_id == peer_id)
-            )
-            record = result.scalar_one_or_none()
-
+        record = await PeerEnrollmentDocument.find_one(
+            PeerEnrollmentDocument.peer_id == peer_id
+        )
         if record is None:
             raise not_found("Peer enrollment", peer_id)
-
         if not current_user.is_admin() and record.owner_user_id != current_user.user_id:
             raise not_found("Peer enrollment", peer_id)
-
         return _to_response(record)
 
     @router.post(
@@ -125,24 +99,22 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
         body: EnrollmentActionRequest,
         _admin: AdminUser,
     ) -> EnrollmentResponse:
-        async with _session() as session:  # type: ignore[attr-defined]
-            async with session.begin():
-                if body.action == ApprovalAction.APPROVE:
-                    record = await approve_peer(session=session, peer_id=peer_id)
-                else:
-                    result = await session.execute(
-                        select(PeerEnrollmentRecord).where(
-                            PeerEnrollmentRecord.peer_id == peer_id
-                        )
-                    )
-                    record = result.scalar_one_or_none()
-                    if record is not None:
-                        new_status = (
-                            "quarantined"
-                            if body.action == ApprovalAction.QUARANTINE
-                            else "rejected"
-                        )
-                        record.enrollment_status = new_status
+        if body.action == ApprovalAction.APPROVE:
+            record = await approve_peer(peer_id=peer_id)
+        else:
+            record = await PeerEnrollmentDocument.find_one(
+                PeerEnrollmentDocument.peer_id == peer_id
+            )
+            if record is not None:
+                from datetime import datetime, timezone
+                new_status = (
+                    "quarantined"
+                    if body.action == ApprovalAction.QUARANTINE
+                    else "rejected"
+                )
+                record.enrollment_status = new_status
+                record.updated_at = datetime.now(timezone.utc)
+                await record.save()
 
         if record is None:
             raise not_found("Peer enrollment", peer_id)
@@ -152,7 +124,7 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
     return router
 
 
-def _to_response(record: PeerEnrollmentRecord) -> EnrollmentResponse:
+def _to_response(record: PeerEnrollmentDocument) -> EnrollmentResponse:
     return EnrollmentResponse(
         id=record.id,
         peer_id=record.peer_id,

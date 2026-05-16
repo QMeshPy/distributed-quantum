@@ -7,20 +7,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from quantum_backend_v2.persistence.postgres import ExecutionEventRecord
+from quantum_backend_v2.persistence.mongodb import ExecutionEventDocument
 from quantum_backend_v2.runtime.models import ExecutionState, ExecutionTransition
 
 logger = logging.getLogger(__name__)
 
 
 class ExecutionService:
-    """Manages durable execution lifecycle over the Postgres event log."""
-
-    def __init__(self, *, session_factory: Any) -> None:
-        self._session_factory = session_factory
+    """Manages durable execution lifecycle over the MongoDB event log."""
 
     async def dispatch(
         self,
@@ -35,25 +29,21 @@ class ExecutionService:
     ) -> ExecutionState:
         """Append a DISPATCHED event and return the initial execution state."""
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            existing = await _load_state(session, execution_id)
-            if existing is not None:
-                logger.info("execution %s already exists - idempotent", execution_id)
-                return existing
+        existing = await _load_state(execution_id)
+        if existing is not None:
+            logger.info("execution %s already exists - idempotent", execution_id)
+            return existing
 
-            await _append_event(
-                session,
-                execution_id=execution_id,
-                reservation_id=reservation_id,
-                workflow_run_id=workflow_run_id,
-                fragment_id=fragment_id,
-                transition=ExecutionTransition.DISPATCHED,
-                executing_peer_id=executing_peer_id,
-                service_id=service_id,
-                idempotency_key=idem_key,
-            )
-            await session.commit()
-
+        await _append_event(
+            execution_id=execution_id,
+            reservation_id=reservation_id,
+            workflow_run_id=workflow_run_id,
+            fragment_id=fragment_id,
+            transition=ExecutionTransition.DISPATCHED,
+            executing_peer_id=executing_peer_id,
+            service_id=service_id,
+            idempotency_key=idem_key,
+        )
         state = ExecutionState(
             execution_id=execution_id,
             reservation_id=reservation_id,
@@ -137,8 +127,7 @@ class ExecutionService:
         )
 
     async def get_state(self, execution_id: str) -> ExecutionState | None:
-        async with self._session_factory() as session:
-            return await _load_state(session, execution_id)
+        return await _load_state(execution_id)
 
     async def _transition(
         self,
@@ -150,44 +139,39 @@ class ExecutionService:
         **state_kwargs: Any,
     ) -> ExecutionState:
         idem_key = idempotency_key or uuid.uuid4().hex
-        async with self._session_factory() as session:
-            state = await _require_state(session, execution_id)
-            retry_attempt = state.retry_attempt + (
-                1 if transition == ExecutionTransition.RETRYING else 0
-            )
-            updated = state.apply(
-                transition,
-                retry_attempt=retry_attempt,
-                **state_kwargs,
-            )
-            await _append_event(
-                session,
-                execution_id=execution_id,
-                reservation_id=state.reservation_id,
-                workflow_run_id=state.workflow_run_id,
-                fragment_id=state.fragment_id,
-                transition=transition,
-                executing_peer_id=state.executing_peer_id,
-                service_id=state.service_id,
-                idempotency_key=idem_key,
-                fidelity_score=state_kwargs.get("fidelity_score"),
-                latency_ms=state_kwargs.get("latency_ms"),
-                error_detail=state_kwargs.get("error_detail"),
-                retry_attempt=retry_attempt,
-                payload=payload or {},
-            )
-            await session.commit()
+        state = await _require_state(execution_id)
+        retry_attempt = state.retry_attempt + (
+            1 if transition == ExecutionTransition.RETRYING else 0
+        )
+        updated = state.apply(
+            transition,
+            retry_attempt=retry_attempt,
+            **state_kwargs,
+        )
+        await _append_event(
+            execution_id=execution_id,
+            reservation_id=state.reservation_id,
+            workflow_run_id=state.workflow_run_id,
+            fragment_id=state.fragment_id,
+            transition=transition,
+            executing_peer_id=state.executing_peer_id,
+            service_id=state.service_id,
+            idempotency_key=idem_key,
+            fidelity_score=state_kwargs.get("fidelity_score"),
+            latency_ms=state_kwargs.get("latency_ms"),
+            error_detail=state_kwargs.get("error_detail"),
+            retry_attempt=retry_attempt,
+            payload=payload or {},
+        )
         logger.info("execution %s -> %s", execution_id, transition.value)
         return updated
 
 
-async def _load_state(session: AsyncSession, execution_id: str) -> ExecutionState | None:
-    result = await session.execute(
-        select(ExecutionEventRecord)
-        .where(ExecutionEventRecord.execution_id == execution_id)
-        .order_by(ExecutionEventRecord.occurred_at)
-    )
-    events = result.scalars().all()
+async def _load_state(execution_id: str) -> ExecutionState | None:
+    events = await ExecutionEventDocument.find(
+        ExecutionEventDocument.execution_id == execution_id
+    ).sort("occurred_at").to_list()
+
     if not events:
         return None
 
@@ -204,31 +188,37 @@ async def _load_state(session: AsyncSession, execution_id: str) -> ExecutionStat
     )
 
     for event in events[1:]:
-        transition = ExecutionTransition(event.transition)
-        kwargs: dict[str, Any] = {}
-        if event.fidelity_score is not None:
-            kwargs["fidelity_score"] = event.fidelity_score
-        if event.latency_ms is not None:
-            kwargs["latency_ms"] = event.latency_ms
-        if event.error_detail is not None:
-            kwargs["error_detail"] = event.error_detail
-        if event.payload.get("checkpoint_ref"):
-            kwargs["checkpoint_ref"] = event.payload["checkpoint_ref"]
-        kwargs["retry_attempt"] = event.retry_attempt
-        state = state.apply(transition, occurred_at=event.occurred_at, **kwargs)
+        try:
+            transition = ExecutionTransition(event.transition)
+            kwargs: dict[str, Any] = {}
+            if event.fidelity_score is not None:
+                kwargs["fidelity_score"] = event.fidelity_score
+            if event.latency_ms is not None:
+                kwargs["latency_ms"] = event.latency_ms
+            if event.error_detail is not None:
+                kwargs["error_detail"] = event.error_detail
+            if event.payload.get("checkpoint_ref"):
+                kwargs["checkpoint_ref"] = event.payload["checkpoint_ref"]
+            kwargs["retry_attempt"] = event.retry_attempt
+            state = state.apply(transition, occurred_at=event.occurred_at, **kwargs)
+        except ValueError:
+            logger.warning(
+                "skipping invalid transition %s for execution %s",
+                event.transition,
+                execution_id,
+            )
 
     return state
 
 
-async def _require_state(session: AsyncSession, execution_id: str) -> ExecutionState:
-    state = await _load_state(session, execution_id)
+async def _require_state(execution_id: str) -> ExecutionState:
+    state = await _load_state(execution_id)
     if state is None:
         raise ValueError(f"Execution '{execution_id}' not found in event log.")
     return state
 
 
 async def _append_event(
-    session: AsyncSession,
     *,
     execution_id: str,
     reservation_id: str,
@@ -244,7 +234,7 @@ async def _append_event(
     error_detail: str | None = None,
     payload: dict[str, Any] | None = None,
 ) -> None:
-    record = ExecutionEventRecord(
+    record = ExecutionEventDocument(
         id=uuid.uuid4().hex,
         execution_id=execution_id,
         reservation_id=reservation_id,
@@ -261,4 +251,4 @@ async def _append_event(
         payload=payload or {},
         occurred_at=datetime.now(timezone.utc),
     )
-    session.add(record)
+    await record.insert()
