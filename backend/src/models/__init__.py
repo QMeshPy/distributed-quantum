@@ -13,6 +13,11 @@ from .payment import (
     PaymentStatus,
     PaymentType,
 )
+from .notification import (
+    NotificationResponse,
+    NotificationListResponse,
+    NotificationPreferences,
+)
 
 __all__ = [
     # Wallet models
@@ -26,4 +31,8 @@ __all__ = [
     "PaymentResponse",
     "PaymentStatus",
     "PaymentType",
+    # Notification models
+    "NotificationResponse",
+    "NotificationListResponse",
+    "NotificationPreferences",
 ]

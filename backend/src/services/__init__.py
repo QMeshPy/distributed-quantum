@@ -12,12 +12,14 @@ from .notification_service import (
     get_notification_service,
     set_notification_service,
 )
+from .proposal_service import ProposalService
 
 __all__ = [
     "AgentKitService",
     "AIAgentService",
     "MarketplaceService",
     "NotificationService",
+    "ProposalService",
     "get_notification_service",
     "set_notification_service",
 ]

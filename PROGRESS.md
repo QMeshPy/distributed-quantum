@@ -9,11 +9,11 @@
 ## 📊 Overall Progress
 
 - [x] **Phase 1**: Payment Infrastructure (24/32 tasks - 75%) ✅
-- [x] **Phase 2**: Worker Marketplace (10/18 tasks - 56%) 🟡
+- [x] **Phase 2**: Worker Marketplace (11/18 tasks - 61%) 🟡
 - [x] **Phase 3**: AI Research Agents (8/22 tasks - 36%) 🟡
-- [x] **Phase 4**: Research Crowdfunding (16/35 tasks - 46%) 🟡
+- [x] **Phase 4**: Research Crowdfunding (23/44 tasks - 52%) 🟡
 
-**Total Progress**: 58/107 tasks (54%) - OVER HALFWAY!
+**Total Progress**: 66/116 tasks (57%) - OVER HALFWAY!
 
 ---
 
@@ -68,7 +68,7 @@
 
 ## 🛍️ Phase 2: Worker Marketplace
 
-**Status**: 🟡 56% Complete
+**Status**: 🟡 61% Complete
 
 ### Marketplace Service (8/8) ✅
 - [x] Create `marketplace_service.py`
@@ -80,9 +80,9 @@
 - [x] Implement `_find_cheapest_worker()` helper
 - [x] Implement `_parse_circuit_operations()` parser
 
-### Marketplace API (2/4)
+### Marketplace API (3/4)
 - [x] Create router skeleton
-- [ ] Wire up all endpoints to service
+- [x] Wire up all endpoints to service
 - [ ] Add cost estimation to job submission
 - [ ] Test payment distribution
 
@@ -139,7 +139,7 @@
 
 ## 🔬 Phase 4: Research Crowdfunding (THE NOVEL FEATURE!)
 
-**Status**: 🟡 46% Complete
+**Status**: 🟡 52% Complete
 
 ### IPFS Setup (1/3)
 - [x] Create IPFS utility
@@ -175,15 +175,16 @@
 - [ ] Test result submission
 - [ ] Test IPFS publishing
 
-### Notification API (0/4)
-- [ ] Create notifications.py router
-- [ ] Implement GET /notifications
-- [ ] Implement PUT /notifications/:id/read
-- [ ] Implement POST /notifications/preferences
+### Notification API (5/5) ✅
+- [x] Create notifications.py router
+- [x] Implement GET /notifications (with pagination and filters)
+- [x] Implement PUT /notifications/:id/read
+- [x] Implement POST /notifications/preferences
+- [x] Implement DELETE /notifications/:id
 
-### Proposal Models (0/2)
-- [ ] Create `proposal.py` Pydantic models
-- [ ] Create `notification.py` Pydantic models
+### Proposal Models (2/2) ✅
+- [x] Create `proposal.py` Pydantic models
+- [x] Create `notification.py` Pydantic models
 
 ### Phase 4 Testing (0/12)
 - [ ] Test proposal creation
