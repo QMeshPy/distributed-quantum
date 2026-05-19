@@ -8,12 +8,12 @@
 
 ## 📊 Overall Progress
 
-- [ ] **Phase 1**: Payment Infrastructure (0/32 tasks)
+- [ ] **Phase 1**: Payment Infrastructure (13/32 tasks - 41%)
 - [ ] **Phase 2**: Worker Marketplace (0/18 tasks)
 - [ ] **Phase 3**: AI Research Agents (0/22 tasks)
 - [ ] **Phase 4**: Research Crowdfunding (0/35 tasks)
 
-**Total Progress**: 0/107 tasks (0%)
+**Total Progress**: 13/107 tasks (12%)
 
 ---
 
@@ -34,16 +34,18 @@
 - [ ] Set up Resend email account (https://resend.com)
 - [ ] Add Resend API key to `.env`
 
-### MongoDB Schema (0/6)
-- [ ] Create `wallets` collection with indexes
-- [ ] Create `payments` collection with indexes
-- [ ] Create `worker_pricing` collection with indexes
-- [ ] Create `notifications` collection with indexes
+### MongoDB Schema (5/6)
+- [x] Create `wallets` collection with indexes
+- [x] Create `payments` collection with indexes
+- [x] Create `worker_pricing` collection with indexes
+- [x] Create `research_proposals` collection with indexes
+- [x] Create `ai_agents` collection with indexes
+- [x] Create `notifications` collection with indexes
 - [ ] Add payment fields to existing `jobs` collection
 - [ ] Test MongoDB connection with new collections
 
-### AgentKit Service (0/10)
-- [ ] Create `backend/src/services/agentkit_service.py`
+### AgentKit Service (1/10)
+- [x] Create `backend/src/services/agentkit_service.py` skeleton with all method stubs
 - [ ] Implement `create_wallet()` method
 - [ ] Implement `get_balance()` method
 - [ ] Implement `transfer_usdc()` method
@@ -54,17 +56,18 @@
 - [ ] Implement `_load_platform_wallet()` helper
 - [ ] Write unit tests for all methods
 
-### Wallet Management API (0/6)
-- [ ] Create `backend/src/api/v1/wallet.py`
-- [ ] Implement `POST /wallet/create` endpoint
-- [ ] Implement `GET /wallet/balance` endpoint
-- [ ] Implement `POST /wallet/transfer` endpoint
-- [ ] Implement `POST /wallet/fund-testnet` endpoint
-- [ ] Implement `GET /wallet/transactions` endpoint
+### Wallet Management API (1/6)
+- [x] Create `backend/src/api/v1/wallet.py` with all 6 endpoint stubs
+- [ ] Implement `POST /wallet/create` endpoint logic
+- [ ] Implement `GET /wallet/balance` endpoint logic
+- [ ] Implement `POST /wallet/transfer` endpoint logic
+- [ ] Implement `POST /wallet/fund-testnet` endpoint logic
+- [ ] Implement `GET /wallet/transactions` endpoint logic
+- [ ] Implement `POST /wallet/export` endpoint logic
 
-### Payment Models (0/2)
-- [ ] Create `backend/src/models/wallet.py` (Pydantic schemas)
-- [ ] Create `backend/src/models/payment.py` (Pydantic schemas)
+### Payment Models (2/2)
+- [x] Create `backend/src/models/wallet.py` (Pydantic schemas)
+- [x] Create `backend/src/models/payment.py` (Pydantic schemas)
 
 ### Phase 1 Testing (0/8)
 - [ ] Test wallet creation end-to-end
