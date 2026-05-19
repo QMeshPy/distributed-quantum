@@ -64,6 +64,7 @@ class SessionSettings(BaseModel):
     approval_mode: Literal["auto", "interactive"] = "auto"
     auto_approval_threshold: float = 5.0
     technical_detail_level: Literal["domain", "balanced", "full"] = "domain"
+    model_id: Optional[str] = None  # Bedrock model ID to use for this session
 
 
 class LogEntry(BaseModel):

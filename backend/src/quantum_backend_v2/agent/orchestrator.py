@@ -14,9 +14,9 @@ class AgentOrchestrator:
     - Tool execution (via service)
     """
 
-    def __init__(self, service: AgentService):
+    def __init__(self, service: AgentService, model_id: str = None):
         self.service = service
-        self.classifier = IntentClassifier()
+        self.classifier = IntentClassifier(model_id=model_id)
         self.engine = WorkflowEngine()
 
     async def process_message(self, session_id: str, user_id: str, message: str) -> Dict[str, Any]:

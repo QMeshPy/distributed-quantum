@@ -1,6 +1,7 @@
 """Agent workspace API router."""
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime
 from typing import List
@@ -17,6 +18,7 @@ from quantum_backend_v2.agent.orchestrator import AgentOrchestrator
 from quantum_backend_v2.agent.websocket import manager
 from quantum_backend_v2.agent.models import AgentSession, Message, AgentSettings
 from quantum_backend_v2.agent.cost_guard import CostGuard
+from quantum_backend_v2.agent.bedrock_models import BedrockModelService, BedrockModel
 
 
 router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
@@ -120,8 +122,9 @@ async def send_message(session_id: str, request: SendMessageRequest):
     )
     await service.add_message(session_id, user_id, user_msg)
 
-    # Process with orchestrator
-    orchestrator = AgentOrchestrator(service)
+    # Process with orchestrator (using session's model preference if set)
+    model_id = session.settings.model_id if session.settings else None
+    orchestrator = AgentOrchestrator(service, model_id=model_id)
     result = await orchestrator.process_message(session_id, user_id, request.content)
 
     # Check budget
@@ -281,3 +284,72 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(session_id, websocket)
+
+
+# Model Management
+@router.get("/models", response_model=List[BedrockModel])
+async def list_models():
+    """
+    List available Bedrock models.
+
+    Returns all Claude models available in AWS Bedrock for the configured account.
+    """
+    service = BedrockModelService()
+    return service.get_claude_models()
+
+
+@router.get("/models/available")
+async def get_available_models():
+    """
+    Get curated list of Claude models with descriptions.
+
+    Returns a user-friendly list of available Claude models with metadata.
+    """
+    return BedrockModelService.get_available_claude_models()
+
+
+@router.get("/models/default")
+async def get_default_model():
+    """
+    Get the default model configuration.
+
+    Returns the currently configured default model ID.
+    """
+    return {
+        "model_id": BedrockModelService.get_default_model(),
+        "source": "environment" if "AWS_BEDROCK_DEFAULT_MODEL" in dict(os.environ) else "fallback"
+    }
+
+
+@router.patch("/sessions/{session_id}/model")
+async def update_session_model(session_id: str, model_id: str):
+    """
+    Update the model used for a specific session.
+
+    Args:
+        session_id: Session to update
+        model_id: New Bedrock model ID to use
+
+    Returns:
+        Updated session with new model setting
+    """
+    user_id = "default_user"
+    service = AgentService()
+
+    session = await service.get_session(session_id, user_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Validate model access
+    bedrock_service = BedrockModelService()
+    if not bedrock_service.validate_model_access(model_id):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Model {model_id} is not accessible with current credentials"
+        )
+
+    # Update session settings
+    session.settings.model_id = model_id
+    await session.save()
+
+    return {"success": True, "model_id": model_id}

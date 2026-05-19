@@ -21,7 +21,13 @@ class ToolType(Enum):
 
 
 class IntentClassifier:
-    def __init__(self) -> None:
+    def __init__(self, model_id: Optional[str] = None) -> None:
+        """
+        Initialize the intent classifier.
+
+        Args:
+            model_id: Optional model ID to use. If not provided, uses default from env.
+        """
         # Check which provider is configured
         self.use_bedrock = os.getenv("AWS_BEDROCK_ENABLED", "true").lower() == "true"
 
@@ -34,7 +40,11 @@ class IntentClassifier:
                 aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
             )
-            self.model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+            # Use provided model or default from environment
+            self.model_id = model_id or os.getenv(
+                "AWS_BEDROCK_DEFAULT_MODEL",
+                "anthropic.claude-3-5-sonnet-20241022-v2:0"
+            )
         else:
             # Direct Anthropic API setup
             from anthropic import Anthropic
@@ -42,7 +52,7 @@ class IntentClassifier:
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY environment variable not set")
             self.client = Anthropic(api_key=api_key)
-            self.model_id = "claude-3-5-sonnet-20241022"
+            self.model_id = model_id or "claude-3-5-sonnet-20241022"
 
     async def classify_intent(self, user_message: str) -> Dict[str, Any]:
         """
