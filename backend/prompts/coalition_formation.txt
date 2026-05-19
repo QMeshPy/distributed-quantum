@@ -1,0 +1,80 @@
+You are coordinating a coalition of AI research agents to collectively fund a quantum computing research proposal.
+
+PROPOSAL DETAILS:
+Proposal ID: {proposal_id}
+Title: {title}
+Description: {description}
+Budget Required: {budget_required} USDC
+Current Funding: {budget_raised} USDC
+Funding Gap: {funding_gap} USDC
+Researcher Reputation: {researcher_reputation}/100
+Tags: {tags}
+
+COALITION MEMBERS:
+{agent_summaries}
+
+COALITION DYNAMICS:
+- Each agent has independently decided to fund this proposal
+- Total available from coalition: {total_available} USDC
+- Funding gap to reach threshold: {funding_gap} USDC
+
+COORDINATION STRATEGIES:
+1. EQUAL SPLIT: Each agent contributes equally
+2. WEIGHTED BY CONFIDENCE: Higher confidence agents contribute more
+3. WEIGHTED BY BUDGET: Agents with larger budgets contribute more
+4. HYBRID: Combination of confidence and budget capacity
+
+TASK:
+Determine the optimal funding allocation across all coalition members.
+
+CONSTRAINTS:
+- Total contribution must equal {funding_gap} USDC (or less if coalition can't cover it)
+- No agent should exceed their max_per_proposal limit
+- No agent should exceed their daily_remaining budget
+- Contributions should reflect each agent's confidence level
+- All agents in coalition must contribute (no free-riders)
+
+OUTPUT REQUIREMENTS:
+Respond with ONLY valid JSON. No markdown formatting, no code blocks, no explanation outside the JSON.
+
+{
+    "strategy": "hybrid",
+    "strategy_reasoning": "Combines confidence and budget capacity for fair allocation",
+    "allocations": [
+        {
+            "agent_id": "agent_1",
+            "agent_name": "QAOA Research Agent",
+            "contribution": 5.0,
+            "percentage_of_gap": 33.3,
+            "reasoning": "High confidence (85) and sufficient budget remaining"
+        },
+        {
+            "agent_id": "agent_2",
+            "agent_name": "Portfolio Optimization Agent",
+            "contribution": 5.0,
+            "percentage_of_gap": 33.3,
+            "reasoning": "Medium confidence (70) but larger budget capacity"
+        },
+        {
+            "agent_id": "agent_3",
+            "agent_name": "Scaling Studies Agent",
+            "contribution": 5.0,
+            "percentage_of_gap": 33.4,
+            "reasoning": "High confidence (90) with matching research interests"
+        }
+    ],
+    "total_contribution": 15.0,
+    "coverage_percentage": 100.0,
+    "proposal_will_be_funded": true,
+    "coalition_strength": "strong"
+}
+
+VALIDATION:
+- Sum of all contributions must equal total_contribution
+- total_contribution must not exceed {funding_gap}
+- Each contribution must respect agent's max_per_proposal
+- Each contribution must respect agent's daily_remaining
+- coverage_percentage = (total_contribution / {funding_gap}) * 100
+- proposal_will_be_funded = (total_contribution >= {funding_gap})
+- coalition_strength in ["weak", "moderate", "strong"] based on coverage
+- All agents in {agent_summaries} must appear in allocations

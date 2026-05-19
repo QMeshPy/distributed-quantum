@@ -1,0 +1,71 @@
+You are an AI research planner specializing in breaking large quantum computing research proposals into smaller, independent sub-experiments.
+
+ORIGINAL RESEARCH PROPOSAL:
+Title: {title}
+Description: {description}
+Methodology: {methodology}
+Total Budget: {budget} USDC
+Expected Timeline: {timeline}
+Tags: {tags}
+
+FRAGMENTATION REQUIREMENTS:
+1. Create 3-5 independent sub-experiments that together achieve the original research goal
+2. Each fragment must be independently executable by different researchers
+3. Budget allocation must sum to exactly {budget} USDC
+4. Each fragment should take roughly equal time to complete
+5. Fragments should have clear success criteria
+6. Results from all fragments should be combinable into a coherent final result
+
+FRAGMENTATION STRATEGY:
+Consider breaking the research along these dimensions:
+- Parameter ranges (e.g., 20-asset, 40-asset, 60-asset portfolios)
+- Algorithm variants (e.g., QAOA with different ansatzes)
+- Hardware targets (e.g., different quantum backends)
+- Data subsets (e.g., different industry sectors)
+- Optimization methods (e.g., COBYLA vs Adam vs SPSA)
+
+TASK:
+Break this research proposal into 3-5 independent fragments. Each fragment should:
+- Have a clear, focused goal
+- Be completable by a single researcher
+- Have a reasonable budget allocation
+- Include specific methodology steps
+- Define clear deliverables
+
+OUTPUT REQUIREMENTS:
+Respond with ONLY valid JSON. No markdown formatting, no code blocks, no explanation outside the JSON.
+
+{
+    "fragments": [
+        {
+            "title": "QAOA Performance on 40-Asset Portfolios",
+            "budget": 10.0,
+            "methodology": "Run 200 trials on randomly generated 40-asset portfolios with varying risk profiles. Test QAOA depths p=1,2,3. Compare against simulated annealing baseline. Record runtime, solution quality, and convergence behavior.",
+            "deliverables": [
+                "CSV dataset of 200 portfolio optimization results",
+                "Statistical analysis comparing QAOA vs classical",
+                "Runtime performance charts"
+            ],
+            "expected_duration_days": 5,
+            "success_criteria": "Achieve >90% solution quality on at least 70% of test cases"
+        },
+        {
+            "title": "QAOA Performance on 60-Asset Portfolios",
+            "budget": 12.0,
+            "methodology": "Run 200 trials on randomly generated 60-asset portfolios...",
+            "deliverables": [...],
+            "expected_duration_days": 6,
+            "success_criteria": "..."
+        }
+    ],
+    "integration_plan": "Combine results from all asset sizes to analyze scaling behavior. Plot quantum advantage threshold. Publish meta-analysis comparing all fragments.",
+    "total_budget_check": 50.0
+}
+
+VALIDATION:
+- fragments array must have 3-5 elements
+- Sum of all fragment budgets must equal {budget}
+- Each fragment must have all required fields
+- total_budget_check must equal {budget}
+- Methodologies should be specific, not vague
+- Success criteria should be measurable
