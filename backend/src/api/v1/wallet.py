@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Query, status
@@ -9,6 +11,10 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
 from quantum_backend_v2.api.errors.models import PlatformException, ErrorCode
+from db.agentkit_collections import WalletDocument, PaymentDocument
+from services.agentkit_service import AgentKitService
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +107,9 @@ class ExportWalletResponse(BaseModel):
 
 router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 
+# Initialize AgentKit service
+agentkit_service = AgentKitService()
+
 
 @router.post(
     "/create",
@@ -126,16 +135,46 @@ async def create_wallet(
     Raises:
         PlatformException: If wallet creation fails or user already has a wallet
     """
-    # TODO: Implement wallet creation logic
-    # - Check if user already has a wallet
-    # - Initialize CDP wallet
-    # - Store wallet metadata in database
-    # - Return wallet details
-    raise PlatformException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        error=ErrorCode.INTERNAL_ERROR,
-        message="Wallet creation not yet implemented",
-    )
+    try:
+        # Check if user already has a wallet
+        existing_wallet = await WalletDocument.find_one(
+            {"entity_id": current_user.user_id, "entity_type": "user"}
+        )
+        if existing_wallet:
+            raise PlatformException(
+                status_code=status.HTTP_409_CONFLICT,
+                error=ErrorCode.INVALID_INPUT,
+                message="User already has a wallet",
+            )
+
+        # Create wallet via AgentKit service
+        wallet_data = await agentkit_service.create_wallet(
+            entity_id=current_user.user_id,
+            entity_type="user"
+        )
+
+        return WalletCreateResponse(
+            wallet_id=wallet_data["wallet_id"],
+            address=wallet_data["wallet_address"],
+            network=wallet_data.get("network_id", "base-sepolia")
+        )
+
+    except PlatformException:
+        raise
+    except ValueError as e:
+        logger.error(f"Invalid input for wallet creation: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.INVALID_INPUT,
+            message=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Failed to create wallet for user {current_user.user_id}: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Failed to create wallet",
+        )
 
 
 @router.get(
@@ -162,15 +201,42 @@ async def get_balance(
     Raises:
         PlatformException: If wallet not found or balance query fails
     """
-    # TODO: Implement balance retrieval logic
-    # - Get user's wallet from database
-    # - Query CDP for current balances
-    # - Return formatted balance response
-    raise PlatformException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        error=ErrorCode.INTERNAL_ERROR,
-        message="Balance retrieval not yet implemented",
-    )
+    try:
+        # Get user's wallet from database
+        wallet_doc = await WalletDocument.find_one(
+            {"entity_id": current_user.user_id, "entity_type": "user"}
+        )
+        if not wallet_doc:
+            raise PlatformException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                error=ErrorCode.NOT_FOUND,
+                message="Wallet not found. Please create a wallet first.",
+            )
+
+        # Query CDP for current balances
+        balance_data = await agentkit_service.get_balance(wallet_doc.default_address)
+
+        return WalletBalanceResponse(
+            usdc=str(balance_data["usdc_balance"]),
+            eth=str(balance_data["eth_balance"])
+        )
+
+    except PlatformException:
+        raise
+    except ValueError as e:
+        logger.error(f"Invalid wallet address: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.INVALID_INPUT,
+            message=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get balance for user {current_user.user_id}: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Failed to retrieve wallet balance",
+        )
 
 
 @router.post(
@@ -199,18 +265,70 @@ async def transfer_usdc(
     Raises:
         PlatformException: If wallet not found, insufficient balance, or transfer fails
     """
-    # TODO: Implement transfer logic
-    # - Get user's wallet
-    # - Validate recipient address
-    # - Check sufficient balance
-    # - Execute transfer via CDP
-    # - Store transaction record
-    # - Return transaction details with Basescan URL
-    raise PlatformException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        error=ErrorCode.INTERNAL_ERROR,
-        message="Transfer functionality not yet implemented",
-    )
+    # TODO: Add rate limiting for production (comment for future)
+    try:
+        # Get user's wallet from database
+        wallet_doc = await WalletDocument.find_one(
+            {"entity_id": current_user.user_id, "entity_type": "user"}
+        )
+        if not wallet_doc:
+            raise PlatformException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                error=ErrorCode.NOT_FOUND,
+                message="Wallet not found. Please create a wallet first.",
+            )
+
+        # Convert amount string to Decimal for precision
+        amount = Decimal(body.amount)
+
+        # Prepare metadata
+        metadata = {
+            "initiated_by": current_user.user_id,
+            "user_email": current_user.email,
+        }
+
+        # Execute transfer via AgentKit service
+        transfer_result = await agentkit_service.transfer_usdc(
+            from_address=wallet_doc.default_address,
+            to_address=body.to_address,
+            amount=amount,
+            metadata=metadata
+        )
+
+        # Generate Basescan URL for the transaction
+        network_prefix = "sepolia." if "sepolia" in wallet_doc.network else ""
+        basescan_url = f"https://{network_prefix}basescan.org/tx/{transfer_result['transaction_hash']}"
+
+        return TransferResponse(
+            payment_id=transfer_result.get("payment_id", transfer_result["transaction_hash"]),
+            transaction_hash=transfer_result["transaction_hash"],
+            basescan_url=basescan_url
+        )
+
+    except PlatformException:
+        raise
+    except ValueError as e:
+        logger.error(f"Invalid transfer parameters: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.INVALID_INPUT,
+            message=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Failed to transfer USDC for user {current_user.user_id}: {e}")
+        # Check for common error patterns
+        error_msg = str(e).lower()
+        if "insufficient" in error_msg or "balance" in error_msg:
+            raise PlatformException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                error=ErrorCode.INVALID_INPUT,
+                message="Insufficient balance for transfer",
+            )
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Failed to execute transfer",
+        )
 
 
 @router.post(
@@ -237,16 +355,50 @@ async def fund_testnet_wallet(
     Raises:
         PlatformException: If wallet not found or faucet request fails
     """
-    # TODO: Implement testnet funding logic
-    # - Get user's wallet
-    # - Request faucet funds via CDP
-    # - Wait for transaction confirmation
-    # - Return transaction details
-    raise PlatformException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        error=ErrorCode.INTERNAL_ERROR,
-        message="Testnet funding not yet implemented",
-    )
+    try:
+        # Get user's wallet from database
+        wallet_doc = await WalletDocument.find_one(
+            {"entity_id": current_user.user_id, "entity_type": "user"}
+        )
+        if not wallet_doc:
+            raise PlatformException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                error=ErrorCode.NOT_FOUND,
+                message="Wallet not found. Please create a wallet first.",
+            )
+
+        # Verify this is a testnet network
+        if "sepolia" not in wallet_doc.network.lower() and "testnet" not in wallet_doc.network.lower():
+            raise PlatformException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                error=ErrorCode.INVALID_INPUT,
+                message="Faucet is only available on testnet networks",
+            )
+
+        # Request testnet funds via AgentKit service
+        faucet_result = await agentkit_service.request_testnet_funds(wallet_doc.default_address)
+
+        return FundTestnetResponse(
+            transaction_hash=faucet_result.get("transaction_hash", "pending"),
+            message=f"Successfully requested testnet funds for {wallet_doc.default_address}"
+        )
+
+    except PlatformException:
+        raise
+    except ValueError as e:
+        logger.error(f"Invalid faucet request: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.INVALID_INPUT,
+            message=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Failed to request testnet funds for user {current_user.user_id}: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Failed to request testnet funds",
+        )
 
 
 @router.get(
@@ -275,16 +427,74 @@ async def get_transactions(
     Raises:
         PlatformException: If wallet not found or transaction query fails
     """
-    # TODO: Implement transaction history retrieval
-    # - Get user's wallet
-    # - Query transactions from database
-    # - Format with Basescan URLs
-    # - Return paginated results
-    raise PlatformException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        error=ErrorCode.INTERNAL_ERROR,
-        message="Transaction history not yet implemented",
-    )
+    try:
+        # Get user's wallet from database
+        wallet_doc = await WalletDocument.find_one(
+            {"entity_id": current_user.user_id, "entity_type": "user"}
+        )
+        if not wallet_doc:
+            raise PlatformException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                error=ErrorCode.NOT_FOUND,
+                message="Wallet not found. Please create a wallet first.",
+            )
+
+        # Query transactions where user's wallet is either sender or recipient
+        transactions = await PaymentDocument.find(
+            {
+                "$or": [
+                    {"from_wallet": wallet_doc.default_address},
+                    {"to_wallet": wallet_doc.default_address}
+                ]
+            }
+        ).sort([("created_at", -1)]).limit(limit).to_list()
+
+        # Count total transactions for pagination info
+        total_count = await PaymentDocument.find(
+            {
+                "$or": [
+                    {"from_wallet": wallet_doc.default_address},
+                    {"to_wallet": wallet_doc.default_address}
+                ]
+            }
+        ).count()
+
+        # Format transactions with Basescan URLs
+        transaction_items = []
+        for payment in transactions:
+            # Generate Basescan URL if not already present
+            basescan_url = payment.basescan_url
+            if not basescan_url and payment.transaction_hash:
+                network_prefix = "sepolia." if "sepolia" in wallet_doc.network else ""
+                basescan_url = f"https://{network_prefix}basescan.org/tx/{payment.transaction_hash}"
+
+            transaction_items.append(
+                TransactionItem(
+                    transaction_hash=payment.transaction_hash or "pending",
+                    from_address=payment.from_wallet,
+                    to_address=payment.to_wallet,
+                    amount=str(payment.amount.to_decimal()),
+                    currency=payment.currency,
+                    status=payment.status,
+                    timestamp=payment.created_at.isoformat(),
+                    basescan_url=basescan_url or ""
+                )
+            )
+
+        return TransactionListResponse(
+            transactions=transaction_items,
+            total=total_count
+        )
+
+    except PlatformException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get transactions for user {current_user.user_id}: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Failed to retrieve transaction history",
+        )
 
 
 @router.post(
@@ -302,6 +512,9 @@ async def export_wallet(
     Returns the encrypted seed/mnemonic for the authenticated user's wallet.
     This should be stored securely by the user for wallet recovery purposes.
 
+    SECURITY WARNING: The seed is returned in encrypted form. Users must store
+    this securely and never share it. Loss of the seed means loss of wallet access.
+
     Args:
         current_user: Authenticated user from dependency injection
 
@@ -311,12 +524,35 @@ async def export_wallet(
     Raises:
         PlatformException: If wallet not found or export fails
     """
-    # TODO: Implement wallet export logic
-    # - Get user's wallet
-    # - Retrieve encrypted seed from secure storage
-    # - Return encrypted seed (never plaintext)
-    raise PlatformException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        error=ErrorCode.INTERNAL_ERROR,
-        message="Wallet export not yet implemented",
-    )
+    try:
+        # Get user's wallet from database
+        wallet_doc = await WalletDocument.find_one(
+            {"entity_id": current_user.user_id, "entity_type": "user"}
+        )
+        if not wallet_doc:
+            raise PlatformException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                error=ErrorCode.NOT_FOUND,
+                message="Wallet not found. Please create a wallet first.",
+            )
+
+        # Return encrypted seed (never plaintext for security)
+        # The seed is already stored encrypted in the database
+        logger.info(
+            f"Wallet export requested by user {current_user.user_id} "
+            f"(wallet: {wallet_doc.default_address})"
+        )
+
+        return ExportWalletResponse(
+            seed_encrypted=wallet_doc.seed_encrypted
+        )
+
+    except PlatformException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to export wallet for user {current_user.user_id}: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Failed to export wallet",
+        )
