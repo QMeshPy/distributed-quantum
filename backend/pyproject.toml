@@ -44,6 +44,7 @@ dependencies = [
   # Agent orchestration
   "anthropic>=0.18.0",
   "boto3>=1.34.0",
+  "coinbase-agentkit>=0.7.4",
 ]
 
 [project.optional-dependencies]
