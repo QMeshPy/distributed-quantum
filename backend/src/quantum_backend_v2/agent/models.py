@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Literal
 from pydantic import BaseModel, Field
+from beanie import Document
 from bson import ObjectId
 
 
@@ -72,8 +73,7 @@ class LogEntry(BaseModel):
     source: Optional[str] = None
 
 
-class AgentSession(BaseModel):
-    id: Optional[str] = Field(default=None, alias="_id")
+class AgentSession(Document):
     user_id: str
     session_id: str
     title: str = "New Session"
@@ -88,12 +88,8 @@ class AgentSession(BaseModel):
     results: Optional[Dict[str, Any]] = None
     logs: List[LogEntry] = Field(default_factory=list)
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            ObjectId: lambda v: str(v),
-        }
-        populate_by_name = True
+    class Settings:
+        name = "agent_sessions"
 
 
 class BudgetLimits(BaseModel):
