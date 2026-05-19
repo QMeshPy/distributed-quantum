@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from bson import Decimal128
 
-from services.agentkit_service import AgentKitService
+from src.services.agentkit_service import AgentKitService
 
 
 # ---------------------------------------------------------------------------

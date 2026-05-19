@@ -17,7 +17,7 @@ from typing import Any, Literal
 
 from beanie import Document
 from bson import Decimal128
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
 
@@ -46,6 +46,8 @@ class WalletDocument(Document):
     Each entity (user, agent, worker) can have a wallet for crypto operations.
     Supports USDC and ETH balance tracking with encrypted seed storage.
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     entity_id: str
     entity_type: Literal["user", "agent", "worker"]
@@ -77,6 +79,8 @@ class WorkerPricingDocument(Document):
     Workers publish their pricing and build reputation through completed jobs.
     Performance tier determines priority in job matching algorithms.
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     worker_id: str
     wallet_address: str
@@ -118,6 +122,8 @@ class ResearchProposalDocument(Document):
     Funds are held in escrow (optionally earning yield via AAVE) until
     research milestones are met or deadline expires.
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     proposal_id: str
     title: str
@@ -178,6 +184,8 @@ class AIAgentDocument(Document):
     spending limits. All spending is tracked and auditable.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     agent_id: str
     owner_id: str
     agent_name: str
@@ -209,6 +217,8 @@ class PaymentDocument(Document):
     Records all payment flows: user→worker, funder→escrow, escrow→researcher, etc.
     Includes BaseScan URLs for blockchain verification.
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     payment_id: str
     type: Literal[

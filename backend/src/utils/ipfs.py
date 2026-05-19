@@ -1,8 +1,8 @@
 """
-IPFS utility for uploading research results to Web3.Storage.
+IPFS utility for uploading research results to Pinata.
 
 This module provides functionality to upload data and files to IPFS
-via the Web3.Storage service and retrieve gateway URLs.
+via the Pinata service and retrieve gateway URLs.
 """
 
 import os
@@ -24,29 +24,36 @@ class IPFSUploadError(IPFSError):
 
 class IPFSService:
     """
-    Service for interacting with IPFS via Web3.Storage.
+    Service for interacting with IPFS via Pinata.
 
     Provides methods to upload JSON data and files to IPFS,
     and generate public gateway URLs for accessing the content.
     """
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, jwt: Optional[str] = None):
         """
-        Initialize IPFS service.
+        Initialize IPFS service with Pinata credentials.
 
         Args:
-            api_key: Web3.Storage API key. If not provided, reads from
-                    WEB3_STORAGE_API_KEY environment variable.
+            api_key: Pinata API key (optional if using JWT)
+            api_secret: Pinata API secret (optional if using JWT)
+            jwt: Pinata JWT token (alternative to API key/secret)
 
         Raises:
-            ValueError: If API key is not provided and not found in environment.
+            ValueError: If credentials are not provided.
         """
-        self.api_key = api_key or os.getenv('WEB3_STORAGE_API_KEY')
-        if not self.api_key:
+        self.jwt = jwt or os.getenv('PINATA_JWT')
+        self.api_key = api_key or os.getenv('PINATA_API_KEY')
+        self.api_secret = api_secret or os.getenv('PINATA_API_SECRET')
+
+        if not self.jwt and not (self.api_key and self.api_secret):
             raise ValueError(
-                "Web3.Storage API key is required. "
-                "Provide it via constructor or WEB3_STORAGE_API_KEY environment variable."
+                "Pinata credentials required. "
+                "Provide either PINATA_JWT or both PINATA_API_KEY and PINATA_API_SECRET."
             )
+
+        self.base_url = "https://api.pinata.cloud"
+        self.gateway_url = "https://gateway.pinata.cloud/ipfs"
 
         self.upload_url = "https://api.web3.storage/upload"
         self.gateway_base = "https://{cid}.ipfs.w3s.link"
