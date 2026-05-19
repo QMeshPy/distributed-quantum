@@ -1,6 +1,6 @@
 import os
-from anthropic import Anthropic
-from typing import Dict, Any, List
+import json
+from typing import Dict, Any, List, Optional
 from enum import Enum
 
 
@@ -21,11 +21,28 @@ class ToolType(Enum):
 
 
 class IntentClassifier:
-    def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-        self.client = Anthropic(api_key=api_key)
+    def __init__(self) -> None:
+        # Check which provider is configured
+        self.use_bedrock = os.getenv("AWS_BEDROCK_ENABLED", "true").lower() == "true"
+
+        if self.use_bedrock:
+            # AWS Bedrock setup
+            import boto3
+            self.bedrock_client = boto3.client(
+                service_name='bedrock-runtime',
+                region_name=os.getenv('AWS_REGION', 'us-east-1'),
+                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+            )
+            self.model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+        else:
+            # Direct Anthropic API setup
+            from anthropic import Anthropic
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+            self.client = Anthropic(api_key=api_key)
+            self.model_id = "claude-3-5-sonnet-20241022"
 
     async def classify_intent(self, user_message: str) -> Dict[str, Any]:
         """
@@ -68,15 +85,33 @@ Respond in JSON format:
   "estimated_time_minutes": 45
 }"""
 
-        response = self.client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_message}]
-        )
+        if self.use_bedrock:
+            # AWS Bedrock API call
+            request_body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1024,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": user_message}]
+            }
 
-        import json
-        result = json.loads(response.content[0].text)
+            response = self.bedrock_client.invoke_model(
+                modelId=self.model_id,
+                body=json.dumps(request_body)
+            )
+
+            response_body = json.loads(response['body'].read())
+            result_text = response_body['content'][0]['text']
+        else:
+            # Direct Anthropic API call
+            response = self.client.messages.create(
+                model=self.model_id,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}]
+            )
+            result_text = response.content[0].text
+
+        result = json.loads(result_text)
 
         return {
             "intent": IntentType(result.get("intent", "unknown")),
