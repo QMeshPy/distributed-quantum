@@ -23,8 +23,9 @@
 
 **Status**: 🔴 Not Started
 
-### Setup & Dependencies (0/8)
-- [ ] Install `coinbase-agentkit` Python SDK (`uv add coinbase-agentkit`)
+### Setup & Dependencies (2/8)
+- [x] Install `coinbase-agentkit` Python SDK (`uv add coinbase-agentkit`)
+- [x] Install `boto3` for AWS Bedrock (`uv add boto3`)
 - [ ] Create CDP account at https://portal.cdp.coinbase.com
 - [ ] Generate CDP API keys (API Key Name + Private Key)
 - [ ] Add CDP credentials to `.env` file
