@@ -74,11 +74,15 @@ class AgentKitService:
         logger.info("Initializing AgentKitService")
 
         # Load CDP credentials from environment
-        self.api_key_id = os.getenv("CDP_API_KEY_NAME")
-        self.api_key_secret = os.getenv("CDP_API_KEY_PRIVATE_KEY")
+        # CDP_API_KEY_ID / CDP_API_KEY_NAME are both accepted for the key ID
+        self.api_key_id = os.getenv("CDP_API_KEY_ID") or os.getenv("CDP_API_KEY_NAME")
+        # CDP_API_KEY_SECRET / CDP_API_KEY_PRIVATE_KEY are both accepted for the Ed25519 private key
+        self.api_key_secret = os.getenv("CDP_API_KEY_SECRET") or os.getenv("CDP_API_KEY_PRIVATE_KEY")
+        # CDP_WALLET_SECRET is a separate secret created in the CDP portal for wallet encryption
+        self.wallet_secret = os.getenv("CDP_WALLET_SECRET")
         self.network_id = os.getenv("NETWORK", "base-sepolia")
 
-        if not self.api_key_id or not self.api_key_secret:
+        if not self.api_key_id or not self.api_key_secret or not self.wallet_secret:
             logger.warning("CDP credentials not configured - wallet operations will fail")
 
         # Initialize encryption key for wallet seeds (derived from secret key)
@@ -153,28 +157,28 @@ class AgentKitService:
                 }
 
             # Create wallet using CDP SDK
-            wallet_secret = str(uuid.uuid4())  # Generate unique wallet secret
+            # SDK's _run_async handles the event loop internally (new thread + new loop)
             config = CdpEvmWalletProviderConfig(
                 api_key_id=self.api_key_id,
                 api_key_secret=self.api_key_secret,
-                wallet_secret=wallet_secret,
+                wallet_secret=self.wallet_secret,
                 network_id=self.network_id,
             )
-            loop = asyncio.get_event_loop()
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                wallet_provider = await loop.run_in_executor(pool, CdpEvmWalletProvider, config)
+            wallet_provider = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: CdpEvmWalletProvider(config)
+            )
             wallet_address = wallet_provider.get_address()
 
             logger.info(f"Created wallet {wallet_address} for {entity_type}:{entity_id}")
 
-            # Encrypt wallet secret for storage
-            seed_encrypted = self.fernet.encrypt(wallet_secret.encode()).decode()
+            # Store a marker so we know the wallet was created with this env wallet_secret
+            seed_encrypted = self.fernet.encrypt((self.wallet_secret or "").encode()).decode()
 
             # Create WalletDocument
             wallet_doc = WalletDocument(
                 entity_id=entity_id,
                 entity_type=entity_type,
-                wallet_id=wallet_secret[:8],  # Short identifier
+                wallet_id=wallet_address[:8],  # Short identifier from address
                 default_address=wallet_address,
                 network=self.network_id,
                 seed_encrypted=seed_encrypted,
@@ -769,22 +773,18 @@ class AgentKitService:
             if not wallet_doc:
                 raise ValueError(f"Wallet not found: {wallet_address}")
 
-            # Decrypt wallet seed
-            seed_encrypted = wallet_doc["seed_encrypted"]
-            wallet_secret = self.fernet.decrypt(seed_encrypted.encode()).decode()
-
-            # Reconstruct CDP wallet provider
+            # Reconstruct CDP wallet provider using env wallet_secret
             config = CdpEvmWalletProviderConfig(
                 api_key_id=self.api_key_id,
                 api_key_secret=self.api_key_secret,
-                wallet_secret=wallet_secret,
+                wallet_secret=self.wallet_secret,
                 network_id=self.network_id,
                 address=wallet_address,
             )
 
-            loop = asyncio.get_event_loop()
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                wallet_provider = await loop.run_in_executor(pool, CdpEvmWalletProvider, config)
+            wallet_provider = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: CdpEvmWalletProvider(config)
+            )
 
             logger.debug(f"Wallet {wallet_address} loaded successfully")
             return wallet_provider

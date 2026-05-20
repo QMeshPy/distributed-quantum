@@ -154,7 +154,7 @@ async def create_wallet(
         )
 
         return WalletCreateResponse(
-            wallet_id=wallet_data["wallet_id"],
+            wallet_id=wallet_data.get("wallet_id") or wallet_data["wallet_address"][:8],
             address=wallet_data["wallet_address"],
             network=wallet_data.get("network_id", "base-sepolia")
         )
