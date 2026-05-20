@@ -14,6 +14,8 @@ from decimal import Decimal
 from datetime import datetime
 from typing import Any, Optional
 import logging
+import asyncio
+import concurrent.futures
 import os
 import uuid
 from cryptography.fernet import Fernet
@@ -158,7 +160,9 @@ class AgentKitService:
                 wallet_secret=wallet_secret,
                 network_id=self.network_id,
             )
-            wallet_provider = CdpEvmWalletProvider(config)
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                wallet_provider = await loop.run_in_executor(pool, CdpEvmWalletProvider, config)
             wallet_address = wallet_provider.get_address()
 
             logger.info(f"Created wallet {wallet_address} for {entity_type}:{entity_id}")
@@ -778,7 +782,9 @@ class AgentKitService:
                 address=wallet_address,
             )
 
-            wallet_provider = CdpEvmWalletProvider(config)
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                wallet_provider = await loop.run_in_executor(pool, CdpEvmWalletProvider, config)
 
             logger.debug(f"Wallet {wallet_address} loaded successfully")
             return wallet_provider

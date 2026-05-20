@@ -1,4 +1,5 @@
 import {
+  Bot,
   Home,
   Globe,
   FlaskConical,
@@ -159,6 +160,34 @@ export const NAV_CONFIG: RailItem[] = [
       ],
     },
     matchPrefixes: ["/vault"],
+  },
+  {
+    id: "agents",
+    label: "Agents",
+    icon: Bot,
+    href: "/agents",
+    hasSidebar: true,
+    sidebar: {
+      type: "static",
+      groups: [
+        {
+          heading: "Workspace",
+          links: [
+            { label: "Overview", href: "/agents" },
+            { label: "Chat", href: "/agents/chat" },
+          ],
+        },
+        {
+          heading: "Platform",
+          links: [
+            { label: "Marketplace", href: "/agents/marketplace" },
+            { label: "Proposals", href: "/agents/proposals" },
+            { label: "Wallet", href: "/agents/wallet" },
+          ],
+        },
+      ],
+    },
+    matchPrefixes: ["/agents"],
   },
   {
     id: "settings",

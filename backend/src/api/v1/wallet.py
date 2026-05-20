@@ -143,7 +143,7 @@ async def create_wallet(
         if existing_wallet:
             raise PlatformException(
                 status_code=status.HTTP_409_CONFLICT,
-                error=ErrorCode.INVALID_INPUT,
+                error=ErrorCode.VALIDATION_ERROR,
                 message="User already has a wallet",
             )
 
@@ -165,7 +165,7 @@ async def create_wallet(
         logger.error(f"Invalid input for wallet creation: {e}")
         raise PlatformException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            error=ErrorCode.INVALID_INPUT,
+            error=ErrorCode.VALIDATION_ERROR,
             message=str(e),
         )
     except Exception as e:
@@ -227,7 +227,7 @@ async def get_balance(
         logger.error(f"Invalid wallet address: {e}")
         raise PlatformException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            error=ErrorCode.INVALID_INPUT,
+            error=ErrorCode.VALIDATION_ERROR,
             message=str(e),
         )
     except Exception as e:
@@ -311,7 +311,7 @@ async def transfer_usdc(
         logger.error(f"Invalid transfer parameters: {e}")
         raise PlatformException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            error=ErrorCode.INVALID_INPUT,
+            error=ErrorCode.VALIDATION_ERROR,
             message=str(e),
         )
     except Exception as e:
@@ -321,7 +321,7 @@ async def transfer_usdc(
         if "insufficient" in error_msg or "balance" in error_msg:
             raise PlatformException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                error=ErrorCode.INVALID_INPUT,
+                error=ErrorCode.VALIDATION_ERROR,
                 message="Insufficient balance for transfer",
             )
         raise PlatformException(
@@ -371,7 +371,7 @@ async def fund_testnet_wallet(
         if "sepolia" not in wallet_doc.network.lower() and "testnet" not in wallet_doc.network.lower():
             raise PlatformException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                error=ErrorCode.INVALID_INPUT,
+                error=ErrorCode.VALIDATION_ERROR,
                 message="Faucet is only available on testnet networks",
             )
 
@@ -389,7 +389,7 @@ async def fund_testnet_wallet(
         logger.error(f"Invalid faucet request: {e}")
         raise PlatformException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            error=ErrorCode.INVALID_INPUT,
+            error=ErrorCode.VALIDATION_ERROR,
             message=str(e),
         )
     except Exception as e:

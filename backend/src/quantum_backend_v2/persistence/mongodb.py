@@ -7,6 +7,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 from beanie import Document, init_beanie
+from db.agentkit_collections import (
+    AIAgentDocument,
+    NotificationDocument,
+    PaymentDocument,
+    ResearchProposalDocument,
+    WalletDocument,
+    WorkerPricingDocument,
+)
 from pydantic import Field
 from pymongo import ASCENDING, AsyncMongoClient, IndexModel
 
@@ -407,5 +415,12 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
             RiskJobDocument,
             ReservationEventDocument,
             ExecutionEventDocument,
+            # AgentKit documents
+            WalletDocument,
+            WorkerPricingDocument,
+            ResearchProposalDocument,
+            AIAgentDocument,
+            PaymentDocument,
+            NotificationDocument,
         ),
     )

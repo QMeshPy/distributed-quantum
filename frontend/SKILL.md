@@ -56,7 +56,7 @@ Reference these guidelines when:
 
 ## Required Companion Documents
 
-For work in `phive-new-dashboard`, do not use this file alone. Read these files
+For work in `frontend`, do not use this file alone. Read these files
 
 together:
 
@@ -84,7 +84,7 @@ Conflict resolution:
 
 Repository-specific clarification:
 
-- `phive-new-dashboard` uses TanStack Query for backend/server state.
+- `frontend` uses TanStack Query for backend/server state.
 
 - Treat the SWR rule in `AGENTS.md` as a generic deduplication principle.
 
@@ -156,7 +156,7 @@ Repository-specific clarification:
 
 - `client-swr-dedup` - Use the project-standard deduplication layer; in
 
-  `phive-new-dashboard`, that means TanStack Query for backend/server state and
+  `frontend`, that means TanStack Query for backend/server state and
 
   SWR only for narrow browser-only exceptions
 

@@ -67,3 +67,29 @@ export const BACKEND = {
     LIVE: (id: string) => `${BASE_URL}/api/v1/pharma/jobs/${id}/live` as const,
   },
 } as const;
+
+export const BACKEND_AGENTKIT = {
+  WALLET:          `${BASE_URL}/api/v1/wallet`,
+  WALLET_CREATE:   `${BASE_URL}/api/v1/wallet/create`,
+  WALLET_BALANCE:  `${BASE_URL}/api/v1/wallet/balance`,
+  WALLET_TX:       `${BASE_URL}/api/v1/wallet/transactions`,
+  WALLET_TRANSFER: `${BASE_URL}/api/v1/wallet/transfer`,
+  PROPOSALS:       `${BASE_URL}/api/v1/proposals`,
+  PROPOSAL:        (id: string) =>
+    `${BASE_URL}/api/v1/proposals/${id}` as const,
+  PROPOSAL_FUND:   (id: string) =>
+    `${BASE_URL}/api/v1/proposals/${id}/invest` as const,
+  PROPOSAL_FUND_PATH: (id: string) =>
+    `${BASE_URL}/api/v1/proposals/${id}/fund` as const,
+  MARKETPLACE:     `${BASE_URL}/api/v1/marketplace/workers`,
+  AGENT_DETAIL:    (id: string) =>
+    `${BASE_URL}/api/v1/marketplace/agents/${id}` as const,
+  AGENTS:          `${BASE_URL}/api/v1/agents`,
+  AGENT:           (id: string) =>
+    `${BASE_URL}/api/v1/agents/${id}` as const,
+  AGENT_ANALYZE:   (id: string) =>
+    `${BASE_URL}/api/v1/agents/${id}/analyze` as const,
+  NOTIFICATIONS:   `${BASE_URL}/api/v1/notifications`,
+  NOTIF_READ:      (id: string) =>
+    `${BASE_URL}/api/v1/notifications/${id}/read` as const,
+} as const;

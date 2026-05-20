@@ -65,3 +65,12 @@ export const QUERY_KEYS = {
   },
 } as const;
 
+
+export const QUERY_KEYS_AGENTKIT = {
+  wallet: () => ["agentkit", "wallet"] as const,
+  proposals: () => ["agentkit", "proposals"] as const,
+  proposal: (id: string) => ["agentkit", "proposals", id] as const,
+  marketplace: () => ["agentkit", "marketplace"] as const,
+  agent: (id: string) => ["agentkit", "agents", id] as const,
+  notifications: () => ["agentkit", "notifications"] as const,
+} as const;
