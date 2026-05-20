@@ -9,7 +9,8 @@ export function useNotifications() {
     queryFn: async () => {
       const res = await fetch(API_AGENTKIT.NOTIFICATIONS);
       if (!res.ok) throw new Error("Failed to fetch notifications");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.notifications ?? []);
     },
     staleTime: 10_000,
     refetchInterval: 30_000,

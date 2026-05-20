@@ -57,6 +57,7 @@ class WalletDocument(Document):
     seed_encrypted: str  # AES-encrypted seed phrase
     balance_usdc: Decimal128 = Field(default_factory=lambda: Decimal128("0"))
     balance_eth: Decimal128 = Field(default_factory=lambda: Decimal128("0"))
+    creation_block: int | None = None  # Block number when wallet was created on-chain
     created_at: datetime = Field(default_factory=_utc_now)
     updated_at: datetime = Field(default_factory=_utc_now)
 

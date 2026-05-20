@@ -38,6 +38,16 @@ from services.agentkit_service import AgentKitService
 logger = logging.getLogger(__name__)
 
 
+def _safe_decimal(value: object) -> float:
+    """Convert a stored total_earned value (Decimal128 or str) to float safely."""
+    if value is None:
+        return 0.0
+    try:
+        return float(_decimal128_to_decimal(value))  # type: ignore[arg-type]
+    except (AttributeError, TypeError):
+        return float(value)
+
+
 def _utc_now() -> datetime:
     """Return current UTC timestamp."""
     return datetime.now(timezone.utc)
@@ -877,8 +887,12 @@ class MarketplaceService:
                     "pricing": worker_doc["pricing"],
                     "performance_tier": worker_doc["performance_tier"],
                     "reputation_score": worker_doc["reputation_score"],
-                    "total_earned": float(_decimal128_to_decimal(worker_doc["total_earned"])),
+                    "total_earned": float(_safe_decimal(worker_doc.get("total_earned"))),
                     "jobs_completed": worker_doc["jobs_completed"],
+                    "agent_name": worker_doc.get("agent_name"),
+                    "specialty": worker_doc.get("specialty"),
+                    "description": worker_doc.get("description"),
+                    "price_per_task": worker_doc.get("price_per_task"),
                 })
 
             logger.info(f"Found {len(workers)} active workers meeting criteria")

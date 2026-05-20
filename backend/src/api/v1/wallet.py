@@ -39,6 +39,8 @@ class WalletBalanceResponse(BaseModel):
 
     usdc: str = Field(description="USDC balance (as string to preserve precision)")
     eth: str = Field(description="ETH balance (as string to preserve precision)")
+    address: str = Field(default="", description="Wallet address on the network")
+    network: str = Field(default="base-sepolia", description="Blockchain network")
 
 
 class TransferRequest(BaseModel):
@@ -218,7 +220,9 @@ async def get_balance(
 
         return WalletBalanceResponse(
             usdc=str(balance_data["usdc_balance"]),
-            eth=str(balance_data["eth_balance"])
+            eth=str(balance_data["eth_balance"]),
+            address=wallet_doc.default_address,
+            network=wallet_doc.network,
         )
 
     except PlatformException:
@@ -459,15 +463,14 @@ async def get_transactions(
             }
         ).count()
 
-        # Format transactions with Basescan URLs
+        # Format internal transactions
+        network_prefix = "sepolia." if "sepolia" in wallet_doc.network else ""
+        seen_hashes: set[str] = set()
         transaction_items = []
         for payment in transactions:
-            # Generate Basescan URL if not already present
             basescan_url = payment.basescan_url
             if not basescan_url and payment.transaction_hash:
-                network_prefix = "sepolia." if "sepolia" in wallet_doc.network else ""
                 basescan_url = f"https://{network_prefix}basescan.org/tx/{payment.transaction_hash}"
-
             transaction_items.append(
                 TransactionItem(
                     transaction_hash=payment.transaction_hash or "pending",
@@ -477,13 +480,102 @@ async def get_transactions(
                     currency=payment.currency,
                     status=payment.status,
                     timestamp=payment.created_at.isoformat(),
-                    basescan_url=basescan_url or ""
+                    basescan_url=basescan_url or "",
                 )
             )
+            if payment.transaction_hash:
+                seen_hashes.add(payment.transaction_hash)
+
+        # Augment with on-chain ERC-20 Transfer logs via RPC (no API key needed)
+        try:
+            import asyncio as _asyncio
+            from web3 import Web3 as _Web3
+            from coinbase_agentkit.network import NETWORK_ID_TO_CHAIN as _CHAIN_MAP
+
+            _chain = _CHAIN_MAP[wallet_doc.network]
+            _rpc = _chain.rpc_urls["default"].http[0]
+            _w3 = _Web3(_Web3.HTTPProvider(_rpc))
+
+            TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+            USDC_ADDRESS = {
+                "base-sepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                "base-mainnet": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            }.get(wallet_doc.network, "0x036CbD53842c5426634e7929541eC2318f3dCF7e")
+
+            addr = wallet_doc.default_address
+            addr_padded = "0x" + addr[2:].lower().zfill(64)
+
+            latest_block = _w3.eth.block_number
+            # Start from creation_block if stored, else fall back to last ~50k blocks (~1 day)
+            start_block = wallet_doc.creation_block if wallet_doc.creation_block else max(0, latest_block - 50_000)
+
+            CHUNK = 2000
+            all_logs: list = []
+
+            # Scan in chunks to respect the RPC 2000-block limit
+            def _fetch_chunks(from_b: int, to_b: int) -> list:
+                logs = []
+                for chunk_start in range(from_b, to_b + 1, CHUNK):
+                    chunk_end = min(chunk_start + CHUNK - 1, to_b)
+                    params = {
+                        "fromBlock": chunk_start,
+                        "toBlock": chunk_end,
+                        "address": _Web3.to_checksum_address(USDC_ADDRESS),
+                    }
+                    # Outgoing
+                    logs += _w3.eth.get_logs({**params, "topics": [TRANSFER_TOPIC, addr_padded]})
+                    # Incoming
+                    logs += _w3.eth.get_logs({**params, "topics": [TRANSFER_TOPIC, None, addr_padded]})
+                return logs
+
+            # Run in executor so we don't block the event loop
+            loop = _asyncio.get_event_loop()
+            all_logs = await loop.run_in_executor(None, _fetch_chunks, start_block, latest_block)
+
+            seen_hashes = {t.transaction_hash for t in transaction_items}
+            network_prefix = "sepolia." if "sepolia" in wallet_doc.network else ""
+
+            for log in all_logs:
+                tx_hash = log["transactionHash"].hex()
+                if tx_hash in seen_hashes:
+                    continue
+                seen_hashes.add(tx_hash)
+
+                # Decode Transfer(from, to, value)
+                from_addr = "0x" + log["topics"][1].hex()[-40:]
+                to_addr   = "0x" + log["topics"][2].hex()[-40:]
+                raw_value = int(log["data"].hex(), 16)
+                usdc_amount = str(raw_value / 10**6)
+
+                # Get block timestamp
+                try:
+                    block = _w3.eth.get_block(log["blockNumber"])
+                    ts = __import__("datetime").datetime.utcfromtimestamp(block["timestamp"]).isoformat()
+                except Exception:
+                    ts = ""
+
+                direction = "out" if from_addr.lower() == addr.lower() else "in"
+                transaction_items.append(TransactionItem(
+                    transaction_hash=tx_hash,
+                    from_address=_Web3.to_checksum_address(from_addr),
+                    to_address=_Web3.to_checksum_address(to_addr),
+                    amount=usdc_amount,
+                    currency="USDC",
+                    status="confirmed",
+                    timestamp=ts,
+                    basescan_url=f"https://{network_prefix}basescan.org/tx/{tx_hash}",
+                ))
+
+        except Exception as rpc_err:
+            logger.warning(f"On-chain log scan failed: {rpc_err}")
+
+        # Sort all by timestamp descending
+        transaction_items.sort(key=lambda t: t.timestamp, reverse=True)
+        transaction_items = transaction_items[:limit]
 
         return TransactionListResponse(
             transactions=transaction_items,
-            total=total_count
+            total=len(transaction_items),
         )
 
     except PlatformException:

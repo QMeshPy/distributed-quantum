@@ -54,24 +54,24 @@ export function WalletStrip({ onNotificationsClick }: WalletStripProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="font-mono text-sm text-white/80">
-            {truncateAddress(wallet.wallet_address)}
+            {truncateAddress(wallet.address)}
           </span>
         </TooltipTrigger>
-        <TooltipContent>{wallet.wallet_address}</TooltipContent>
+        <TooltipContent>{wallet.address}</TooltipContent>
       </Tooltip>
 
       <Separator orientation="vertical" className="h-4" />
 
       <span className="text-sm text-emerald-400">
-        USDC: {wallet.usdc_balance}
+        USDC: {wallet.usdc}
       </span>
 
       <span className="text-sm text-white/60">
-        ETH: {wallet.eth_balance}
+        ETH: {wallet.eth}
       </span>
 
       <Badge variant="outline" className="text-xs text-white/60">
-        {wallet.network_id}
+        {wallet.network}
       </Badge>
 
       <Separator orientation="vertical" className="h-4" />

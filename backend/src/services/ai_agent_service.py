@@ -75,7 +75,7 @@ class AIAgentService:
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         self.bedrock_model_id = os.getenv(
             "BEDROCK_MODEL_ID",
-            "anthropic.claude-3-5-sonnet-20241022-v2:0"
+            "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
         )
 
         # Initialize Bedrock client
@@ -840,3 +840,57 @@ class AIAgentService:
                 raise ValueError(f"Missing required field in response: {field}")
 
         return plan
+
+    async def chat(
+        self,
+        agent_id: str,
+        agent_name: str,
+        message: str,
+        history: list[dict] | None = None,
+    ) -> str:
+        """Free-form chat with the agent via Claude.
+
+        Args:
+            agent_id: Agent identifier (used to personalise the system prompt)
+            agent_name: Human-readable agent name
+            message: Latest user message
+            history: Prior conversation turns [{"role": "user"|"assistant", "content": "..."}]
+
+        Returns:
+            str: Claude's reply
+        """
+        history = history or []
+
+        system_prompt = (
+            f"You are {agent_name}, an autonomous AI research-funding agent on the QuantumNodes platform. "
+            "You help users manage their AI agents, research proposals, wallet balances, and the agent marketplace. "
+            "You can answer questions about the platform, explain how to fund proposals, describe agent capabilities, "
+            "and provide guidance on research strategy. "
+            "Be concise, helpful, and friendly. "
+            "When discussing numbers, be specific. "
+            "If you need real-time data (like wallet balance or proposals), tell the user to use the dedicated page or ask you to fetch it."
+        )
+
+        messages = [
+            *[{"role": h["role"], "content": h["content"]} for h in history],
+            {"role": "user", "content": message},
+        ]
+
+        if not self.bedrock:
+            raise Exception("AWS Bedrock client not initialized")
+
+        try:
+            response = self.bedrock.invoke_model(
+                modelId=self.bedrock_model_id,
+                body=json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1024,
+                    "system": system_prompt,
+                    "messages": messages,
+                }),
+            )
+            body = json.loads(response["body"].read())
+            return body["content"][0]["text"]
+        except Exception as e:
+            logger.error(f"Chat Bedrock call failed: {e}")
+            raise

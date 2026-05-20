@@ -12,7 +12,8 @@ export function useMarketplace(search?: string) {
         : API_AGENTKIT.MARKETPLACE;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch marketplace");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.agents ?? data.workers ?? []);
     },
     staleTime: 60_000,
   });

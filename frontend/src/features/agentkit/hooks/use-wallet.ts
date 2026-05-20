@@ -8,6 +8,8 @@ export function useWallet() {
     queryKey: QUERY_KEYS_AGENTKIT.wallet(),
     queryFn: async () => {
       const res = await fetch(API_AGENTKIT.WALLET);
+      // 400/404 means no wallet yet — return null instead of throwing
+      if (res.status === 400 || res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch wallet");
       return res.json();
     },
@@ -57,7 +59,8 @@ export function useWalletTransactions() {
     queryFn: async () => {
       const res = await fetch(API_AGENTKIT.WALLET_TX);
       if (!res.ok) throw new Error("Failed to fetch transactions");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.transactions ?? []);
     },
     staleTime: 30_000,
     retry: false,

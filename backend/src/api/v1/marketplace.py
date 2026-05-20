@@ -136,6 +136,10 @@ class WorkerInfo(BaseModel):
     total_earned: float = Field(description="Total USDC earned")
     jobs_completed: int = Field(description="Number of jobs completed")
     is_active: bool = Field(default=True, description="Active status")
+    agent_name: str | None = Field(default=None, description="Display name")
+    specialty: str | None = Field(default=None, description="Specialisation area")
+    description: str | None = Field(default=None, description="Agent description")
+    price_per_task: float | None = Field(default=None, description="Price per task in USDC")
 
 
 class ListWorkersResponse(BaseModel):
@@ -292,6 +296,10 @@ async def list_workers(
                 total_earned=w["total_earned"],
                 jobs_completed=w["jobs_completed"],
                 is_active=True,
+                agent_name=w.get("agent_name"),
+                specialty=w.get("specialty"),
+                description=w.get("description"),
+                price_per_task=w.get("price_per_task"),
             )
             for w in workers
         ]

@@ -87,7 +87,7 @@ class ProposalService:
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         self.bedrock_model_id = os.getenv(
             "BEDROCK_MODEL_ID",
-            "anthropic.claude-3-5-sonnet-20241022-v2:0"
+            "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
         )
 
         # Initialize Bedrock client

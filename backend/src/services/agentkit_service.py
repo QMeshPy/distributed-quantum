@@ -174,6 +174,16 @@ class AgentKitService:
             # Store a marker so we know the wallet was created with this env wallet_secret
             seed_encrypted = self.fernet.encrypt((self.wallet_secret or "").encode()).decode()
 
+            # Record current block number so we can scan from here in transaction history
+            try:
+                from coinbase_agentkit.network import NETWORK_ID_TO_CHAIN
+                from web3 import Web3 as _Web3
+                _chain = NETWORK_ID_TO_CHAIN[self.network_id]
+                _rpc = _chain.rpc_urls["default"].http[0]
+                creation_block: int | None = _Web3(_Web3.HTTPProvider(_rpc)).eth.block_number
+            except Exception:
+                creation_block = None
+
             # Create WalletDocument
             wallet_doc = WalletDocument(
                 entity_id=entity_id,
@@ -184,6 +194,7 @@ class AgentKitService:
                 seed_encrypted=seed_encrypted,
                 balance_usdc=_decimal_to_decimal128(Decimal("0")),
                 balance_eth=_decimal_to_decimal128(Decimal("0")),
+                creation_block=creation_block,
             )
 
             # Save to MongoDB
@@ -234,15 +245,17 @@ class AgentKitService:
             # Validate address format
             validate_address(wallet_address)
 
-            # Load wallet from MongoDB to get credentials
-            wallet_provider = await self._load_wallet(wallet_address)
+            # Use plain web3 — no CDP credentials needed for read-only balance queries
+            from coinbase_agentkit.network import NETWORK_ID_TO_CHAIN
+            chain = NETWORK_ID_TO_CHAIN[self.network_id]
+            rpc_url = chain.rpc_urls["default"].http[0]
+            web3 = Web3(Web3.HTTPProvider(rpc_url))
 
             # Query ETH balance (native token)
-            eth_balance_wei = wallet_provider.get_balance()
+            eth_balance_wei = web3.eth.get_balance(Web3.to_checksum_address(wallet_address))
             eth_balance = Decimal(eth_balance_wei) / Decimal(10 ** 18)
 
             # Query USDC balance (ERC-20 token)
-            # Standard ERC-20 balanceOf ABI
             erc20_abi = [
                 {
                     "constant": True,
@@ -253,7 +266,6 @@ class AgentKitService:
                 }
             ]
 
-            web3 = wallet_provider._web3
             usdc_contract = web3.eth.contract(
                 address=Web3.to_checksum_address(self.usdc_address),
                 abi=erc20_abi

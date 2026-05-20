@@ -1,9 +1,8 @@
 export type WalletBalance = {
-  wallet_address: string;
-  usdc_balance: string;
-  eth_balance: string;
-  network_id: string;
-  timestamp: string;
+  address: string;
+  usdc: string;
+  eth: string;
+  network: string;
 };
 
 export type ProposalFragment = {
@@ -36,7 +35,10 @@ export type MarketplaceAgent = {
   pricing_per_task: string;
   reputation_score: number;
   total_tasks: number;
-  status: "active" | "busy" | "offline";
+  status: "active" | "busy" | "offline" | "available";
+  specialty?: string;
+  rating?: number;
+  price_per_task?: number;
 };
 
 export type Notification = {

@@ -22,6 +22,9 @@ export async function GET(request: Request) {
           reputation_score: w.reputation_score ?? 0,
           total_tasks: w.total_tasks ?? 0,
           status: w.status ?? "active",
+          specialty: w.specialty as string | undefined,
+          rating: w.rating as number | undefined,
+          price_per_task: w.price_per_task as number | undefined,
         })),
         { status: res.status }
       );

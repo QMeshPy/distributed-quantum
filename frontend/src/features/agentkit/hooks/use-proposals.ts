@@ -9,7 +9,8 @@ export function useProposals() {
     queryFn: async () => {
       const res = await fetch(API_AGENTKIT.PROPOSALS);
       if (!res.ok) throw new Error("Failed to fetch proposals");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.proposals ?? []);
     },
     staleTime: 60_000,
   });

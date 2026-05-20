@@ -5,7 +5,8 @@ export async function GET() {
   try {
     const res = await fetch(BACKEND_AGENTKIT.AGENTS, { cache: "no-store" });
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const agents = Array.isArray(data) ? data : (data.agents ?? []);
+    return NextResponse.json(agents, { status: res.status });
   } catch {
     return NextResponse.json({ error: "Backend unreachable" }, { status: 502 });
   }
