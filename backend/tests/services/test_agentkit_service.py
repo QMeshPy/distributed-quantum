@@ -14,6 +14,16 @@ All tests use mocks for CDP API and MongoDB to ensure isolation.
 
 from __future__ import annotations
 
+import sys
+from unittest.mock import MagicMock
+from pydantic import BaseModel
+
+# Mock beanie before service import to avoid CollectionWasNotInitialized errors
+if 'beanie' not in sys.modules:
+    _mock_beanie = MagicMock()
+    _mock_beanie.Document = BaseModel
+    sys.modules['beanie'] = _mock_beanie
+
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -22,7 +32,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from bson import Decimal128
 
-from src.services.agentkit_service import AgentKitService
+from services.agentkit_service import AgentKitService
 
 
 # ---------------------------------------------------------------------------
@@ -74,10 +84,30 @@ def agentkit_service(mock_env_vars, mock_mongo_client):
     """Create AgentKitService instance with mocked dependencies."""
     mock_client, mock_db = mock_mongo_client
 
-    with patch("services.agentkit_service.AsyncIOMotorClient", return_value=mock_client):
+    # Make PaymentDocument mock return a real-enough dict from model_dump()
+    def _make_payment_doc(**kwargs):
+        doc = MagicMock()
+        doc.model_dump.return_value = dict(kwargs)
+        return doc
+
+    def _make_wallet_doc(**kwargs):
+        doc = MagicMock()
+        doc.model_dump.return_value = dict(kwargs)
+        return doc
+
+    with patch("services.agentkit_service.AsyncIOMotorClient", return_value=mock_client),          patch("services.agentkit_service.WalletDocument", side_effect=_make_wallet_doc),          patch("services.agentkit_service.PaymentDocument", side_effect=_make_payment_doc),          patch("services.agentkit_service.CdpEvmWalletProvider") as mock_cdp_class:
+        mock_cdp_instance = MagicMock()
+        mock_cdp_instance.get_address.return_value = "0x1234567890123456789012345678901234567890"
+        mock_cdp_instance.get_balance.return_value = 100000000000000000
+        mock_cdp_instance.send_transaction.return_value = "0xabcd1234" + "0" * 56
+        mock_cdp_instance._web3 = MagicMock()
+        mock_cdp_class.return_value = mock_cdp_instance
+
         service = AgentKitService()
         service.db = mock_db
-        return service
+        service._mock_cdp_class = mock_cdp_class
+        service._mock_cdp_instance = mock_cdp_instance
+        yield service
 
 
 # ---------------------------------------------------------------------------
@@ -96,13 +126,9 @@ async def test_create_wallet_success(agentkit_service, mock_wallet_provider):
     agentkit_service.db.wallets.find_one = AsyncMock(return_value=None)
     agentkit_service.db.wallets.insert_one = AsyncMock()
 
-    with patch(
-        "services.agentkit_service.CdpEvmWalletProvider",
-        return_value=mock_wallet_provider
-    ):
-        with patch.object(agentkit_service, "request_testnet_funds", new_callable=AsyncMock):
-            # Act
-            result = await agentkit_service.create_wallet(entity_id, entity_type)
+    with patch("services.agentkit_service.CdpEvmWalletProvider", return_value=mock_wallet_provider),          patch.object(agentkit_service, "request_testnet_funds", new_callable=AsyncMock):
+        # Act
+        result = await agentkit_service.create_wallet(entity_id, entity_type)
 
     # Assert
     assert result["wallet_address"] == mock_wallet_provider.get_address()
@@ -463,13 +489,9 @@ async def test_wallet_seed_encryption(agentkit_service, mock_wallet_provider):
     agentkit_service.db.wallets.find_one = AsyncMock(return_value=None)
     agentkit_service.db.wallets.insert_one = AsyncMock()
 
-    with patch(
-        "services.agentkit_service.CdpEvmWalletProvider",
-        return_value=mock_wallet_provider
-    ):
-        with patch.object(agentkit_service, "request_testnet_funds", new_callable=AsyncMock):
-            # Act
-            await agentkit_service.create_wallet(entity_id, entity_type)
+    with patch("services.agentkit_service.CdpEvmWalletProvider", return_value=mock_wallet_provider),          patch.object(agentkit_service, "request_testnet_funds", new_callable=AsyncMock):
+        # Act
+        await agentkit_service.create_wallet(entity_id, entity_type)
 
     # Assert
     inserted_doc = agentkit_service.db.wallets.insert_one.call_args[0][0]

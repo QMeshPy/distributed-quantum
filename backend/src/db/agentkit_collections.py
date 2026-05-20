@@ -224,6 +224,7 @@ class PaymentDocument(Document):
     type: Literal[
         "worker_payment",
         "research_funding",
+        "escrow_deposit",
         "escrow_release",
         "agent_trade",
         "refund",
