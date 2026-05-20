@@ -163,11 +163,15 @@ def mock_ai_agent_service():
 
 
 @pytest.fixture
-def proposal_service(mock_mongo_db, mock_bedrock_client):
+def proposal_service(mock_mongo_db, mock_bedrock_client, mock_notification_service, mock_agentkit_service, mock_ai_agent_service):
     """Create ProposalService instance with mocked dependencies."""
     # boto3 and motor are already mocked at module level via sys.modules
     # Just create service and inject mocks
-    service = ProposalService()
+    service = ProposalService(
+        notification_service=mock_notification_service,
+        agentkit_service=mock_agentkit_service,
+        ai_agent_service=mock_ai_agent_service
+    )
     service.db = mock_mongo_db
     service.bedrock = mock_bedrock_client
 
@@ -183,14 +187,14 @@ async def test_create_proposal(proposal_service, mock_mongo_db, mock_notificatio
     """Test creating a basic research proposal without auto-fragmentation."""
     # Setup
     researcher_id = "researcher_001"
-    researcher_wallet = "0xResearcherWallet123"
+    researcher_wallet = "0xaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaA"
 
     mock_mongo_db.wallets.find_one.return_value = {
         "entity_id": researcher_id,
         "default_address": researcher_wallet
     }
 
-    with patch('src.services.notification_service.NotificationService', return_value=mock_notification_service):
+    if True:
         # Execute
         result = await proposal_service.create_proposal(
             researcher_id=researcher_id,
@@ -239,7 +243,7 @@ async def test_create_proposal_with_auto_fragment(
     """Test creating a proposal with AI-powered auto-fragmentation."""
     # Setup
     researcher_id = "researcher_002"
-    researcher_wallet = "0xResearcherWallet456"
+    researcher_wallet = "0xbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbB"
 
     mock_mongo_db.wallets.find_one.return_value = {
         "entity_id": researcher_id,
@@ -252,7 +256,7 @@ async def test_create_proposal_with_auto_fragment(
             "Fragmentation prompt: {title}, {description}, {budget}"
         )
 
-        with patch('src.services.notification_service.NotificationService', return_value=mock_notification_service):
+        if True:
             # Execute
             result = await proposal_service.create_proposal(
                 researcher_id=researcher_id,
@@ -300,7 +304,7 @@ async def test_fund_proposal(
     # Setup
     proposal_id = "proposal_123"
     funder_id = "funder_001"
-    funder_wallet = "0xFunderWallet789"
+    funder_wallet = "0xcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcC"
 
     from bson import Decimal128
 
@@ -308,7 +312,7 @@ async def test_fund_proposal(
         "proposal_id": proposal_id,
         "status": "active",
         "deadline": datetime.now(timezone.utc) + timedelta(days=10),
-        "researcher_wallet": "0xResearcherWallet123",
+        "researcher_wallet": "0xaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaA",
         "budget_required": Decimal128("100.0"),
         "budget_raised": Decimal128("0.0"),
         "funding_threshold": Decimal128("70.0"),
@@ -320,8 +324,8 @@ async def test_fund_proposal(
         "default_address": funder_wallet
     }
 
-    with patch('src.services.agentkit_service.AgentKitService', return_value=mock_agentkit_service), \
-         patch('services.proposal_service.NotificationService', return_value=mock_notification_service):
+    if True:
+
 
         # Execute
         result = await proposal_service.fund_proposal(
@@ -344,7 +348,7 @@ async def test_fund_proposal(
     mock_agentkit_service.aave_supply.assert_called_once_with(
         wallet_address=funder_wallet,
         amount=Decimal("50.0"),
-        on_behalf_of="0xResearcherWallet123"
+        on_behalf_of="0xaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaA"
     )
 
     # Verify MongoDB update
@@ -378,7 +382,7 @@ async def test_fund_proposal_reaches_threshold(
         "proposal_id": proposal_id,
         "status": "active",
         "deadline": datetime.now(timezone.utc) + timedelta(days=10),
-        "researcher_wallet": "0xResearcherWallet123",
+        "researcher_wallet": "0xaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaA",
         "budget_required": Decimal128("100.0"),
         "budget_raised": Decimal128("60.0"),  # Already at 60
         "funding_threshold": Decimal128("70.0"),
@@ -387,11 +391,11 @@ async def test_fund_proposal_reaches_threshold(
 
     mock_mongo_db.wallets.find_one.return_value = {
         "entity_id": "funder_002",
-        "default_address": "0xFunderWallet999"
+        "default_address": "0xdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdD"
     }
 
-    with patch('src.services.agentkit_service.AgentKitService', return_value=mock_agentkit_service), \
-         patch('services.proposal_service.NotificationService', return_value=mock_notification_service):
+    if True:
+
 
         # Execute - add 15 more to reach 75 (above threshold of 70)
         result = await proposal_service.fund_proposal(
@@ -447,7 +451,7 @@ async def test_claim_fragment(proposal_service, mock_mongo_db, mock_notification
         ]
     }
 
-    with patch('src.services.notification_service.NotificationService', return_value=mock_notification_service):
+    if True:
         # Execute
         result = await proposal_service.claim_fragment(
             proposal_id=proposal_id,
@@ -537,7 +541,7 @@ async def test_submit_results_fragment(
     mock_mongo_db.research_proposals.find_one.return_value = {
         "proposal_id": proposal_id,
         "researcher_id": "original_researcher",
-        "researcher_wallet": "0xProposalWallet",
+        "researcher_wallet": "0xeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeE",
         "fragments": [
             {
                 "fragment_id": fragment_id,
@@ -551,7 +555,7 @@ async def test_submit_results_fragment(
 
     mock_mongo_db.wallets.find_one.return_value = {
         "entity_id": researcher_id,
-        "default_address": "0xFragmentResearcherWallet"
+        "default_address": "0x1111111111111111111111111111111111111111"
     }
 
     results_data = {
@@ -560,9 +564,8 @@ async def test_submit_results_fragment(
         "conclusion": "QAOA performs well"
     }
 
-    with patch('src.utils.ipfs.get_ipfs_service', return_value=mock_ipfs_service), \
-         patch('services.proposal_service.AgentKitService', return_value=mock_agentkit_service), \
-         patch('services.proposal_service.NotificationService', return_value=mock_notification_service):
+    with patch('utils.ipfs.get_ipfs_service', return_value=mock_ipfs_service):
+
 
         # Execute
         result = await proposal_service.submit_results(
@@ -619,7 +622,7 @@ async def test_submit_results_full_proposal(
     mock_mongo_db.research_proposals.find_one.return_value = {
         "proposal_id": proposal_id,
         "researcher_id": researcher_id,
-        "researcher_wallet": "0xResearcherMainWallet",
+        "researcher_wallet": "0x2222222222222222222222222222222222222222",
         "budget_raised": Decimal128("100.0"),
         "fragments": []
     }
@@ -629,9 +632,8 @@ async def test_submit_results_full_proposal(
         "data_files": ["result1.csv", "result2.csv"]
     }
 
-    with patch('src.utils.ipfs.get_ipfs_service', return_value=mock_ipfs_service), \
-         patch('services.proposal_service.AgentKitService', return_value=mock_agentkit_service), \
-         patch('services.proposal_service.NotificationService', return_value=mock_notification_service):
+    with patch('utils.ipfs.get_ipfs_service', return_value=mock_ipfs_service):
+
 
         # Execute
         result = await proposal_service.submit_results(
@@ -654,9 +656,9 @@ async def test_submit_results_full_proposal(
 
     # Verify full escrow released
     mock_agentkit_service.aave_withdraw.assert_called_once_with(
-        wallet_address="0xResearcherMainWallet",
+        wallet_address="0x2222222222222222222222222222222222222222",
         amount=Decimal("100.0"),
-        to="0xResearcherMainWallet"
+        to="0x2222222222222222222222222222222222222222"
     )
 
 
@@ -728,7 +730,7 @@ async def test_pay_fragment_researcher(
 
     mock_mongo_db.research_proposals.find_one.return_value = {
         "proposal_id": proposal_id,
-        "researcher_wallet": "0xProposalEscrow",
+        "researcher_wallet": "0x3333333333333333333333333333333333333333",
         "fragments": [
             {
                 "fragment_id": fragment_id,
@@ -740,10 +742,10 @@ async def test_pay_fragment_researcher(
 
     mock_mongo_db.wallets.find_one.return_value = {
         "entity_id": "researcher_007",
-        "default_address": "0xFragmentResearcher"
+        "default_address": "0x4444444444444444444444444444444444444444"
     }
 
-    with patch('src.services.agentkit_service.AgentKitService', return_value=mock_agentkit_service):
+    if True:
         # Execute
         result = await proposal_service._pay_fragment_researcher(
             proposal_id=proposal_id,
@@ -753,21 +755,21 @@ async def test_pay_fragment_researcher(
     # Assert
     assert result["amount"] == Decimal("20.0")
     assert result["transaction_hash"] == "0xghi789"
-    assert result["researcher_wallet"] == "0xFragmentResearcher"
+    assert result["researcher_wallet"] == "0x4444444444444444444444444444444444444444"
 
     # Verify Aave withdrawal
     mock_agentkit_service.aave_withdraw.assert_called_once_with(
-        wallet_address="0xProposalEscrow",
+        wallet_address="0x3333333333333333333333333333333333333333",
         amount=Decimal("20.0"),
-        to="0xFragmentResearcher"
+        to="0x4444444444444444444444444444444444444444"
     )
 
     # Verify payment recorded
     mock_mongo_db.payments.insert_one.assert_called_once()
     payment_doc = mock_mongo_db.payments.insert_one.call_args[0][0]
     assert payment_doc["type"] == "escrow_release"
-    assert payment_doc["from_wallet"] == "0xProposalEscrow"
-    assert payment_doc["to_wallet"] == "0xFragmentResearcher"
+    assert payment_doc["from_wallet"] == "0x3333333333333333333333333333333333333333"
+    assert payment_doc["to_wallet"] == "0x4444444444444444444444444444444444444444"
 
 
 # ============================================================================
@@ -788,24 +790,24 @@ async def test_release_all_escrow(
 
     mock_mongo_db.research_proposals.find_one.return_value = {
         "proposal_id": proposal_id,
-        "researcher_wallet": "0xMainResearcher",
+        "researcher_wallet": "0x5555555555555555555555555555555555555555",
         "budget_raised": Decimal128("150.0")
     }
 
-    with patch('src.services.agentkit_service.AgentKitService', return_value=mock_agentkit_service):
+    if True:
         # Execute
         result = await proposal_service._release_all_escrow(proposal_id)
 
     # Assert
     assert result["amount"] == Decimal("150.0")
     assert result["transaction_hash"] == "0xghi789"
-    assert result["researcher_wallet"] == "0xMainResearcher"
+    assert result["researcher_wallet"] == "0x5555555555555555555555555555555555555555"
 
     # Verify full withdrawal
     mock_agentkit_service.aave_withdraw.assert_called_once_with(
-        wallet_address="0xMainResearcher",
+        wallet_address="0x5555555555555555555555555555555555555555",
         amount=Decimal("150.0"),
-        to="0xMainResearcher"
+        to="0x5555555555555555555555555555555555555555"
     )
 
     # Verify payment recorded
@@ -846,7 +848,7 @@ async def test_broadcast_triggers_agents(
     ])
     mock_mongo_db.ai_agents.find.return_value = mock_cursor
 
-    with patch('src.services.ai_agent_service.AIAgentService', return_value=mock_ai_agent_service):
+    if True:
         # Execute
         result = await proposal_service._broadcast_new_proposal(proposal_data)
 

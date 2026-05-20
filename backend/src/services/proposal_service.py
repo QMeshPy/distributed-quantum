@@ -71,7 +71,7 @@ class ProposalService:
     - Escrow release and payment distribution
     """
 
-    def __init__(self) -> None:
+    def __init__(self, notification_service=None, agentkit_service=None, ai_agent_service=None) -> None:
         """
         Initialize Proposal service with AWS Bedrock and MongoDB.
 
@@ -115,6 +115,10 @@ class ProposalService:
 
         logger.info("ProposalService initialized")
 
+        # Dependency injection for testability
+        self._notification_service = notification_service
+        self._agentkit_service = agentkit_service
+        self._ai_agent_service = ai_agent_service
     async def create_proposal(
         self,
         researcher_id: str,
@@ -230,7 +234,7 @@ class ProposalService:
             from services.notification_service import NotificationService
 
             # Broadcast new proposal notification
-            notification_service = NotificationService()
+            notification_service = self._notification_service or NotificationService()
             await notification_service.notify_new_proposal(proposal_doc.model_dump())
 
             logger.info(f"Proposal {proposal_id} broadcast to network")
@@ -317,7 +321,7 @@ class ProposalService:
 
             # Import AgentKitService
             from services.agentkit_service import AgentKitService
-            agentkit_service = AgentKitService()
+            agentkit_service = self._agentkit_service or AgentKitService()
 
             # Deposit to Aave pool on behalf of proposal wallet
             # This locks the funds in escrow while earning yield
@@ -392,7 +396,7 @@ class ProposalService:
 
             # Notify about funding
             from services.notification_service import NotificationService
-            notification_service = NotificationService()
+            notification_service = self._notification_service or NotificationService()
 
             await notification_service.notify_proposal_funded(
                 proposal_id=proposal_id,
@@ -501,7 +505,7 @@ class ProposalService:
 
             # Notify fragment claimed
             from services.notification_service import NotificationService
-            notification_service = NotificationService()
+            notification_service = self._notification_service or NotificationService()
 
             await notification_service.notify_fragment_claimed(
                 proposal_id=proposal_id,
@@ -648,7 +652,7 @@ class ProposalService:
 
             # Notify results published
             from services.notification_service import NotificationService
-            notification_service = NotificationService()
+            notification_service = self._notification_service or NotificationService()
 
             await notification_service.notify_results_published(
                 proposal_id=proposal_id,
@@ -790,7 +794,7 @@ class ProposalService:
         try:
             # Import AI agent service
             from services.ai_agent_service import AIAgentService
-            ai_agent_service = AIAgentService()
+            ai_agent_service = self._ai_agent_service or AIAgentService()
 
             # Get all active agents with auto_fund enabled
             agent_docs = await self.db.ai_agents.find({"config.auto_fund": True}).to_list(None)
@@ -870,7 +874,7 @@ class ProposalService:
 
             # Import AgentKitService
             from services.agentkit_service import AgentKitService
-            agentkit_service = AgentKitService()
+            agentkit_service = self._agentkit_service or AgentKitService()
 
             # Withdraw from Aave escrow
             logger.info(f"Withdrawing {fragment_budget} USDC from Aave escrow")
@@ -939,7 +943,7 @@ class ProposalService:
 
             # Import AgentKitService
             from services.agentkit_service import AgentKitService
-            agentkit_service = AgentKitService()
+            agentkit_service = self._agentkit_service or AgentKitService()
 
             # Withdraw all from Aave escrow
             logger.info(f"Withdrawing {total_raised} USDC from Aave escrow")

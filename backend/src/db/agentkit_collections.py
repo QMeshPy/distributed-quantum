@@ -145,7 +145,7 @@ class ResearchProposalDocument(Document):
         "cancelled"
     ] = "draft"
     tags: list[str] = Field(default_factory=list)  # For categorization
-    fragments: list[str] = Field(default_factory=list)  # Linked quantum fragments
+    fragments: list[dict] = Field(default_factory=list)  # Research proposal fragments
     funders: list[dict[str, Any]] = Field(default_factory=list)  # FunderRecord array
     escrow_type: Literal["simple", "aave_yield"] = "simple"
     aave_pool_address: str | None = None
