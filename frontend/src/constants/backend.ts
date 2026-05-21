@@ -94,4 +94,9 @@ export const BACKEND_AGENTKIT = {
   NOTIFICATIONS:   `${BASE_URL}/api/v1/notifications`,
   NOTIF_READ:      (id: string) =>
     `${BASE_URL}/api/v1/notifications/${id}/read` as const,
+  CHAT_SESSIONS:   `${BASE_URL}/api/v1/chat-sessions`,
+  CHAT_SESSION:    (id: string) =>
+    `${BASE_URL}/api/v1/chat-sessions/${id}` as const,
+  CHAT_SESSION_MSG: (id: string) =>
+    `${BASE_URL}/api/v1/chat-sessions/${id}/messages` as const,
 } as const;

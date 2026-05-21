@@ -9,6 +9,7 @@ from typing import Any
 from beanie import Document, init_beanie
 from db.agentkit_collections import (
     AIAgentDocument,
+    ChatSessionDocument,
     NotificationDocument,
     PaymentDocument,
     ResearchProposalDocument,
@@ -422,5 +423,6 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
             AIAgentDocument,
             PaymentDocument,
             NotificationDocument,
+            ChatSessionDocument,
         ),
     )

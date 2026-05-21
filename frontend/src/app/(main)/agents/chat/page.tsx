@@ -26,12 +26,12 @@ import {
 const STARTERS: {
   label: string; prompt: string; icon: LucideIcon; iconClass: string; hoverGradient: string;
 }[] = [
-  { label: "My Proposals",       prompt: "Show me all my research proposals and explain them",               icon: Search,       iconClass: "text-violet-400",  hoverGradient: "from-violet-500/20 via-violet-600/8 to-transparent" },
-  { label: "Browse Marketplace", prompt: "Show me available agents in the marketplace",                      icon: Store,        iconClass: "text-cyan-400",    hoverGradient: "from-cyan-500/20 via-cyan-600/8 to-transparent" },
+  { label: "My Proposals",       prompt: "Show me all my research proposals",                                icon: Search,       iconClass: "text-violet-400",  hoverGradient: "from-violet-500/20 via-violet-600/8 to-transparent" },
+  { label: "Browse Marketplace", prompt: "What agents are available in the marketplace?",                    icon: Store,        iconClass: "text-cyan-400",    hoverGradient: "from-cyan-500/20 via-cyan-600/8 to-transparent" },
   { label: "Check my balance",   prompt: "What is my current wallet balance?",                               icon: BarChart3,    iconClass: "text-emerald-400", hoverGradient: "from-emerald-500/20 via-emerald-600/8 to-transparent" },
-  { label: "Analyze Proposals",  prompt: "Analyze the top active proposal and tell me if I should fund it", icon: DollarSign,   iconClass: "text-amber-400",   hoverGradient: "from-amber-500/20 via-amber-600/8 to-transparent" },
+  { label: "Analyze Proposals",  prompt: "Analyze my proposals and tell me which I should fund",             icon: DollarSign,   iconClass: "text-amber-400",   hoverGradient: "from-amber-500/20 via-amber-600/8 to-transparent" },
   { label: "Draft Proposal",     prompt: "Help me draft a new research proposal",                            icon: PenLine,      iconClass: "text-rose-400",    hoverGradient: "from-rose-500/20 via-rose-600/8 to-transparent" },
-  { label: "Run Research",       prompt: "Run a drug discovery research job",                                icon: FlaskConical, iconClass: "text-teal-400",    hoverGradient: "from-teal-500/20 via-teal-600/8 to-transparent" },
+  { label: "Run Research",       prompt: "Run a drug discovery research simulation",                         icon: FlaskConical, iconClass: "text-teal-400",    hoverGradient: "from-teal-500/20 via-teal-600/8 to-transparent" },
 ];
 
 function AgentsChatInner() {
@@ -39,48 +39,70 @@ function AgentsChatInner() {
   const urlAgentId      = searchParams.get("agentId");
   const urlAgentName    = searchParams.get("name");
   const urlSpecialty    = searchParams.get("specialty");
+  const urlSessionId    = searchParams.get("sessionId");
+  const urlNew          = searchParams.get("new");
   const urlCapabilities = searchParams.get("capabilities")?.split(",").filter(Boolean) ?? [];
 
   const [messages, setMessages]               = useState<ChatMessage[]>([]);
   const [input, setInput]                     = useState("");
   const [loading, setLoading]                 = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [pendingAction, setPendingAction]     = useState<"draft_proposal" | null>(null);
   const [introShown, setIntroShown]           = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: agents = [], isLoading: agentsLoading } = useAgents();
   const createAgent = useCreateAgent();
-  const { createSession, appendMessage } = useChatSessions();
+  const { createSession, appendMessage, loadSession } = useChatSessions();
 
+  // Auto-create agent if user has none
   useEffect(() => {
     if (!agentsLoading && agents.length === 0 && !createAgent.isPending && !createAgent.isSuccess) {
       createAgent.mutate(undefined);
     }
   }, [agentsLoading, agents.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reset to blank chat when ?new= param changes (New Chat button)
+  useEffect(() => {
+    if (!urlNew) return;
+    setMessages([]);
+    setActiveSessionId(null);
+    setIntroShown(false);
+    setInput("");
+  }, [urlNew]);
+
+  // Restore an existing session when navigating from history
+  useEffect(() => {
+    if (!urlSessionId) return;
+    loadSession(urlSessionId).then((session) => {
+      if (!session) return;
+      setActiveSessionId(session.id);
+      setMessages(session.messages);
+    });
+  }, [urlSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Show persona intro once when arriving from marketplace
   useEffect(() => {
-    if (introShown || !urlAgentName) return;
+    if (introShown || !urlAgentName || urlSessionId) return;
     if (agentsLoading) return;
     setIntroShown(true);
-    const sessionId = (() => {
-      const s = createSession(`Chat with ${urlAgentName}`);
-      setActiveSessionId(s.id);
-      return s.id;
-    })();
-    const caps = urlCapabilities.length > 0
-      ? `My expertise includes: **${urlCapabilities.join(", ")}**.`
-      : "";
-    const specialty = urlSpecialty ? ` I specialise in **${urlSpecialty}**.` : "";
-    const intro =
-      `Hi! I'm **${urlAgentName}**.${specialty} ${caps}
-
-` +
-      `I can help you manage research proposals, run analysis, submit new proposals on your behalf, check your wallet, and more. What would you like to do?`;
-    const msg: ChatMessage = { role: "agent", content: intro };
-    setMessages([msg]);
-    appendMessage(sessionId, msg);
+    const activeAgent = urlAgentId
+      ? (agents.find((a) => a.agent_id === urlAgentId) ?? agents[0])
+      : agents[0];
+    createSession(`Chat with ${urlAgentName}`, activeAgent?.agent_id ?? "").then((session) => {
+      setActiveSessionId(session.id);
+      const caps = urlCapabilities.length > 0
+        ? `My expertise includes: **${urlCapabilities.join(", ")}**.`
+        : "";
+      const specialty = urlSpecialty ? ` I specialise in **${urlSpecialty}**.` : "";
+      const intro: ChatMessage = {
+        role: "agent",
+        content:
+          `Hi! I'm **${urlAgentName}**.${specialty} ${caps}\n\n` +
+          `I can help you manage research proposals, check your wallet, browse the marketplace, and more. What would you like to do?`,
+      };
+      setMessages([intro]);
+      appendMessage(session.id, intro);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentsLoading, urlAgentName]);
 
@@ -88,7 +110,6 @@ function AgentsChatInner() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Prefer the agent from the URL param, fall back to first owned agent
   const activeAgent = urlAgentId
     ? (agents.find((a) => a.agent_id === urlAgentId) ?? agents[0])
     : agents[0];
@@ -103,25 +124,13 @@ function AgentsChatInner() {
       .filter((m) => m.content.trim())
       .map((m) => ({ role: m.role === "agent" ? "assistant" : "user", content: m.content }));
 
-  const callAI = async (agentId: string, userText: string, contextPrefix?: string) => {
-    const historyMsgs = buildHistory(messages);
-    const messageToSend = contextPrefix ? `${contextPrefix}\n\nUser asked: ${userText}` : userText;
-    const res = await fetch(`/api/agentkit/agents/${agentId}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: messageToSend, history: historyMsgs }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail ?? data.error ?? "AI request failed");
-    return data.reply as string;
-  };
-
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
 
     let sessionId = activeSessionId;
     if (!sessionId) {
-      const session = createSession(text);
+      const agentId = activeAgent?.agent_id ?? "";
+      const session = await createSession(text, agentId);
       sessionId = session.id;
       setActiveSessionId(session.id);
     }
@@ -131,167 +140,22 @@ function AgentsChatInner() {
     setLoading(true);
 
     try {
-      const lower = text.toLowerCase();
-
-      // ── Draft proposal (multi-turn UX) ─────────────────────────────────
-      if (pendingAction === "draft_proposal") {
-        const titleMatch  = text.match(/title[:\s]+([^|,\n]+)/i);
-        const descMatch   = text.match(/desc(?:ription)?[:\s]+([^|,\n]+)/i);
-        const budgetMatch = text.match(/budget[:\s]+([\d.]+)/i);
-        const title       = titleMatch?.[1]?.trim()  ?? text.slice(0, 40);
-        const description = descMatch?.[1]?.trim()   ?? text;
-        const budget      = budgetMatch?.[1]?.trim() ?? "100";
-
-        const res = await fetch("/api/agentkit/proposals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, description, budget_required: budget }),
-        });
-        const result = await res.json();
-        if (!res.ok) {
-          pushMessage({ role: "agent", content: `Error: ${result.detail ?? result.error ?? "Failed to create proposal"}` }, sessionId);
-        } else {
-          pushMessage({ role: "agent", content: "", richContent: { type: "proposal_created", title, description, budget } as RichContent }, sessionId);
-        }
-        setPendingAction(null);
-        return;
-      }
-
-      if ((lower.includes("draft") || lower.includes("write") || lower.includes("create")) && lower.includes("proposal")) {
-        pushMessage({ role: "agent", content: "Sure! Tell me the details and I'll submit it right away.\n\nFormat: **Title:** … | **Description:** … | **Budget:** … USDC\n\nOr just describe it in plain text and I'll extract the details." }, sessionId);
-        setPendingAction("draft_proposal");
-        return;
-      }
-
-      // ── List / explain proposals ────────────────────────────────────────
-      const isListProposals =
-        lower.includes("my proposal") || lower.includes("list proposal") ||
-        lower.includes("show proposal") || lower.includes("all proposal") ||
-        lower.includes("what proposal") || lower.includes("track") ||
-        lower.includes("research proposal");
-      if (isListProposals) {
-        const proposalsRes = await fetch("/api/agentkit/proposals");
-        const proposals: Array<{
-          proposal_id: string; title: string; status: string;
-          budget_required: string; budget_raised: string; description: string; deadline: string;
-        }> = await proposalsRes.json();
-        if (!proposals.length) {
-          pushMessage({ role: "agent", content: "You don't have any research proposals yet. Would you like me to help you create one?" }, sessionId);
-          return;
-        }
-        const summary = proposals.map((p, i) =>
-          `**${i + 1}. ${p.title}**\n` +
-          `Status: ${p.status} | Raised: ${p.budget_raised} / ${p.budget_required} USDC | Deadline: ${p.deadline}\n` +
-          `${p.description?.slice(0, 120)}${(p.description?.length ?? 0) > 120 ? "…" : ""}`
-        ).join("\n\n");
-        const intro = `You have **${proposals.length}** research proposal${proposals.length !== 1 ? "s" : ""}:\n\n${summary}\n\nWould you like me to analyze any of them, fund one, or explain a specific proposal in detail?`;
-        pushMessage({ role: "agent", content: intro }, sessionId);
-        return;
-      }
-
-      // ── Research (animated card UX) ─────────────────────────────────────
-      const isResearch =
-        lower.includes("run research") || lower.includes("drug discovery") ||
-        lower.includes("quantum research") || lower.includes("finance analysis") ||
-        lower.includes("pharma docking") || lower.includes("docking") ||
-        lower.includes("options pricing") || lower.includes("risk engine") ||
-        lower.includes("risk analysis") || lower.includes("financial model") ||
-        lower.includes("run quantum") || lower.includes("run simulation") ||
-        lower.includes("molecule") || lower.includes("binding affinity") ||
-        lower.includes("portfolio analysis") || lower.includes("sharpe");
-
-      if (isResearch) {
-        const researchType: "drug_discovery" | "finance" | "quantum" =
-          lower.includes("drug") || lower.includes("bio") || lower.includes("molecule") ||
-          lower.includes("pharma") || lower.includes("docking") || lower.includes("binding")
-            ? "drug_discovery"
-          : lower.includes("finance") || lower.includes("portfolio") || lower.includes("risk") ||
-            lower.includes("options") || lower.includes("sharpe") || lower.includes("financial")
-            ? "finance"
-          : "quantum";
-
-        pushMessage({ role: "agent", content: "", richContent: { type: "research_progress", researchType, progress: 0 } as RichContent }, sessionId);
-        await new Promise((r) => setTimeout(r, 3200));
-
-        const resultMap: Record<string, Omit<Extract<RichContent, { type: "research_result" }>, "type">> = {
-          drug_discovery: { researchType: "drug_discovery", compound: "ML-4872-B", target: "SARS-CoV-2 Mpro", binding_affinity: "-8.4 kcal/mol", selectivity: "94%",  status: "Promising candidate" },
-          finance:        { researchType: "finance",        portfolio: "DeFi-Mix-7", var_95: "12.3%",          sharpe: "1.84",                     max_drawdown: "18.7%", status: "Moderate risk" },
-          quantum:        { researchType: "quantum",        circuit: "QFT-16q",      original_gates: 847,       optimized_gates: 312,               depth_reduction: "63%", status: "Optimized" },
-        };
-        const resultMsg: ChatMessage = { role: "agent", content: "", richContent: { type: "research_result", ...resultMap[researchType] } as RichContent };
-        setMessages((prev) => {
-          const next = [...prev];
-          const idx = next.findLastIndex((m) => m.richContent?.type === "research_progress");
-          if (idx !== -1) next[idx] = resultMsg; else next.push(resultMsg);
-          return next;
-        });
-        appendMessage(sessionId, resultMsg);
-        return;
-      }
-
       if (!activeAgent) {
         pushMessage({ role: "agent", content: "Your personal agent is still being set up — please wait a moment and try again!" }, sessionId);
         return;
       }
 
       const agentId = activeAgent.agent_id;
+      const historyMsgs = buildHistory(messages);
 
-      // ── Proposal analysis ───────────────────────────────────────────────
-      if ((lower.includes("analyz") || (lower.includes("fund") && lower.includes("proposal"))) && !lower.includes("draft")) {
-        const proposalsRes = await fetch("/api/agentkit/proposals");
-        const proposals: Array<{ proposal_id: string; title: string; status: string }> = await proposalsRes.json();
-        const target = proposals.find((p) => p.status === "active") ?? proposals[0];
-        if (!target) {
-          const reply = await callAI(agentId, text, "There are currently no proposals in the system.");
-          pushMessage({ role: "agent", content: reply }, sessionId);
-          return;
-        }
-        const res = await fetch(`/api/agentkit/agents/${agentId}/analyze`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ proposal_id: target.proposal_id }),
-        });
-        const result = await res.json();
-        if (!res.ok) {
-          const reply = await callAI(agentId, text, `Analysis failed: ${result.detail ?? result.error}`);
-          pushMessage({ role: "agent", content: reply }, sessionId);
-          return;
-        }
-        pushMessage({ role: "agent", content: "", richContent: { type: "proposal_analysis", title: target.title, should_fund: result.should_fund, confidence: result.confidence, funding_amount: result.funding_amount, reasoning: result.reasoning } }, sessionId);
-        return;
-      }
-
-      // ── Wallet ──────────────────────────────────────────────────────────
-      if (lower.includes("balance") || lower.includes("wallet")) {
-        const res = await fetch("/api/agentkit/wallet");
-        const result = await res.json();
-        if (!res.ok || result.error) {
-          const reply = await callAI(agentId, text, "The user does not have a wallet set up yet.");
-          pushMessage({ role: "agent", content: reply }, sessionId);
-          return;
-        }
-        pushMessage({ role: "agent", content: "", richContent: { type: "wallet", address: result.address ?? result.wallet_address ?? "—", usdc: result.usdc ?? "0", eth: result.eth ?? "0" } }, sessionId);
-        return;
-      }
-
-      // ── Marketplace ─────────────────────────────────────────────────────
-      if (lower.includes("marketplace") || lower.includes("available agents") || lower.includes("show me agents") || lower.includes("browse agent")) {
-        const res = await fetch("/api/agentkit/marketplace");
-        const workers = await res.json();
-        const list: Array<{ agent_name: string; agent_id?: string }> = Array.isArray(workers) ? workers : [];
-        if (list.length > 0) {
-          pushMessage({ role: "agent", content: "", richContent: { type: "marketplace", total: list.length, agents: list.slice(0, 8) } }, sessionId);
-        } else {
-          const reply = await callAI(agentId, text, "The marketplace currently has no registered agents.");
-          pushMessage({ role: "agent", content: reply }, sessionId);
-        }
-        return;
-      }
-
-      // ── Everything else — real Claude response ───────────────────────────
-      const reply = await callAI(agentId, text);
-      pushMessage({ role: "agent", content: reply }, sessionId);
-
+      const res = await fetch(`/api/agentkit/agents/${agentId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history: historyMsgs }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? data.error ?? "AI request failed");
+      pushMessage({ role: "agent", content: data.reply as string }, sessionId);
     } catch (err) {
       pushMessage({ role: "agent", content: `Error: ${err instanceof Error ? err.message : "Unknown error"}` }, sessionId!);
     } finally {
@@ -419,7 +283,7 @@ function AgentsChatInner() {
 
         <div className="flex gap-2">
           <Textarea
-            placeholder={pendingAction === "draft_proposal" ? "Describe your proposal… (Title: … | Description: … | Budget: … USDC)" : "Ask your agent anything…"}
+            placeholder="Ask your agent anything…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}

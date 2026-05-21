@@ -22,7 +22,8 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
 from quantum_backend_v2.api.errors.models import PlatformException, ErrorCode
-from db.agentkit_collections import AIAgentDocument, ResearchProposalDocument, _decimal128_to_decimal
+import uuid
+from db.agentkit_collections import AIAgentDocument, ResearchProposalDocument, ChatSessionDocument, _decimal128_to_decimal
 from services.ai_agent_service import AIAgentService
 
 logger = logging.getLogger(__name__)
@@ -745,6 +746,7 @@ async def chat_with_agent(
             agent_name=agent_doc.agent_name,
             message=body.message,
             history=[{"role": m.role, "content": m.content} for m in body.history],
+            owner_id=current_user.user_id,
         )
         return ChatResponse(reply=reply)
 
@@ -757,3 +759,4 @@ async def chat_with_agent(
             error=ErrorCode.INTERNAL_ERROR,
             message="Chat request failed",
         )
+

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Plus, Circle } from "lucide-react";
@@ -43,6 +44,35 @@ function useRecentItems(tool: NavToolConfig): RecentItem[] {
   const { data: risk } = useRiskList();
   const { data: finance } = useFinanceList();
   const { data: pharmaJobs } = usePharmaJobs();
+  const [chatSessions, setChatSessions] = React.useState<ChatSession[]>([]);
+  const fetchSessions = React.useCallback(() => {
+    if (tool.tool !== "chat") return;
+    fetch("/api/agentkit/chat-sessions")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: unknown[]) => {
+        if (!Array.isArray(data)) return;
+        setChatSessions(
+          data.map((d: unknown) => {
+            const raw = d as { session_id: string; title: string; agent_id: string; created_at: string; updated_at: string };
+            return {
+              id: raw.session_id,
+              title: raw.title,
+              agentId: raw.agent_id,
+              messages: [],
+              createdAt: new Date(raw.created_at).getTime(),
+              updatedAt: new Date(raw.updated_at).getTime(),
+            } satisfies ChatSession;
+          }).sort((a, b) => b.updatedAt - a.updatedAt)
+        );
+      })
+      .catch(() => {});
+  }, [tool.tool]);
+
+  React.useEffect(() => {
+    fetchSessions();
+    const id = setInterval(fetchSessions, 5000);
+    return () => clearInterval(id);
+  }, [fetchSessions]);
 
   if (tool.tool === "runs") {
     return (runs ?? []).slice(0, 5).map((r) => ({
@@ -106,19 +136,13 @@ function useRecentItems(tool: NavToolConfig): RecentItem[] {
       }));
   }
   if (tool.tool === "chat") {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("agentkit_chat_sessions") : null;
-    const chatSessions: ChatSession[] = raw ? JSON.parse(raw) : [];
-    return chatSessions
-      .slice()
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, 5)
-      .map((s) => ({
-        jobId: s.id,
-        label: s.title,
-        status: "completed",
-        createdAt: new Date(s.createdAt).toISOString(),
-        href: `/agents/chat`,
-      }));
+    return chatSessions.slice(0, 5).map((s) => ({
+      jobId: s.id,
+      label: s.title,
+      status: "completed",
+      createdAt: new Date(s.createdAt).toISOString(),
+      href: `/agents/chat?sessionId=${s.id}`,
+    }));
   }
   return [];
 }
@@ -158,10 +182,18 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
           {tool.group}
         </CollapsibleTrigger>
 {tool.newLabel && (
-          <Button variant="ghost" size="icon-xs" asChild>
-            <Link href={tool.newHref} aria-label={tool.newLabel}>
-              <Plus className="size-3.5" />
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => {
+              const href = tool.newHref.includes("?")
+                ? `${tool.newHref}&new=${Date.now()}`
+                : `${tool.newHref}?new=${Date.now()}`;
+              window.location.href = href;
+            }}
+            aria-label={tool.newLabel}
+          >
+            <Plus className="size-3.5" />
           </Button>
         )}
       </div>

@@ -848,45 +848,69 @@ class AIAgentService:
         agent_name: str,
         message: str,
         history: list[dict] | None = None,
+        owner_id: str | None = None,
     ) -> str:
-        """Free-form chat with the agent via Claude.
+        """Autonomous chat powered by Claude + the platform MCP server.
+
+        Claude receives MCP tool definitions for all platform operations
+        (proposals, wallet, marketplace, agent stats, proposal creation) and
+        calls them autonomously as needed to answer the user.
 
         Args:
-            agent_id: Agent identifier (used to personalise the system prompt)
+            agent_id: Agent identifier
             agent_name: Human-readable agent name
             message: Latest user message
-            history: Prior conversation turns [{"role": "user"|"assistant", "content": "..."}]
+            history: Prior conversation turns
+            owner_id: Authenticated user ID — scopes all tool calls
 
         Returns:
-            str: Claude's reply
+            str: Claude'''s final text reply
         """
         history = history or []
 
-        # Fetch the agent's config so we can surface its research interests
+        # Resolve owner_id from agent doc if not provided
+        resolved_owner_id = owner_id or ""
         research_interests: list[str] = []
         try:
             agent_doc = await self.db.ai_agents.find_one({"agent_id": agent_id})
             if agent_doc:
                 config = agent_doc.get("config", {})
                 research_interests = config.get("research_interests", [])
-        except Exception as fetch_err:
-            logger.warning(f"Could not fetch agent config for chat: {fetch_err}")
+                if not resolved_owner_id:
+                    resolved_owner_id = agent_doc.get("owner_id", "")
+        except Exception as e:
+            logger.warning("Could not load agent doc: %s", e)
+
+        # Create MCP server scoped to this user
+        from mcp_server.platform_mcp import create_platform_mcp
+        mcp_server = create_platform_mcp(db=self.db, owner_id=resolved_owner_id)
+
+        # Convert FastMCP tools to Claude tool definitions
+        claude_tools: list[dict] = []
+        mcp_tool_map: dict[str, object] = {}
+        try:
+            for tool in mcp_server._tool_manager._tools.values():
+                claude_tools.append({
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "input_schema": tool.parameters or {"type": "object", "properties": {}},
+                })
+                mcp_tool_map[tool.name] = tool
+        except Exception as e:
+            logger.warning("Could not load MCP tools: %s", e)
 
         expertise_line = ""
         if research_interests:
-            expertise_line = (
-                f"Your research expertise and capabilities include: {', '.join(research_interests)}. "
-                "When users ask about running research, analysing proposals, or anything in your domain, "
-                "act on their behalf — fetch real data, submit proposals, and perform actions directly. "
-            )
+            expertise_line = "Your research expertise includes: %s. " % ", ".join(research_interests)
 
         system_prompt = (
-            f"You are {agent_name}, an autonomous AI research-funding agent on the QuantumNodes platform. "
-            + expertise_line +
-            "You help users manage their AI agents, research proposals, wallet balances, and the agent marketplace. "
-            "You proactively perform actions on behalf of the user — create proposals, fetch proposal lists, "
-            "explain proposals, trigger research jobs — rather than redirecting them to other pages. "
-            "Be concise, helpful, and friendly. When discussing numbers, be specific."
+            "You are %s, an autonomous AI research-funding agent on the QuantumNodes platform. " % agent_name
+            + expertise_line
+            + "You have access to MCP tools that connect you directly to the live platform database. "
+            + "ALWAYS call the relevant tool(s) before answering any question about proposals, wallet, "
+            + "marketplace, or agent stats — never guess or say you don'''t have access. "
+            + "When creating a proposal, call create_proposal ONCE — never call it twice. If the tool returns a result (even with already_existed=true), report that result to the user immediately. "
+            + "Be concise, specific, and action-oriented. Use exact values from tool results."
         )
 
         messages = [
@@ -897,18 +921,62 @@ class AIAgentService:
         if not self.bedrock:
             raise Exception("AWS Bedrock client not initialized")
 
-        try:
+        # Agentic tool-use loop — Claude calls MCP tools until it has everything it needs
+        for _round in range(8):  # allow up to 8 tool-call rounds
+            request_body: dict = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2048,
+                "system": system_prompt,
+                "messages": messages,
+            }
+            if claude_tools:
+                request_body["tools"] = claude_tools
+
             response = self.bedrock.invoke_model(
                 modelId=self.bedrock_model_id,
-                body=json.dumps({
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 1024,
-                    "system": system_prompt,
-                    "messages": messages,
-                }),
+                body=json.dumps(request_body),
             )
             body = json.loads(response["body"].read())
-            return body["content"][0]["text"]
-        except Exception as e:
-            logger.error(f"Chat Bedrock call failed: {e}")
-            raise
+            stop_reason = body.get("stop_reason", "")
+
+            if stop_reason != "tool_use":
+                # Final answer — return first text block
+                for block in body.get("content", []):
+                    if block.get("type") == "text":
+                        return block["text"]
+                return ""
+
+            # Execute every tool Claude asked for (may be multiple in one round)
+            tool_results: list[dict] = []
+            for block in body.get("content", []):
+                if block.get("type") != "tool_use":
+                    continue
+                tool_name: str = block["name"]
+                tool_input: dict = block.get("input", {})
+                tool_use_id: str = block["id"]
+                logger.info("MCP tool call: %s(%s)", tool_name, tool_input)
+
+                try:
+                    # Call the FastMCP tool handler directly (in-process)
+                    mcp_tool = mcp_tool_map.get(tool_name)
+                    if mcp_tool is None:
+                        tool_result = {"error": "Unknown tool: %s" % tool_name}
+                    elif mcp_tool.is_async:
+                        tool_result = await mcp_tool.run(arguments=tool_input)
+                    else:
+                        tool_result = mcp_tool.run(arguments=tool_input)
+                except Exception as tool_err:
+                    logger.error("Tool %s failed: %s", tool_name, tool_err)
+                    tool_result = {"error": str(tool_err)}
+
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_use_id,
+                    "content": json.dumps(tool_result),
+                })
+
+            # Add assistant turn + tool results, then loop
+            messages.append({"role": "assistant", "content": body["content"]})
+            messages.append({"role": "user", "content": tool_results})
+
+        raise Exception("Chat exceeded maximum tool-call rounds")
