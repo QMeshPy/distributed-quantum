@@ -25,6 +25,10 @@ services:
       QB2_LIBP2P_ACTIVATE_LISTENERS: "${QB2_LIBP2P_ACTIVATE_LISTENERS:-true}"
       QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-6}"
       QB2_LIBP2P_DEV_SERVICE_BASE_PORT: "${QB2_LIBP2P_DEV_SERVICE_BASE_PORT:-4021}"
+      # CORS — allow both apex and www for the Vercel frontend
+      CORS_ORIGINS: "${CORS_ORIGINS:-https://distributed-quantum.com,https://www.distributed-quantum.com}"
+      PLATFORM_BASE_URL: "${PLATFORM_BASE_URL:-https://api.distributed-quantum.com}"
+      # AWS Bedrock (Claude)
       AWS_BEDROCK_ENABLED: "${AWS_BEDROCK_ENABLED:-true}"
       AWS_REGION: "${AWS_REGION:-us-east-1}"
       AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
@@ -71,6 +75,8 @@ services:
       backend:
         condition: service_healthy
     environment:
+      API_DOMAIN: "${API_DOMAIN:-api.distributed-quantum.com}"
+      FRONTEND_DOMAIN: "${FRONTEND_DOMAIN:-distributed-quantum.com}"
     ports:
       - "80:80"
       - "443:443"
