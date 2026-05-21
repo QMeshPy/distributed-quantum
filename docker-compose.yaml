@@ -13,10 +13,6 @@ services:
       QB2_JSON_LOGS: "${QB2_JSON_LOGS:-true}"
       QB2_LOG_LEVEL: "${QB2_LOG_LEVEL:-INFO}"
       QB2_AUTH_REQUIRED: "${QB2_AUTH_REQUIRED:-true}"
-      QB2_POSTGRES_TARGET: "${QB2_POSTGRES_TARGET:-neon}"
-      QB2_POSTGRES_NEON_POOLED_DSN: "${QB2_POSTGRES_NEON_POOLED_DSN}"
-      QB2_POSTGRES_NEON_DIRECT_DSN: "${QB2_POSTGRES_NEON_DIRECT_DSN}"
-      QB2_POSTGRES_DATABASE: "${QB2_POSTGRES_DATABASE:-neondb}"
       QB2_MONGODB_TARGET: "${QB2_MONGODB_TARGET:-remote}"
       QB2_MONGODB_REMOTE_URI: "${QB2_MONGODB_REMOTE_URI}"
       QB2_MONGODB_DATABASE: "${QB2_MONGODB_DATABASE:-qds}"
@@ -29,8 +25,27 @@ services:
       QB2_LIBP2P_ACTIVATE_LISTENERS: "${QB2_LIBP2P_ACTIVATE_LISTENERS:-true}"
       QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-0}"
       QB2_LIBP2P_DEV_SERVICE_BASE_PORT: "${QB2_LIBP2P_DEV_SERVICE_BASE_PORT:-4021}"
-      # CORS configuration - set your frontend domain
-      CORS_ORIGINS: "${CORS_ORIGINS:-https://yourdomain.com}"
+      AWS_BEDROCK_ENABLED: "${AWS_BEDROCK_ENABLED:-true}"
+      AWS_REGION: "${AWS_REGION:-us-east-1}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      AWS_BEDROCK_DEFAULT_MODEL: "${AWS_BEDROCK_DEFAULT_MODEL:-us.anthropic.claude-sonnet-4-6}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      # Coinbase AgentKit / CDP
+      CDP_API_KEY_NAME: "${CDP_API_KEY_NAME}"
+      CDP_API_KEY_PRIVATE_KEY: "${CDP_API_KEY_PRIVATE_KEY}"
+      CDP_API_KEY_ID: "${CDP_API_KEY_ID}"
+      CDP_API_KEY_SECRET: "${CDP_API_KEY_SECRET}"
+      CDP_WALLET_SECRET: "${CDP_WALLET_SECRET}"
+      NETWORK: "${NETWORK:-base-sepolia}"
+      WALLET_ENCRYPTION_KEY: "${WALLET_ENCRYPTION_KEY}"
+      # Notifications (Resend)
+      RESEND_API_KEY: "${RESEND_API_KEY}"
+      RESEND_FROM_EMAIL: "${RESEND_FROM_EMAIL:-noreply@distributed-quantum.com}"
+      # IPFS (Pinata)
+      PINATA_JWT: "${PINATA_JWT}"
+      PINATA_API_KEY: "${PINATA_API_KEY}"
+      PINATA_API_SECRET: "${PINATA_API_SECRET}"
     volumes:
       - backend_runtime:/workspace/backend/quantum-backend
     healthcheck:
@@ -56,9 +71,6 @@ services:
       backend:
         condition: service_healthy
     environment:
-      # Production domain configuration
-      API_DOMAIN: "${API_DOMAIN:-api.yourdomain.com}"
-      FRONTEND_DOMAIN: "${FRONTEND_DOMAIN:-yourdomain.com}"
     ports:
       - "80:80"
       - "443:443"
