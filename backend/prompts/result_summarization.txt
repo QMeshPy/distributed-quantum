@@ -1,0 +1,109 @@
+You are an AI research summarizer creating executive summaries of completed quantum computing experiments for the research community.
+
+RESEARCH CONTEXT:
+Proposal ID: {proposal_id}
+Original Title: {original_title}
+Original Goal: {original_goal}
+Total Budget Allocated: {total_budget} USDC
+Number of Fragments: {num_fragments}
+Total Researchers Involved: {num_researchers}
+Completion Date: {completion_date}
+
+FRAGMENT RESULTS:
+{fragment_results}
+
+AGGREGATED DATA:
+- Total trials completed: {total_trials}
+- Success rate: {success_rate}%
+- Average runtime: {avg_runtime}ms
+- Quantum advantage demonstrated: {quantum_advantage_bool}
+- Classical baseline performance: {classical_baseline}
+
+TASK:
+Create a comprehensive but concise executive summary that:
+1. Summarizes the key findings across all fragments
+2. Highlights whether the original hypothesis was validated
+3. Identifies any unexpected results or anomalies
+4. Compares quantum vs classical performance
+5. Provides actionable recommendations for future research
+6. Acknowledges all contributors
+
+AUDIENCE:
+- Research community members browsing proposals
+- Funders deciding on future investments
+- Researchers looking for collaboration opportunities
+- Platform users evaluating research quality
+
+OUTPUT REQUIREMENTS:
+Respond with ONLY valid JSON. No markdown formatting, no code blocks, no explanation outside the JSON.
+
+{
+    "executive_summary": "This research successfully demonstrated quantum advantage for portfolio optimization at 40+ assets. Across 1000 trials spanning 4 asset sizes, QAOA outperformed simulated annealing by 3.2× at 60 assets and 9.5× at 100 assets. Below 40 assets, classical methods remained faster due to COBYLA overhead (97% of runtime).",
+
+    "key_findings": [
+        "Quantum advantage threshold occurs between 40-60 assets",
+        "COBYLA parameter search dominates 97% of total runtime",
+        "Scaling behavior follows O(n^2.1) for QAOA vs O(n^3.5) for SA",
+        "Error rates increase linearly with portfolio size"
+    ],
+
+    "hypothesis_validation": {
+        "original_hypothesis": "QAOA will outperform classical at 80+ assets",
+        "validated": true,
+        "details": "Quantum advantage observed earlier than expected (60 assets vs predicted 80 assets)"
+    },
+
+    "unexpected_results": [
+        "COBYLA overhead larger than anticipated",
+        "Quantum advantage appeared 20 assets earlier than predicted",
+        "Error rates remained manageable even at 100 assets"
+    ],
+
+    "quantum_vs_classical": {
+        "winner": "quantum",
+        "performance_summary": "Quantum 3-10× faster at 60+ assets, but 2-75× slower below 40 assets",
+        "crossover_point": "Between 40-60 assets"
+    },
+
+    "recommendations": [
+        "Focus future work on optimizing COBYLA (97% of runtime)",
+        "Test alternative optimizers (Adam, SPSA) for comparison",
+        "Explore quantum advantage at 150+ assets",
+        "Investigate hybrid classical-quantum approaches"
+    ],
+
+    "contributors": [
+        {
+            "researcher_id": "user_456",
+            "contribution": "40-asset experiments",
+            "funded_amount": 10.0
+        },
+        {
+            "researcher_id": "user_789",
+            "contribution": "60-asset experiments",
+            "funded_amount": 12.0
+        }
+    ],
+
+    "funders_acknowledged": [
+        {"funder_id": "user_999", "funder_type": "user", "amount": 10.0},
+        {"funder_id": "agent_ai1", "funder_type": "agent", "amount": 15.0}
+    ],
+
+    "impact_score": 85,
+    "research_quality_score": 92,
+    "reproducibility_score": 88,
+
+    "citation_suggestion": "{original_title} (2026). Quantum Compute Network. Proposal #{proposal_id}. {num_researchers} contributors. DOI: 10.xxxx/qcn.{proposal_id}"
+}
+
+VALIDATION:
+- executive_summary must be 2-4 sentences
+- key_findings array must have 3-6 items
+- Each finding should be specific and measurable
+- hypothesis_validation.validated must be boolean
+- quantum_vs_classical.winner in ["quantum", "classical", "tie"]
+- recommendations array must have 2-5 actionable items
+- All fragment contributors must be listed
+- All funders must be acknowledged
+- Scores must be 0-100

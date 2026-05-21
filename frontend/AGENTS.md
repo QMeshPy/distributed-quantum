@@ -32,9 +32,9 @@ the source of truth.
 - Use `bun install` and `bun <script>` for all package and script operations.
 - Do not use `npm`, `yarn`, or `pnpm` in this project.
 
-### Repository Companion Documents (`phive-new-dashboard`)
+### Repository Companion Documents (`frontend`)
 
-When you are working inside `phive-new-dashboard`, read these files together
+When you are working inside `frontend`, read these files together
 before making architecture, UI, or implementation decisions:
 
 - `architecture.md` — repo-specific architecture, stack choices, auth, caching,
@@ -55,7 +55,7 @@ Conflict resolution:
 If a generic rule in this file names a library but the repo architecture
 standardizes on another tool, follow the repo architecture for the library
 choice and apply the underlying principle with the standardized tool. Example:
-`phive-new-dashboard` uses TanStack Query for backend/server state, so the
+`frontend` uses TanStack Query for backend/server state, so the
 generic SWR guidance below should be applied there as a deduplication principle
 rather than a mandate to replace TanStack Query.
 
@@ -1322,7 +1322,7 @@ controls, or any listener that needs `preventDefault()`.
 SWR enables request deduplication, caching, and revalidation across component
 instances.
 
-Repository note for `phive-new-dashboard`: use the project-standard data layer
+Repository note for `frontend`: use the project-standard data layer
 for this principle. TanStack Query is the default for backend/server state in
 that repo. Reserve SWR for narrow browser-only cases such as lightweight
 subscriptions or small explicit exceptions.

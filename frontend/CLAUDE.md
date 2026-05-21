@@ -13,6 +13,7 @@ frontend-v3/architecture.md
 frontend-v3/DESIGN.md
 frontend-v3/AGENTS.md
 frontend-v3/CLAUDE.md   ← you are here
+
 ```
 
 Conflict resolution when rules contradict:

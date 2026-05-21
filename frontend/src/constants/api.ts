@@ -59,3 +59,17 @@ export const API = {
   },
 } as const;
 
+
+export const API_AGENTKIT = {
+  WALLET:          "/api/agentkit/wallet",
+  WALLET_CREATE:   "/api/agentkit/wallet",
+  WALLET_TRANSFER: "/api/agentkit/wallet/transfer",
+  WALLET_TX:       "/api/agentkit/wallet/transactions",
+  PROPOSALS:       "/api/agentkit/proposals",
+  PROPOSAL:        (id: string) => `/api/agentkit/proposals/${id}` as const,
+  MARKETPLACE:     "/api/agentkit/marketplace",
+  AGENT:           (id: string) => `/api/agentkit/marketplace/${id}` as const,
+  AGENTS:          "/api/agentkit/agents",
+  AGENT_ANALYZE:   (id: string) => `/api/agentkit/agents/${id}/analyze` as const,
+  NOTIFICATIONS:   "/api/agentkit/notifications",
+} as const;
