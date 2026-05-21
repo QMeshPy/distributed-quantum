@@ -258,11 +258,17 @@ class CircuitJobService:
     def build_progress(self, doc: WorkflowRunDocument) -> dict[str, object] | None:
         if doc.fragment_count == 0:
             return None
+        completed = doc.completed_fragments
+        total = doc.fragment_count
+        active = max(0, total - completed - doc.failed_fragments)
+        finalizing = doc.status == _STATUS_EXECUTING and active == 0 and completed < total
         return {
-            "total_fragments": doc.fragment_count,
-            "completed_fragments": doc.completed_fragments,
-            "failed_fragments": doc.failed_fragments,
-            "percent_complete": round(doc.completed_fragments / doc.fragment_count * 100, 1),
+            "total_fragments": total,
+            "completed_fragments": completed,
+            "active_fragments": active,
+            "completion_ratio": round(completed / total, 4),
+            "latest_event_at": doc.updated_at,
+            "finalizing": finalizing,
         }
 
     def get_result_payload(self, doc: WorkflowRunDocument) -> dict[str, Any] | None:

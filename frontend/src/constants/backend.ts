@@ -89,6 +89,8 @@ export const BACKEND_AGENTKIT = {
     `${BASE_URL}/api/v1/agents/${id}` as const,
   AGENT_ANALYZE:   (id: string) =>
     `${BASE_URL}/api/v1/agents/${id}/analyze` as const,
+  AGENT_CHAT:      (id: string) =>
+    `${BASE_URL}/api/v1/agents/${id}/chat` as const,
   NOTIFICATIONS:   `${BASE_URL}/api/v1/notifications`,
   NOTIF_READ:      (id: string) =>
     `${BASE_URL}/api/v1/notifications/${id}/read` as const,

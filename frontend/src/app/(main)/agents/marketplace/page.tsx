@@ -56,7 +56,7 @@ export default function MarketplacePage() {
   const hireAgent = async (agent: MarketplaceAgent) => {
     setHiring(true);
     try {
-      await createAgent.mutateAsync({
+      const created = await createAgent.mutateAsync({
         agent_name: agent.agent_name,
         config: {
           auto_fund: false,
@@ -67,11 +67,19 @@ export default function MarketplacePage() {
         },
       });
       setSelected(null);
-      router.push("/agents/chat");
+      const agentId: string = (created as { agent_id?: string })?.agent_id ?? "";
+      const params = new URLSearchParams({ name: agent.agent_name });
+      if (agentId) params.set("agentId", agentId);
+      if (agent.specialty) params.set("specialty", agent.specialty);
+      params.set("capabilities", agent.capabilities.slice(0, 6).join(","));
+      router.push(`/agents/chat?${params.toString()}`);
     } catch {
-      // agent may already exist — just navigate
+      // agent may already exist — navigate with marketplace context so chat has persona
       setSelected(null);
-      router.push("/agents/chat");
+      const params = new URLSearchParams({ name: agent.agent_name });
+      if (agent.specialty) params.set("specialty", agent.specialty);
+      params.set("capabilities", agent.capabilities.slice(0, 6).join(","));
+      router.push(`/agents/chat?${params.toString()}`);
     } finally {
       setHiring(false);
     }

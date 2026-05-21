@@ -687,3 +687,73 @@ async def get_spending_history(
             error=ErrorCode.INTERNAL_ERROR,
             message="Failed to retrieve spending history",
         )
+
+
+# ── Free-form chat ────────────────────────────────────────────────────────────
+
+class ChatMessageIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: str = Field(description="'user' or 'assistant'")
+    content: str = Field(description="Message text")
+
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    message: str = Field(description="Latest user message")
+    history: list[ChatMessageIn] = Field(default_factory=list, description="Prior turns (oldest first)")
+
+
+class ChatResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reply: str = Field(description="Agent's reply")
+
+
+@router.post(
+    "/{agent_id}/chat",
+    response_model=ChatResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Chat with an AI agent",
+    description="Send a free-form message to an agent backed by Claude 3.5 Sonnet via AWS Bedrock.",
+)
+async def chat_with_agent(
+    agent_id: str,
+    body: ChatRequest,
+    current_user: CurrentUser,
+) -> ChatResponse:
+    """Send a message to an AI agent and get a response from Claude.
+
+    Maintains conversation context by accepting prior history. The agent is
+    aware of its wallet, the platform's proposals, and can take actions.
+    """
+    try:
+        agent_doc = await AIAgentDocument.find_one({"agent_id": agent_id})
+        if not agent_doc:
+            raise PlatformException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                error=ErrorCode.NOT_FOUND,
+                message=f"Agent '{agent_id}' not found",
+            )
+        if agent_doc.owner_id != current_user.user_id:
+            raise PlatformException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                error=ErrorCode.FORBIDDEN,
+                message="You do not have permission to use this agent",
+            )
+
+        reply = await ai_agent_service.chat(
+            agent_id=agent_id,
+            agent_name=agent_doc.agent_name,
+            message=body.message,
+            history=[{"role": m.role, "content": m.content} for m in body.history],
+        )
+        return ChatResponse(reply=reply)
+
+    except PlatformException:
+        raise
+    except Exception as e:
+        logger.error(f"Chat failed for agent {agent_id}: {e}")
+        raise PlatformException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=ErrorCode.INTERNAL_ERROR,
+            message="Chat request failed",
+        )

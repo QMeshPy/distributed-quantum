@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ChevronRight, Plus, Circle } from "lucide-react";
 import type { NavToolConfig } from "@/constants";
 import { ROUTES } from "@/constants";
@@ -16,6 +17,7 @@ import { useOptionsList } from "@/features/options/hooks/use-options-list";
 import { useRiskList } from "@/features/risk/hooks/use-risk-list";
 import { useFinanceList } from "@/features/finance/hooks/use-finance-list";
 import { usePharmaJobs } from "@/features/pharma/hooks/use-pharma-jobs";
+import type { ChatSession } from "@/features/agentkit/hooks/use-chat-sessions";
 
 interface LabToolGroupProps {
   tool: NavToolConfig;
@@ -103,11 +105,45 @@ function useRecentItems(tool: NavToolConfig): RecentItem[] {
         href: ROUTES.pharmaJob(j.job_id),
       }));
   }
+  if (tool.tool === "chat") {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("agentkit_chat_sessions") : null;
+    const chatSessions: ChatSession[] = raw ? JSON.parse(raw) : [];
+    return chatSessions
+      .slice()
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 5)
+      .map((s) => ({
+        jobId: s.id,
+        label: s.title,
+        status: "completed",
+        createdAt: new Date(s.createdAt).toISOString(),
+        href: `/agents/chat`,
+      }));
+  }
   return [];
 }
 
 export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
   const items = useRecentItems(tool);
+  const pathname = usePathname();
+
+  // Plain nav link — no history or new-item concept
+  if (!tool.newLabel) {
+    const isActive = pathname === tool.href;
+    return (
+      <Link
+        href={tool.href}
+        className={cn(
+          "flex h-8 items-center rounded-lg px-3 text-sm transition-all duration-150 mx-2",
+          isActive
+            ? "bg-indigo-500/15 font-medium text-indigo-300 ring-1 ring-indigo-500/25"
+            : "text-white/40 hover:bg-white/6 hover:text-white/80",
+        )}
+      >
+        {tool.group}
+      </Link>
+    );
+  }
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="group/collapsible">
@@ -121,11 +157,13 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
           />
           {tool.group}
         </CollapsibleTrigger>
-        <Button variant="ghost" size="icon-xs" asChild>
-          <Link href={tool.newHref} aria-label={tool.newLabel}>
-            <Plus className="size-3.5" />
-          </Link>
-        </Button>
+{tool.newLabel && (
+          <Button variant="ghost" size="icon-xs" asChild>
+            <Link href={tool.newHref} aria-label={tool.newLabel}>
+              <Plus className="size-3.5" />
+            </Link>
+          </Button>
+        )}
       </div>
       <CollapsibleContent>
         <div className="px-2 pb-2">

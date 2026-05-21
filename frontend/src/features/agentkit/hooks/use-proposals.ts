@@ -51,3 +51,16 @@ export function useFundProposal() {
     },
   });
 }
+
+export function useProposalDetail(id: string | null) {
+  return useQuery<Proposal>({
+    queryKey: [...QUERY_KEYS_AGENTKIT.proposals(), id],
+    queryFn: async () => {
+      const res = await fetch(API_AGENTKIT.PROPOSAL(id!));
+      if (!res.ok) throw new Error("Failed to fetch proposal detail");
+      return res.json();
+    },
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+}

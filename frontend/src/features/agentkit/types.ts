@@ -8,8 +8,11 @@ export type WalletBalance = {
 export type ProposalFragment = {
   fragment_id: string;
   title: string;
-  budget: number;
-  status: "available" | "claimed" | "completed";
+  description?: string;
+  /** Legacy numeric field; backend now sends budget_allocated as a string */
+  budget?: number;
+  budget_allocated?: string;
+  status: "available" | "unclaimed" | "claimed" | "completed";
   claimed_by: string | null;
 };
 
@@ -20,11 +23,13 @@ export type Proposal = {
   researcher_id: string;
   budget_required: string;
   budget_raised: string;
-  funding_threshold: string;
-  status: "active" | "funded" | "completed" | "expired";
+  funding_threshold?: string;
+  funding_percentage?: string;
+  status: "draft" | "active" | "funded" | "in_progress" | "completed" | "expired" | "cancelled";
   fragments: ProposalFragment[];
   deadline: string;
   tags: string[];
+  created_at?: string;
 };
 
 export type MarketplaceAgent = {

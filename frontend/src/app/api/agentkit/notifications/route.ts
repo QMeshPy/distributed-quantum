@@ -12,7 +12,7 @@ export async function PATCH(request: Request) {
   const body = await request.json();
   const { notification_id } = body;
   const res = await fetch(BACKEND_AGENTKIT.NOTIF_READ(notification_id), {
-    method: "PATCH",
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
   });
   const data = await res.json();

@@ -75,7 +75,7 @@ class AIAgentService:
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         self.bedrock_model_id = os.getenv(
             "BEDROCK_MODEL_ID",
-            "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+            "us.anthropic.claude-sonnet-4-6"
         )
 
         # Initialize Bedrock client
@@ -723,6 +723,7 @@ class AIAgentService:
         if not self.bedrock:
             raise Exception("AWS Bedrock client not initialized")
 
+        logger.info(f"Chat using model: {self.bedrock_model_id}")
         try:
             response = self.bedrock.invoke_model(
                 modelId=self.bedrock_model_id,
@@ -861,14 +862,31 @@ class AIAgentService:
         """
         history = history or []
 
+        # Fetch the agent's config so we can surface its research interests
+        research_interests: list[str] = []
+        try:
+            agent_doc = await self.db.ai_agents.find_one({"agent_id": agent_id})
+            if agent_doc:
+                config = agent_doc.get("config", {})
+                research_interests = config.get("research_interests", [])
+        except Exception as fetch_err:
+            logger.warning(f"Could not fetch agent config for chat: {fetch_err}")
+
+        expertise_line = ""
+        if research_interests:
+            expertise_line = (
+                f"Your research expertise and capabilities include: {', '.join(research_interests)}. "
+                "When users ask about running research, analysing proposals, or anything in your domain, "
+                "act on their behalf — fetch real data, submit proposals, and perform actions directly. "
+            )
+
         system_prompt = (
             f"You are {agent_name}, an autonomous AI research-funding agent on the QuantumNodes platform. "
+            + expertise_line +
             "You help users manage their AI agents, research proposals, wallet balances, and the agent marketplace. "
-            "You can answer questions about the platform, explain how to fund proposals, describe agent capabilities, "
-            "and provide guidance on research strategy. "
-            "Be concise, helpful, and friendly. "
-            "When discussing numbers, be specific. "
-            "If you need real-time data (like wallet balance or proposals), tell the user to use the dedicated page or ask you to fetch it."
+            "You proactively perform actions on behalf of the user — create proposals, fetch proposal lists, "
+            "explain proposals, trigger research jobs — rather than redirecting them to other pages. "
+            "Be concise, helpful, and friendly. When discussing numbers, be specific."
         )
 
         messages = [

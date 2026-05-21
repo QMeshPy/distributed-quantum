@@ -491,7 +491,7 @@ class MarketplaceService:
                     logger.info(f"Payment sent to worker {worker_id}: {amount} USDC")
 
                     # Update worker earnings and job count
-                    current_earned = _decimal128_to_decimal(worker_doc["total_earned"])
+                    current_earned = Decimal(str(_safe_decimal(worker_doc.get("total_earned"))))
                     new_total_earned = current_earned + amount
 
                     await self.db.worker_pricing.update_one(
@@ -840,7 +840,7 @@ class MarketplaceService:
                 "pricing": worker_doc["pricing"],
                 "performance_tier": worker_doc["performance_tier"],
                 "reputation_score": worker_doc["reputation_score"],
-                "total_earned": float(_decimal128_to_decimal(worker_doc["total_earned"])),
+                "total_earned": _safe_decimal(worker_doc.get("total_earned")),
                 "jobs_completed": worker_doc["jobs_completed"],
                 "is_active": worker_doc["is_active"],
                 "published_at": worker_doc["published_at"],

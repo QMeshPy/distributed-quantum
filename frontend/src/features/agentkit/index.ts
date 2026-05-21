@@ -1,6 +1,6 @@
 export * from "./types";
 export { useWallet } from "./hooks/use-wallet";
-export { useProposals, useCreateProposal, useFundProposal } from "./hooks/use-proposals";
+export { useProposals, useProposalDetail, useCreateProposal, useFundProposal } from "./hooks/use-proposals";
 export { useMarketplace } from "./hooks/use-marketplace";
 export { useAgents, useCreateAgent } from "./hooks/use-agents";
 export type { AgentItem } from "./hooks/use-agents";

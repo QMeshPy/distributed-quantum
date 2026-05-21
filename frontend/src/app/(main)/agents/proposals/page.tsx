@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useProposals, useFundProposal, ProposalCreateDialog } from "@/features/agentkit";
+import { useProposals, useProposalDetail, useFundProposal, ProposalCreateDialog } from "@/features/agentkit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -17,15 +17,19 @@ import type { Proposal, ProposalFragment } from "@/features/agentkit";
 
 /* ─── helpers ─── */
 
-const STATUS_COLORS: Record<Proposal["status"], string> = {
-  active:    "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  funded:    "border-violet-500/30  bg-violet-500/10  text-violet-400",
-  completed: "border-sky-500/30     bg-sky-500/10     text-sky-400",
-  expired:   "border-white/10       bg-white/5        text-white/30",
+const STATUS_COLORS: Partial<Record<Proposal["status"], string>> & Record<string, string> = {
+  draft:       "border-white/10       bg-white/5        text-white/30",
+  active:      "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  funded:      "border-violet-500/30  bg-violet-500/10  text-violet-400",
+  in_progress: "border-amber-500/30   bg-amber-500/10   text-amber-400",
+  completed:   "border-sky-500/30     bg-sky-500/10     text-sky-400",
+  expired:     "border-white/10       bg-white/5        text-white/30",
+  cancelled:   "border-rose-500/30    bg-rose-500/10    text-rose-400",
 };
 
-const FRAG_STATUS_COLORS: Record<ProposalFragment["status"], string> = {
+const FRAG_STATUS_COLORS: Partial<Record<ProposalFragment["status"], string>> & Record<string, string> = {
   available: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  unclaimed: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
   claimed:   "border-amber-500/30   bg-amber-500/10   text-amber-400",
   completed: "border-sky-500/30     bg-sky-500/10     text-sky-400",
 };
@@ -104,19 +108,20 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
 
 export default function ProposalsPage() {
   const { data: proposals = [], isLoading } = useProposals();
-  const [selected, setSelected] = useState<Proposal | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { data: selected, isLoading: detailLoading } = useProposalDetail(selectedId);
   const [createOpen, setCreateOpen] = useState(false);
   const [fundAmount, setFundAmount] = useState("");
   const fund = useFundProposal();
 
   const handleFund = () => {
-    if (!selected || !fundAmount) return;
-    fund.mutate({ id: selected.proposal_id, amount: fundAmount });
+    if (!selectedId || !fundAmount) return;
+    fund.mutate({ id: selectedId, amount: fundAmount });
     setFundAmount("");
   };
 
   const statusBadge = (s: Proposal["status"]): "emerald" | "violet" | "sky" | "amber" =>
-    s === "active" ? "emerald" : s === "funded" ? "violet" : s === "completed" ? "sky" : "amber";
+    s === "active" ? "emerald" : s === "funded" || s === "in_progress" ? "violet" : s === "completed" ? "sky" : "amber";
 
   return (
     <div className="relative flex flex-col">
@@ -178,7 +183,7 @@ export default function ProposalsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelected(p)}
+                      onClick={() => setSelectedId(p.proposal_id)}
                       className="h-7 px-3 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
                     >
                       View
@@ -194,7 +199,7 @@ export default function ProposalsPage() {
       <ProposalCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
 
       {/* ═══ Proposal Detail Modal ═══ */}
-      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); setFundAmount(""); } }}>
+      <Dialog open={!!selectedId} onOpenChange={(open) => { if (!open) { setSelectedId(null); setFundAmount(""); } }}>
         <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-lg border-white/10 bg-[#0f1218] ring-1 ring-white/8">
           <DialogTitle className="sr-only">Proposal Detail</DialogTitle>
 
@@ -207,7 +212,9 @@ export default function ProposalsPage() {
           />
 
           <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: "calc(85vh - 140px)" }}>
-            {selected && (
+            {detailLoading ? (
+              <div className="flex items-center justify-center py-12 text-sm text-white/30">Loading…</div>
+            ) : selected ? (
               <div className="relative flex flex-col gap-4 pt-2">
 
                 {/* Identity */}
@@ -268,7 +275,7 @@ export default function ProposalsPage() {
                           </div>
                           <div className="mt-1 flex items-center gap-3">
                             <span className="font-mono text-[11px] text-white/30">{f.fragment_id}</span>
-                            <span className="text-[11px] text-white/40">{f.budget} USDC</span>
+                            <span className="text-[11px] text-white/40">{f.budget_allocated ?? (f.budget != null ? String(f.budget) : "—")} USDC</span>
                           </div>
                           {f.claimed_by && (
                             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/30">
@@ -302,7 +309,7 @@ export default function ProposalsPage() {
                 </ModalSection>
 
               </div>
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

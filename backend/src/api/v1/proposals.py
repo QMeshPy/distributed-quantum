@@ -449,7 +449,11 @@ async def get_proposal(
                         budget_allocated=str(frag.get("budget_allocated", "0")),
                         status=frag.get("status", "unclaimed"),
                         claimed_by=frag.get("claimed_by"),
-                        claimed_at=frag.get("claimed_at").isoformat() if frag.get("claimed_at") else None,
+                        claimed_at=(
+                            frag["claimed_at"].isoformat()
+                            if frag.get("claimed_at") and hasattr(frag["claimed_at"], "isoformat")
+                            else frag.get("claimed_at")  # already a string
+                        ),
                     )
                 )
 

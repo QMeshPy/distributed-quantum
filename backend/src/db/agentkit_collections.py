@@ -305,6 +305,34 @@ class NotificationDocument(Document):
 
 
 # ---------------------------------------------------------------------------
+# 7. Chat Sessions Collection
+# ---------------------------------------------------------------------------
+
+class ChatSessionDocument(Document):
+    """Persisted chat sessions per user+agent pair.
+
+    Stores the full message history so users can resume conversations across
+    page reloads and devices.
+    """
+
+    session_id: str
+    user_id: str
+    agent_id: str
+    title: str
+    messages: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+
+    class Settings:
+        name = "chat_sessions"
+        indexes = [
+            IndexModel("session_id", unique=True),
+            IndexModel([("user_id", ASCENDING), ("updated_at", DESCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("agent_id", ASCENDING)]),
+        ]
+
+
+# ---------------------------------------------------------------------------
 # Collection Registry
 # ---------------------------------------------------------------------------
 
@@ -315,6 +343,7 @@ AGENTKIT_COLLECTIONS = [
     AIAgentDocument,
     PaymentDocument,
     NotificationDocument,
+    ChatSessionDocument,
 ]
 
 __all__ = [
@@ -324,5 +353,6 @@ __all__ = [
     "AIAgentDocument",
     "PaymentDocument",
     "NotificationDocument",
+    "ChatSessionDocument",
     "AGENTKIT_COLLECTIONS",
 ]
