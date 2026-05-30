@@ -4,10 +4,12 @@ import { ROUTES } from "@/constants";
 
 const AUTH_PATHS = [ROUTES.SIGNIN, ROUTES.SIGNUP];
 
-const PUBLIC_PATHS = [...AUTH_PATHS, "/api/auth", "/api/network/node-script", "/api/network/coordinator-info", "/api/agentkit"];
+const PUBLIC_PREFIX_PATHS = [...AUTH_PATHS, "/api/auth", "/api/network/node-script", "/api/network/coordinator-info", "/api/agentkit"];
+
+const PUBLIC_EXACT_PATHS = ["/"];
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  return PUBLIC_EXACT_PATHS.includes(pathname) || PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p));
 }
 
 function isAuthPath(pathname: string): boolean {
