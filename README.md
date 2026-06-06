@@ -2,7 +2,7 @@
 
 # Distributed Quantum Services
 
-**Quantum operations as discoverable peer-to-peer network services — orchestrated over py-libp2p, analyzed with Qiskit**
+**Quantum operations as discoverable peer-to-peer network services - orchestrated over py-libp2p, analyzed with Qiskit**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -20,9 +20,9 @@
 
 A research platform with two connected tracks:
 
-**Track 1 — Distributed Quantum Orchestration.** A coordinator node (FastAPI + py-libp2p) discovers worker nodes via GossipSub pubsub, compiles OpenQASM circuits into distributed execution plans, routes fragments to workers over libp2p streams, and assembles full quantum results using Qiskit statevector simulation. A Next.js operator console gives real-time visibility into the peer network, job lifecycle, and quantum analysis output.
+**Track 1 - Distributed Quantum Orchestration.** A coordinator node (FastAPI + py-libp2p) discovers worker nodes via GossipSub pubsub, compiles OpenQASM circuits into distributed execution plans, routes fragments to workers over libp2p streams, and assembles full quantum results using Qiskit statevector simulation. A Next.js operator console gives real-time visibility into the peer network, job lifecycle, and quantum analysis output.
 
-**Track 2 — QAOA Portfolio Optimization.** The same infrastructure drives a QAOA-based portfolio optimizer that runs rigorous empirical comparisons against classical baselines (Simulated Annealing) to characterize exactly where — and why — quantum computing gains a scaling advantage.
+**Track 2 - QAOA Portfolio Optimization.** The same infrastructure drives a QAOA-based portfolio optimizer that runs rigorous empirical comparisons against classical baselines (Simulated Annealing) to characterize exactly where — and why — quantum computing gains a scaling advantage.
 
 ---
 
