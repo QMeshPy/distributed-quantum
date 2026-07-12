@@ -1,0 +1,26 @@
+name: Promote Vercel production
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vercel-production-promotion
+  cancel-in-progress: true
+
+jobs:
+  promote:
+    if: github.repository == 'Winter-Soren/distributed-quantum-services'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward the Vercel production branch
+        run: git push origin HEAD:refs/heads/feat/agentkit-integration
