@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:proxy": "bun test tests/proxy-public-root.test.mjs",
     "analyze": "ANALYZE=true bun run build"
   },
   "dependencies": {
