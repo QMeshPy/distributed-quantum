@@ -699,6 +699,287 @@
   color: #6f7c92;
 }
 
+.applicationsSection {
+  position: relative;
+  padding: 9.5rem max(4rem, calc((100vw - 82rem) / 2));
+  overflow: hidden;
+  border-top: 1px solid var(--dqs-line);
+  border-bottom: 1px solid var(--dqs-line);
+  background:
+    radial-gradient(circle at 18% 24%, rgba(52, 217, 255, 0.08), transparent 28rem),
+    radial-gradient(circle at 84% 72%, rgba(155, 121, 255, 0.075), transparent 30rem),
+    linear-gradient(90deg, rgba(80, 124, 190, 0.035) 1px, transparent 1px),
+    #040a15;
+  background-size: auto, auto, 10rem 100%, auto;
+}
+
+.applicationsSection::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(135deg, transparent 46%, rgba(84, 137, 216, 0.035) 50%, transparent 54%);
+  background-size: 23rem 23rem;
+}
+
+.applicationsIntro,
+.applicationSpectrum,
+.applicationGrid {
+  position: relative;
+  z-index: 1;
+}
+
+.applicationsIntro {
+  display: grid;
+  max-width: 82rem;
+  margin: 0 auto 4.75rem;
+  align-items: end;
+  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.65fr);
+  gap: clamp(4rem, 8vw, 9rem);
+}
+
+.applicationsIntro p {
+  margin: 0;
+  color: var(--dqs-copy);
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.applicationSpectrum {
+  max-width: 82rem;
+  margin: 0 auto 3.25rem;
+  overflow: hidden;
+  border-top: 1px solid var(--dqs-line-strong);
+  border-bottom: 1px solid var(--dqs-line-strong);
+  background:
+    radial-gradient(circle at 50% 52%, rgba(43, 116, 225, 0.12), transparent 34rem),
+    rgba(2, 8, 18, 0.78);
+  box-shadow: inset 0 0 80px rgba(5, 18, 40, 0.48);
+}
+
+.applicationSpectrumTopline {
+  position: absolute;
+  z-index: 3;
+  top: 1rem;
+  right: 1.25rem;
+  left: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  color: #708198;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.applicationSpectrum svg {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.applicationSpectrum .applicationSpectrumMobile {
+  display: none;
+}
+
+.applicationAxis {
+  stroke: rgba(128, 165, 218, 0.2);
+  stroke-width: 1;
+  stroke-dasharray: 3 7;
+}
+
+.applicationBand rect {
+  fill: rgba(4, 12, 25, 0.72);
+  stroke-width: 1;
+  stroke-opacity: 0.3;
+}
+
+.applicationBand line {
+  stroke-width: 1;
+  stroke-opacity: 0.2;
+  stroke-dasharray: 3 8;
+}
+
+.applicationBand path {
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.applicationBand text {
+  fill: #bdcbe0;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+  letter-spacing: 0.065em;
+}
+
+.applicationBand text:first-of-type,
+.applicationBand text:last-of-type {
+  font-weight: 600;
+}
+
+.applicationScanner {
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+
+.applicationGrid {
+  display: grid;
+  max-width: 82rem;
+  margin: 0 auto;
+  border-top: 1px solid var(--dqs-line-strong);
+  border-left: 1px solid var(--dqs-line-strong);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.applicationCard {
+  min-width: 0;
+}
+
+.applicationCard > a {
+  position: relative;
+  display: flex;
+  min-height: 24rem;
+  padding: 2rem;
+  overflow: hidden;
+  border-right: 1px solid var(--dqs-line-strong);
+  border-bottom: 1px solid var(--dqs-line-strong);
+  color: var(--dqs-ink);
+  background: rgba(3, 10, 22, 0.62);
+  flex-direction: column;
+  text-decoration: none;
+  transition:
+    background 220ms ease,
+    transform 220ms ease;
+}
+
+.applicationCard > a::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, var(--dqs-cyan), var(--dqs-violet), var(--dqs-emerald));
+  opacity: 0;
+  transform: scaleX(0.3);
+  transform-origin: left;
+  transition:
+    opacity 220ms ease,
+    transform 280ms ease;
+}
+
+.applicationCard > a:hover {
+  z-index: 2;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(52, 217, 255, 0.09), transparent 16rem),
+    rgba(5, 14, 29, 0.92);
+  transform: translateY(-4px);
+}
+
+.applicationCard > a:hover::before,
+.applicationCard > a:focus-visible::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.applicationCardTopline {
+  display: grid;
+  min-height: 2.2rem;
+  align-items: center;
+  color: #6e7f96;
+  grid-template-columns: 2rem 2rem 1fr;
+  gap: 0.75rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.applicationCardTopline > svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #799cff;
+}
+
+.applicationCardTopline span:last-child {
+  justify-self: end;
+  padding: 0.42rem 0.62rem;
+  border: 1px solid currentColor;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.applicationCardTopline span[data-status="Available"] {
+  color: var(--dqs-emerald);
+  background: rgba(73, 226, 168, 0.055);
+}
+
+.applicationCardTopline span[data-status="In development"] {
+  color: #a98dff;
+  background: rgba(155, 121, 255, 0.055);
+}
+
+.applicationCard h3 {
+  margin: 3.3rem 0 1rem;
+  font-size: 1.9rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.applicationCard p {
+  margin: 0;
+  color: var(--dqs-copy);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.applicationOutcome {
+  display: grid;
+  margin-top: 1.55rem;
+  padding-top: 1.2rem;
+  align-items: start;
+  border-top: 1px solid var(--dqs-line);
+  color: #9fb0c7;
+  grid-template-columns: 0.6rem 1fr;
+  gap: 0.7rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.applicationOutcome > span {
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: 0.38rem;
+  border-radius: 50%;
+  background: var(--dqs-cyan);
+  box-shadow: 0 0 13px rgba(52, 217, 255, 0.55);
+}
+
+.applicationCardCta {
+  display: flex;
+  margin-top: auto;
+  padding-top: 1.7rem;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--dqs-cyan);
+  font-size: 0.94rem;
+}
+
+.applicationCardCta svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: transform 180ms ease;
+}
+
+.applicationCard > a:hover .applicationCardCta svg {
+  transform: translateX(0.35rem);
+}
+
 .problemSection {
   padding: 10rem max(4rem, calc((100vw - 82rem) / 2));
   background:
@@ -717,6 +998,7 @@
 }
 
 .problemHeading h2,
+.applicationsIntro h2,
 .capabilityIntro h2,
 .architectureIntro h2,
 .researchIntro h2,
@@ -1768,6 +2050,7 @@
 .roadmapState span[data-state="0"] { --roadmap-color: #49e2a8; }
 .roadmapState span[data-state="1"] { --roadmap-color: #4e9cff; }
 .roadmapState span[data-state="2"] { --roadmap-color: #a07aff; }
+.roadmapState span[data-state="3"] { --roadmap-color: #d08aff; }
 
 .roadmapRow h3 {
   margin: 0;
@@ -2097,11 +2380,16 @@
   }
 
   .sectionShell,
+  .applicationsIntro,
   .capabilityIntro,
   .architectureIntro,
   .researchIntro {
     grid-template-columns: 1fr;
     gap: 2.5rem;
+  }
+
+  .applicationGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .problemCopy {
@@ -2320,6 +2608,7 @@
   }
 
   .problemSection,
+  .applicationsSection,
   .capabilitySection,
   .architectureSection,
   .researchSection,
@@ -2328,6 +2617,7 @@
   }
 
   .problemHeading h2,
+  .applicationsIntro h2,
   .capabilityIntro h2,
   .architectureIntro h2,
   .researchIntro h2,
@@ -2336,6 +2626,7 @@
   }
 
   .problemCopy p,
+  .applicationsIntro p,
   .capabilityIntro p,
   .architectureIntro p,
   .researchIntro p {
@@ -2344,6 +2635,46 @@
 
   .problemVisual {
     margin-top: 3.5rem;
+  }
+
+  .applicationsIntro {
+    margin-bottom: 3.5rem;
+  }
+
+  .applicationSpectrum {
+    margin-bottom: 2.25rem;
+  }
+
+  .applicationSpectrumTopline {
+    top: 0.9rem;
+    right: 0.8rem;
+    left: 0.8rem;
+  }
+
+  .applicationSpectrumTopline span:last-child {
+    display: none;
+  }
+
+  .applicationSpectrum .applicationSpectrumDesktop {
+    display: none;
+  }
+
+  .applicationSpectrum .applicationSpectrumMobile {
+    display: block;
+    padding-top: 2.6rem;
+  }
+
+  .applicationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .applicationCard > a {
+    min-height: 22rem;
+    padding: 1.65rem;
+  }
+
+  .applicationCard h3 {
+    margin-top: 2.6rem;
   }
 
   .problemVisualTopline {

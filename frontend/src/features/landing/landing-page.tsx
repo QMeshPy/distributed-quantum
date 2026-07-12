@@ -6,10 +6,11 @@ import {
   Workflow,
 } from "lucide-react";
 
-import { REPOSITORY_URL } from "./landing-content";
+import { REPOSITORY_URL, USE_CASES } from "./landing-content";
 import styles from "./landing-page.module.css";
 import {
   ArchitectureAtlas,
+  ApplicationSpectrum,
   CapabilityExplorer,
   ClosingConvergence,
   LandingHeader,
@@ -31,8 +32,8 @@ const RESEARCH_PATHS = [
   },
   {
     number: "02",
-    title: "Distributed service fabric",
-    body: "Publish quantum capabilities over a peer-to-peer mesh and keep routing decisions explicit from discovery to result.",
+    title: "Applied quantum workflows",
+    body: "Place application-specific finance, risk, options, molecular, and agent research tools beside an inspectable peer-to-peer circuit fabric.",
     icon: Network,
   },
   {
@@ -46,18 +47,23 @@ const RESEARCH_PATHS = [
 const ROADMAP = [
   {
     state: "Available",
-    title: "Runnable research stack",
-    body: "OpenQASM normalization, dependency-aware planning, libp2p transport, capacity reservation, bounded fallback, and Qiskit statevector execution.",
+    title: "Orchestration and portfolio benchmark",
+    body: "Circuit orchestration, a QAOA portfolio benchmark, simulated equity and credit risk, options comparisons, and operator diagnostics.",
   },
   {
     state: "In development",
-    title: "Open worker network",
-    body: "External worker onboarding, durable artifact storage, richer operator controls, and a formal benchmark harness.",
+    title: "Discovery and collaboration",
+    body: "Experimental molecular screening, AI-assisted proposal workflows, content-addressed circuit sharing, durable artifacts, and richer team controls.",
   },
   {
     state: "Research direction",
-    title: "Provider-scale orchestration",
-    body: "Hardware adapters, multi-coordinator operation, federated discovery, and verifiable scientific workflow packages.",
+    title: "Open node and service network",
+    body: "Bring-your-own-node participation, hardware adapters, federated discovery, and torrent-native scientific service packages.",
+  },
+  {
+    state: "Long-term",
+    title: "Hydra resilience",
+    body: "Multi-coordinator operation, workflow rehydration, topology repair, service regeneration, and self-healing execution policies.",
   },
 ] as const;
 
@@ -91,13 +97,14 @@ function HeroSection() {
             <span>orchestrated.</span>
           </h1>
           <p className={styles.heroLead}>
-            DQS discovers, composes, and executes quantum circuit services across
-            a peer-to-peer fabric. Open by design. Research-grade by default.
+            DQS pairs a peer-to-peer circuit execution fabric with research
+            tools for financial modelling, risk, options, and experimental
+            molecular workflows.
           </p>
 
           <div className={styles.heroActions}>
-            <a className={styles.primaryAction} href="#architecture">
-              Explore the architecture
+            <a className={styles.primaryAction} href="/signin">
+              Get started
               <ArrowRight aria-hidden="true" />
             </a>
             <a
@@ -123,6 +130,59 @@ function HeroSection() {
         </Reveal>
 
         <OrchestrationHero />
+      </div>
+    </section>
+  );
+}
+
+function ApplicationsSection() {
+  return (
+    <section className={styles.applicationsSection} id="applications">
+      <div className={styles.applicationsIntro}>
+        <Reveal>
+          <SectionLabel>Application domains</SectionLabel>
+          <h2>From financial decisions to molecular discovery.</h2>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <p>
+            DQS brings its implemented research surfaces into one product story.
+            Runnable workflows and experimental directions are labelled separately
+            so each claim matches what the repository can support today.
+          </p>
+        </Reveal>
+      </div>
+
+      <ApplicationSpectrum />
+
+      <div className={styles.applicationGrid}>
+        {USE_CASES.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <Reveal
+              className={styles.applicationCard}
+              delay={index * 0.06}
+              key={item.number}
+            >
+              <a href={item.href}>
+                <div className={styles.applicationCardTopline}>
+                  <span>{item.number}</span>
+                  <Icon aria-hidden="true" />
+                  <span data-status={item.status}>{item.status}</span>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+                <div className={styles.applicationOutcome}>
+                  <span aria-hidden="true" />
+                  {item.outcome}
+                </div>
+                <div className={styles.applicationCardCta}>
+                  Get started
+                  <ArrowRight aria-hidden="true" />
+                </div>
+              </a>
+            </Reveal>
+          );
+        })}
       </div>
     </section>
   );
@@ -231,25 +291,26 @@ function ClosingSection() {
       <div className={styles.closingGlow} aria-hidden="true" />
       <Reveal className={styles.closingInner}>
         <ClosingConvergence />
-        <SectionLabel>Open research infrastructure</SectionLabel>
-        <h2>Trace every layer from interface to result.</h2>
+        <SectionLabel>Start a quantum workflow</SectionLabel>
+        <h2>Move from a real problem to an inspectable result.</h2>
         <p>
-          Run the stack locally, inspect the architecture, and help shape an open
-          service fabric for quantum workloads.
+          Begin with financial modelling, risk, options, experimental molecular
+          workflows, or distributed circuits—then inspect the inputs, diagnostics,
+          and execution state the system records.
         </p>
         <div className={styles.heroActions}>
+          <a className={styles.primaryAction} href="/signin">
+            Get started
+            <ArrowRight aria-hidden="true" />
+          </a>
           <a
-            className={styles.primaryAction}
+            className={styles.secondaryAction}
             href={REPOSITORY_URL}
             target="_blank"
             rel="noreferrer"
           >
             <GitBranch aria-hidden="true" />
-            Open the repository
-          </a>
-          <a className={styles.secondaryAction} href="#overview">
-            Back to the top
-            <ArrowRight aria-hidden="true" />
+            View on GitHub
           </a>
         </div>
       </Reveal>
@@ -279,6 +340,7 @@ export function LandingPage() {
       <LandingHeader />
       <HeroSection />
       <RouteTrace />
+      <ApplicationsSection />
       <SystemProblemSection />
       <ScrollOrchestration />
       <CapabilityExplorer />

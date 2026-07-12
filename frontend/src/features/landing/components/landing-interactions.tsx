@@ -35,14 +35,14 @@ import {
   type ReactNode,
 } from "react";
 
-import { REPOSITORY_URL } from "../landing-content";
+import { USE_CASES } from "../landing-content";
 import styles from "../landing-page.module.css";
 import { DqsMark } from "./dqs-mark";
 
 const NAV_ITEMS = [
   { label: "Product", href: "#overview" },
+  { label: "Applications", href: "#applications" },
   { label: "Workflow", href: "#workflow" },
-  { label: "Architecture", href: "#architecture" },
   { label: "Research", href: "#research" },
   { label: "Roadmap", href: "#roadmap" },
 ] as const;
@@ -284,6 +284,15 @@ const ARCHITECTURE_MODULES = [
   { x: 38, y: 342, side: "left" },
 ] as const;
 
+const APPLICATION_BANDS = [
+  { label: "FINANCE", color: "#34d9ff", amplitude: 42 },
+  { label: "RISK + OPTIONS", color: "#4e8fff", amplitude: 62 },
+  { label: "DRUG DISCOVERY", color: "#49e2a8", amplitude: 50 },
+  { label: "CIRCUITS", color: "#9b79ff", amplitude: 72 },
+  { label: "AGENTIC", color: "#f3a95f", amplitude: 46 },
+  { label: "VAULT", color: "#67d9c0", amplitude: 58 },
+] as const;
+
 export function Reveal({
   children,
   className,
@@ -362,12 +371,10 @@ export function LandingHeader() {
 
         <a
           className={styles.headerGithub}
-          href={REPOSITORY_URL}
-          target="_blank"
-          rel="noreferrer"
+          href="/signin"
         >
-          <GitBranch aria-hidden="true" />
-          GitHub
+          Get started
+          <ArrowRight aria-hidden="true" />
         </a>
 
         <button
@@ -405,13 +412,10 @@ export function LandingHeader() {
               </a>
             ))}
             <a
-              href={REPOSITORY_URL}
-              target="_blank"
-              rel="noreferrer"
+              href="/signin"
               onClick={() => setOpen(false)}
             >
-              <GitBranch aria-hidden="true" />
-              View on GitHub
+              Get started
               <ArrowRight aria-hidden="true" />
             </a>
           </motion.nav>
@@ -781,6 +785,161 @@ export function RouteTrace() {
         </ol>
       </div>
     </section>
+  );
+}
+
+export function ApplicationSpectrum() {
+  const reducedMotion = useReducedMotion();
+  const rawId = useId();
+  const uid = rawId.replaceAll(":", "");
+
+  return (
+    <Reveal className={styles.applicationSpectrum} delay={0.12}>
+      <div className={styles.applicationSpectrumTopline} aria-hidden="true">
+        <span>Application spectrum</span>
+        <span>Live surfaces + experimental workflows</span>
+      </div>
+      <svg
+        className={styles.applicationSpectrumDesktop}
+        viewBox="0 0 1200 310"
+        role="img"
+        aria-label="Six animated workload bands for financial modelling, risk and options, drug discovery, circuit execution, agentic research, and the circuit vault"
+      >
+        <defs>
+          <linearGradient id={`${uid}-application-scan`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#34d9ff" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#eafcff" />
+            <stop offset="1" stopColor="#49e2a8" stopOpacity="0" />
+          </linearGradient>
+          <filter id={`${uid}-application-glow`} x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <pattern id={`${uid}-application-grid`} width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40 0H0V40" fill="none" stroke="#86a9da" strokeOpacity="0.055" />
+          </pattern>
+        </defs>
+
+        <rect width="1200" height="310" fill={`url(#${uid}-application-grid)`} />
+        <line className={styles.applicationAxis} x1="50" x2="1150" y1="164" y2="164" />
+
+        {APPLICATION_BANDS.map((band, index) => {
+          const x = 120 + index * 192;
+          const useCase = USE_CASES[index];
+          const statusLabel = useCase.status === "Available" ? "LIVE" : "EXPERIMENTAL";
+          const wave = `M${x - 58} 164 C${x - 42} ${164 - band.amplitude} ${x - 18} ${164 + band.amplitude} ${x} 164 S${x + 42} ${164 - band.amplitude} ${x + 58} 164`;
+
+          return (
+            <motion.g
+              className={styles.applicationBand}
+              key={band.label}
+              initial={reducedMotion ? false : { opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.35 }}
+              transition={{ duration: 0.55, delay: index * 0.08 }}
+            >
+              <rect x={x - 72} y="55" width="144" height="218" rx="5" stroke={band.color} />
+              <line x1={x} x2={x} y1="75" y2="250" stroke={band.color} />
+              <motion.path
+                d={wave}
+                fill="none"
+                stroke={band.color}
+                filter={`url(#${uid}-application-glow)`}
+                initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }}
+                whileInView={{ pathLength: 1, opacity: 1 }}
+                viewport={{ once: true, amount: 0.35 }}
+                transition={{ duration: 1.1, delay: 0.22 + index * 0.08 }}
+              />
+              <circle cx={x} cy="164" r="5" fill={band.color} filter={`url(#${uid}-application-glow)`} />
+              <text x={x} y="88" textAnchor="middle" fill={band.color}>{useCase.number}</text>
+              <text x={x} y="230" textAnchor="middle">{band.label}</text>
+              <text x={x} y="250" textAnchor="middle" fill={band.color}>{statusLabel}</text>
+            </motion.g>
+          );
+        })}
+
+        {!reducedMotion ? (
+          <motion.line
+            className={styles.applicationScanner}
+            x1="58"
+            x2="58"
+            y1="42"
+            y2="280"
+            stroke={`url(#${uid}-application-scan)`}
+            filter={`url(#${uid}-application-glow)`}
+            animate={{ x1: [58, 1142, 58], x2: [58, 1142, 58] }}
+            transition={{ duration: 8.5, repeat: Infinity, ease: "linear" }}
+          />
+        ) : null}
+      </svg>
+      <svg
+        className={styles.applicationSpectrumMobile}
+        viewBox="0 0 360 680"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id={`${uid}-application-mobile-scan`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#34d9ff" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#efffff" />
+            <stop offset="1" stopColor="#49e2a8" stopOpacity="0" />
+          </linearGradient>
+          <filter id={`${uid}-application-mobile-glow`} x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <line className={styles.applicationAxis} x1="52" x2="52" y1="28" y2="650" />
+        {APPLICATION_BANDS.map((band, index) => {
+          const y = 35 + index * 104;
+          const useCase = USE_CASES[index];
+          const statusLabel = useCase.status === "Available" ? "LIVE" : "EXPERIMENTAL";
+          return (
+            <motion.g
+              className={styles.applicationBand}
+              key={`mobile-${band.label}`}
+              initial={reducedMotion ? false : { opacity: 0, x: 16 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.45, delay: index * 0.06 }}
+            >
+              <rect x="31" y={y} width="298" height="78" rx="5" stroke={band.color} />
+              <circle cx="52" cy={y + 39} r="5" fill={band.color} filter={`url(#${uid}-application-mobile-glow)`} />
+              <text x="78" y={y + 31} fill={band.color}>{useCase.number}</text>
+              <text x="112" y={y + 31}>{band.label}</text>
+              <text x="78" y={y + 55} fill={band.color}>{statusLabel}</text>
+              <motion.path
+                d={`M194 ${y + 51} C216 ${y + 18} 238 ${y + 68} 258 ${y + 39} S292 ${y + 18} 311 ${y + 39}`}
+                fill="none"
+                stroke={band.color}
+                initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }}
+                whileInView={{ pathLength: 1, opacity: 0.86 }}
+                viewport={{ once: true, amount: 0.25 }}
+                transition={{ duration: 0.8, delay: 0.18 + index * 0.06 }}
+              />
+            </motion.g>
+          );
+        })}
+        {!reducedMotion ? (
+          <motion.line
+            className={styles.applicationScanner}
+            x1="22"
+            x2="338"
+            y1="30"
+            y2="30"
+            stroke={`url(#${uid}-application-mobile-scan)`}
+            filter={`url(#${uid}-application-mobile-glow)`}
+            animate={{ y1: [30, 650, 30], y2: [30, 650, 30] }}
+            transition={{ duration: 8.5, repeat: Infinity, ease: "linear" }}
+          />
+        ) : null}
+      </svg>
+    </Reveal>
   );
 }
 

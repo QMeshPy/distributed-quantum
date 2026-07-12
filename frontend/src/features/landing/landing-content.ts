@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Atom,
+  Bot,
   Braces,
   Boxes,
   CircleGauge,
@@ -10,18 +11,12 @@ import {
   Orbit,
   Route,
   ShieldCheck,
+  TrendingUp,
   Waypoints,
 } from "lucide-react";
 
 export const REPOSITORY_URL =
-  "https://github.com/Winter-Soren/distributed-quantum-services";
-
-export const REPOSITORY_LINKS = {
-  architecture: `${REPOSITORY_URL}/blob/main/docs/ARCHITECTURE.md`,
-  docs: `${REPOSITORY_URL}/blob/main/docs/START_HERE.md`,
-  license: `${REPOSITORY_URL}/blob/main/LICENSE`,
-  roadmap: `${REPOSITORY_URL}/blob/main/docs/FUTURE_ROADMAP.md`,
-} as const;
+  "https://github.com/QMeshPy/distributed-quantum";
 
 export const LOCAL_SETUP_COMMAND = `cd frontend
 bun install
@@ -34,44 +29,74 @@ export type DeliveryState =
   | "Long-term";
 
 export interface UseCase {
+  number: string;
   title: string;
   description: string;
   outcome: string;
   status: DeliveryState;
+  href: string;
   icon: LucideIcon;
 }
 
 export const USE_CASES: UseCase[] = [
   {
-    title: "Portfolio optimization",
+    number: "01",
+    title: "Financial modelling benchmarks",
     description:
-      "Run the repository's QAOA portfolio workflow and compare its local simulation results with classical baselines.",
-    outcome: "A research comparison, not a claim of quantum advantage.",
+      "Upload portfolio data for a QAOA benchmark, inspect its efficient frontier, and compare the result with classical optimization baselines.",
+    outcome: "Research benchmark · local portfolio diagnostics",
     status: "Available",
+    href: "/signin?next=/finance",
     icon: CircleGauge,
   },
   {
-    title: "Circuit orchestration",
+    number: "02",
+    title: "Risk & options",
     description:
-      "Normalize OpenQASM, build dependency-aware fragments, rank service candidates, reserve capacity, and execute a plan.",
-    outcome: "Inspect the plan, assignments, attempts, and final result.",
+      "Compare simulator-based VaR, CVaR, equity-risk, credit-risk, and options-pricing experiments with classical baselines.",
+    outcome: "Available research tools · simulated comparisons",
     status: "Available",
-    icon: Route,
+    href: "/signin?next=/risk",
+    icon: TrendingUp,
   },
   {
-    title: "Molecular workflows",
+    number: "03",
+    title: "Experimental molecular workflows",
     description:
-      "Explore experimental pharma pipeline modules that combine classical screening with simulated quantum stages.",
-    outcome: "A prototype workflow; it is not a validated drug-discovery system.",
+      "Configure a target and seed ligand for a drug-discovery research pipeline combining molecular filters with simulated quantum stages and ADMET heuristics.",
+    outcome: "Experimental MVP · not validated drug discovery",
     status: "In development",
+    href: "/signin?next=/pharma/submit",
     icon: FlaskConical,
   },
   {
-    title: "Reproducible artifacts",
+    number: "04",
+    title: "Circuit orchestration",
     description:
-      "Share selected circuits and run payloads from the browser vault using Helia content identifiers.",
-    outcome: "Availability still depends on connected peers or an external pinning service.",
+      "Normalize OpenQASM, preserve dependencies, reserve services, execute distributed fragments, and inspect every fallback.",
+    outcome: "Live surface · plans, attempts, and results",
+    status: "Available",
+    href: "/signin?next=/runs/new",
+    icon: Route,
+  },
+  {
+    number: "05",
+    title: "Agentic research",
+    description:
+      "Experiment with AI-assisted proposal analysis, marketplace discovery, conversations, reputation, and funding workflows.",
+    outcome: "Experimental · agent tool execution is not live",
     status: "In development",
+    href: "/signin?next=/agents",
+    icon: Bot,
+  },
+  {
+    number: "06",
+    title: "Content-addressed circuit vault",
+    description:
+      "Save, inspect, share by CID, and optionally pin browser-managed quantum circuits and run payloads.",
+    outcome: "Experimental · content-addressed sharing and pinning",
+    status: "In development",
+    href: "/signin?next=/vault/circuits",
     icon: Braces,
   },
 ];
