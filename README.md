@@ -20,6 +20,10 @@
 
 A research platform with two connected tracks:
 
+## Demo Video
+
+[Watch the demo here](https://www.loom.com/share/8c5a546cb99a4a98996e738bf23c3e7a)
+
 **Track 1 - Distributed Quantum Orchestration.** A coordinator node (FastAPI + py-libp2p) discovers worker nodes via GossipSub pubsub, compiles OpenQASM circuits into distributed execution plans, routes fragments to workers over libp2p streams, and assembles full quantum results using Qiskit statevector simulation. A Next.js operator console gives real-time visibility into the peer network, job lifecycle, and quantum analysis output.
 
 **Track 2 - QAOA Portfolio Optimization.** The same infrastructure drives a QAOA-based portfolio optimizer that runs rigorous empirical comparisons against classical baselines (Simulated Annealing) to characterize exactly where, and why, quantum computing gains a scaling advantage.
