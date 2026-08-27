@@ -110,11 +110,59 @@ npm install
 npm run dev      # Next.js on http://localhost:3000
 ```
 
-Create `frontend/.env.local`:
+Create `frontend/.env`:
 
-```
-QUANTUM_BACKEND_URL=http://localhost:8081
+```dotenv
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8081
 NEXT_PUBLIC_TRIAL_DISABLED=true
+```
+
+### Configure Algorand x402 (TestNet)
+
+The x402 endpoint is `POST /api/x402/quantum/runs`. The platform is the
+seller: it needs only a public Algorand receiver address. Never place a
+mnemonic or private key in this repository.
+
+1. Create a dedicated Algorand TestNet receiver in Pera, Defly, Lute, or an
+   approved custody system.
+2. Fund it with TestNet ALGO at
+   [Lora](https://lora.algokit.io/testnet/fund), then opt it into TestNet USDC
+   ASA `10458941`. The account needs at least 0.2 ALGO for its base and
+   asset-opt-in minimum balances, plus transaction fees.
+3. Optional for receiver testing: request TestNet USDC from the
+   [Circle faucet](https://faucet.circle.com/). A paid test also needs a
+   separate payer account with ALGO, the same USDC opt-in, and TestNet USDC.
+4. Generate one gateway secret with `openssl rand -hex 32`. Set the same
+   value as `QB2_X402_GATEWAY_SECRET` in `.env` and `backend/.env`, and as
+   `X402_GATEWAY_SECRET` in `frontend/.env`.
+5. Set `X402_AVM_ADDRESS` in `frontend/.env` to the receiver's public
+   address, then change `X402_ENABLED=true`.
+
+`frontend/.env` should contain:
+
+```dotenv
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8081
+X402_ENABLED=true
+X402_NETWORK=testnet
+X402_AVM_ADDRESS=<58-character Algorand receiver address>
+X402_FACILITATOR_URL=https://facilitator.goplausible.xyz
+X402_QUANTUM_RUN_PRICE=$0.01
+X402_GATEWAY_SECRET=<same 64-character secret>
+```
+
+The hosted facilitator and default AlgoNode endpoints require no API key.
+MetaMask is not compatible with Algorand AVM payments. AWS Bedrock and
+Coinbase CDP keys configure the existing agent features, not this x402 route.
+See [the complete TestNet runbook](docs/algorand-x402-runbook.md) for unpaid
+and paid verification commands and the MainNet switch.
+
+If `next dev` reports `EMFILE` on macOS, use the production server for the
+local check:
+
+```bash
+cd frontend
+pnpm run build
+pnpm run start
 ```
 
 ### Full Stack with Docker
@@ -297,4 +345,3 @@ Details: [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)
 *Built with quantum circuits, debugged with patience, documented with care.*
 
 </div>
-
