@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { ROUTES } from "@/constants";
+import { API, ROUTES } from "@/constants";
 
 const AUTH_PATHS = [ROUTES.SIGNIN, ROUTES.SIGNUP];
 
@@ -10,6 +10,7 @@ const PUBLIC_PREFIX_PATHS = [
   "/api/network/node-script",
   "/api/network/coordinator-info",
   "/api/agentkit",
+  API.X402.ROOT,
 ];
 
 const PUBLIC_EXACT_PATHS = ["/robots.txt", "/sitemap.xml"];

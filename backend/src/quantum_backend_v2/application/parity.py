@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import copy
-import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from quantum_backend_v2.application.financial_comparison import (
+    build_financial_comparison_report,
+)
 from quantum_backend_v2.application.financial_portfolio import (
     PortfolioOptimizationConfig,
     build_portfolio_optimization_artifacts,
-)
-from quantum_backend_v2.application.financial_comparison import (
-    build_financial_comparison_report,
 )
 from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
 from quantum_backend_v2.identity.models import UserTokenClaims
@@ -27,7 +26,6 @@ from quantum_backend_v2.persistence.mongodb import (
 )
 from quantum_backend_v2.reservations.service import ReservationService
 from quantum_backend_v2.runtime.service import ExecutionService
-
 
 _CIRCUIT_WORKFLOW_DEFINITION_ID = "circuit-execution"
 _WORKFLOW_TYPE_CIRCUIT = "quantum_circuit"
@@ -226,10 +224,19 @@ class CircuitJobService:
         *,
         current_user: UserTokenClaims,
     ) -> WorkflowRunDocument | None:
+        if not current_user.is_admin():
+            return await self.get_job_for_owner(job_id, owner_user_id=current_user.user_id)
         doc = await WorkflowRunDocument.get(job_id)
-        if doc is None:
-            return None
-        if not current_user.is_admin() and doc.owner_user_id != current_user.user_id:
+        return doc
+
+    async def get_job_for_owner(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+    ) -> WorkflowRunDocument | None:
+        doc = await WorkflowRunDocument.get(job_id)
+        if doc is None or doc.owner_user_id != owner_user_id:
             return None
         return doc
 
@@ -274,12 +281,13 @@ class CircuitJobService:
     def get_result_payload(self, doc: WorkflowRunDocument) -> dict[str, Any] | None:
         if doc.status != _STATUS_COMPLETED:
             return None
-        return doc.output_snapshot.get("result") if doc.output_snapshot else None  # type: ignore[return-value]
+        return doc.output_snapshot.get("result") if doc.output_snapshot else None
 
 
 # ---------------------------------------------------------------------------
 # Financial analysis service
 # ---------------------------------------------------------------------------
+
 
 class FinancialJobService:
     """Durable Track A financial analysis service."""
@@ -394,16 +402,13 @@ class FinancialJobService:
             return None
         payload = _attach_financial_comparison_report(doc.result_payload)
         comparison_report = payload.get("comparison_report")
-        return (
-            copy.deepcopy(comparison_report)
-            if isinstance(comparison_report, dict)
-            else None
-        )
+        return copy.deepcopy(comparison_report) if isinstance(comparison_report, dict) else None
 
 
 # ---------------------------------------------------------------------------
 # Options pricing service
 # ---------------------------------------------------------------------------
+
 
 class OptionsJobService:
     """Durable Track C real options pricing service (QAE vs Black-Scholes)."""
@@ -577,6 +582,7 @@ class RiskJobService:
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 async def _ensure_platform_user(user_id: str) -> None:
     existing = await PlatformUserDocument.get(user_id)

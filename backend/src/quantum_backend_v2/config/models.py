@@ -124,12 +124,13 @@ class AppSettings(BaseModel):
             "in the form 'Bearer dev-<user_id>'. Keep disabled outside controlled local testing."
         ),
     )
+    x402_gateway_secret: str | None = Field(default=None, min_length=16)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     persistence: PersistenceSettings = Field(default_factory=PersistenceSettings)
     libp2p: Libp2pSettings = Field(default_factory=Libp2pSettings)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str]) -> "AppSettings":
+    def from_env(cls, env: Mapping[str, str]) -> AppSettings:
         """Construct settings from a flat environment mapping."""
         return cls(
             environment=env.get("QB2_ENVIRONMENT", "development"),
@@ -137,9 +138,8 @@ class AppSettings(BaseModel):
             api_host=env.get("QB2_API_HOST", "0.0.0.0"),
             api_port=int(env.get("QB2_API_PORT", "8081")),
             auth_required=_parse_bool(env.get("QB2_AUTH_REQUIRED", "true")),
-            allow_dev_bearer_tokens=_parse_bool(
-                env.get("QB2_ALLOW_DEV_BEARER_TOKENS", "false")
-            ),
+            allow_dev_bearer_tokens=_parse_bool(env.get("QB2_ALLOW_DEV_BEARER_TOKENS", "false")),
+            x402_gateway_secret=_optional(env.get("QB2_X402_GATEWAY_SECRET")),
             logging=LoggingSettings(
                 level=env.get("QB2_LOG_LEVEL", "INFO"),
                 json_logs=_parse_bool(env.get("QB2_JSON_LOGS", "true")),

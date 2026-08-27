@@ -11,31 +11,35 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 
+from api.v1.agents import router as agents_router
+from api.v1.chat_sessions import router as chat_sessions_router
+from api.v1.marketplace import router as marketplace_router
+from api.v1.notifications import router as notifications_router
+from api.v1.proposals import router as proposals_router
+
+# AgentKit integration routers (new v1 API routers)
+from api.v1.wallet import router as wallet_router
 from quantum_backend_v2 import __version__
-from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService, RiskJobService
+from quantum_backend_v2.api.benchmark import router as benchmark_router
 from quantum_backend_v2.api.deps.auth import configure_auth
 from quantum_backend_v2.api.errors import register_exception_handlers
 from quantum_backend_v2.api.routers import discovery_router, system_router
+from quantum_backend_v2.api.routers.agent import router as agent_router
 from quantum_backend_v2.api.routers.circuits import build_circuits_router
 from quantum_backend_v2.api.routers.enrollment import build_enrollment_router
 from quantum_backend_v2.api.routers.financial import build_financial_router
 from quantum_backend_v2.api.routers.options import build_options_router
-from quantum_backend_v2.api.routers.risk import build_risk_router
+from quantum_backend_v2.api.routers.pharma import router as pharma_router
 from quantum_backend_v2.api.routers.plans import build_plans_router
 from quantum_backend_v2.api.routers.reservations import build_reservations_router
+from quantum_backend_v2.api.routers.risk import build_risk_router
 from quantum_backend_v2.api.routers.services import build_services_router
 from quantum_backend_v2.api.routers.workflows import build_workflows_router
-from quantum_backend_v2.api.benchmark import router as benchmark_router
-from quantum_backend_v2.api.routers.pharma import router as pharma_router
-from quantum_backend_v2.api.routers.agent import router as agent_router
-
-# AgentKit integration routers (new v1 API routers)
-from api.v1.wallet import router as wallet_router
-from api.v1.agents import router as agents_router
-from api.v1.proposals import router as proposals_router
-from api.v1.notifications import router as notifications_router
-from api.v1.marketplace import router as marketplace_router
-from api.v1.chat_sessions import router as chat_sessions_router
+from quantum_backend_v2.application.parity import (
+    CircuitJobService,
+    FinancialJobService,
+    RiskJobService,
+)
 from quantum_backend_v2.config import AppSettings
 from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
@@ -137,11 +141,14 @@ def create_app(
     )
     app.include_router(discovery_router(discovery_service=discovery_service))
     app.include_router(build_enrollment_router())
-    app.include_router(
-        build_workflows_router(mongo_runtime=persistence_runtime.mongodb)
-    )
+    app.include_router(build_workflows_router(mongo_runtime=persistence_runtime.mongodb))
     if circuit_job_service is not None:
-        app.include_router(build_circuits_router(job_service=circuit_job_service))
+        app.include_router(
+            build_circuits_router(
+                job_service=circuit_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     app.include_router(build_services_router(discovery_service=discovery_service))
     if circuit_job_service is not None:
         app.include_router(build_plans_router(job_service=circuit_job_service))
@@ -152,9 +159,7 @@ def create_app(
     if risk_job_service is not None:
         app.include_router(build_risk_router(risk_job_service=risk_job_service))
     if reservation_service is not None:
-        app.include_router(
-            build_reservations_router(reservation_service=reservation_service)
-        )
+        app.include_router(build_reservations_router(reservation_service=reservation_service))
 
     app.include_router(benchmark_router)
     app.include_router(pharma_router)

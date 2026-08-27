@@ -5,6 +5,12 @@ from pathlib import Path
 from quantum_backend_v2.config import load_settings
 
 
+def test_load_settings_reads_x402_gateway_secret() -> None:
+    settings = load_settings(env={"QB2_X402_GATEWAY_SECRET": "test-shared-secret"})
+
+    assert settings.x402_gateway_secret == "test-shared-secret"
+
+
 def test_load_settings_reads_environment_overrides() -> None:
     settings = load_settings(
         env={

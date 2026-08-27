@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:proxy": "bun test tests/proxy-public-root.test.mjs",
+    "test:x402": "node --conditions=react-server --test tests/x402-*.test.ts",
     "analyze": "ANALYZE=true bun run build"
   },
   "dependencies": {
@@ -18,6 +19,10 @@
     "@tanstack/react-query": "5.100.10",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "@x402/avm": "2.23.0",
+    "@x402/core": "2.23.0",
+    "@x402/extensions": "2.23.0",
+    "@x402/next": "2.23.0",
     "@xyflow/react": "^12.10.2",
     "better-auth": "^1.6.9",
     "blockstore-idb": "^3.0.2",
