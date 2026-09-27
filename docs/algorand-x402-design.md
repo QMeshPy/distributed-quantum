@@ -20,18 +20,28 @@ existing user API or storing customer wallet keys.
 ```text
 x402 client
   -> POST /api/x402/quantum/runs (Next.js, public)
+  -> POST /api/x402/options/runs (Next.js, public)
   -> @x402/next verifies Algorand payment with the hosted facilitator
   -> internal FastAPI submission route (shared secret)
-  -> existing CircuitJobService
+  -> existing CircuitJobService / OptionsJobService
 
 x402 client
   -> GET /api/x402/quantum/runs/{unguessable job id} (free polling)
+  -> GET /api/x402/options/runs/{unguessable job id} (free polling)
   -> internal FastAPI job route (shared secret)
 ```
 
-The paid route uses the official `@x402/avm` exact scheme, TestNet USDC, and
-explicit route metadata so Bazaar discovery records the real route instead of
-a wildcard. Payment settles only after a successful backend response.
+Both paid routes share one Next.js resource server (`frontend/src/features/x402/server/runtime.ts`)
+registered against a single Algorand receiver and dispatch to their own
+internal FastAPI route by request path. The pharma pipeline is intentionally
+not wired to x402 yet — its job store is in-memory only and unauthenticated,
+so a paid mainnet request could vanish on a backend restart with no owner
+record. That needs its own persistence fix before it takes payment.
+
+The paid routes use the official `@x402/avm` exact scheme, TestNet USDC, and
+explicit route metadata (including the `x402-global-challenge` Bazaar tag) so
+Bazaar discovery records the real routes instead of a wildcard. Payment
+settles only after a successful backend response.
 
 The seller config contains only a public Algorand receiver address. Payer keys
 stay with the calling client. The receiver must hold enough ALGO for Algorand's

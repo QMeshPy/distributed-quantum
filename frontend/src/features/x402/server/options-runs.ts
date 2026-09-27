@@ -2,7 +2,7 @@ import "server-only";
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
-export async function postQuantumRun(
+export async function postOptionsRun(
   request: Request,
   environment: Environment = process.env,
 ): Promise<Response> {
@@ -25,7 +25,7 @@ export async function postQuantumRun(
   }
 }
 
-export async function getQuantumRun(
+export async function getOptionsRun(
   jobId: string,
   environment: Environment = process.env,
 ): Promise<Response> {
@@ -38,7 +38,7 @@ export async function getQuantumRun(
 
   try {
     const { getConfiguredX402Job } = await import("./runtime");
-    return await getConfiguredX402Job("circuits", jobId, environment);
+    return await getConfiguredX402Job("options", jobId, environment);
   } catch (error) {
     console.error("Unable to read Algorand x402 job:", error);
     return Response.json({ error: "Backend unreachable." }, { status: 502 });

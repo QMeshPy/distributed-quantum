@@ -4,13 +4,30 @@ import type { X402Config } from "./config";
 
 const GATEWAY_HEADER = "X-X402-Gateway-Secret";
 
+export type X402Resource = "circuits" | "options";
+
+const RESOURCE_PATHS: Record<
+  X402Resource,
+  { submit: string; job: (jobId: string) => string }
+> = {
+  circuits: {
+    submit: "/api/v1/internal/x402/circuits/submit",
+    job: (jobId) => `/api/v1/internal/x402/circuits/jobs/${encodeURIComponent(jobId)}`,
+  },
+  options: {
+    submit: "/api/v1/options/internal/x402/submit",
+    job: (jobId) => `/api/v1/options/internal/x402/jobs/${encodeURIComponent(jobId)}`,
+  },
+};
+
 export async function submitX402Job(
   request: Request,
   config: X402Config,
+  resource: X402Resource,
   fetcher: typeof fetch = fetch,
 ): Promise<Response> {
   return forward(
-    `${config.backendBaseUrl}/api/v1/internal/x402/circuits/submit`,
+    `${config.backendBaseUrl}${RESOURCE_PATHS[resource].submit}`,
     {
       method: "POST",
       headers: {
@@ -28,10 +45,11 @@ export async function submitX402Job(
 export async function fetchX402Job(
   jobId: string,
   config: X402Config,
+  resource: X402Resource,
   fetcher: typeof fetch = fetch,
 ): Promise<Response> {
   return forward(
-    `${config.backendBaseUrl}/api/v1/internal/x402/jobs/${encodeURIComponent(jobId)}`,
+    `${config.backendBaseUrl}${RESOURCE_PATHS[resource].job(jobId)}`,
     {
       headers: { [GATEWAY_HEADER]: config.gatewaySecret },
       cache: "no-store",

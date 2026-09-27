@@ -3,10 +3,22 @@
 from __future__ import annotations
 
 import csv
+import hmac
 import io
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
 from quantum_backend_v2.api.errors.models import not_found
@@ -14,10 +26,10 @@ from quantum_backend_v2.api.models.options import (
     BatchOptionsResult,
     BatchOptionsRowResult,
     BatchOptionsSummary,
+    OptionsJobRequest,
     OptionsJobResponse,
     OptionsJobSummary,
     OptionsSubmitResponse,
-    OptionsJobRequest,
 )
 from quantum_backend_v2.application.parity import OptionsJobService
 from quantum_backend_v2.application.real_options_pricing import price_options
@@ -26,8 +38,15 @@ _BATCH_MAX_ROWS = 25
 _BATCH_DEFAULT_QUBITS = 4
 _BATCH_DEFAULT_EPSILON = 0.05  # looser tolerance for speed in batch mode
 
+_X402_GATEWAY_HEADER = "X-X402-Gateway-Secret"
+_X402_OWNER_USER_ID = "x402-algorand"
 
-def build_options_router(*, options_job_service: OptionsJobService) -> APIRouter:
+
+def build_options_router(
+    *,
+    options_job_service: OptionsJobService,
+    x402_gateway_secret: str | None = None,
+) -> APIRouter:
     """Build the real options pricing router."""
     router = APIRouter(prefix="/api/v1/options", tags=["options"])
 
@@ -240,5 +259,75 @@ def build_options_router(*, options_job_service: OptionsJobService) -> APIRouter
             )
             for record in records
         ]
+
+    if x402_gateway_secret is not None:
+
+        async def require_x402_gateway(
+            supplied_secret: Annotated[
+                str | None,
+                Header(alias=_X402_GATEWAY_HEADER),
+            ] = None,
+        ) -> None:
+            if supplied_secret is None or not hmac.compare_digest(
+                supplied_secret,
+                x402_gateway_secret,
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid x402 gateway credentials.",
+                )
+
+        @router.post(
+            "/internal/x402/submit",
+            response_model=OptionsSubmitResponse,
+            status_code=status.HTTP_201_CREATED,
+            include_in_schema=False,
+        )
+        async def submit_x402_options_job(
+            request: OptionsJobRequest,
+            background_tasks: BackgroundTasks,
+            _: None = Depends(require_x402_gateway),
+        ) -> OptionsSubmitResponse:
+            request_payload = request.model_dump()
+            record = await options_job_service.submit(
+                option_type=request.option_type,
+                owner_user_id=_X402_OWNER_USER_ID,
+                request_payload=request_payload,
+            )
+            background_tasks.add_task(
+                options_job_service.process,
+                job_id=record.id,
+                request_payload=request_payload,
+            )
+            return OptionsSubmitResponse(
+                job_id=record.id,
+                status=record.status,
+                option_type=record.option_type,
+            )
+
+        @router.get(
+            "/internal/x402/jobs/{job_id}",
+            response_model=OptionsJobResponse,
+            include_in_schema=False,
+        )
+        async def get_x402_options_job(
+            job_id: str,
+            _: None = Depends(require_x402_gateway),
+        ) -> OptionsJobResponse:
+            record = await options_job_service.get_job_for_owner(
+                job_id,
+                owner_user_id=_X402_OWNER_USER_ID,
+            )
+            if record is None:
+                raise not_found("Options job", job_id)
+            return OptionsJobResponse(
+                job_id=record.id,
+                option_type=record.option_type,
+                status=record.status,
+                error=record.error,
+                result=record.result_payload,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
 
     return router

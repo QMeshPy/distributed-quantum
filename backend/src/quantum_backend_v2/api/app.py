@@ -155,7 +155,12 @@ def create_app(
     if financial_job_service is not None:
         app.include_router(build_financial_router(financial_job_service=financial_job_service))
     if options_job_service is not None:
-        app.include_router(build_options_router(options_job_service=options_job_service))
+        app.include_router(
+            build_options_router(
+                options_job_service=options_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     if risk_job_service is not None:
         app.include_router(build_risk_router(risk_job_service=risk_job_service))
     if reservation_service is not None:

@@ -19,6 +19,9 @@ export const API = {
     QUANTUM_RUNS: "/api/x402/quantum/runs",
     QUANTUM_RUN: (jobId: string) =>
       `/api/x402/quantum/runs/${jobId}` as const,
+    OPTIONS_RUNS: "/api/x402/options/runs",
+    OPTIONS_RUN: (jobId: string) =>
+      `/api/x402/options/runs/${jobId}` as const,
   },
   OPTIONS: {
     LIST: "/api/options",

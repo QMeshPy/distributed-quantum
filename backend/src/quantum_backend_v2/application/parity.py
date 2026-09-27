@@ -476,6 +476,17 @@ class OptionsJobService:
             return None
         return doc
 
+    async def get_job_for_owner(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+    ) -> OptionsJobDocument | None:
+        doc = await OptionsJobDocument.get(job_id)
+        if doc is None or doc.owner_user_id != owner_user_id:
+            return None
+        return doc
+
     async def list_jobs(
         self,
         *,

@@ -133,7 +133,7 @@ def build_circuits_router(
             return CircuitSubmitResponse(job_id=record.id, status=record.status)
 
         @router.get(
-            "/internal/x402/jobs/{job_id}",
+            "/internal/x402/circuits/jobs/{job_id}",
             response_model=JobStatusResponse,
             include_in_schema=False,
         )
