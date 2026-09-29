@@ -1,8 +1,8 @@
 <div align="center">
 
-# QMeshPy — Distributed Quantum Services with Algorand x402
+# QMeshPy: Distributed Quantum Services with Algorand x402
 
-**Quantum computation as discoverable, machine-payable peer-to-peer services — powered by py-libp2p, Qiskit, and Algorand x402.**
+**Quantum computation as discoverable, machine-payable peer-to-peer services powered by py-libp2p, Qiskit, and Algorand x402.**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
