@@ -110,6 +110,7 @@ def build_circuits_router(*, job_service: CircuitJobService) -> APIRouter:
             result=result,
             progress=_to_progress(job_service.build_progress(run)),
             circuit_text=str(run.input_snapshot.get("circuit", "")),
+            provenance_bundle_id=run.output_snapshot.get("provenance_bundle_id"),
             created_at=run.created_at,
             updated_at=run.updated_at,
         )

@@ -14,6 +14,9 @@ export const API = {
     DETAIL: (id: string) => `/api/runs/${id}` as const,
     PLAN: (planId: string) => `/api/runs/plan/${planId}` as const,
   },
+  PROVENANCE: {
+    VERIFY: (bundleId: string) => `/api/provenance/${encodeURIComponent(bundleId)}/verify` as const,
+  },
   OPTIONS: {
     LIST: "/api/options",
     CREATE: "/api/options",

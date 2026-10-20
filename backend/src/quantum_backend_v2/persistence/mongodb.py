@@ -87,10 +87,12 @@ class ProvenanceBundleDocument(Document):
     artifact_refs: list[str] = Field(default_factory=list)
     peer_log_refs: list[str] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
+    content_hash: str | None = None
     created_at: datetime = Field(default_factory=_utc_now)
 
     class Settings:
         name = "provenance_bundles"
+        indexes = [IndexModel("bundle_id", unique=True)]
 
 
 class FragmentDescriptorDocument(Document):

@@ -20,6 +20,7 @@ import { ROUTES } from "@/constants";
 import { ShareToVaultButton } from "@/features/ipfs/components/share-to-vault-button";
 import { useRunDetail } from "../hooks/use-run-detail";
 import { RunStatusBadge } from "./run-status-badge";
+import { RunProvenance } from "./run-provenance";
 import type { RunDetail, FragmentResult } from "../types";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -182,6 +183,8 @@ function RunDetailPanel({ run }: { run: RunDetail }) {
         ]}
         rightContent={<QuantumDetailsButton href={ROUTES.runFragmentFlow(run.jobId)} accent="violet" />}
       />
+
+      <RunProvenance bundleId={run.provenanceBundleId} />
 
       {/* Execution overview */}
       <GlassCard>

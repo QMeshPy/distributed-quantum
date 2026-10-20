@@ -76,6 +76,7 @@ function transformQuantumResult(q: BackendQuantumResult): QuantumResult {
 export function transformRunDetail(d: BackendJobDetail): RunDetail {
   return {
     jobId: d.job_id,
+    provenanceBundleId: d.provenance_bundle_id ?? null,
     status: d.status,
     planId: d.plan_id,
     error: d.error,

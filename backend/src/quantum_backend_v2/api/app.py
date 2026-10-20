@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from quantum_backend_v2 import __version__
 from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService, RiskJobService
+from quantum_backend_v2.application.provenance import MongoProvenanceRepository
 from quantum_backend_v2.api.deps.auth import configure_auth
 from quantum_backend_v2.api.errors import register_exception_handlers
 from quantum_backend_v2.api.routers import discovery_router, system_router
@@ -22,6 +23,7 @@ from quantum_backend_v2.api.routers.financial import build_financial_router
 from quantum_backend_v2.api.routers.options import build_options_router
 from quantum_backend_v2.api.routers.risk import build_risk_router
 from quantum_backend_v2.api.routers.plans import build_plans_router
+from quantum_backend_v2.api.routers.provenance import build_provenance_router
 from quantum_backend_v2.api.routers.reservations import build_reservations_router
 from quantum_backend_v2.api.routers.services import build_services_router
 from quantum_backend_v2.api.routers.workflows import build_workflows_router
@@ -40,6 +42,7 @@ from quantum_backend_v2.config import AppSettings
 from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.persistence import PersistenceRuntime
+from quantum_backend_v2.provenance.service import ProvenanceService
 from quantum_backend_v2.reservations.service import ReservationService
 from quantum_backend_v2.runtime.recovery import RuntimeRecoveryService
 
@@ -57,6 +60,7 @@ def create_app(
     risk_job_service: RiskJobService | None = None,
     reservation_service: ReservationService | None = None,
     runtime_recovery_service: RuntimeRecoveryService | None = None,
+    provenance_service: ProvenanceService | None = None,
 ) -> FastAPI:
     """Create the backend FastAPI application."""
     configure_auth(
@@ -133,6 +137,11 @@ def create_app(
             persistence_runtime=persistence_runtime,
             libp2p_plan=libp2p_plan,
             libp2p_runtime=libp2p_runtime,
+        )
+    )
+    app.include_router(
+        build_provenance_router(
+            service=provenance_service or ProvenanceService(MongoProvenanceRepository())
         )
     )
     app.include_router(discovery_router(discovery_service=discovery_service))

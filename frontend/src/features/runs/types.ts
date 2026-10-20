@@ -67,6 +67,7 @@ export interface BackendJobResult {
 
 export interface BackendJobDetail {
   job_id: string;
+  provenance_bundle_id?: string | null;
   status: string;
   plan_id: string | null;
   error: string | null;
@@ -142,6 +143,7 @@ export interface QuantumResult {
 
 export interface RunDetail {
   jobId: string;
+  provenanceBundleId: string | null;
   status: string;
   planId: string | null;
   error: string | null;

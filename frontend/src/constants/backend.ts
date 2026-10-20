@@ -17,6 +17,10 @@ export const BACKEND = {
     DETAIL: (id: string) => `${BASE_URL}/api/v1/jobs/${id}` as const,
     PLAN: (planId: string) => `${BASE_URL}/api/v1/plans/${planId}` as const,
   },
+  PROVENANCE: {
+    VERIFY: (bundleId: string) =>
+      `${BASE_URL}/api/v1/provenance/${encodeURIComponent(bundleId)}/verify` as const,
+  },
   PLANS: {
     DETAIL: (id: string) => `${BASE_URL}/api/v1/plans/${id}` as const,
   },

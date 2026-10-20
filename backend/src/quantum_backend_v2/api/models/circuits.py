@@ -119,5 +119,6 @@ class JobStatusResponse(BaseModel):
     result: JobResult | None
     progress: JobProgressResponse | None
     circuit_text: str
+    provenance_bundle_id: str | None = None
     created_at: datetime
     updated_at: datetime

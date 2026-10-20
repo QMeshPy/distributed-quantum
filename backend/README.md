@@ -5,6 +5,11 @@ service network. It starts with a thin FastAPI platform edge, explicit
 configuration, typed models, and a protocol-first package layout that will
 grow into the full migration plan described in `backend-migration.md`.
 
+## Provenance
+
+See [PROVENANCE.md](PROVENANCE.md) for the versioned canonical hashing and Merkle
+proof format, backward-compatible bundle fields, and Ethereum anchoring handoff.
+
 ## Current Milestone
 
 The current scaffold establishes:
