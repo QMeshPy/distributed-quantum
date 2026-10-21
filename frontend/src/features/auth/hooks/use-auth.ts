@@ -1,8 +1,15 @@
 import { createAuthClient } from "better-auth/react";
-import { emailOTPClient } from "better-auth/client/plugins";
+import { emailOTPClient, inferAdditionalFields } from "better-auth/client/plugins";
+import { stripeClient } from "@better-auth/stripe/client";
 
 export const authClient = createAuthClient({
-  plugins: [emailOTPClient()],
+  plugins: [
+    emailOTPClient(),
+    stripeClient({ subscription: true }),
+    inferAdditionalFields({
+      user: { hasSubscription: { type: "boolean", required: false } },
+    }),
+  ],
 });
 
 export const {

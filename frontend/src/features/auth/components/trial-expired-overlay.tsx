@@ -1,12 +1,13 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import type { ReactNode } from "react";
 
 interface TrialExpiredOverlayProps {
   endsAt: Date | null;
+  /** The upgrade control, supplied by the billing feature. */
+  action: ReactNode;
 }
 
-export function TrialExpiredOverlay({ endsAt }: TrialExpiredOverlayProps) {
+export function TrialExpiredOverlay({ endsAt, action }: TrialExpiredOverlayProps) {
   const endedDateStr = endsAt
     ? endsAt.toLocaleDateString(undefined, {
         year: "numeric",
@@ -30,9 +31,7 @@ export function TrialExpiredOverlay({ endsAt }: TrialExpiredOverlayProps) {
             Trial ended on {endedDateStr}
           </p>
         ) : null}
-        <Button className="mt-6 w-full" asChild>
-          <Link href="/settings">Upgrade Now</Link>
-        </Button>
+        <div className="mt-6">{action}</div>
         <p className="text-xs text-muted-foreground mt-3">
           Questions? Contact support@distributed-quantum.com
         </p>

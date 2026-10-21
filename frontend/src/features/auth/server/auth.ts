@@ -6,6 +6,7 @@ import { emailOTP } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import getClient, { getDatabase } from "@/shared/lib/mongodb";
 import { AUTH } from "@/constants";
+import { createStripePlugin } from "@/features/billing/server/stripe";
 
 async function sendOTPEmail(email: string, otp: string) {
   const { Resend } = await import("resend");
@@ -31,6 +32,8 @@ function createAuthInstance(
   db: Awaited<ReturnType<typeof getDatabase>>,
   client: Awaited<ReturnType<typeof getClient>>,
 ) {
+  const stripePlugin = createStripePlugin();
+
   return betterAuth({
     database: mongodbAdapter(db, { client }),
     emailAndPassword: { enabled: false },
@@ -45,6 +48,7 @@ function createAuthInstance(
           }
         },
       }),
+      ...(stripePlugin ? [stripePlugin] : []),
       nextCookies(),
     ],
     session: {

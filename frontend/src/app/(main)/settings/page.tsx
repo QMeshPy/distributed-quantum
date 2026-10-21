@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { Settings } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { ProfileForm } from "@/features/settings/components/profile-form";
+import { BillingPanel } from "@/features/billing";
 
 export default function SettingsPage() {
   return (
@@ -14,6 +16,9 @@ export default function SettingsPage() {
       />
       <div className="grid grid-cols-1 gap-4 px-6 pb-6">
         <ProfileForm />
+        <Suspense>
+          <BillingPanel />
+        </Suspense>
       </div>
     </div>
   );

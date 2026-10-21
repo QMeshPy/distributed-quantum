@@ -25,6 +25,10 @@ export function useTrial(): UseTrialReturn {
       return { trialStatus: "active", trialEndsAt: null, msLeft: null, isLoading: true };
     }
 
+    if (user.hasSubscription) {
+      return { trialStatus: "subscribed", trialEndsAt: null, msLeft: null, isLoading: false };
+    }
+
     const bypassEmails = (
       process.env.NEXT_PUBLIC_TRIAL_BYPASS_EMAILS ?? ""
     )

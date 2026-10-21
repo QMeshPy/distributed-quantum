@@ -42,6 +42,21 @@ export const UI = {
     SUBSCRIBE_CTA: "Subscribe Now",
     VIEW_PLANS_CTA: "View Plans",
   },
+  BILLING: {
+    TITLE: "Billing",
+    DESCRIPTION: "Manage your subscription. Payments are handled by Stripe.",
+    STATUS_SUBSCRIBED: "Pro plan — active",
+    STATUS_FREE: "Free trial",
+    UPGRADE_CTA: "Upgrade",
+    UPGRADE_NOW_CTA: "Upgrade Now",
+    MANAGE_CTA: "Manage billing",
+    CONFIRMING: "Confirming your payment…",
+    CHECKOUT_SUCCESS: "Payment received — your subscription is active.",
+    CHECKOUT_PENDING:
+      "Payment received. Your subscription will activate in a moment — refresh if it doesn't.",
+    CHECKOUT_CANCELLED: "Checkout cancelled. You have not been charged.",
+    ERROR: "Could not reach billing. Please try again.",
+  },
   NAV: {
     DASHBOARD: "Dashboard",
     ANALYTICS: "Analytics",

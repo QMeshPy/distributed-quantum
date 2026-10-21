@@ -23,7 +23,7 @@ export interface AuthSession {
   updatedAt: Date;
 }
 
-export type TrialStatus = "active" | "expired" | "bypass";
+export type TrialStatus = "active" | "expired" | "bypass" | "subscribed";
 
 export function getTrialDaysLeft(trialEndsAt?: string): number {
   if (!trialEndsAt) return 0;

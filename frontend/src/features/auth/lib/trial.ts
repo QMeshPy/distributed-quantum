@@ -4,7 +4,13 @@ import type { TrialStatus } from "../types";
 
 export type { TrialStatus };
 
-export function getTrialStatus(userEmail: string, createdAt: Date): TrialStatus {
+export function getTrialStatus(
+  userEmail: string,
+  createdAt: Date,
+  hasSubscription = false,
+): TrialStatus {
+  if (hasSubscription) return "subscribed";
+
   const bypassEmails = (process.env.TRIAL_BYPASS_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())

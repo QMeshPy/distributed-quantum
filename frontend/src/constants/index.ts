@@ -3,6 +3,7 @@ export { API } from "./api";
 export { BACKEND } from "./backend";
 export { QUERY_KEYS } from "./query-keys";
 export { AUTH } from "./auth";
+export { BILLING } from "./billing";
 export { CONFIG } from "./config";
 export { UI } from "./ui";
 export { NAV_CONFIG } from "./navigation";

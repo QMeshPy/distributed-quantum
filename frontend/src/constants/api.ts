@@ -2,6 +2,7 @@ export const API = {
   AUTH: {
     ALL: "/api/auth/*",
     CHECK_EMAIL: "/api/auth/check-email",
+    STRIPE_WEBHOOK: "/api/auth/stripe/webhook",
   },
   DASHBOARD: {
     ROOT: "/api/dashboard",
