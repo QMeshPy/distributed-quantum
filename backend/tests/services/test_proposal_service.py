@@ -934,3 +934,213 @@ async def test_submit_results_unauthorized_researcher(proposal_service, mock_mon
             results_data={"fake": "data"},
             fragment_id=None
         )
+
+
+# ============================================================================
+# Quadratic Funding Rounds Tests (Issue #17)
+# ============================================================================
+
+def test_qf_broad_support_beats_single_large_donor():
+    """Verify quadratic matching favours broad donor support over a single large donor
+    and strictly respects the matching pool budget bound."""
+    proposals = [
+        {
+            "proposal_id": "prop_whale",
+            "researcher_id": "res_1",
+            "researcher_wallet": "0x1111111111111111111111111111111111111111",
+            "contributions": [
+                {"funder_id": "whale", "wallet_address": "0xaaaa", "amount_usdc": Decimal("100")}
+            ],
+        },
+        {
+            "proposal_id": "prop_community",
+            "researcher_id": "res_2",
+            "researcher_wallet": "0x2222222222222222222222222222222222222222",
+            "contributions": [
+                {"funder_id": f"donor_{i}", "wallet_address": f"0xbbbb{i}", "amount_usdc": Decimal("10")}
+                for i in range(10)
+            ],
+        },
+    ]
+
+    result = ProposalService.compute_quadratic_matching(
+        matching_pool=Decimal("500"),
+        proposals=proposals,
+        min_contribution=Decimal("1"),
+        per_donor_cap=Decimal("1000"),
+    )
+
+    alloc_by_id = {a["proposal_id"]: a for a in result["allocations"]}
+    whale_match = Decimal(alloc_by_id["prop_whale"]["matched_usdc"])
+    comm_match = Decimal(alloc_by_id["prop_community"]["matched_usdc"])
+
+    # Both raised 100 USDC directly, but community has 10 independent donors:
+    # W_whale = (sqrt(100))^2 = 100, W_community = (10 * sqrt(10))^2 = 1000
+    assert comm_match > whale_match * Decimal("9")
+    assert Decimal(result["total_matched_usdc"]) <= Decimal("500")
+
+
+def test_qf_monotonicity_and_budget_bound_property():
+    """Property check: increasing contributions monotonically increases weight
+    and total matched never exceeds matching_pool across arbitrary pools/caps."""
+    base_proposals = [
+        {
+            "proposal_id": "p1",
+            "researcher_id": "r1",
+            "researcher_wallet": "0x1111",
+            "contributions": [
+                {"funder_id": "d1", "wallet_address": "0xa1", "amount_usdc": Decimal("16")},
+                {"funder_id": "d2", "wallet_address": "0xa2", "amount_usdc": Decimal("25")},
+            ],
+        },
+        {
+            "proposal_id": "p2",
+            "researcher_id": "r2",
+            "researcher_wallet": "0x2222",
+            "contributions": [
+                {"funder_id": "d3", "wallet_address": "0xa3", "amount_usdc": Decimal("36")},
+            ],
+        },
+    ]
+
+    res1 = ProposalService.compute_quadratic_matching(
+        matching_pool=Decimal("50"),
+        proposals=base_proposals,
+        per_proposal_cap=Decimal("30"),
+    )
+    assert Decimal(res1["total_matched_usdc"]) <= Decimal("50")
+    for a in res1["allocations"]:
+        assert Decimal(a["matched_usdc"]) <= Decimal("30")
+
+    # Increase d1 contribution on p1 -> p1 quadratic weight and match share must not decrease
+    increased_proposals = [
+        {
+            **base_proposals[0],
+            "contributions": [
+                {"funder_id": "d1", "wallet_address": "0xa1", "amount_usdc": Decimal("49")},
+                {"funder_id": "d2", "wallet_address": "0xa2", "amount_usdc": Decimal("25")},
+            ],
+        },
+        base_proposals[1],
+    ]
+    res2 = ProposalService.compute_quadratic_matching(
+        matching_pool=Decimal("50"),
+        proposals=increased_proposals,
+    )
+    w1_before = Decimal(res1["allocations"][0]["quadratic_weight"])
+    w1_after = Decimal(res2["allocations"][0]["quadratic_weight"])
+    assert w1_after > w1_before
+    assert Decimal(res2["total_matched_usdc"]) <= Decimal("50")
+
+
+def test_qf_sybil_resistance_and_deterministic_recomputation():
+    """Verify self-funding exclusion, duplicate-account sybil merging,
+    per-donor cap, pluggable identity verifier, and exact audit recomputation."""
+    proposals = [
+        {
+            "proposal_id": "prop_sybil_test",
+            "researcher_id": "researcher_owner",
+            "researcher_wallet": "0xOwnerWallet",
+            "contributions": [
+                # Self-funding by ID and by wallet -> must be excluded
+                {"funder_id": "researcher_owner", "wallet_address": "0xOther", "amount_usdc": Decimal("50")},
+                {"funder_id": "alias_owner", "wallet_address": "0xownerwallet", "amount_usdc": Decimal("50")},
+                # Duplicate accounts sharing a wallet -> must be merged into 1 donor and capped at per_donor_cap=100
+                {"funder_id": "sybil_1", "wallet_address": "0xSameWallet", "amount_usdc": Decimal("60")},
+                {"funder_id": "sybil_2", "wallet_address": "0xsamewallet", "amount_usdc": Decimal("60")},
+                # Honest verified donor
+                {"funder_id": "honest_1", "wallet_address": "0xHonest1", "amount_usdc": Decimal("25")},
+                # Unverified donor -> filtered by identity_verifier hook
+                {"funder_id": "bot_unverified", "wallet_address": "0xBot", "amount_usdc": Decimal("25")},
+            ],
+        }
+    ]
+
+    res = ProposalService.compute_quadratic_matching(
+        matching_pool=Decimal("200"),
+        proposals=proposals,
+        min_contribution=Decimal("5"),
+        per_donor_cap=Decimal("100"),
+        identity_verifier=lambda fid, _w: fid != "bot_unverified",
+    )
+
+    alloc = res["allocations"][0]
+    assert alloc["excluded_self_funding_count"] == 2
+    assert alloc["excluded_unverified_count"] == 1
+    # sybil_1 + sybil_2 merged into 1 donor (capped at 100) + honest_1 (25) = 2 unique donors, 125 USDC direct
+    assert alloc["unique_eligible_donors"] == 2
+    assert Decimal(alloc["direct_contributions_usdc"]) == Decimal("125")
+    # Weight = (sqrt(100) + sqrt(25))^2 = (10 + 5)^2 = 225
+    assert Decimal(alloc["quadratic_weight"]) == Decimal("225")
+
+    # Recompute strictly from published computation_inputs and verify identical audit_hash
+    recomputed = ProposalService.recompute_from_published_inputs(res["computation_inputs"])
+    assert recomputed["audit_hash"] == res["audit_hash"]
+    assert recomputed["allocations"] == res["allocations"]
+
+
+@pytest.mark.anyio
+async def test_create_and_finalize_funding_round(proposal_service, mock_mongo_db):
+    """Test end-to-end creation and finalization of a FundingRound in ProposalService."""
+    from bson import Decimal128
+
+    mock_mongo_db.funding_rounds = MagicMock()
+    mock_mongo_db.funding_rounds.insert_one = AsyncMock()
+    mock_mongo_db.funding_rounds.find_one = AsyncMock()
+    mock_mongo_db.funding_rounds.update_one = AsyncMock()
+
+    start_dt = datetime.now(timezone.utc) - timedelta(days=7)
+    end_dt = datetime.now(timezone.utc) + timedelta(days=7)
+
+    created = await proposal_service.create_funding_round(
+        title="Q1 Quantum Public Goods Round",
+        matching_pool=Decimal("1000"),
+        start_time=start_dt,
+        end_time=end_dt,
+        eligible_proposal_ids=["prop_a", "prop_b"],
+        min_contribution=Decimal("5"),
+        per_donor_cap=Decimal("500"),
+    )
+    assert created["status"] == "active"
+    mock_mongo_db.funding_rounds.insert_one.assert_called_once()
+
+    round_id = created["round_id"]
+    mock_mongo_db.funding_rounds.find_one.return_value = {
+        "round_id": round_id,
+        "title": "Q1 Quantum Public Goods Round",
+        "matching_pool": Decimal128("1000"),
+        "start_time": start_dt,
+        "end_time": end_dt,
+        "eligible_proposal_ids": ["prop_a"],
+        "min_contribution": Decimal128("5"),
+        "per_donor_cap": Decimal128("500"),
+        "per_proposal_cap": None,
+        "status": "active",
+    }
+    mock_mongo_db.research_proposals.find_one.return_value = {
+        "proposal_id": "prop_a",
+        "researcher_id": "res_a",
+        "researcher_wallet": "0xResA",
+        "funders": [
+            {
+                "funder_id": "f1",
+                "wallet_address": "0xF1",
+                "amount_usdc": Decimal128("16"),
+                "funded_at": datetime.now(timezone.utc),
+            },
+            {
+                "funder_id": "f2",
+                "wallet_address": "0xF2",
+                "amount_usdc": Decimal128("9"),
+                "funded_at": datetime.now(timezone.utc),
+            },
+        ],
+    }
+
+    finalized = await proposal_service.finalize_funding_round(round_id)
+    assert finalized["status"] == "finalized"
+    # (sqrt(16) + sqrt(9))^2 = (4 + 3)^2 = 49
+    assert Decimal(finalized["allocations"][0]["quadratic_weight"]) == Decimal("49")
+    assert Decimal(finalized["total_matched_usdc"]) == Decimal("49")
+    mock_mongo_db.funding_rounds.update_one.assert_called_once()
+

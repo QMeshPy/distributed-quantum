@@ -906,3 +906,202 @@ async def generate_fragments(
             error=ErrorCode.INTERNAL_ERROR,
             message="Failed to generate research fragments",
         )
+
+
+# ---------------------------------------------------------------------------
+# Quadratic Funding Round Models & Endpoints (Issue #17)
+# ---------------------------------------------------------------------------
+
+
+class FundingRoundCreateRequest(BaseModel):
+    """Request to create a time-boxed quadratic funding round."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200, description="Round title")
+    matching_pool: str = Field(min_length=1, description="Total matching pool in USDC")
+    start_time: str = Field(description="ISO start timestamp")
+    end_time: str = Field(description="ISO end timestamp")
+    eligible_proposal_ids: list[str] = Field(default_factory=list, description="Proposal IDs in round")
+    min_contribution: str = Field(default="1", description="Minimum eligible contribution in USDC")
+    per_donor_cap: str = Field(default="1000", description="Per-donor contribution cap in USDC")
+    per_proposal_cap: str | None = Field(default=None, description="Optional max match per proposal in USDC")
+    require_verified_identity: bool = Field(default=False, description="Require external identity verification")
+
+
+class FundingRoundResponse(BaseModel):
+    """Response for a quadratic funding round."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    round_id: str
+    title: str
+    matching_pool: str
+    start_time: str
+    end_time: str
+    eligible_proposal_ids: list[str]
+    min_contribution: str
+    per_donor_cap: str
+    per_proposal_cap: str | None = None
+    require_verified_identity: bool = False
+    status: str
+
+
+class FundingRoundAllocationItem(BaseModel):
+    """Quadratic funding match allocation for a single proposal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    proposal_id: str
+    unique_eligible_donors: int
+    direct_contributions_usdc: str
+    quadratic_weight: str
+    matched_usdc: str
+    total_funding_usdc: str
+    excluded_self_funding_count: int
+    excluded_unverified_count: int
+    excluded_outside_window_count: int
+
+
+class FundingRoundFinalizeResponse(BaseModel):
+    """Published results and auditable computation inputs for a finalized round."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    round_id: str
+    status: str
+    matching_pool_usdc: str
+    total_matched_usdc: str
+    unallocated_pool_usdc: str
+    allocations: list[FundingRoundAllocationItem]
+    computation_inputs: dict[str, Any]
+    audit_hash: str
+
+
+class FundingRoundRecomputeRequest(BaseModel):
+    """Request to recompute and audit quadratic funding results from published inputs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    computation_inputs: dict[str, Any]
+    expected_audit_hash: str | None = None
+
+
+class FundingRoundRecomputeResponse(BaseModel):
+    """Recomputation result for auditing a quadratic funding round."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    verified: bool
+    audit_hash: str
+    matching_pool_usdc: str
+    total_matched_usdc: str
+    unallocated_pool_usdc: str
+    allocations: list[FundingRoundAllocationItem]
+
+
+@router.post(
+    "/rounds",
+    response_model=FundingRoundResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create quadratic funding round",
+    description="Create a time-boxed quadratic funding round with matching pool and sybil-resistance rules.",
+)
+async def create_funding_round(
+    body: FundingRoundCreateRequest,
+    current_user: CurrentUser,
+    proposal_service: ProposalServiceDep,
+) -> FundingRoundResponse:
+    from datetime import datetime as _dt
+
+    try:
+        start_dt = _dt.fromisoformat(body.start_time.replace("Z", "+00:00"))
+        end_dt = _dt.fromisoformat(body.end_time.replace("Z", "+00:00"))
+        round_data = await proposal_service.create_funding_round(
+            title=body.title,
+            matching_pool=Decimal(body.matching_pool),
+            start_time=start_dt,
+            end_time=end_dt,
+            eligible_proposal_ids=body.eligible_proposal_ids,
+            min_contribution=Decimal(body.min_contribution),
+            per_donor_cap=Decimal(body.per_donor_cap),
+            per_proposal_cap=Decimal(body.per_proposal_cap) if body.per_proposal_cap else None,
+            require_verified_identity=body.require_verified_identity,
+            created_by=current_user.user_id,
+        )
+        return FundingRoundResponse(
+            round_id=round_data["round_id"],
+            title=round_data["title"],
+            matching_pool=str(round_data["matching_pool"]),
+            start_time=round_data["start_time"].isoformat(),
+            end_time=round_data["end_time"].isoformat(),
+            eligible_proposal_ids=round_data["eligible_proposal_ids"],
+            min_contribution=str(round_data["min_contribution"]),
+            per_donor_cap=str(round_data["per_donor_cap"]),
+            per_proposal_cap=str(round_data["per_proposal_cap"]) if round_data["per_proposal_cap"] is not None else None,
+            require_verified_identity=round_data["require_verified_identity"],
+            status=round_data["status"],
+        )
+    except ValueError as e:
+        raise PlatformException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.VALIDATION_ERROR,
+            message=str(e),
+        )
+
+
+@router.post(
+    "/rounds/{round_id}/finalize",
+    response_model=FundingRoundFinalizeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Finalize quadratic funding round",
+    description="Compute quadratic matching allocations and publish auditable inputs and results.",
+)
+async def finalize_funding_round(
+    round_id: str,
+    current_user: CurrentUser,
+    proposal_service: ProposalServiceDep,
+) -> FundingRoundFinalizeResponse:
+    try:
+        result = await proposal_service.finalize_funding_round(round_id=round_id)
+        return FundingRoundFinalizeResponse(**result)
+    except ValueError as e:
+        raise PlatformException(
+            status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e).lower() else status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.NOT_FOUND if "not found" in str(e).lower() else ErrorCode.VALIDATION_ERROR,
+            message=str(e),
+        )
+
+
+@router.post(
+    "/rounds/verify",
+    response_model=FundingRoundRecomputeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Recompute and audit quadratic funding round",
+    description="Deterministically recompute a round's matching allocations from published inputs.",
+)
+async def verify_funding_round(
+    body: FundingRoundRecomputeRequest,
+    proposal_service: ProposalServiceDep,
+) -> FundingRoundRecomputeResponse:
+    try:
+        recomputed = proposal_service.recompute_from_published_inputs(body.computation_inputs)
+        verified = (
+            body.expected_audit_hash is None
+            or recomputed["audit_hash"] == body.expected_audit_hash
+        )
+        return FundingRoundRecomputeResponse(
+            verified=verified,
+            audit_hash=recomputed["audit_hash"],
+            matching_pool_usdc=recomputed["matching_pool_usdc"],
+            total_matched_usdc=recomputed["total_matched_usdc"],
+            unallocated_pool_usdc=recomputed["unallocated_pool_usdc"],
+            allocations=recomputed["allocations"],
+        )
+    except Exception as e:
+        raise PlatformException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error=ErrorCode.VALIDATION_ERROR,
+            message=f"Invalid computation inputs: {e}",
+        )
+

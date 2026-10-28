@@ -336,6 +336,50 @@ class ChatSessionDocument(Document):
 # Collection Registry
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 8. Funding Rounds Collection (Quadratic Funding)
+# ---------------------------------------------------------------------------
+
+class FundingRoundDocument(Document):
+    """Time-boxed quadratic funding rounds for research proposals.
+
+    Distributes a matching pool across eligible proposals using the quadratic
+    funding formula, favouring broad donor support over single large donors,
+    with configurable sybil-resistance parameters and auditable inputs/results.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    round_id: str
+    title: str
+    matching_pool: Decimal128
+    start_time: datetime
+    end_time: datetime
+    eligible_proposal_ids: list[str] = Field(default_factory=list)
+    min_contribution: Decimal128 = Field(default_factory=lambda: Decimal128("1"))
+    per_donor_cap: Decimal128 = Field(default_factory=lambda: Decimal128("1000"))
+    per_proposal_cap: Decimal128 | None = None
+    require_verified_identity: bool = False
+    status: Literal["scheduled", "active", "finalized", "cancelled"] = "active"
+    computation_inputs: dict[str, Any] | None = None
+    results: dict[str, Any] | None = None
+    created_by: str | None = None
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+
+    class Settings:
+        name = "funding_rounds"
+        indexes = [
+            IndexModel("round_id", unique=True),
+            IndexModel("status"),
+            IndexModel([("start_time", ASCENDING), ("end_time", ASCENDING)]),
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Collection Registry
+# ---------------------------------------------------------------------------
+
 AGENTKIT_COLLECTIONS = [
     WalletDocument,
     WorkerPricingDocument,
@@ -344,6 +388,7 @@ AGENTKIT_COLLECTIONS = [
     PaymentDocument,
     NotificationDocument,
     ChatSessionDocument,
+    FundingRoundDocument,
 ]
 
 __all__ = [
@@ -354,5 +399,6 @@ __all__ = [
     "PaymentDocument",
     "NotificationDocument",
     "ChatSessionDocument",
+    "FundingRoundDocument",
     "AGENTKIT_COLLECTIONS",
 ]

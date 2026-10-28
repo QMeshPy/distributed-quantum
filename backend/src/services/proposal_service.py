@@ -48,9 +48,13 @@ except ImportError as e:
     AsyncIOMotorClient = Any
 
 # Import MongoDB models and utilities
+import hashlib
+from decimal import ROUND_DOWN
+from typing import Callable
 from db.agentkit_collections import (
     ResearchProposalDocument,
     PaymentDocument,
+    FundingRoundDocument,
     _decimal_to_decimal128,
     _decimal128_to_decimal,
 )
@@ -1167,3 +1171,419 @@ class ProposalService:
                     raise ValueError(f"Fragment missing required field: {field}")
 
         return result
+
+    # =========================================================================
+    # Quadratic Funding Rounds (Issue #17)
+    # =========================================================================
+
+    @staticmethod
+    def compute_quadratic_matching(
+        matching_pool: Decimal | str | float | int,
+        proposals: list[dict[str, Any]],
+        min_contribution: Decimal | str | float | int = Decimal("1"),
+        per_donor_cap: Decimal | str | float | int = Decimal("1000"),
+        per_proposal_cap: Optional[Decimal | str | float | int] = None,
+        start_time: Optional[datetime | str] = None,
+        end_time: Optional[datetime | str] = None,
+        identity_verifier: Optional[Callable[[str, str], bool]] = None,
+    ) -> dict[str, Any]:
+        """
+        Deterministically compute Quadratic Funding (QF) matching allocations.
+
+        Applies Gitcoin/Buterin standard quadratic funding with strict sybil
+        and budget-bound guarantees:
+        1. Self-funding exclusion: contributions where funder_id == researcher_id
+           or wallet_address matches researcher_wallet are ignored.
+        2. Duplicate-account / sybil resistance: contributions are aggregated per
+           canonical donor identity (linking funder_id and normalized wallet_address
+           into connected donor clusters so splitting funds across multiple
+           transactions or duplicate accounts sharing a wallet/funder cannot
+           increase the sum of square roots).
+        3. Pluggable external identity verifier: if provided, donors failing
+           `identity_verifier(funder_id, wallet_address)` are excluded.
+        4. Minimum contribution & per-donor cap: aggregated donor contributions
+           below `min_contribution` are excluded; contributions above
+           `per_donor_cap` are capped at `per_donor_cap`.
+        5. Quadratic weight: W_p = (sum_{d in D_p} sqrt(c_{d,p}))^2.
+        6. Budget bound & per-proposal cap: allocations are scaled so the sum
+           never exceeds `matching_pool` (with deterministic ROUND_DOWN to 6
+           decimals, USDC micro-units) and each proposal's match never exceeds
+           `per_proposal_cap`.
+        """
+        pool = Decimal(str(matching_pool))
+        if pool < Decimal("0"):
+            raise ValueError("matching_pool must be non-negative")
+
+        min_contrib = Decimal(str(min_contribution))
+        donor_cap = Decimal(str(per_donor_cap))
+        if min_contrib < Decimal("0") or donor_cap <= Decimal("0"):
+            raise ValueError("Invalid contribution bounds")
+
+        prop_cap: Optional[Decimal] = (
+            Decimal(str(per_proposal_cap)) if per_proposal_cap is not None else None
+        )
+        if prop_cap is not None and prop_cap < Decimal("0"):
+            raise ValueError("per_proposal_cap must be non-negative")
+
+        def _parse_ts(ts: Any) -> Optional[datetime]:
+            if ts is None:
+                return None
+            if isinstance(ts, datetime):
+                return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+            if isinstance(ts, str):
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return None
+
+        round_start = _parse_ts(start_time)
+        round_end = _parse_ts(end_time)
+
+        # Build global sybil cluster map: unify any funder_id and wallet_address
+        # that appear together so a single wallet using multiple funder_ids (or
+        # vice versa) collapses to one canonical donor key across the round.
+        parent: dict[str, str] = {}
+
+        def _find(x: str) -> str:
+            while parent.get(x, x) != x:
+                parent[x] = parent.get(parent[x], parent[x])
+                x = parent[x]
+            return x
+
+        def _union(a: str, b: str) -> None:
+            ra, rb = _find(a), _find(b)
+            if ra != rb:
+                # Deterministic lexicographical root
+                if ra < rb:
+                    parent[rb] = ra
+                else:
+                    parent[ra] = rb
+
+        sorted_proposals = sorted(proposals, key=lambda p: str(p.get("proposal_id", "")))
+
+        for prop in sorted_proposals:
+            for c in prop.get("contributions", prop.get("funders", [])):
+                fid = str(c.get("funder_id", "")).strip()
+                waddr = str(c.get("wallet_address", "")).strip().lower()
+                if fid and waddr:
+                    _union(f"id:{fid}", f"wallet:{waddr}")
+
+        proposal_weights: dict[str, Decimal] = {}
+        proposal_stats: dict[str, dict[str, Any]] = {}
+        published_proposal_inputs: list[dict[str, Any]] = []
+
+        quant = Decimal("0.000001")
+
+        for prop in sorted_proposals:
+            pid = str(prop["proposal_id"])
+            researcher_id = str(prop.get("researcher_id", "")).strip()
+            researcher_wallet = str(prop.get("researcher_wallet", "")).strip().lower()
+            raw_contribs = prop.get("contributions", prop.get("funders", []))
+
+            donor_totals: dict[str, Decimal] = {}
+            excluded_self = int(prop.get("_excluded_self_funding_count", 0))
+            excluded_unverified = int(prop.get("_excluded_unverified_count", 0))
+            excluded_window = int(prop.get("_excluded_outside_window_count", 0))
+
+            for c in raw_contribs:
+                fid = str(c.get("funder_id", "")).strip()
+                waddr = str(c.get("wallet_address", "")).strip().lower()
+                raw_amt = c.get("amount_usdc", c.get("amount", "0"))
+                if hasattr(raw_amt, "to_decimal"):
+                    amt = raw_amt.to_decimal()
+                else:
+                    amt = Decimal(str(raw_amt))
+
+                if amt <= Decimal("0"):
+                    continue
+
+                funded_at = _parse_ts(c.get("funded_at"))
+                if round_start and funded_at and funded_at < round_start:
+                    excluded_window += 1
+                    continue
+                if round_end and funded_at and funded_at > round_end:
+                    excluded_window += 1
+                    continue
+
+                # Self-funding check (by researcher_id, wallet, or sybil cluster)
+                is_self = False
+                if researcher_id and fid == researcher_id:
+                    is_self = True
+                if researcher_wallet and waddr == researcher_wallet:
+                    is_self = True
+                if researcher_id and fid and _find(f"id:{fid}") == _find(f"id:{researcher_id}"):
+                    is_self = True
+                if researcher_wallet and waddr and _find(f"wallet:{waddr}") == _find(f"wallet:{researcher_wallet}"):
+                    is_self = True
+
+                if is_self:
+                    excluded_self += 1
+                    continue
+
+                if identity_verifier is not None and not identity_verifier(fid, waddr):
+                    excluded_unverified += 1
+                    continue
+
+                donor_key = _find(f"id:{fid}") if fid else _find(f"wallet:{waddr}")
+                donor_totals[donor_key] = donor_totals.get(donor_key, Decimal("0")) + amt
+
+            # Apply min_contribution and per_donor_cap deterministically
+            eligible_donors: dict[str, Decimal] = {}
+            for d_key in sorted(donor_totals.keys()):
+                total_d = donor_totals[d_key]
+                if total_d < min_contrib:
+                    continue
+                capped_d = min(total_d, donor_cap)
+                eligible_donors[d_key] = capped_d.quantize(quant, rounding=ROUND_DOWN)
+
+            sum_sqrt = Decimal("0")
+            direct_total = Decimal("0")
+            for d_key, eff_amt in eligible_donors.items():
+                sum_sqrt += eff_amt.sqrt()
+                direct_total += eff_amt
+
+            weight = (sum_sqrt * sum_sqrt) if eligible_donors else Decimal("0")
+            proposal_weights[pid] = weight
+
+            proposal_stats[pid] = {
+                "proposal_id": pid,
+                "unique_eligible_donors": len(eligible_donors),
+                "direct_contributions_usdc": str(direct_total.quantize(quant, rounding=ROUND_DOWN)),
+                "quadratic_weight": str(weight.quantize(quant, rounding=ROUND_DOWN)),
+                "excluded_self_funding_count": excluded_self,
+                "excluded_unverified_count": excluded_unverified,
+                "excluded_outside_window_count": excluded_window,
+            }
+
+            published_proposal_inputs.append({
+                "proposal_id": pid,
+                "researcher_id": researcher_id,
+                "researcher_wallet": researcher_wallet,
+                "eligible_donor_contributions": {
+                    k: str(v) for k, v in sorted(eligible_donors.items())
+                },
+                "excluded_self_funding_count": excluded_self,
+                "excluded_unverified_count": excluded_unverified,
+                "excluded_outside_window_count": excluded_window,
+            })
+
+        total_weight = sum(proposal_weights.values(), Decimal("0"))
+        allocations: list[dict[str, Any]] = []
+        total_matched = Decimal("0")
+
+        for prop in sorted_proposals:
+            pid = str(prop["proposal_id"])
+            w = proposal_weights[pid]
+            if total_weight > Decimal("0") and pool > Decimal("0") and w > Decimal("0"):
+                # Proportional share of matching pool, bounded by raw quadratic weight
+                # and optional per-proposal cap so matching never exceeds pool or cap.
+                proportional_share = (pool * w) / total_weight
+                raw_match = min(proportional_share, w)
+                if prop_cap is not None:
+                    raw_match = min(raw_match, prop_cap)
+                matched = raw_match.quantize(quant, rounding=ROUND_DOWN)
+            else:
+                matched = Decimal("0.000000")
+
+            total_matched += matched
+            stats = proposal_stats[pid]
+            direct_dec = Decimal(stats["direct_contributions_usdc"])
+            allocations.append({
+                **stats,
+                "matched_usdc": str(matched),
+                "total_funding_usdc": str((direct_dec + matched).quantize(quant, rounding=ROUND_DOWN)),
+            })
+
+        computation_inputs = {
+            "matching_pool": str(pool.quantize(quant, rounding=ROUND_DOWN)),
+            "min_contribution": str(min_contrib.quantize(quant, rounding=ROUND_DOWN)),
+            "per_donor_cap": str(donor_cap.quantize(quant, rounding=ROUND_DOWN)),
+            "per_proposal_cap": (
+                str(prop_cap.quantize(quant, rounding=ROUND_DOWN))
+                if prop_cap is not None
+                else None
+            ),
+            "start_time": round_start.isoformat() if round_start else None,
+            "end_time": round_end.isoformat() if round_end else None,
+            "proposals": published_proposal_inputs,
+        }
+
+        canonical_payload = json.dumps(
+            {"inputs": computation_inputs, "allocations": allocations},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        audit_hash = hashlib.sha256(canonical_payload.encode("utf-8")).hexdigest()
+
+        return {
+            "matching_pool_usdc": str(pool.quantize(quant, rounding=ROUND_DOWN)),
+            "total_matched_usdc": str(total_matched.quantize(quant, rounding=ROUND_DOWN)),
+            "unallocated_pool_usdc": str((pool - total_matched).quantize(quant, rounding=ROUND_DOWN)),
+            "allocations": allocations,
+            "computation_inputs": computation_inputs,
+            "audit_hash": audit_hash,
+        }
+
+    @classmethod
+    def recompute_from_published_inputs(cls, computation_inputs: dict[str, Any]) -> dict[str, Any]:
+        """Recompute quadratic funding results strictly from published audit inputs."""
+        reconstructed_proposals = []
+        for p in computation_inputs.get("proposals", []):
+            contribs = [
+                {
+                    "funder_id": donor_key.split(":", 1)[-1] if donor_key.startswith("id:") else "",
+                    "wallet_address": donor_key.split(":", 1)[-1] if donor_key.startswith("wallet:") else "",
+                    "amount_usdc": Decimal(amt_str),
+                }
+                for donor_key, amt_str in sorted(p.get("eligible_donor_contributions", {}).items())
+            ]
+            reconstructed_proposals.append({
+                "proposal_id": p["proposal_id"],
+                "researcher_id": p.get("researcher_id", ""),
+                "researcher_wallet": p.get("researcher_wallet", ""),
+                "contributions": contribs,
+                "_excluded_self_funding_count": int(p.get("excluded_self_funding_count", 0)),
+                "_excluded_unverified_count": int(p.get("excluded_unverified_count", 0)),
+                "_excluded_outside_window_count": int(p.get("excluded_outside_window_count", 0)),
+            })
+
+        return cls.compute_quadratic_matching(
+            matching_pool=Decimal(str(computation_inputs["matching_pool"])),
+            proposals=reconstructed_proposals,
+            min_contribution=Decimal(str(computation_inputs["min_contribution"])),
+            per_donor_cap=Decimal(str(computation_inputs["per_donor_cap"])),
+            per_proposal_cap=(
+                Decimal(str(computation_inputs["per_proposal_cap"]))
+                if computation_inputs.get("per_proposal_cap") is not None
+                else None
+            ),
+            start_time=computation_inputs.get("start_time"),
+            end_time=computation_inputs.get("end_time"),
+        )
+
+    async def create_funding_round(
+        self,
+        title: str,
+        matching_pool: Decimal,
+        start_time: datetime,
+        end_time: datetime,
+        eligible_proposal_ids: list[str],
+        min_contribution: Decimal = Decimal("1"),
+        per_donor_cap: Decimal = Decimal("1000"),
+        per_proposal_cap: Optional[Decimal] = None,
+        require_verified_identity: bool = False,
+        created_by: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Create a time-boxed quadratic funding round."""
+        if matching_pool <= Decimal("0"):
+            raise ValueError("matching_pool must be greater than 0")
+        if end_time <= start_time:
+            raise ValueError("end_time must be after start_time")
+        if min_contribution <= Decimal("0") or per_donor_cap <= Decimal("0"):
+            raise ValueError("min_contribution and per_donor_cap must be greater than 0")
+        if min_contribution > per_donor_cap:
+            raise ValueError("min_contribution cannot exceed per_donor_cap")
+
+        round_id = str(uuid.uuid4())
+        round_doc = FundingRoundDocument(
+            round_id=round_id,
+            title=title,
+            matching_pool=_decimal_to_decimal128(matching_pool),
+            start_time=start_time,
+            end_time=end_time,
+            eligible_proposal_ids=list(dict.fromkeys(eligible_proposal_ids)),
+            min_contribution=_decimal_to_decimal128(min_contribution),
+            per_donor_cap=_decimal_to_decimal128(per_donor_cap),
+            per_proposal_cap=(
+                _decimal_to_decimal128(per_proposal_cap)
+                if per_proposal_cap is not None
+                else None
+            ),
+            require_verified_identity=require_verified_identity,
+            status="active",
+            created_by=created_by,
+        )
+
+        if hasattr(self.db, "funding_rounds"):
+            await self.db.funding_rounds.insert_one(round_doc.model_dump())
+
+        return {
+            "round_id": round_id,
+            "title": title,
+            "matching_pool": matching_pool,
+            "start_time": start_time,
+            "end_time": end_time,
+            "eligible_proposal_ids": round_doc.eligible_proposal_ids,
+            "min_contribution": min_contribution,
+            "per_donor_cap": per_donor_cap,
+            "per_proposal_cap": per_proposal_cap,
+            "require_verified_identity": require_verified_identity,
+            "status": "active",
+            "created_at": round_doc.created_at,
+        }
+
+    async def finalize_funding_round(
+        self,
+        round_id: str,
+        identity_verifier: Optional[Callable[[str, str], bool]] = None,
+    ) -> dict[str, Any]:
+        """Finalize a quadratic funding round and persist auditable inputs and results."""
+        round_doc = await self.db.funding_rounds.find_one({"round_id": round_id})
+        if not round_doc:
+            raise ValueError(f"Funding round not found: {round_id}")
+        if round_doc.get("status") == "cancelled":
+            raise ValueError(f"Funding round {round_id} is cancelled")
+
+        proposal_ids = round_doc.get("eligible_proposal_ids", [])
+        proposals_data: list[dict[str, Any]] = []
+        for pid in proposal_ids:
+            pdoc = await self.db.research_proposals.find_one({"proposal_id": pid})
+            if pdoc:
+                proposals_data.append(pdoc)
+
+        matching_pool = _decimal128_to_decimal(round_doc["matching_pool"])
+        min_contrib = _decimal128_to_decimal(round_doc["min_contribution"])
+        donor_cap = _decimal128_to_decimal(round_doc["per_donor_cap"])
+        prop_cap = (
+            _decimal128_to_decimal(round_doc["per_proposal_cap"])
+            if round_doc.get("per_proposal_cap") is not None
+            else None
+        )
+
+        qf_result = self.compute_quadratic_matching(
+            matching_pool=matching_pool,
+            proposals=proposals_data,
+            min_contribution=min_contrib,
+            per_donor_cap=donor_cap,
+            per_proposal_cap=prop_cap,
+            start_time=round_doc.get("start_time"),
+            end_time=round_doc.get("end_time"),
+            identity_verifier=identity_verifier,
+        )
+
+        results_summary = {
+            "matching_pool_usdc": qf_result["matching_pool_usdc"],
+            "total_matched_usdc": qf_result["total_matched_usdc"],
+            "unallocated_pool_usdc": qf_result["unallocated_pool_usdc"],
+            "allocations": qf_result["allocations"],
+            "audit_hash": qf_result["audit_hash"],
+            "finalized_at": _utc_now().isoformat(),
+        }
+
+        await self.db.funding_rounds.update_one(
+            {"round_id": round_id},
+            {
+                "$set": {
+                    "status": "finalized",
+                    "computation_inputs": qf_result["computation_inputs"],
+                    "results": results_summary,
+                    "updated_at": _utc_now(),
+                }
+            },
+        )
+
+        return {
+            "round_id": round_id,
+            "status": "finalized",
+            **qf_result,
+        }
+
