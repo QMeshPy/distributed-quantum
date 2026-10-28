@@ -28,6 +28,7 @@ from quantum_backend_v2.application.provenance import (
 )
 from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
 from quantum_backend_v2.identity.models import UserTokenClaims
+from quantum_backend_v2.payments.payouts import FragmentOutcome, FragmentPayoutService
 from quantum_backend_v2.persistence.mongodb import (
     ExecutionPlanDocument,
     FinancialJobDocument,
@@ -76,6 +77,8 @@ class CircuitJobService:
     """Durable circuit job submission, planning, and execution bridge."""
 
     _bundle_publisher: BundlePublisher | None = None
+    # Records a worker payout intent per fragment (#8); off when there is no ledger.
+    payouts: FragmentPayoutService | None = None
 
     def __init__(
         self,
@@ -137,6 +140,7 @@ class CircuitJobService:
         partial_results: list[dict[str, Any]] = []
         runtime_fragment_results: list[Any] = []
         final_state = None
+        plan = None
         try:
             circuit_text = str(doc.input_snapshot.get("circuit", ""))
             await self._quantum_bridge.wait_for_service_peers()
@@ -186,6 +190,7 @@ class CircuitJobService:
                 }
                 doc.updated_at = _utc_now()
                 await doc.save()
+                await self._record_payout(job_id, plan, serialized_result)
 
             quantum_result = self._quantum_bridge.build_quantum_result(
                 plan=plan,
@@ -226,6 +231,48 @@ class CircuitJobService:
             }
             doc.updated_at = _utc_now()
             await doc.save()
+            if plan is not None:
+                recorded = {result["fragment_id"] for result in partial_results}
+                for fragment_id in plan.fragment_order:
+                    if fragment_id not in recorded:
+                        await self._record_payout(job_id, plan, None, fragment_id=fragment_id)
+
+    async def _record_payout(
+        self,
+        job_id: str,
+        plan: Any,
+        result: dict[str, Any] | None,
+        *,
+        fragment_id: str | None = None,
+    ) -> None:
+        """Best effort: a payout bookkeeping error must never fail the job."""
+        if self.payouts is None:
+            return
+        fragment_id = result["fragment_id"] if result is not None else fragment_id
+        assert fragment_id is not None
+        fragment = plan.fragments.get(fragment_id)
+        assignment = plan.assignments.get(fragment_id)
+        if result is None:
+            # Never reached: attributed to the planned node, withheld without a penalty.
+            peer_id = getattr(assignment, "primary_node_id", None)
+            status, fidelity = "not_run", None
+        else:
+            raw_status = str(result.get("status", "")).lower()
+            status = "completed" if raw_status in {"success", "completed"} else raw_status
+            peer_id, fidelity = result.get("node_id"), result.get("observed_fidelity")
+        try:
+            await self.payouts.record_fragment(
+                FragmentOutcome(
+                    job_id=job_id,
+                    fragment_id=fragment_id,
+                    peer_id=peer_id,
+                    operation_text=getattr(fragment, "raw_text", "") or "",
+                    status=status,
+                    observed_fidelity=fidelity,
+                )
+            )
+        except Exception:
+            logger.exception("payout for job %s fragment %s not recorded", job_id, fragment_id)
 
     async def _publish_provenance(self, doc: WorkflowRunDocument) -> None:
         """Best effort: the completed run is already saved and must stay completed."""
