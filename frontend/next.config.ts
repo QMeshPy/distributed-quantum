@@ -8,6 +8,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{source: "/sheets-engine/:path*", destination: `${process.env.SPREADSHEET_GATEWAY_URL || "http://127.0.0.1:8002"}/sheets-engine/:path*`}];
+  },
   turbopack: {
     root: path.join(__dirname, ".."),
   },
