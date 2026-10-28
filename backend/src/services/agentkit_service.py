@@ -355,7 +355,8 @@ class AgentKitService:
         from_address: str,
         to_address: str,
         amount: Decimal,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        purpose: PaymentPurpose = PaymentPurpose.TRANSFER,
     ) -> dict:
         """
         Execute a USDC transfer between wallets.
@@ -365,6 +366,7 @@ class AgentKitService:
             to_address: Destination wallet address
             amount: Amount of USDC to transfer (as Decimal)
             metadata: Optional transaction metadata (e.g., job_id, purpose)
+            purpose: What the payment event records the transfer as
 
         Returns:
             dict: Transaction result containing:
@@ -449,7 +451,7 @@ class AgentKitService:
             recorded = await self.ledger.record_event(
                 idempotency_key=payment_key,
                 rail=PaymentRail.ONCHAIN,
-                purpose=PaymentPurpose.TRANSFER,
+                purpose=purpose,
                 amount=amount,
                 chain_id=self.chain.chain_id,
                 payer_ref=from_address,

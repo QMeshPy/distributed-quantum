@@ -7,6 +7,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from typing import Any
 
 from fastapi import FastAPI
@@ -15,17 +16,18 @@ from fastapi.responses import RedirectResponse, Response
 
 from api.v1.agents import router as agents_router
 from api.v1.chat_sessions import router as chat_sessions_router
+from api.v1.ens import router as ens_router
+from api.v1.ens_workers import router as ens_workers_router
 from api.v1.marketplace import router as marketplace_router
 from api.v1.notifications import router as notifications_router
 from api.v1.proposals import router as proposals_router
 
 # AgentKit integration routers (new v1 API routers)
 from api.v1.wallet import router as wallet_router
-from api.v1.ens import router as ens_router
-from api.v1.ens_workers import router as ens_workers_router
 from quantum_backend_v2 import __version__
 from quantum_backend_v2.api.benchmark import router as benchmark_router
 from quantum_backend_v2.api.deps.auth import configure_auth
+from quantum_backend_v2.api.deps.wallet import build_wallet_service
 from quantum_backend_v2.api.errors import register_exception_handlers
 from quantum_backend_v2.api.routers import discovery_router, system_router
 from quantum_backend_v2.api.routers.agent import router as agent_router
@@ -55,6 +57,8 @@ from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.payments.credits import JobCreditMeter
 from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.payments.onchain_payouts import wallet_payout_rail
+from quantum_backend_v2.payments.payouts import FragmentPayoutService, PayoutSettler
 from quantum_backend_v2.persistence import PersistenceRuntime
 from quantum_backend_v2.provenance.service import ProvenanceService
 from quantum_backend_v2.reservations.service import ReservationService
@@ -93,16 +97,46 @@ def create_app(
         if ledger_service is not None and settings.circuit_job_credit_cost > 0
         else None
     )
+    payout_settings = settings.worker_payouts
+    payout_service = (
+        FragmentPayoutService(
+            mongodb.database, ledger_service, min_fidelity=payout_settings.min_fidelity
+        )
+        if mongodb is not None and ledger_service is not None
+        else None
+    )
+    if circuit_job_service is not None:
+        circuit_job_service.payouts = payout_service
+    payout_settler = None
+    if payout_service is not None and payout_settings.wallet_address is not None:
+        send, verify = wallet_payout_rail(
+            lambda: build_wallet_service(app), from_address=payout_settings.wallet_address
+        )
+        payout_settler = PayoutSettler(
+            mongodb.database,
+            send=send,
+            verify=verify,
+            threshold=payout_settings.threshold,
+            max_age=timedelta(seconds=payout_settings.max_age_seconds),
+        )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> Any:
         await persistence_runtime.startup()
-        reconcile_task = None
+        reconcile_task = settle_task = None
         if ledger_service is not None:
             await ledger_service.ensure_indexes()
             if reconcile_interval > 0:
                 reconcile_task = asyncio.create_task(
                     _reconcile_periodically(ledger_service, reconcile_interval)
+                )
+        if payout_service is not None:
+            await payout_service.ensure_indexes()
+        if payout_settler is not None:
+            await payout_settler.ensure_indexes()
+            if payout_settings.interval_seconds > 0:
+                settle_task = asyncio.create_task(
+                    _settle_payouts_periodically(payout_settler, payout_settings.interval_seconds)
                 )
         if runtime_recovery_service is not None:
             open_reservations = await runtime_recovery_service.recover_open_reservations()
@@ -121,8 +155,9 @@ def create_app(
         try:
             yield
         finally:
-            if reconcile_task is not None:
-                reconcile_task.cancel()
+            for task in (reconcile_task, settle_task):
+                if task is not None:
+                    task.cancel()
             for service_name in ("proposal_service", "ai_agent_service", "marketplace_service"):
                 service = getattr(app.state, service_name, None)
                 if service is not None:
@@ -201,6 +236,7 @@ def create_app(
                 job_service=circuit_job_service,
                 x402_gateway_secret=settings.x402_gateway_secret,
                 credit_meter=credit_meter,
+                payout_service=payout_service,
             )
         )
     app.include_router(build_services_router(discovery_service=discovery_service))
@@ -256,3 +292,15 @@ async def _reconcile_periodically(ledger_service: LedgerService, interval_second
         except Exception:
             # A failed sweep must not stop later ones; the next run retries it.
             logger.exception("payment reconciliation sweep failed")
+
+
+async def _settle_payouts_periodically(settler: PayoutSettler, interval_seconds: int) -> None:
+    """Send due worker payout batches and confirm sent ones until the app shuts down."""
+    while True:
+        await asyncio.sleep(interval_seconds)
+        try:
+            report = await settler.run_once()
+            if report.sent or report.paid or report.returned or report.uncertain:
+                logger.info("worker payouts: %s", report.model_dump())
+        except Exception:
+            logger.exception("worker payout settlement failed")
