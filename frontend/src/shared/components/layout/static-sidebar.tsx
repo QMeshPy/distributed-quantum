@@ -22,6 +22,7 @@ export function StaticSidebar({ groups }: StaticSidebarProps) {
 
   return (
     <>
+      {process.env.NEXT_PUBLIC_SPREADSHEETS_ENABLED === "true" ? <Link href="/spreadsheets" className="px-5 py-3 text-sm">Spreadsheets</Link> : null}
       {groups.map((group) => (
         <SidebarGroup key={group.heading}>
           <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-widest">

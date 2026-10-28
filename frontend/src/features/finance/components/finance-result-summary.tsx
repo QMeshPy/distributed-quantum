@@ -1,4 +1,5 @@
 "use client";
+import { OpenSpreadsheet } from "@/shared/components/spreadsheets/open-spreadsheet";
 import {
   TrendingUp, Layers, Database, Settings, AlertTriangle,
   Activity, GitBranch
@@ -114,6 +115,7 @@ export function FinanceResultSummary({ job, className }: FinanceResultSummaryPro
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      {job.status.toLowerCase() === "completed" ? <OpenSpreadsheet kind="finance" runId={job.jobId} /> : null}
       <JobMetaStrip
         jobId={job.jobId}
         status={job.status}

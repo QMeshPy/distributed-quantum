@@ -1,4 +1,5 @@
 "use client";
+import { OpenSpreadsheet } from "@/shared/components/spreadsheets/open-spreadsheet";
 import { useParams } from "next/navigation";
 import {
   Cpu, Zap, BarChart3, Database, CheckCircle2, XCircle, Clock,
@@ -291,6 +292,7 @@ export function RunDetailPageClient() {
         description="Circuit execution progress, fragment results, and measurement outcomes."
         glow="violet"
       >
+        {run?.status.toLowerCase() === "completed" ? <OpenSpreadsheet kind="circuit" runId={runId} /> : null}
         {run && run.status.toLowerCase() === "completed" && (
           <ShareToVaultButton
             data={run as unknown as Record<string, unknown>}
