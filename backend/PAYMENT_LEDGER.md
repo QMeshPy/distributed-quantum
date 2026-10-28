@@ -50,7 +50,8 @@ Use a key that names the payment itself, so a retry produces the same key:
 | Payment | Key |
 | --- | --- |
 | Stripe credit pack (#10) | `stripe:checkout:<checkout session id>` |
-| Fragment payout | `fragment_payout:<proposal id>:<fragment id>:<attempt>` |
+| Fragment payout (proposals) | `fragment_payout:<proposal id>:<fragment id>:<attempt>` |
+| Worker payout batch (#8) | `worker_payout:<batch id>` |
 | Full escrow release | `escrow_release:<proposal id>:<attempt>` |
 | Proposal funding | `proposal_funding:<proposal id>:<deposit tx hash>` |
 | USDC transfer | `metadata["idempotency_key"]`, else `transfer:<uuid>` |
@@ -166,7 +167,8 @@ redelivery also finishes a credit that a crash interrupted.
 
 **Spending.** With `QB2_CIRCUIT_JOB_CREDIT_COST` above 0, submitting a circuit holds
 its cost under `job:<job id>`, or returns `402 insufficient_credits`. A completed job
-captures the hold and a failed one releases it. If the server stops mid-job, the
+captures the hold. A failed one releases it, less what its workers earned for
+finished fragments (#8). If the server stops mid-job, the
 hold stays reserved and is never spent twice. Releasing holds for jobs that never
 finish is a follow-up; there is no admin route for it yet. The default of 0
 keeps runs free. x402 runs are paid per request and never use credits.
@@ -258,10 +260,101 @@ Stripe → webhook → session retrieved with payment_intent.payment_method expa
 6. With the flag off, the USDC buttons disappear and card Checkout no longer
    lists crypto.
 
+## Pay-per-fragment worker payouts (#8)
+
+Workers who run a circuit job's fragments are paid per fragment as results are
+recorded, from the job's credit hold, in batched USDC transfers.
+
+```
+fragment result recorded (CircuitJobService.process)
+  -> payout intent fragment:<job id>:<fragment id>   (one per fragment, ever)
+       priced from worker_pricing, reserved against the job's credit hold
+  -> settler: a worker's accrued intents reach the threshold or max age
+  -> one USDC transfer from the payout wallet  (payment event worker_payout:<batch id>)
+  -> verify_transaction on the receipt -> intents paid, total_earned += amount
+```
+
+**Who is paid.** A fragment result names the libp2p peer that ran it. The peer's
+enrollment owner (`peer_enrollments.owner_user_id`) is the worker, and their
+`worker_pricing` entry supplies the price and payout wallet. Enrollment is unique
+per peer, so registering pricing cannot redirect another worker's payouts.
+
+**Price.** One fragment is one operation. Its price is the worker's registered
+price for that operation type (`hadamard`, `cnot`, …), or their `custom` price.
+
+**Exactly once.** The intent's unique key is `(job, fragment)`. Re-processing a
+job, or recording the same fragment concurrently, stores one intent, reserves the
+budget once and changes reputation once.
+
+**Budget.** The first intent for a job copies the job's credit hold into a
+`payout_budgets` guard. Each intent is reserved with one atomic conditional
+update, so concurrent fragments can never commit more than the hold. Jobs without
+a hold (credit metering off, x402 runs) record intents as `no_budget` and pay
+nothing. When a job fails, the credit meter captures what its workers earned and
+releases only the rest, so the user pays for finished work and nothing else.
+
+**Withheld fragments** are recorded with an amount of 0 and a reason, and are
+never paid:
+
+| Reason | When | Reputation |
+| --- | --- | --- |
+| `fragment_failed` | The fragment's result is not a success | −5 |
+| `fidelity_rejected` | Observed fidelity below `QB2_WORKER_PAYOUT_MIN_FIDELITY` | −5 |
+| `job_failed` | The job failed before this fragment ran | — |
+| `unknown_worker` | The peer is not enrolled, or its owner has no pricing or wallet | — |
+| `unpriced` | No positive price for the operation | — |
+| `no_budget` / `over_budget` | The job has no credit hold, or it is used up | +2 |
+
+Paid fragments add +2. Reputation is clamped to 0–100, and a worker below 20 is
+deactivated, as in `MarketplaceService.update_worker_reputation`.
+
+**Settlement.** Intents move `accrued → settling → submitted → paid`. The settler
+only runs when `QB2_WORKER_PAYOUT_WALLET` names a platform-managed wallet in the
+`wallets` collection; otherwise intents accrue and nothing is sent.
+
+- A send that fails validation (`ValueError`, nothing broadcast) returns the
+  batch's intents to `accrued` for the next run.
+- Any other send error leaves the batch `uncertain` and its intents `settling`.
+  They are **never sent again automatically**; resolve the batch's
+  `worker_payout:<batch id>` event with the admin reconcile route.
+- A submitted batch is paid only when `verify_transaction` confirms a USDC
+  transfer of the batch amount from the payout wallet to the worker. A reverted
+  transaction returns the intents to `accrued`; a confirmed transaction that
+  does not contain that transfer marks the batch `uncertain`.
+
+### API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/jobs/{job_id}/payouts` | The job's budget, committed, paid and pending totals, and every fragment's intent with its status or withheld reason (job owner or admin) |
+| GET | `/api/v1/marketplace/worker/{worker_id}/earnings` | Adds `pending_earnings`, `paid_fragments` and `withheld_fragments`; `total_earned` grows as batches are confirmed |
+
+### Collections
+
+| Collection | Contents | Unique on |
+| --- | --- | --- |
+| `payout_intents` | One per fragment: worker, amount, status, reason, batch, tx hash | `intent_key` |
+| `payout_budgets` | Guard: the job's hold, `remaining` and `committed` | `job_id` |
+| `payout_batches` | One per transfer: worker, amount, intents, status, tx hash | `batch_id` |
+
+### Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `QB2_WORKER_PAYOUT_WALLET` | unset | Platform wallet that sends payouts. Unset: accrue only |
+| `QB2_WORKER_PAYOUT_THRESHOLD` | `1` | Send once a worker's accrued USDC reaches this |
+| `QB2_WORKER_PAYOUT_MAX_AGE_SECONDS` | `86400` | …or once their oldest unpaid fragment is this old |
+| `QB2_WORKER_PAYOUT_INTERVAL_SECONDS` | `300` | How often the settler runs; `0` disables it |
+| `QB2_WORKER_PAYOUT_MIN_FIDELITY` | `0` | Fragments below this observed fidelity are not paid |
+
+The payout wallet must hold Base Sepolia USDC and a little ETH for gas. Paying
+workers needs `QB2_CIRCUIT_JOB_CREDIT_COST` above 0, since that hold is the budget.
+
 ## Tests
 
 ```bash
 uv run pytest tests/unit/test_payment_ledger_models.py tests/unit/test_payments_admin_api.py tests/unit/test_credits_api.py
+uv run pytest tests/unit/test_fragment_payouts.py tests/unit/test_fragment_payouts_api.py
 # Frontend webhook and credit-pack tests:
 (cd ../frontend && bun run test:billing)
 # Idempotency and concurrency need a real server (disposable local MongoDB only):
@@ -275,3 +368,6 @@ to ledger sums, and the payout paths (paid once, never retried when uncertain).
 `tests/live/test_credits_mongo.py` covers credit purchases delivered twice or
 concurrently, the two events of one async session, crash recovery, and job
 metering that charges only completed jobs.
+`tests/live/test_fragment_payouts_mongo.py` covers replayed and concurrent fragments,
+budget caps under concurrency, withheld reasons and reputation, partial charges for
+failed jobs, threshold and age batching, and every settlement outcome.
