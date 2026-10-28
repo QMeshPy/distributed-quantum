@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import pytest
 from unittest.mock import AsyncMock
+from quantum_backend_v2.api.deps.auth import require_authenticated, _dev_bypass_user
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import quantum_backend_v2.api.routers.pharma as pharma_module
@@ -39,6 +40,7 @@ def reset_store():
 @pytest.fixture(scope="session")
 def api():
     app = FastAPI(title="Pharma Integration Tests")
+    app.dependency_overrides[require_authenticated] = _dev_bypass_user
     app.include_router(pharma_router)
     return TestClient(app, raise_server_exceptions=False)
 

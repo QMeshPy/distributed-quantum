@@ -1,3 +1,4 @@
+import { pharmaRequest } from "@/features/pharma/server/pharma-service";
 import { type NextRequest, NextResponse } from "next/server";
 import { BACKEND } from "@/constants";
 
@@ -9,7 +10,7 @@ export async function GET(
 ) {
   const { jobId } = await params;
   try {
-    const res = await fetch(BACKEND.PHARMA.LIVE(jobId));
+    const res = await pharmaRequest(BACKEND.PHARMA.LIVE(jobId));
     if (res.status === 404) return new NextResponse(null, { status: 404 });
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });

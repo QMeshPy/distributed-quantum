@@ -1,3 +1,4 @@
+import { pharmaRequest } from "@/features/pharma/server/pharma-service";
 import { type NextRequest, NextResponse } from "next/server";
 import { BACKEND } from "@/constants";
 
@@ -9,7 +10,7 @@ export async function GET(
 ) {
   const { jobId } = await params;
   try {
-    const res = await fetch(BACKEND.PHARMA.JOB(jobId));
+    const res = await pharmaRequest(BACKEND.PHARMA.JOB(jobId));
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {
@@ -23,7 +24,7 @@ export async function DELETE(
 ) {
   const { jobId } = await params;
   try {
-    const res = await fetch(BACKEND.PHARMA.CANCEL(jobId), { method: "DELETE" });
+    const res = await pharmaRequest(BACKEND.PHARMA.CANCEL(jobId), { method: "DELETE" });
     if (res.status === 204) return new NextResponse(null, { status: 204 });
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });
