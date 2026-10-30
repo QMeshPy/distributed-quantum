@@ -114,6 +114,23 @@ class KuboSettings(BaseModel):
     max_response_bytes: int = Field(default=4 * 1024 * 1024, gt=0, le=64 * 1024 * 1024)
 
 
+class WorkerPayoutSettings(BaseModel):
+    """Pay-per-fragment worker payouts (#8)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # Fragments below this observed fidelity are not paid.
+    min_fidelity: float = Field(default=0.0, ge=0, le=1, allow_inf_nan=False)
+    # Platform-managed wallet that sends payouts. Unset: intents accrue, nothing is sent.
+    wallet_address: str | None = Field(default=None, pattern=r"^0x[0-9a-fA-F]{40}$")
+    # A worker is paid once their accrued total reaches the threshold or their
+    # oldest unpaid fragment reaches the maximum age, so tiny payouts wait.
+    threshold: Decimal = Field(default=Decimal("1"), gt=0)
+    max_age_seconds: int = Field(default=86_400, gt=0)
+    # How often the settler runs; 0 turns it off.
+    interval_seconds: int = Field(default=300, ge=0)
+
+
 class GatewaySettings(BaseModel):
     """Bounded, read-only access to an operator-configured IPFS gateway."""
 
@@ -181,6 +198,7 @@ class AppSettings(BaseModel):
         ge=0,
         description="Credits charged per circuit job. 0 turns credit metering off.",
     )
+    worker_payouts: WorkerPayoutSettings = Field(default_factory=WorkerPayoutSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     persistence: PersistenceSettings = Field(default_factory=PersistenceSettings)
     libp2p: Libp2pSettings = Field(default_factory=Libp2pSettings)
@@ -210,6 +228,15 @@ class AppSettings(BaseModel):
                     "rpc_secret": env.get("KUBO_RPC_SECRET") or None,
                     "timeout_seconds": env.get("KUBO_RPC_TIMEOUT_SECONDS", "30"),
                     "max_response_bytes": env.get("KUBO_RPC_MAX_RESPONSE_BYTES", "4194304"),
+                }
+            ),
+            worker_payouts=WorkerPayoutSettings.model_validate(
+                {
+                    "min_fidelity": env.get("QB2_WORKER_PAYOUT_MIN_FIDELITY", "0"),
+                    "wallet_address": _optional(env.get("QB2_WORKER_PAYOUT_WALLET")),
+                    "threshold": env.get("QB2_WORKER_PAYOUT_THRESHOLD", "1"),
+                    "max_age_seconds": env.get("QB2_WORKER_PAYOUT_MAX_AGE_SECONDS", "86400"),
+                    "interval_seconds": env.get("QB2_WORKER_PAYOUT_INTERVAL_SECONDS", "300"),
                 }
             ),
             gateway=GatewaySettings.model_validate(
