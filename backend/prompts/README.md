@@ -1,12 +1,11 @@
 # AI Prompts for AgentKit Platform
 
-This directory contains all Claude 3.5 Sonnet (AWS Bedrock) prompts used throughout the platform.
+Prompt assets live in `backend/src/quantum_backend_v2/prompts/` so source checkouts, wheels, and Docker use the same files. This README stays at the old path for existing contributors. The selected Bedrock model is configured separately; see the [environment guide](../../documentations/guides/environment.md).
 
 ## Directory Structure
 
 ```
-prompts/
-├── README.md                           ← This file
+src/quantum_backend_v2/prompts/
 ├── proposal_analysis.txt               ← AI agent proposal analysis
 ├── auto_fragmentation.txt              ← GPT-powered research fragmentation
 ├── coalition_formation.txt             ← Multi-agent coalition decisions
@@ -18,12 +17,12 @@ prompts/
 Prompts are loaded at runtime by the AI agent service:
 
 ```python
-from pathlib import Path
+from importlib.resources import files
 
-PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+PROMPTS_DIR = files("quantum_backend_v2").joinpath("prompts")
 
 def load_prompt(name: str) -> str:
-    return (PROMPTS_DIR / f"{name}.txt").read_text()
+    return PROMPTS_DIR.joinpath(f"{name}.txt").read_text(encoding="utf-8")
 
 # Use in service
 prompt = load_prompt("proposal_analysis")
