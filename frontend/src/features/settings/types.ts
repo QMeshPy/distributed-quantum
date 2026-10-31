@@ -10,6 +10,8 @@ export interface UserProfile {
   designation?: string | null;
   trialEndsAt?: string | null;
   hasSubscription?: boolean;
+  stripeConnectedAccountId?: string | null;
+  stripeConnectPayoutsEnabled?: boolean;
 }
 
 export interface SettingsSession extends Session {
