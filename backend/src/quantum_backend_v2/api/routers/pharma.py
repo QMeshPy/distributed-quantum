@@ -8,6 +8,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
+from quantum_backend_v2.api.deps.auth import CurrentUser
+from quantum_backend_v2.identity.models import UserTokenClaims
 
 from quantum_backend_v2.pharma.config import PharmaMode, PharmaWorkflowConfig
 from quantum_backend_v2.pharma.live_state import (
@@ -56,6 +58,7 @@ class PharmaJobStatus(BaseModel):
 async def submit_pharma_job(
     request: PharmaSubmitRequest,
     background_tasks: BackgroundTasks,
+    current_user: CurrentUser,
 ) -> PharmaSubmitResponse:
     job_id = f"pharma_{uuid.uuid4().hex[:12]}"
     submitted_at = datetime.now(timezone.utc).isoformat()
@@ -69,6 +72,7 @@ async def submit_pharma_job(
     )
 
     _JOB_STORE[job_id] = {
+        "owner_user_id": current_user.user_id,
         "job_id": job_id,
         "status": "queued",
         "state": "idle",
@@ -182,12 +186,14 @@ async def _run_pharma_pipeline_async(job_id: str, config: PharmaWorkflowConfig) 
 
 
 @router.get("/jobs", response_model=list[PharmaJobStatus])
-async def list_pharma_jobs() -> list[PharmaJobStatus]:
-    return [PharmaJobStatus(**job) for job in _JOB_STORE.values()]
+async def list_pharma_jobs(current_user: CurrentUser) -> list[PharmaJobStatus]:
+    return [PharmaJobStatus(**job) for job in _JOB_STORE.values()
+            if job.get("owner_user_id") == current_user.user_id]
 
 
 @router.get("/jobs/{job_id}/live", response_model=LiveJobState)
-async def get_pharma_job_live(job_id: str) -> LiveJobState:
+async def get_pharma_job_live(job_id: str, current_user: CurrentUser) -> LiveJobState:
+    _owned_job(job_id, current_user)
     state = get_live(job_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"No live state for job {job_id!r}")
@@ -195,17 +201,20 @@ async def get_pharma_job_live(job_id: str) -> LiveJobState:
 
 
 @router.get("/jobs/{job_id}", response_model=PharmaJobStatus)
-async def get_pharma_job(job_id: str) -> PharmaJobStatus:
-    job = _JOB_STORE.get(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
-    return PharmaJobStatus(**job)
+async def get_pharma_job(job_id: str, current_user: CurrentUser) -> PharmaJobStatus:
+    return PharmaJobStatus(**_owned_job(job_id, current_user))
 
 
 @router.delete("/jobs/{job_id}", status_code=204)
-async def cancel_pharma_job(job_id: str) -> None:
-    if job_id not in _JOB_STORE:
-        raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
+async def cancel_pharma_job(job_id: str, current_user: CurrentUser) -> None:
+    _owned_job(job_id, current_user)
     if _JOB_STORE[job_id]["status"] in ("queued", "running"):
         _JOB_STORE[job_id]["status"] = "cancelled"
         _JOB_STORE[job_id]["state"] = "failed"
+
+
+def _owned_job(job_id: str, user: UserTokenClaims) -> dict:
+    job = _JOB_STORE.get(job_id)
+    if job is None or job.get("owner_user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job

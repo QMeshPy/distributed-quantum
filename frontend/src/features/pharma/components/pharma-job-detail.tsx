@@ -1,4 +1,5 @@
 "use client";
+import { OpenSpreadsheet } from "@/shared/components/spreadsheets/open-spreadsheet";
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
@@ -176,11 +177,14 @@ export function PharmaJobDetail({ jobId }: { jobId: string }) {
 
   if (isRunning || job.status === "completed") {
     return (
+      <>
+      {job.status === "completed" ? <div className="px-6 py-3"><OpenSpreadsheet kind="pharma" runId={jobId} /></div> : null}
       <PharmaLiveCanvas
         job={job}
         onCancel={() => cancelJob()}
         isCancelling={isCancelling}
       />
+      </>
     );
   }
   const allLogLines = job.log_lines ?? [];
