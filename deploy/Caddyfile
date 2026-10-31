@@ -39,7 +39,7 @@
 	handle /api/* {
 		reverse_proxy backend:8080 {
 			# Backend health checks
-			health_uri /api/v1/health
+			health_uri /api/v1/ready
 			health_interval 10s
 			health_timeout 5s
 

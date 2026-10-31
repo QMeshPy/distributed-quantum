@@ -1,6 +1,9 @@
 """Unit tests — Stage 1: Lipinski filter (requires VQEDescriptors)."""
 from __future__ import annotations
 import pytest
+
+pytest.importorskip("rdkit", reason="Install the pharma extra to run chemistry tests")
+
 from quantum_backend_v2.pharma.models import VQEDescriptors
 from quantum_backend_v2.pharma.stages.stage_1 import FilterResult, LipinskiFilter
 

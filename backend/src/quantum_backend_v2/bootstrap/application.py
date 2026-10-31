@@ -29,7 +29,7 @@ from quantum_backend_v2.bootstrap.persistence import create_persistence_runtime
 from quantum_backend_v2.chains.loader import load_chain_registry
 from quantum_backend_v2.chains.market_data import load_market_data
 from quantum_backend_v2.config import load_settings
-from quantum_backend_v2.config.loader import load_environment
+from quantum_backend_v2.config.loader import initialize_environment, load_environment
 from quantum_backend_v2.discovery.service import build_discovery_service
 from quantum_backend_v2.observability import configure_logging
 from quantum_backend_v2.provenance.service import ProvenanceService
@@ -39,6 +39,8 @@ from quantum_backend_v2.runtime.recovery import RuntimeRecoveryService
 
 def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
     """Build a configured FastAPI application."""
+    if env is None:
+        initialize_environment()
     env = load_environment(env)
     settings = load_settings(env=env)
     chain_registry = load_chain_registry(settings.chain_registry_path)

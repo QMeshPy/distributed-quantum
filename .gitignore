@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 .venv
 .ruff_cache
 .pytest_cache
@@ -61,3 +63,7 @@ tsconfig.tsbuildinfo
 docs/superpowers/
 compute/
 
+
+# Local signing-key files (including dot-prefixed x402 demo keys)
+*.key
+.*-key

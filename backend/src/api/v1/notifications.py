@@ -15,12 +15,10 @@ Integration:
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Query, status
-from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
@@ -122,13 +120,9 @@ class DeleteNotificationResponse(BaseModel):
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 
-# Initialize MongoDB connection
 def get_db():
-    """Get MongoDB database instance."""
-    mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
-    mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
-    client = AsyncIOMotorClient(mongodb_uri)
-    return client[mongodb_database]
+    """Reuse the notification service's application-owned database client."""
+    return get_notification_service().db
 
 
 @router.get(

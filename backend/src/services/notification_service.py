@@ -22,6 +22,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from db.agentkit_collections import NotificationDocument, ResearchProposalDocument
 from quantum_backend_v2.agent.websocket import manager as websocket_manager
+from services.mongodb import mongodb_connection_settings
 
 logger = logging.getLogger(__name__)
 
@@ -201,8 +202,7 @@ class NotificationService:
         self.platform_base_url = os.getenv("PLATFORM_BASE_URL", "http://localhost:3000")
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
-        mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
+        mongodb_uri, mongodb_database = mongodb_connection_settings()
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
 
@@ -230,8 +230,10 @@ class NotificationService:
 
     async def close(self) -> None:
         """Clean up resources."""
-        await self.http_client.aclose()
-        self.mongo_client.close()
+        try:
+            await self.http_client.aclose()
+        finally:
+            self.mongo_client.close()
 
     async def notify_new_proposal(self, proposal: dict[str, Any]) -> None:
         """
@@ -817,3 +819,11 @@ def set_notification_service(service: NotificationService) -> None:
     """Set the global notification service instance."""
     global _notification_service
     _notification_service = service
+
+
+async def close_notification_service() -> None:
+    """Release the lazily created service at application shutdown."""
+    global _notification_service
+    service, _notification_service = _notification_service, None
+    if service is not None:
+        await service.close()

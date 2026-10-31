@@ -1,4 +1,5 @@
-import asyncio,uuid
+import asyncio,os,uuid
+from urllib.parse import urlsplit
 from unittest.mock import AsyncMock, MagicMock
 import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,8 +7,14 @@ from services.toju_storage import TojuStorage
 
 
 def test_owned_proposal_approval_is_immutable_and_exactly_once(monkeypatch):
+ uri=os.getenv('QB2_MONGODB_TEST_URI')
+ if not uri:
+  pytest.skip('Set QB2_MONGODB_TEST_URI to opt into disposable local MongoDB tests')
+ parsed=urlsplit(uri)
+ if parsed.scheme!='mongodb' or parsed.hostname not in {'localhost','127.0.0.1','::1'} or ',' in parsed.netloc:
+  pytest.fail('Toju integration tests accept only local MongoDB')
  async def run():
-  client=AsyncIOMotorClient('mongodb://127.0.0.1:27017',serverSelectionTimeoutMS=2000)
+  client=AsyncIOMotorClient(uri,serverSelectionTimeoutMS=2000)
   db=client['test_toju_'+uuid.uuid4().hex]
   try:
    await db.ai_agents.insert_one({'agent_id':'agent','owner_id':'owner','wallet_address':'0x'+'2'*40})
@@ -35,7 +42,10 @@ def test_owned_proposal_approval_is_immutable_and_exactly_once(monkeypatch):
    assert storage.upload.await_count==1
    with pytest.raises(ValueError):await storage.prepare('other','agent','session','Private','report')
   finally:
-   await client.drop_database(db.name);client.close()
+   try:
+    await client.drop_database(db.name)
+   finally:
+    client.close()
  asyncio.run(run())
 
 

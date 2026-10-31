@@ -11,6 +11,12 @@ from dotenv import dotenv_values
 from quantum_backend_v2.config.models import AppSettings
 
 
+def initialize_environment() -> None:
+    """Hydrate legacy getenv readers from the same file as typed settings."""
+    for key, value in _load_env_file(None).items():
+        os.environ.setdefault(key, value)
+
+
 def load_settings(
     env: Mapping[str, str] | None = None,
     *,
@@ -34,12 +40,10 @@ def _load_env_file(env_file: str | Path | None) -> dict[str, str]:
     path = Path(env_file) if env_file is not None else _default_env_file()
     if not path.exists():
         return {}
-    return {
-        key: value
-        for key, value in dotenv_values(path).items()
-        if value is not None
-    }
+    return {key: value for key, value in dotenv_values(path).items() if value is not None}
 
 
 def _default_env_file() -> Path:
-    return Path(__file__).resolve().parents[3] / ".env"
+    source_root = Path(__file__).resolve().parents[3]
+    # Source checkouts always use backend/.env; installed wheels use the launch directory.
+    return (source_root if (source_root / "pyproject.toml").is_file() else Path.cwd()) / ".env"

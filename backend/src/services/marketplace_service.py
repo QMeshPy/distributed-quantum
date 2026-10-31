@@ -34,6 +34,7 @@ from db.agentkit_collections import (
     _decimal128_to_decimal,
 )
 from services.agentkit_service import AgentKitService
+from services.mongodb import mongodb_connection_settings
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +84,7 @@ class MarketplaceService:
         self.agentkit = agentkit_service
 
         # Initialize MongoDB connection
-        import os
-
-        mongodb_uri = mongodb_uri or os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
-        mongodb_database = mongodb_database or os.getenv("QB2_MONGODB_DATABASE", "qds")
+        mongodb_uri, mongodb_database = mongodb_connection_settings(mongodb_uri, mongodb_database)
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
 

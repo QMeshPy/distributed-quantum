@@ -49,6 +49,7 @@ def application_factory(monkeypatch):
         )
         recovery = Mock(
             return_value=SimpleNamespace(
+                fail_interrupted_jobs=AsyncMock(),
                 recover_open_reservations=AsyncMock(return_value=[]),
                 recover_in_flight_executions=AsyncMock(return_value=[]),
             )
@@ -187,3 +188,48 @@ def test_anchor_key_starts_sending_only_for_its_own_account(application_factory)
         with pytest.raises(ValueError, match="QB2_ANCHOR_PRIVATE_KEY") as caught:
             create_application(env={**env, "QB2_ANCHOR_PRIVATE_KEY": wrong})
         assert wrong not in str(caught.value) and key not in str(caught.value)
+
+
+def test_restart_releases_existing_hold_after_new_charges_are_disabled(
+    application_factory, monkeypatch,
+):
+    import asyncio
+    from decimal import Decimal
+
+    from quantum_backend_v2.payments.credits import JobCreditMeter
+    from quantum_backend_v2.runtime import recovery
+
+    create_application, persistence, _ = application_factory
+    app_module = sys.modules["quantum_backend_v2.api.app"]
+    bootstrap = sys.modules["quantum_backend_v2.bootstrap.application"]
+    ledger = SimpleNamespace(ensure_indexes=AsyncMock(), hold=AsyncMock(), release=AsyncMock())
+    job = SimpleNamespace(
+        id="interrupted-paid-job", status="EXECUTING", output_snapshot={},
+        fragment_count=1, completed_fragments=0, save=AsyncMock(),
+    )
+    for model in (
+        recovery.WorkflowRunDocument, recovery.FinancialJobDocument,
+        recovery.OptionsJobDocument, recovery.RiskJobDocument,
+    ):
+        records = [job] if model is recovery.WorkflowRunDocument else []
+        monkeypatch.setattr(model, "find", Mock(return_value=SimpleNamespace(
+            to_list=AsyncMock(return_value=records),
+        )))
+    recovery_service = recovery.RuntimeRecoveryService()
+    recovery_service.recover_open_reservations = AsyncMock(return_value=[])
+    recovery_service.recover_in_flight_executions = AsyncMock(return_value=[])
+    monkeypatch.setattr(bootstrap, "RuntimeRecoveryService", lambda: recovery_service)
+    monkeypatch.setattr(app_module, "LedgerService", lambda _: ledger)
+    persistence.return_value.mongodb = SimpleNamespace(database=object())
+
+    # The first process reserved credits while charging was enabled.
+    asyncio.run(JobCreditMeter(ledger, cost=Decimal("3")).reserve("alice", job.id))
+    reserved_hold = ledger.hold.call_args.kwargs["hold_id"]
+    ledger.hold.assert_awaited_once()
+
+    with TestClient(create_application(env={"QB2_CIRCUIT_JOB_CREDIT_COST": "0"})):
+        assert job.status == "FAILED"
+        ledger.release.assert_awaited_once_with(
+            reserved_hold, idempotency_key=f"release:job:{job.id}",
+        )
+    ledger.hold.assert_awaited_once()

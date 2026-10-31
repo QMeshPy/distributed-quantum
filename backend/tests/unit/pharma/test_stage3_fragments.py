@@ -1,6 +1,9 @@
 """Unit tests — Stage 3: BRICS fragment decomposer."""
 from __future__ import annotations
 import pytest
+
+pytest.importorskip("rdkit", reason="Install the pharma extra to run chemistry tests")
+
 from rdkit import Chem
 from quantum_backend_v2.pharma.models import MolecularFragment
 from quantum_backend_v2.pharma.stages.stage_3 import FragmentDecomposer

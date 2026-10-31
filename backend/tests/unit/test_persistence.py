@@ -1,22 +1,32 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pymongo.errors import ServerSelectionTimeoutError
 
 from quantum_backend_v2.config import PersistenceSettings
-from quantum_backend_v2.config.models import MongoSettings, PeerLogSettings, PostgresSettings
+from quantum_backend_v2.config.models import MongoSettings, PeerLogSettings
 from quantum_backend_v2.persistence import (
     LocalPeerLogStore,
     MongoCollection,
     PeerLogEventType,
     PeerLogRecord,
     PersistenceRuntime,
-    PostgresTable,
     build_mongo_runtime,
-    build_postgres_runtime,
     default_persistence_catalog,
 )
+
+
+@pytest.fixture
+def mongo_client_factory(monkeypatch):
+    client = MagicMock()
+    client.admin.command = AsyncMock(return_value={"ok": 1})
+    client.close = AsyncMock()
+    factory = MagicMock(return_value=client)
+    monkeypatch.setattr("quantum_backend_v2.persistence.mongodb.AsyncMongoClient", factory)
+    return factory
 
 
 def test_local_peer_log_store_appends_and_replays(tmp_path) -> None:
@@ -47,19 +57,15 @@ def test_local_peer_log_store_appends_and_replays(tmp_path) -> None:
     assert readiness.path.endswith("peer-001/peer-events.jsonl")
 
 
-def test_persistence_runtime_snapshot_reports_configured_stores(tmp_path) -> None:
+def test_persistence_runtime_snapshot_reports_configured_stores(
+    tmp_path, mongo_client_factory
+) -> None:
     runtime = PersistenceRuntime.from_settings(
         PersistenceSettings(
-            postgres=PostgresSettings(
-                target="neon",
-                neon_pooled_dsn="postgresql+asyncpg://pool.example/qb2",
-                neon_direct_dsn="postgresql+asyncpg://direct.example/qb2",
-                database="platform",
-            ),
             mongodb=MongoSettings(
                 target="remote",
                 remote_uri="mongodb://mongo.example:27017",
-                database="projections",
+                database="platform",
             ),
             peer_log=PeerLogSettings(
                 directory=tmp_path / "peer-logs",
@@ -71,67 +77,139 @@ def test_persistence_runtime_snapshot_reports_configured_stores(tmp_path) -> Non
 
     snapshot = runtime.snapshot()
 
-    assert snapshot.postgres.mode == "configured"
-    assert snapshot.postgres.backend == "postgresql"
-    assert snapshot.postgres.target == "neon"
-    assert snapshot.postgres.database == "qb2"
-    assert snapshot.postgres.reachable is False
+    assert set(snapshot.model_dump()) == {"mongodb", "peer_log"}
     assert snapshot.mongodb.mode == "configured"
     assert snapshot.mongodb.backend == "mongodb"
     assert snapshot.mongodb.target == "remote"
-    assert snapshot.mongodb.database == "projections"
+    assert snapshot.mongodb.database == "platform"
+    assert snapshot.mongodb.configured is True
     assert snapshot.mongodb.reachable is False
     assert snapshot.peer_log.mode == "ready"
     assert snapshot.peer_log.peer_id == "peer-777"
     assert snapshot.peer_log.event_count == 0
+    mongo_client_factory.return_value.admin.command.assert_not_called()
 
 
 def test_default_persistence_catalog_covers_core_ownership() -> None:
     catalog = default_persistence_catalog()
 
-    assert PostgresTable.PLAN_SNAPSHOTS in catalog.postgres_tables
-    assert PostgresTable.PEER_ENROLLMENTS in catalog.postgres_tables
+    assert MongoCollection.EXECUTION_PLANS in catalog.mongo_collections
+    assert MongoCollection.PEER_ENROLLMENTS in catalog.mongo_collections
+    assert MongoCollection.PLATFORM_USERS in catalog.mongo_collections
+    assert MongoCollection.RESERVATION_EVENTS in catalog.mongo_collections
+    assert MongoCollection.EXECUTION_EVENTS in catalog.mongo_collections
     assert MongoCollection.BENCHMARK_RESULTS in catalog.mongo_collections
     assert MongoCollection.PROVENANCE_GRAPHS in catalog.mongo_collections
 
 
-def test_database_runtime_builders_use_active_targets() -> None:
-    postgres_runtime = build_postgres_runtime(
-        PostgresSettings(
-            target="local",
-            local_dsn="postgresql+asyncpg://postgres:pw@127.0.0.1:5432/qb2",
-            database="qb2",
-        )
-    )
-    mongo_runtime = build_mongo_runtime(
+@pytest.mark.parametrize("target", ["local", "remote"])
+def test_mongo_runtime_builder_uses_active_target(target, mongo_client_factory) -> None:
+    uris = {
+        "local": "mongodb://local.example:27017",
+        "remote": "mongodb://remote.example:27017",
+    }
+    runtime = build_mongo_runtime(
         MongoSettings(
-            target="remote",
-            remote_uri="mongodb://mongo.example:27017",
-            database="qb2_docs",
+            target=target,
+            local_uri=uris["local"],
+            remote_uri=uris["remote"],
+            database="qb2_platform",
+            server_selection_timeout_ms=1200,
         )
     )
 
-    assert postgres_runtime is not None
-    assert postgres_runtime.database == "qb2"
-    assert postgres_runtime.migration_dsn == "postgresql+asyncpg://postgres:pw@127.0.0.1:5432/qb2"
-    assert mongo_runtime is not None
-    assert mongo_runtime.database_name == "qb2_docs"
-    assert mongo_runtime.uri == "mongodb://mongo.example:27017"
+    assert runtime is not None
+    assert runtime.target == target
+    assert runtime.database_name == "qb2_platform"
+    assert runtime.uri == uris[target]
+    mongo_client_factory.assert_called_once_with(uris[target], serverSelectionTimeoutMS=1200)
+    assert runtime.database is mongo_client_factory.return_value.get_database.return_value
+    mongo_client_factory.return_value.get_database.assert_called_once_with("qb2_platform")
+    document_names = {model.Settings.name for model in runtime.document_models}
+    assert {
+        "platform_users",
+        "peer_enrollments",
+        "execution_plans",
+        "reservation_events",
+        "execution_events",
+        "benchmark_results",
+        "provenance_bundles",
+    } <= document_names
+
+
+@pytest.mark.parametrize("target", ["local", "remote"])
+def test_persistence_requires_selected_mongodb_uri(target, mongo_client_factory) -> None:
+    settings = MongoSettings(
+        target=target,
+        local_uri=None if target == "local" else "mongodb://unused-local.example:27017",
+        remote_uri=None if target == "remote" else "mongodb://unused-remote.example:27017",
+    )
+
+    assert build_mongo_runtime(settings) is None
+    with pytest.raises(RuntimeError, match="MongoDB is not configured"):
+        PersistenceRuntime.from_settings(PersistenceSettings(mongodb=settings))
+    mongo_client_factory.assert_not_called()
 
 
 @pytest.mark.anyio
-async def test_persistence_startup_shutdown_skips_unconfigured_databases(tmp_path) -> None:
+async def test_persistence_startup_initializes_models_and_shutdown_closes_client(
+    tmp_path, monkeypatch, mongo_client_factory
+) -> None:
+    initialize = AsyncMock()
+    monkeypatch.setattr("quantum_backend_v2.persistence.mongodb.init_beanie", initialize)
     runtime = PersistenceRuntime.from_settings(
         PersistenceSettings(
-            postgres=PostgresSettings(target="local", local_dsn=None),
-            mongodb=MongoSettings(target="local", local_uri=None),
-            peer_log=PeerLogSettings(
-                directory=tmp_path / "peer-logs",
-                peer_id="peer-lifecycle",
-                fsync=False,
-            ),
+            mongodb=MongoSettings(local_uri="mongodb://local.example:27017"),
+            peer_log=PeerLogSettings(directory=tmp_path / "peer-logs"),
         )
     )
 
     await runtime.startup()
+
+    initialize.assert_awaited_once_with(
+        database=mongo_client_factory.return_value.get_database.return_value,
+        document_models=list(runtime.mongodb.document_models),
+    )
+    mongo_client_factory.return_value.close.assert_not_awaited()
+
     await runtime.shutdown()
+
+    mongo_client_factory.return_value.close.assert_awaited_once()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("reachable", [True, False])
+async def test_persistence_probe_reports_mongodb_and_peer_log(
+    tmp_path, mongo_client_factory, reachable
+) -> None:
+    ping = mongo_client_factory.return_value.admin.command
+    if not reachable:
+        ping.side_effect = ServerSelectionTimeoutError("mongo unavailable")
+    runtime = PersistenceRuntime.from_settings(
+        PersistenceSettings(
+            mongodb=MongoSettings(local_uri="mongodb://local.example:27017"),
+            peer_log=PeerLogSettings(directory=tmp_path / "peer-logs", peer_id="probe-peer"),
+        )
+    )
+    runtime.peer_log.append(
+        PeerLogRecord(
+            event_id="evt-probe",
+            event_type=PeerLogEventType.PEER_SYNC_CHECKPOINT,
+            aggregate_id="probe-peer",
+            sequence=1,
+            producer_peer_id="probe-peer",
+        )
+    )
+
+    readiness = await runtime.probe()
+
+    ping.assert_awaited_once_with("ping")
+    assert readiness.mongodb.configured is True
+    assert readiness.mongodb.reachable is reachable
+    assert readiness.mongodb.mode == ("ready" if reachable else "unavailable")
+    assert readiness.mongodb.message == (
+        None if reachable else "ServerSelectionTimeoutError: mongo unavailable"
+    )
+    assert readiness.peer_log.mode == "ready"
+    assert readiness.peer_log.peer_id == "probe-peer"
+    assert readiness.peer_log.event_count == 1

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from enum import Enum
 from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
+
+logger = logging.getLogger(__name__)
 
 
 class ErrorCode(str, Enum):
@@ -100,6 +103,9 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
+        # Exception messages, URL parameters, and query strings can contain credentials.
+        route = getattr(request.scope.get("route"), "path", "<unmatched>")
+        logger.error("Unhandled %s during %s %s", type(exc).__name__, request.method, route)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=ApiError.internal().model_dump(mode="json"),

@@ -135,6 +135,8 @@ class TojuStorage:
         try:
             provider = None if receipt else await service._load_wallet(row["wallet_address"])
             worker = Path(__file__).resolve().parents[2] / "toju-client/worker.mjs"
+            if not worker.is_file():
+                worker = Path(__file__).resolve().parents[1] / "quantum_backend_v2/toju-client/worker.mjs"
             proc = await asyncio.create_subprocess_exec(os.getenv("TOJU_NODE_BINARY", "node"), str(worker), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, limit=1024*1024)
             try:
                 payload = {k: row[k] for k in ("id", "content", "filename", "mime", "sha256", "amount", "payTo")}

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from datetime import datetime, date, timezone
+from importlib.resources import files
 from typing import TYPE_CHECKING, Any, Optional
 import logging
 import os
@@ -44,6 +45,7 @@ from db.agentkit_collections import (
     _decimal128_to_decimal,
 )
 from quantum_backend_v2.starknet.session import public_session, submit_session_spend
+from services.mongodb import mongodb_connection_settings
 
 
 class AIAgentService:
@@ -69,24 +71,19 @@ class AIAgentService:
         Loads configuration from environment variables:
         - GROQ_API_KEY
         - GROQ_MODEL (default: openai/gpt-oss-20b)
-        - MONGODB_URI
-        - MONGODB_DATABASE
+        - QB2_MONGODB_* (shared with the core API)
         """
         self._agentkit_service = agentkit_service
         self._starknet_submit_fn = starknet_submit_fn
         logger.info("Initializing AIAgentService")
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
-        mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
+        mongodb_uri, mongodb_database = mongodb_connection_settings()
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
 
         # Load prompts directory path
-        self.prompts_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "prompts"
-        )
+        self.prompts_dir = files("quantum_backend_v2").joinpath("prompts")
 
         logger.info("AIAgentService initialized")
 

@@ -24,6 +24,7 @@ from quantum_backend_v2.workflows.models import WorkflowRun, WorkflowRunStatus, 
 def build_workflows_router(
     *,
     mongo_runtime: MongoRuntime | None,
+    coordinator_peer_id: str | None = None,
 ) -> APIRouter:
     """Build the workflows + benchmarks router."""
     router = APIRouter(prefix="/api/v1/workflows", tags=["workflows"])
@@ -51,6 +52,7 @@ def build_workflows_router(
             id=run.run_id,
             workflow_definition_id=run.workflow_definition_id,
             owner_user_id=run.owner_user_id,
+            coordinator_peer_id=coordinator_peer_id,
             project_id=run.project_id,
             workflow_type=run.workflow_type.value,
             status=run.status.value,

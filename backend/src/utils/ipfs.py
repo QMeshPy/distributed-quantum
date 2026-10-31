@@ -55,12 +55,15 @@ class IPFSService:
         self.base_url = "https://api.pinata.cloud"
         self.gateway_url = "https://gateway.pinata.cloud/ipfs"
 
-        self.upload_url = "https://api.web3.storage/upload"
-        self.gateway_base = "https://{cid}.ipfs.w3s.link"
+        self.headers = (
+            {"Authorization": f"Bearer {self.jwt}"}
+            if self.jwt else
+            {"pinata_api_key": self.api_key, "pinata_secret_api_key": self.api_secret}
+        )
 
     async def upload_json(self, data: dict) -> str:
         """
-        Upload JSON data to IPFS via Web3.Storage.
+        Upload JSON data to IPFS via Pinata.
 
         Args:
             data: Dictionary to upload as JSON.
@@ -74,23 +77,20 @@ class IPFSService:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    self.upload_url,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=data
+                    f"{self.base_url}/pinning/pinJSONToIPFS",
+                    headers=self.headers,
+                    json={"pinataContent": data}
                 )
 
                 response.raise_for_status()
                 result = response.json()
 
-                if "cid" not in result:
+                if not isinstance(result.get("IpfsHash"), str) or not result["IpfsHash"]:
                     raise IPFSUploadError(
                         f"Upload succeeded but no CID in response: {result}"
                     )
 
-                return result["cid"]
+                return result["IpfsHash"]
 
         except httpx.HTTPStatusError as e:
             raise IPFSUploadError(
@@ -102,7 +102,7 @@ class IPFSService:
             ) from e
         except json.JSONDecodeError as e:
             raise IPFSUploadError(
-                f"Invalid JSON response from Web3.Storage: {str(e)}"
+                f"Invalid JSON response from Pinata: {str(e)}"
             ) from e
         except Exception as e:
             raise IPFSUploadError(
@@ -111,7 +111,7 @@ class IPFSService:
 
     async def upload_file(self, file_path: str) -> str:
         """
-        Upload a file to IPFS via Web3.Storage.
+        Upload a file to IPFS via Pinata.
 
         Args:
             file_path: Path to the file to upload.
@@ -138,10 +138,8 @@ class IPFSService:
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
-                    self.upload_url,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                    },
+                    f"{self.base_url}/pinning/pinFileToIPFS",
+                    headers=self.headers,
                     files={
                         "file": (path.name, file_content)
                     }
@@ -150,12 +148,12 @@ class IPFSService:
                 response.raise_for_status()
                 result = response.json()
 
-                if "cid" not in result:
+                if not isinstance(result.get("IpfsHash"), str) or not result["IpfsHash"]:
                     raise IPFSUploadError(
                         f"Upload succeeded but no CID in response: {result}"
                     )
 
-                return result["cid"]
+                return result["IpfsHash"]
 
         except httpx.HTTPStatusError as e:
             raise IPFSUploadError(
@@ -167,7 +165,7 @@ class IPFSService:
             ) from e
         except json.JSONDecodeError as e:
             raise IPFSUploadError(
-                f"Invalid JSON response from Web3.Storage: {str(e)}"
+                f"Invalid JSON response from Pinata: {str(e)}"
             ) from e
         except OSError as e:
             raise IPFSUploadError(
@@ -192,7 +190,7 @@ class IPFSService:
             >>> service = IPFSService()
             >>> url = service.get_gateway_url("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")
             >>> print(url)
-            https://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi.ipfs.w3s.link
+            https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi
         """
         if not ipfs_hash:
             raise ValueError("IPFS hash cannot be empty")
@@ -200,7 +198,7 @@ class IPFSService:
         # Clean the hash (remove ipfs:// prefix if present)
         clean_hash = ipfs_hash.replace("ipfs://", "")
 
-        return self.gateway_base.format(cid=clean_hash)
+        return f"{self.gateway_url}/{clean_hash}"
 
     async def upload_research_results(self, results: dict) -> dict:
         """
@@ -225,7 +223,7 @@ class IPFSService:
             >>> print(metadata)
             {
                 'cid': 'bafybeigdyrzt...',
-                'url': 'https://bafybeigdyrzt....ipfs.w3s.link'
+                'url': 'https://gateway.pinata.cloud/ipfs/bafybeigdyrzt...'
             }
         """
         cid = await self.upload_json(results)

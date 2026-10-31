@@ -87,7 +87,12 @@ class JobCreditMeter:
         if succeeded:
             await self.ledger.capture(_hold_id(job_id), idempotency_key=f"capture:job:{job_id}")
         else:
-            await self.ledger.release(_hold_id(job_id), idempotency_key=f"release:job:{job_id}")
+            await release_job_credits(self.ledger, job_id)
+
+
+async def release_job_credits(ledger: LedgerService, job_id: str) -> None:
+    """Release an existing job hold independently of the price for new jobs."""
+    await ledger.release(_hold_id(job_id), idempotency_key=f"release:job:{job_id}")
 
 
 def _hold_id(job_id: str) -> str:

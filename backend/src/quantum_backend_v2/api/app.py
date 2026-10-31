@@ -24,6 +24,7 @@ from api.v1.proposals import router as proposals_router
 from api.v1.wallet import router as wallet_router
 from api.v1.ens import router as ens_router
 from api.v1.ens_workers import router as ens_workers_router
+from services.notification_service import close_notification_service
 from quantum_backend_v2 import __version__
 from quantum_backend_v2.api.benchmark import router as benchmark_router
 from quantum_backend_v2.api.deps.auth import configure_auth
@@ -87,6 +88,12 @@ def create_app(
         enabled=settings.auth_required,
         allow_dev_bearer_tokens=settings.allow_dev_bearer_tokens,
     )
+    coordinator_peer_id = settings.persistence.peer_log.peer_id
+    for job_service in (
+        circuit_job_service, financial_job_service, options_job_service, risk_job_service,
+    ):
+        if job_service is not None:
+            job_service.coordinator_peer_id = coordinator_peer_id
     started_monotonic = time.monotonic()
     mongodb = persistence_runtime.mongodb
     ledger_service = LedgerService(mongodb.database) if mongodb is not None else None
@@ -108,6 +115,9 @@ def create_app(
                     _reconcile_periodically(ledger_service, reconcile_interval)
                 )
         if runtime_recovery_service is not None:
+            await runtime_recovery_service.fail_interrupted_jobs(
+                coordinator_peer_id=coordinator_peer_id, ledger_service=ledger_service,
+            )
             open_reservations = await runtime_recovery_service.recover_open_reservations()
             in_flight_executions = await runtime_recovery_service.recover_in_flight_executions()
             app.state.runtime_recovery = {
@@ -131,6 +141,8 @@ def create_app(
         finally:
             if reconcile_task is not None:
                 reconcile_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await reconcile_task
             if anchor_task is not None:
                 # Let an in-flight run stop before persistence shuts down.
                 anchor_task.cancel()
@@ -146,6 +158,7 @@ def create_app(
             wallet_service = getattr(app.state, "wallet_service", None)
             if wallet_service is not None:
                 wallet_service.mongo_client.close()
+            await close_notification_service()
             await discovery_service.stop()
             await persistence_runtime.shutdown()
 
@@ -207,7 +220,9 @@ def create_app(
     )
     app.include_router(discovery_router(discovery_service=discovery_service))
     app.include_router(build_enrollment_router())
-    app.include_router(build_workflows_router(mongo_runtime=persistence_runtime.mongodb))
+    app.include_router(build_workflows_router(
+        mongo_runtime=persistence_runtime.mongodb, coordinator_peer_id=coordinator_peer_id,
+    ))
     if circuit_job_service is not None:
         app.include_router(
             build_circuits_router(

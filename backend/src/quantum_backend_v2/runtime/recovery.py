@@ -1,23 +1,92 @@
-"""RuntimeRecoveryService — replays durable event logs on process startup.
-
-Rebuilds an in-flight execution map so the coordinator can continue
-monitoring and driving in-progress work after a crash or restart.
-"""
+"""Reconcile interrupted local jobs and rebuild durable runtime snapshots."""
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
-from quantum_backend_v2.persistence.mongodb import ExecutionEventDocument, ReservationEventDocument
+from quantum_backend_v2.payments.credits import release_job_credits
+from quantum_backend_v2.payments.errors import HoldNotFoundError
+from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.persistence.mongodb import (
+    ExecutionEventDocument, FinancialJobDocument, OptionsJobDocument,
+    ReservationEventDocument, RiskJobDocument, WorkflowRunDocument,
+)
 from quantum_backend_v2.reservations.models import ReservationState, ReservationTransition
+from quantum_backend_v2.reservations.service import ReservationService
 from quantum_backend_v2.runtime.models import ExecutionState, ExecutionTransition, InFlightExecution
+from quantum_backend_v2.runtime.service import ExecutionService
 
 logger = logging.getLogger(__name__)
+_INTERRUPTED = "Job interrupted by backend restart; submit a new job."
 
 
 class RuntimeRecoveryService:
     """Replays event logs on startup to rebuild the coordinator's runtime view."""
+
+    async def fail_interrupted_jobs(
+        self, *, coordinator_peer_id: str, ledger_service: LedgerService | None = None,
+    ) -> None:
+        """Fail abandoned work for this stable, unique coordinator identity only.
+
+        Legacy jobs without a coordinator identity cannot safely be attributed.
+        Failed circuit runs stay eligible so another restart can finish cleanup.
+        """
+        workflow_ids: set[str] = set()
+        now = datetime.now(timezone.utc)
+        for model, pending, failed in (
+            (WorkflowRunDocument, ["QUEUED", "COMPILING", "EXECUTING"], "FAILED"),
+            (FinancialJobDocument, ["ingesting", "analyzing"], "failed"),
+            (OptionsJobDocument, ["queued", "running"], "failed"),
+            (RiskJobDocument, ["queued", "running"], "failed"),
+        ):
+            query: dict[str, Any] = {"coordinator_peer_id": coordinator_peer_id}
+            if model is WorkflowRunDocument:
+                query.update(workflow_definition_id="circuit-execution", **{"$or": [
+                    {"status": {"$in": pending}},
+                    {"status": failed, "output_snapshot.error": _INTERRUPTED},
+                ]})
+            else:
+                query["status"] = {"$in": pending}
+            for doc in await model.find(query).to_list():
+                if doc.status != failed:
+                    doc.status = failed
+                    doc.updated_at = now
+                    if model is WorkflowRunDocument:
+                        doc.completed_at = now
+                        doc.failed_fragments = max(1, doc.fragment_count - doc.completed_fragments)
+                        doc.output_snapshot.update(error=_INTERRUPTED, latest_event_at=now.isoformat())
+                    else:
+                        doc.error = _INTERRUPTED
+                    await doc.save()
+                if model is WorkflowRunDocument:
+                    workflow_ids.add(doc.id)
+
+        if not workflow_ids:
+            return
+        executions = ExecutionService()
+        for execution in await self.recover_in_flight_executions():
+            if execution.workflow_run_id in workflow_ids:
+                await executions.record_failed(
+                    execution_id=execution.execution_id, error_detail=_INTERRUPTED,
+                    idempotency_key=f"restart:{execution.execution_id}:{execution.retry_attempt}",
+                )
+        reservations = ReservationService()
+        for reservation in await self.recover_open_reservations():
+            if reservation.workflow_run_id in workflow_ids:
+                await reservations.cancel(
+                    reservation_id=reservation.reservation_id, reason=_INTERRUPTED,
+                    idempotency_key=f"restart:{reservation.reservation_id}",
+                )
+        if ledger_service is not None:
+            for job_id in workflow_ids:
+                try:
+                    await release_job_credits(ledger_service, job_id)
+                except HoldNotFoundError:
+                    pass  # x402 and unmetered jobs have no prepaid credit hold.
+                except Exception:
+                    logger.exception("restart credit release failed for job %s", job_id)
 
     async def recover_in_flight_executions(self) -> list[InFlightExecution]:
         """Return all executions that are not yet in a terminal state."""

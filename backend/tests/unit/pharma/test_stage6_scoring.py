@@ -7,6 +7,9 @@ ADMETFilter uses only RDKit — no patching needed.
 from __future__ import annotations
 import math
 import pytest
+
+pytest.importorskip("rdkit", reason="Install the pharma extra to run chemistry tests")
+
 from unittest.mock import MagicMock, patch
 from quantum_backend_v2.pharma.models import ADMETResult, DockingPose, QUBOPlacement, VQCScore
 from quantum_backend_v2.pharma.stages.stage_6 import ADMETFilter, VQCScoringEngine

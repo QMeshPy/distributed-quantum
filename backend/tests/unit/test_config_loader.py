@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import os
 from decimal import Decimal
 from pathlib import Path
 
-from quantum_backend_v2.config import load_settings
+import pytest
+
+from quantum_backend_v2.config import load_settings, loader
 
 
 def test_load_settings_reads_x402_gateway_secret() -> None:
@@ -28,6 +31,37 @@ def test_credit_metering_is_off_by_default() -> None:
     assert settings.circuit_job_credit_cost == Decimal("0")
 
 
+def test_startup_environment_uses_one_file_and_preserves_process_overrides(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("QB2_API_PORT=8082\nAGENT_AUTH_BRIDGE_SECRET=file-secret\n")
+    monkeypatch.setattr(loader, "_default_env_file", lambda: env_file)
+    monkeypatch.setenv("QB2_API_PORT", "9090")
+    monkeypatch.delenv("AGENT_AUTH_BRIDGE_SECRET", raising=False)
+    # Track the inserted key so monkeypatch restores the process after the test.
+    monkeypatch.setenv("AGENT_AUTH_BRIDGE_SECRET", "")
+    monkeypatch.delenv("AGENT_AUTH_BRIDGE_SECRET")
+
+    loader.initialize_environment()
+
+    assert os.environ["QB2_API_PORT"] == "9090"
+    assert os.environ["AGENT_AUTH_BRIDGE_SECRET"] == "file-secret"
+    assert load_settings().api_port == 9090
+
+
+def test_explicit_settings_mapping_is_isolated_from_files_and_process(monkeypatch):
+    monkeypatch.setenv("QB2_API_PORT", "9999")
+    monkeypatch.setattr(loader, "_load_env_file", lambda _: pytest.fail("unexpected file read"))
+    assert load_settings(env={}).api_port == 8081
+
+
+def test_explicit_mapping_overrides_file_without_changing_process(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("QB2_API_PORT=8082\n")
+    monkeypatch.setenv("QB2_API_PORT", "9999")
+    assert load_settings(env={"QB2_API_PORT": "8083"}, env_file=env_file).api_port == 8083
+    assert os.environ["QB2_API_PORT"] == "9999"
+
+
 def test_load_settings_reads_environment_overrides() -> None:
     settings = load_settings(
         env={
@@ -37,11 +71,6 @@ def test_load_settings_reads_environment_overrides() -> None:
             "QB2_API_PORT": "9090",
             "QB2_LOG_LEVEL": "DEBUG",
             "QB2_JSON_LOGS": "false",
-            "QB2_POSTGRES_TARGET": "neon",
-            "QB2_POSTGRES_LOCAL_DSN": "postgresql+asyncpg://postgres:password@127.0.0.1:5432/qb2",
-            "QB2_POSTGRES_NEON_POOLED_DSN": "postgresql+asyncpg://pool.example/qb2",
-            "QB2_POSTGRES_NEON_DIRECT_DSN": "postgresql+asyncpg://direct.example/qb2",
-            "QB2_POSTGRES_DATABASE": "qb2_platform",
             "QB2_MONGODB_TARGET": "remote",
             "QB2_MONGODB_LOCAL_URI": "mongodb://127.0.0.1:27017",
             "QB2_MONGODB_REMOTE_URI": "mongodb://mongo.example:27017",
@@ -68,25 +97,6 @@ def test_load_settings_reads_environment_overrides() -> None:
     assert settings.api_port == 9090
     assert settings.logging.level == "DEBUG"
     assert settings.logging.json_logs is False
-    assert settings.persistence.postgres.target.value == "neon"
-    assert (
-        settings.persistence.postgres.local_dsn
-        == "postgresql+asyncpg://postgres:password@127.0.0.1:5432/qb2"
-    )
-    assert settings.persistence.postgres.neon_pooled_dsn == "postgresql+asyncpg://pool.example/qb2"
-    assert (
-        settings.persistence.postgres.neon_direct_dsn == "postgresql+asyncpg://direct.example/qb2"
-    )
-    assert settings.persistence.postgres.database == "qb2_platform"
-    assert settings.persistence.postgres.resolved_database == "qb2"
-    assert settings.persistence.postgres.configured is True
-    assert (
-        settings.persistence.postgres.effective_app_dsn == "postgresql+asyncpg://pool.example/qb2"
-    )
-    assert (
-        settings.persistence.postgres.effective_migration_dsn
-        == "postgresql+asyncpg://direct.example/qb2"
-    )
     assert settings.persistence.mongodb.target.value == "remote"
     assert settings.persistence.mongodb.local_uri == "mongodb://127.0.0.1:27017"
     assert settings.persistence.mongodb.remote_uri == "mongodb://mongo.example:27017"
@@ -121,8 +131,6 @@ def test_load_settings_reads_dotenv_file(tmp_path) -> None:
             [
                 "QB2_ENVIRONMENT=local",
                 "QB2_SERVICE_NAME=qb2-dotenv",
-                "QB2_POSTGRES_TARGET=local",
-                "QB2_POSTGRES_LOCAL_DSN=postgresql+asyncpg://postgres:pw@127.0.0.1:5432/qb2",
                 "QB2_MONGODB_TARGET=local",
                 "QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017",
                 "QB2_PEER_LOG_DIR=/tmp/qb2-dotenv-logs",
@@ -133,15 +141,10 @@ def test_load_settings_reads_dotenv_file(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    settings = load_settings(env_file=env_file)
+    settings = load_settings(env={}, env_file=env_file)
 
     assert settings.environment == "local"
     assert settings.service_name == "qb2-dotenv"
-    assert settings.persistence.postgres.target.value == "local"
-    assert settings.persistence.postgres.effective_app_dsn == (
-        "postgresql+asyncpg://postgres:pw@127.0.0.1:5432/qb2"
-    )
-    assert settings.persistence.postgres.resolved_database == "qb2"
     assert settings.persistence.mongodb.effective_uri == "mongodb://127.0.0.1:27017"
     assert settings.persistence.peer_log.directory == Path("/tmp/qb2-dotenv-logs")
     assert settings.libp2p.listen_multiaddrs == ("/ip4/127.0.0.1/tcp/4011",)

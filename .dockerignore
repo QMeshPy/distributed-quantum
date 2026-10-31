@@ -1,4 +1,9 @@
 .git
+**/.env
+**/.env.*
+**/*.key
+**/.*-key
+documentations
 .DS_Store
 **/__pycache__
 **/.pytest_cache

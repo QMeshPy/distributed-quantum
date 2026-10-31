@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import uuid
@@ -27,7 +28,6 @@ from quantum_backend_v2.application.provenance import (
     publish_run_provenance,
     record_run_provenance,
 )
-from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
 from quantum_backend_v2.application.tokenized_portfolio import (
     TOKENIZED_FILENAME,
     TokenPriceHistorySource,
@@ -85,6 +85,8 @@ def new_circuit_job_id() -> str:
 class CircuitJobService:
     """Durable circuit job submission, planning, and execution bridge."""
 
+    coordinator_peer_id: str | None = None
+
     _bundle_publisher: BundlePublisher | None = None
 
     def __init__(
@@ -94,6 +96,8 @@ class CircuitJobService:
         libp2p_runtime: Any,
         bundle_publisher: BundlePublisher | None = None,
     ) -> None:
+        from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
+
         self._bundle_publisher = bundle_publisher
         reservation_service = ReservationService()
         execution_service = ExecutionService()
@@ -118,6 +122,7 @@ class CircuitJobService:
             id=job_id,
             workflow_definition_id=_CIRCUIT_WORKFLOW_DEFINITION_ID,
             owner_user_id=owner_user_id,
+            coordinator_peer_id=self.coordinator_peer_id,
             workflow_type=_WORKFLOW_TYPE_CIRCUIT,
             status=_STATUS_QUEUED,
             input_snapshot={"circuit": circuit_text},
@@ -340,6 +345,8 @@ class CircuitJobService:
 class FinancialJobService:
     """Durable Track A financial analysis service."""
 
+    coordinator_peer_id: str | None = None
+
     def __init__(
         self,
         *,
@@ -375,6 +382,7 @@ class FinancialJobService:
         doc = FinancialJobDocument(
             id=job_id,
             owner_user_id=owner_user_id,
+            coordinator_peer_id=self.coordinator_peer_id,
             filename=filename,
             status=_FIN_STATUS_INGESTING,
             result_payload={"request": _submission_request_snapshot(config)},
@@ -408,6 +416,7 @@ class FinancialJobService:
         doc = FinancialJobDocument(
             id=job_id,
             owner_user_id=owner_user_id,
+            coordinator_peer_id=self.coordinator_peer_id,
             filename=TOKENIZED_FILENAME,
             status=_FIN_STATUS_INGESTING,
             result_payload={"request": _submission_request_snapshot(config)},
@@ -432,7 +441,8 @@ class FinancialJobService:
                 )
                 await doc.save()
             config = _config_from_doc(doc)
-            artifacts = build_portfolio_optimization_artifacts(
+            artifacts = await asyncio.to_thread(
+                build_portfolio_optimization_artifacts,
                 csv_bytes=(
                     doc.request_payload["csv_text"].encode() if doc.request_payload else csv_bytes
                 ),
@@ -534,6 +544,8 @@ class FinancialJobService:
 class OptionsJobService:
     """Durable Track C real options pricing service (QAE vs Black-Scholes)."""
 
+    coordinator_peer_id: str | None = None
+
     def __init__(self, price_source: PriceSource | None = None) -> None:
         self._price_source = price_source
 
@@ -550,6 +562,7 @@ class OptionsJobService:
         doc = OptionsJobDocument(
             id=job_id,
             owner_user_id=owner_user_id,
+            coordinator_peer_id=self.coordinator_peer_id,
             option_type=option_type,
             status=_OPT_STATUS_QUEUED,
             request_payload=resolved,
@@ -571,7 +584,7 @@ class OptionsJobService:
             inputs = doc.request_payload if doc.request_payload is not None else request_payload
             payload_with_id = dict(inputs)
             payload_with_id["job_id"] = job_id
-            result = price_options(payload_with_id)
+            result = await asyncio.to_thread(price_options, payload_with_id)
             if inputs.get("price_observation") is not None:
                 if doc.owner_user_id is None:
                     raise ValueError("oracle options jobs require an owner")
@@ -646,6 +659,8 @@ _TERMINAL_RISK_STATUSES = {_RISK_STATUS_COMPLETED, _RISK_STATUS_FAILED}
 class RiskJobService:
     """Durable Track D quantum risk engine service (IQAE VaR/CVaR)."""
 
+    coordinator_peer_id: str | None = None
+
     def __init__(self, price_source: PriceSource | None = None) -> None:
         self._price_source = price_source
 
@@ -663,6 +678,7 @@ class RiskJobService:
         doc = RiskJobDocument(
             id=job_id,
             owner_user_id=owner_user_id,
+            coordinator_peer_id=self.coordinator_peer_id,
             risk_model=risk_model,
             portfolio_size=portfolio_size,
             status=_RISK_STATUS_QUEUED,
@@ -685,7 +701,7 @@ class RiskJobService:
             inputs = doc.request_payload if doc.request_payload is not None else request_payload
             payload_with_id = dict(inputs)
             payload_with_id["job_id"] = job_id
-            result = price_risk(payload_with_id)
+            result = await asyncio.to_thread(price_risk, payload_with_id)
             if inputs.get("price_observations"):
                 if doc.owner_user_id is None:
                     raise ValueError("oracle risk jobs require an owner")

@@ -37,7 +37,7 @@ _POC_WORKERS: dict[str, dict[str, object]] = {
             "wallet": "0x1111111111111111111111111111111111111111",
         },
         "on_chain": False,
-        "note": "PoC stub only — see backend/docs/ens-worker-subnames.md",
+        "note": "PoC stub only — see documentations/repository/backend/docs/ens-worker-subnames.md",
     }
 }
 

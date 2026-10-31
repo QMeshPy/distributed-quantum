@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
+from importlib.resources import files
 from typing import TYPE_CHECKING, Any, Optional, Literal
 import logging
 import os
@@ -57,6 +58,7 @@ from db.agentkit_collections import (
 from quantum_backend_v2.payments.ledger import LedgerService
 from quantum_backend_v2.payments.models import PaymentPurpose, PaymentRail
 from quantum_backend_v2.starknet.policy import felt_address
+from services.mongodb import mongodb_connection_settings
 from services.payment_events import (
     begin_payout,
     chain_id_of,
@@ -96,8 +98,7 @@ class ProposalService:
         Loads configuration from environment variables:
         - AWS_REGION (default: us-east-1)
         - BEDROCK_MODEL_ID (default: anthropic.claude-3-5-sonnet-20241022-v2:0)
-        - MONGODB_URI
-        - MONGODB_DATABASE
+        - QB2_MONGODB_* (shared with the core API)
         """
         logger.info("Initializing ProposalService")
 
@@ -108,29 +109,17 @@ class ProposalService:
             "us.anthropic.claude-sonnet-4-6"
         )
 
-        # Initialize Bedrock client
-        try:
-            self.bedrock = boto3.client(
-                "bedrock-runtime",
-                region_name=self.aws_region
-            )
-            logger.info(f"AWS Bedrock client initialized for region: {self.aws_region}")
-        except Exception as e:
-            logger.warning(f"Failed to initialize AWS Bedrock client: {e}")
-            self.bedrock = None
+        # Resolve AWS credentials only when fragmentation actually needs Bedrock.
+        self.bedrock = None
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
-        mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
+        mongodb_uri, mongodb_database = mongodb_connection_settings()
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
         self.ledger = LedgerService(self.db)
 
         # Load prompts directory path
-        self.prompts_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "prompts"
-        )
+        self.prompts_dir = files("quantum_backend_v2").joinpath("prompts")
 
         logger.info("ProposalService initialized")
 
@@ -277,10 +266,10 @@ class ProposalService:
             logger.info(f"Proposal {proposal_id} saved to database")
 
             # Import services (avoid circular imports)
-            from services.notification_service import NotificationService
+            from services.notification_service import get_notification_service
 
             # Broadcast new proposal notification
-            notification_service = self._notification_service or NotificationService()
+            notification_service = self._notification_service or get_notification_service()
             await notification_service.notify_new_proposal(proposal_doc.model_dump())
 
             logger.info(f"Proposal {proposal_id} broadcast to network")
@@ -453,8 +442,8 @@ class ProposalService:
                 logger.info(f"Proposal {proposal_id} reached funding threshold!")
 
             # Notify about funding
-            from services.notification_service import NotificationService
-            notification_service = self._notification_service or NotificationService()
+            from services.notification_service import get_notification_service
+            notification_service = self._notification_service or get_notification_service()
 
             await notification_service.notify_proposal_funded(
                 proposal_id=proposal_id,
@@ -562,8 +551,8 @@ class ProposalService:
             logger.info(f"Fragment {fragment_id} claimed by researcher {researcher_id}")
 
             # Notify fragment claimed
-            from services.notification_service import NotificationService
-            notification_service = self._notification_service or NotificationService()
+            from services.notification_service import get_notification_service
+            notification_service = self._notification_service or get_notification_service()
 
             await notification_service.notify_fragment_claimed(
                 proposal_id=proposal_id,
@@ -709,8 +698,8 @@ class ProposalService:
                 logger.info(f"Proposal {proposal_id} completed, paid {payment_amount} USDC to researcher")
 
             # Notify results published
-            from services.notification_service import NotificationService
-            notification_service = self._notification_service or NotificationService()
+            from services.notification_service import get_notification_service
+            notification_service = self._notification_service or get_notification_service()
 
             await notification_service.notify_results_published(
                 proposal_id=proposal_id,
@@ -772,9 +761,6 @@ class ProposalService:
         """
         logger.info(f"Auto-fragmenting proposal: {title}")
         try:
-            if not self.bedrock:
-                raise Exception("AWS Bedrock client not initialized")
-
             # Load prompt template
             prompt_path = os.path.join(self.prompts_dir, "auto_fragmentation.txt")
             with open(prompt_path, "r") as f:
@@ -1111,10 +1097,9 @@ class ProposalService:
         Raises:
             Exception: If Bedrock API call fails
         """
-        if not self.bedrock:
-            raise Exception("AWS Bedrock client not initialized")
-
         try:
+            if self.bedrock is None:
+                self.bedrock = boto3.client("bedrock-runtime", region_name=self.aws_region)
             response = self.bedrock.invoke_model(
                 modelId=self.bedrock_model_id,
                 body=json.dumps({

@@ -1,4 +1,4 @@
-"""Version-one canonical JSON commitments; see backend/PROVENANCE.md."""
+"""Version-one canonical JSON commitments; see documentations/repository/backend/PROVENANCE.md."""
 
 from __future__ import annotations
 

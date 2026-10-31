@@ -17,12 +17,15 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bson import Decimal128
 
 from services.agentkit_service import AgentKitService
+from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.payments.models import PaymentPurpose, PaymentRail
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +42,7 @@ def mock_env_vars(monkeypatch):
     monkeypatch.delenv("CDP_API_KEY_PRIVATE_KEY", raising=False)
     monkeypatch.setenv("CDP_WALLET_SECRET", "test-wallet-secret-not-a-live-credential")
     monkeypatch.setenv("NETWORK", "base-sepolia")
+    monkeypatch.setenv("QB2_MONGODB_TARGET", "local")
     monkeypatch.setenv("QB2_MONGODB_LOCAL_URI", "mongodb://localhost:27017")
     monkeypatch.setenv("QB2_MONGODB_DATABASE", "test_db")
 
@@ -109,6 +113,8 @@ def agentkit_service(mock_env_vars, mock_mongo_client):
 
         service = AgentKitService()
         service.db = mock_db
+        service._ledger = AsyncMock(spec=LedgerService)
+        service._ledger.record_event.return_value = SimpleNamespace(created=True)
         service._mock_cdp_class = mock_cdp_class
         service._mock_cdp_instance = mock_cdp_instance
         yield service
@@ -197,15 +203,12 @@ async def test_get_balance_success(agentkit_service, mock_wallet_provider):
     wallet_address = "0x1234567890123456789012345678901234567890"
 
     with patch("services.agentkit_service.Web3") as web3_class:
-        # Mock USDC contract balanceOf call
-        mock_contract = MagicMock()
-        mock_contract.functions.balanceOf.return_value.call.return_value = 1000000  # 1 USDC (6 decimals)
-
         mock_web3 = mock_wallet_provider._web3
         web3_class.return_value = mock_web3
         web3_class.to_checksum_address.side_effect = lambda address: address
         mock_web3.eth.get_balance.return_value = 100000000000000000
-        mock_web3.eth.contract.return_value = mock_contract
+        mock_web3.eth.chain_id = 84532
+        mock_web3.eth.call.return_value = (1000000).to_bytes(32, "big")
         mock_web3.to_checksum_address = lambda addr: addr
 
         # Mock MongoDB update
@@ -220,6 +223,10 @@ async def test_get_balance_success(agentkit_service, mock_wallet_provider):
     assert result["eth_balance"] == Decimal("0.1")
     assert result["network_id"] == "base-sepolia"
     assert "timestamp" in result
+    mock_web3.eth.call.assert_called_once_with({
+        "to": agentkit_service.usdc_address,
+        "data": "0x70a08231" + wallet_address[2:].zfill(64),
+    })
 
     # Verify MongoDB update was called
     agentkit_service.db.wallets.update_one.assert_called_once()
@@ -268,7 +275,8 @@ async def test_transfer_usdc_success(agentkit_service, mock_wallet_provider):
 
             # Act
             result = await agentkit_service.transfer_usdc(
-                from_address, to_address, amount, metadata={"job_id": "job-123"}
+                from_address, to_address, amount,
+                metadata={"job_id": "job-123", "idempotency_key": "transfer:job-123"}
             )
 
     # Assert
@@ -281,7 +289,22 @@ async def test_transfer_usdc_success(agentkit_service, mock_wallet_provider):
     assert result["metadata"]["job_id"] == "job-123"
 
     # Verify payment record was created
-    agentkit_service.db.payments.insert_one.assert_called_once()
+    agentkit_service.db.payments.insert_one.assert_awaited_once()
+    agentkit_service.ledger.record_event.assert_awaited_once_with(
+        idempotency_key="transfer:job-123",
+        rail=PaymentRail.ONCHAIN,
+        purpose=PaymentPurpose.TRANSFER,
+        amount=amount,
+        chain_id="eip155:84532",
+        payer_ref=from_address,
+        payee_ref=to_address,
+        job_id="job-123",
+        proposal_id=None,
+        metadata={"payment_type": "other"},
+    )
+    agentkit_service.ledger.confirm.assert_awaited_once_with(
+        "transfer:job-123", external_ref=tx_hash
+    )
 
 
 # ---------------------------------------------------------------------------

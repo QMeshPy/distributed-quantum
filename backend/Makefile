@@ -8,26 +8,26 @@ endif
 
 # Install runtime and development dependencies via uv.
 install:
-	uv sync --extra dev
+	uv sync --locked
 
 # Run static analysis (ruff + mypy) on source and tests.
 lint:
-	uv run ruff check src tests
-	uv run mypy src
+	uv run --locked ruff check src tests
+	uv run --locked mypy src
 
 # Auto-format source and tests with ruff formatter.
 format:
-	uv run ruff format src tests
+	uv run --locked ruff format src tests
 
 # Execute the test suite with pytest.
 test:
-	uv run pytest
+	uv run --locked pytest
 
 # Run backend-v2 API with the standard local startup wrapper.
 run:
 	"$(BASH)" -lc "./scripts/demo-start.sh"
 
-# Flush local runtime artifacts, then start backend-v2.
+# Deprecated compatibility target; refuses to delete durable runtime data.
 run-clean:
 	"$(BASH)" -lc "./scripts/demo-start.sh --clean"
 
@@ -37,4 +37,4 @@ clean:
 
 # Print available targets and quick usage notes.
 help:
-	@"$(BASH)" -lc "printf '%s\n' 'Usage: make <target>' 'Targets:' '  install    Install dependencies' '  lint       Run linting checks and type checking' '  format     Format code with ruff' '  test       Run tests with pytest' '  run        Start backend-v2 with the standard local startup wrapper' '  run-clean  Remove local peerstore and peer logs, then start backend-v2' '  clean      Clean the project'"
+	@"$(BASH)" -lc "printf '%s\n' 'Usage: make <target>' 'Targets:' '  install    Install dependencies' '  lint       Run linting checks and type checking' '  format     Format code with ruff' '  test       Run tests with pytest' '  run        Start backend-v2 with the standard local startup wrapper' '  run-clean  Deprecated; back up and remove runtime data explicitly' '  clean      Clean the project'"

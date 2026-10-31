@@ -12,32 +12,17 @@ Tests cover:
 
 from __future__ import annotations
 
-import sys
 import pytest
 import uuid
 import json
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, patch, ANY, create_autospec
 
-# Mock problematic dependencies before importing
-from pydantic import BaseModel
-
-mock_beanie = MagicMock()
-# Make Document behave like BaseModel for Pydantic compatibility
-mock_beanie.Document = BaseModel
-sys.modules['beanie'] = mock_beanie
-
-# Mock motor
-sys.modules['motor'] = MagicMock()
-sys.modules['motor.motor_asyncio'] = MagicMock()
-
-# Mock boto3
-sys.modules['boto3'] = MagicMock()
-sys.modules['botocore'] = MagicMock()
-sys.modules['botocore.exceptions'] = MagicMock()
-
-# Now safe to import
+from db.agentkit_collections import PaymentDocument, ResearchProposalDocument
+from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.payments.models import PaymentPurpose, PaymentRail
 from services.proposal_service import ProposalService
 
 
@@ -60,13 +45,14 @@ def mock_mongo_db():
 
     db.ai_agents = MagicMock()
     db.ai_agents.find = MagicMock()
+    db.ai_agents.find.return_value.to_list = AsyncMock(return_value=[])
 
     return db
 
 
 @pytest.fixture
 def mock_bedrock_client():
-    """Mock AWS Bedrock client for Claude 3.5 Sonnet."""
+    """Mock AWS Bedrock response for proposal fragmentation."""
     client = MagicMock()
 
     # Mock invoke_model response
@@ -119,7 +105,7 @@ def mock_ipfs_service():
     service = MagicMock()
     service.upload_research_results = AsyncMock(return_value={
         "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-        "url": "https://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi.ipfs.w3s.link"
+        "url": "https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
     })
     return service
 
@@ -128,6 +114,7 @@ def mock_ipfs_service():
 def mock_agentkit_service():
     """Mock AgentKitService for Aave operations."""
     service = MagicMock()
+    service.chain = SimpleNamespace(chain_id="eip155:84532")
 
     service.aave_supply = AsyncMock(return_value={
         "transaction_hash": "0xabc123",
@@ -163,19 +150,29 @@ def mock_ai_agent_service():
 
 
 @pytest.fixture
-def proposal_service(mock_mongo_db, mock_bedrock_client, mock_notification_service, mock_agentkit_service, mock_ai_agent_service):
+def proposal_service(monkeypatch, mock_mongo_db, mock_bedrock_client, mock_notification_service, mock_agentkit_service, mock_ai_agent_service):
     """Create ProposalService instance with mocked dependencies."""
-    # boto3 and motor are already mocked at module level via sys.modules
-    # Just create service and inject mocks
-    service = ProposalService(
-        notification_service=mock_notification_service,
-        agentkit_service=mock_agentkit_service,
-        ai_agent_service=mock_ai_agent_service
-    )
-    service.db = mock_mongo_db
-    service.bedrock = mock_bedrock_client
-
-    return service
+    monkeypatch.setenv("QB2_MONGODB_TARGET", "local")
+    monkeypatch.setenv("QB2_MONGODB_LOCAL_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("QB2_MONGODB_DATABASE", "test_proposals")
+    monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
+    client = MagicMock()
+    client.__getitem__.return_value = mock_mongo_db
+    ledger = AsyncMock(spec=LedgerService)
+    ledger.record_event.return_value = SimpleNamespace(created=True)
+    with (
+        patch("services.proposal_service.AsyncIOMotorClient", return_value=client),
+        patch("services.proposal_service.LedgerService", return_value=ledger),
+        patch("services.proposal_service.boto3.client", return_value=mock_bedrock_client),
+        patch("services.proposal_service.ResearchProposalDocument",
+              side_effect=ResearchProposalDocument.model_construct),
+        patch("services.proposal_service.PaymentDocument", side_effect=PaymentDocument.model_construct),
+    ):
+        yield ProposalService(
+            notification_service=mock_notification_service,
+            agentkit_service=mock_agentkit_service,
+            ai_agent_service=mock_ai_agent_service
+        )
 
 
 # ============================================================================
@@ -283,7 +280,7 @@ async def test_create_proposal_with_auto_fragment(
     # Verify Bedrock was called
     mock_bedrock_client.invoke_model.assert_called_once()
     call_kwargs = mock_bedrock_client.invoke_model.call_args[1]
-    assert "anthropic.claude-3-5-sonnet" in call_kwargs["modelId"]
+    assert call_kwargs["modelId"] == "us.anthropic.claude-sonnet-4-6"
 
     # Verify notification
     mock_notification_service.notify_new_proposal.assert_called_once()
@@ -693,7 +690,7 @@ async def test_auto_fragment_calls_bedrock(proposal_service, mock_bedrock_client
     call_kwargs = mock_bedrock_client.invoke_model.call_args[1]
 
     assert "modelId" in call_kwargs
-    assert "anthropic.claude-3-5-sonnet" in call_kwargs["modelId"]
+    assert call_kwargs["modelId"] == "us.anthropic.claude-sonnet-4-6"
 
     # Verify request body contains prompt
     body_str = call_kwargs["body"]
@@ -770,6 +767,20 @@ async def test_pay_fragment_researcher(
     assert payment_doc["type"] == "escrow_release"
     assert payment_doc["from_wallet"] == "0x3333333333333333333333333333333333333333"
     assert payment_doc["to_wallet"] == "0x4444444444444444444444444444444444444444"
+    proposal_service.ledger.record_event.assert_awaited_once_with(
+        idempotency_key=f"fragment_payout:{proposal_id}:{fragment_id}:1",
+        rail=PaymentRail.ONCHAIN,
+        purpose=PaymentPurpose.WORKER_PAYOUT,
+        amount=Decimal("20.0"),
+        chain_id="eip155:84532",
+        payer_ref="0x3333333333333333333333333333333333333333",
+        payee_ref="0x4444444444444444444444444444444444444444",
+        proposal_id=proposal_id,
+        metadata={"fragment_id": fragment_id, "researcher_id": "researcher_007"},
+    )
+    proposal_service.ledger.confirm.assert_awaited_once_with(
+        f"fragment_payout:{proposal_id}:{fragment_id}:1", external_ref="0xghi789"
+    )
 
 
 # ============================================================================
@@ -811,7 +822,20 @@ async def test_release_all_escrow(
     )
 
     # Verify payment recorded
-    mock_mongo_db.payments.insert_one.assert_called_once()
+    mock_mongo_db.payments.insert_one.assert_awaited_once()
+    proposal_service.ledger.record_event.assert_awaited_once_with(
+        idempotency_key=f"escrow_release:{proposal_id}:1",
+        rail=PaymentRail.ONCHAIN,
+        purpose=PaymentPurpose.ESCROW_RELEASE,
+        amount=Decimal("150.0"),
+        chain_id="eip155:84532",
+        payer_ref="0x5555555555555555555555555555555555555555",
+        payee_ref="0x5555555555555555555555555555555555555555",
+        proposal_id=proposal_id,
+    )
+    proposal_service.ledger.confirm.assert_awaited_once_with(
+        f"escrow_release:{proposal_id}:1", external_ref="0xghi789"
+    )
 
 
 # ============================================================================

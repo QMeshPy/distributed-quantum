@@ -2,6 +2,7 @@
 # Frontend is hosted separately on Vercel
 services:
   kubo:
+    profiles: ["storage", "monitoring"]
     image: ipfs/kubo:v0.43.1@sha256:b293923d66e490e70ced64df42ea7a6cf7eac2740e3fb29101df18070fa7be48
     command: ["daemon", "--migrate=true", "--agent-version-suffix=docker", "--enable-gc"]
     environment:
@@ -75,67 +76,23 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    # The root deployment file owns backend settings; optional features need no YAML edits.
+    env_file:
+      - .env
     environment:
-      QB2_API_HOST: "${QB2_API_HOST:-0.0.0.0}"
-      QB2_API_PORT: "${QB2_API_PORT:-8080}"
+      # Caddy and health checks use this fixed internal port.
+      QB2_API_HOST: "0.0.0.0"
+      QB2_API_PORT: "8080"
       QB2_ENVIRONMENT: "${QB2_ENVIRONMENT:-production}"
-      QB2_SERVICE_NAME: "${QB2_SERVICE_NAME:-quantum-backend}"
-      QB2_JSON_LOGS: "${QB2_JSON_LOGS:-true}"
-      QB2_LOG_LEVEL: "${QB2_LOG_LEVEL:-INFO}"
       QB2_AUTH_REQUIRED: "${QB2_AUTH_REQUIRED:-true}"
-      QB2_X402_GATEWAY_SECRET: "${QB2_X402_GATEWAY_SECRET}"
+      QB2_PEER_LOG_DIR: /workspace/backend/quantum-backend/peer-logs
+      QB2_LIBP2P_PEERSTORE_PATH: /workspace/backend/quantum-backend/libp2p/peerstore.sqlite3
+      QB2_LIBP2P_LISTEN_MULTIADDRS: /ip4/0.0.0.0/tcp/4011
+      QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-1}"
       KUBO_RPC_SECRET: "${KUBO_RPC_SECRET:-}"
-      KUBO_RPC_URL: "${KUBO_RPC_URL:-http://kubo:5001}"
-      KUBO_RPC_TIMEOUT_SECONDS: "${KUBO_RPC_TIMEOUT_SECONDS:-30}"
-      KUBO_RPC_MAX_RESPONSE_BYTES: "${KUBO_RPC_MAX_RESPONSE_BYTES:-4194304}"
-      IPFS_PUBLIC_GATEWAY_URL: "${IPFS_PUBLIC_GATEWAY_URL:-}"
-      QB2_MONGODB_TARGET: "${QB2_MONGODB_TARGET:-remote}"
-      QB2_MONGODB_REMOTE_URI: "${QB2_MONGODB_REMOTE_URI}"
-      QB2_MONGODB_DATABASE: "${QB2_MONGODB_DATABASE:-qds}"
-      QB2_PEER_LOG_DIR: "${QB2_PEER_LOG_DIR:-/workspace/backend/quantum-backend/peer-logs}"
-      QB2_PEER_ID: "${QB2_PEER_ID:-qb2-production-peer}"
-      QB2_LIBP2P_ENABLED: "${QB2_LIBP2P_ENABLED:-true}"
-      QB2_LIBP2P_PEER_ID: "${QB2_LIBP2P_PEER_ID:-qb2-production-peer}"
-      QB2_LIBP2P_LISTEN_MULTIADDRS: "${QB2_LIBP2P_LISTEN_MULTIADDRS:-/ip4/0.0.0.0/tcp/4011}"
-      QB2_LIBP2P_PEERSTORE_PATH: "${QB2_LIBP2P_PEERSTORE_PATH:-/workspace/backend/quantum-backend/libp2p/peerstore.sqlite3}"
-      QB2_LIBP2P_ACTIVATE_LISTENERS: "${QB2_LIBP2P_ACTIVATE_LISTENERS:-true}"
-      QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-6}"
-      QB2_LIBP2P_DEV_SERVICE_BASE_PORT: "${QB2_LIBP2P_DEV_SERVICE_BASE_PORT:-4021}"
-      # CORS — allow both apex and www for the Vercel frontend
-      CORS_ORIGINS: "${CORS_ORIGINS:-https://distributed-quantum.com,https://www.distributed-quantum.com}"
-      PLATFORM_BASE_URL: "${PLATFORM_BASE_URL:-https://api.distributed-quantum.com}"
-      # AWS Bedrock (Claude)
-      AWS_BEDROCK_ENABLED: "${AWS_BEDROCK_ENABLED:-true}"
-      AWS_REGION: "${AWS_REGION:-us-east-1}"
-      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
-      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
-      AWS_BEDROCK_DEFAULT_MODEL: "${AWS_BEDROCK_DEFAULT_MODEL:-us.anthropic.claude-sonnet-4-6}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
-      # Coinbase AgentKit / CDP
-      CDP_API_KEY_ID: "${CDP_API_KEY_ID}"
-      CDP_API_KEY_SECRET: "${CDP_API_KEY_SECRET}"
-      CDP_WALLET_SECRET: "${CDP_WALLET_SECRET}"
-      NETWORK: "${NETWORK:-base-sepolia}"
-      WALLET_ENCRYPTION_KEY: "${WALLET_ENCRYPTION_KEY}"
-      # Notifications (Resend)
-      RESEND_API_KEY: "${RESEND_API_KEY}"
-      RESEND_FROM_EMAIL: "${RESEND_FROM_EMAIL:-noreply@distributed-quantum.com}"
-      # IPFS (Pinata)
-      PINATA_JWT: "${PINATA_JWT}"
-      PINATA_API_KEY: "${PINATA_API_KEY}"
-      PINATA_API_SECRET: "${PINATA_API_SECRET}"
-      # Agent chat, LLM providers, and Toju storage
-      AGENT_AUTH_BRIDGE_SECRET: "${AGENT_AUTH_BRIDGE_SECRET:-}"
-      AGENT_LLM_PROVIDER: "${AGENT_LLM_PROVIDER:-groq}"
-      GROQ_API_KEY: "${GROQ_API_KEY:-}"
-      GROQ_MODEL: "${GROQ_MODEL:-openai/gpt-oss-20b}"
-      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
-      OPENROUTER_MODEL: "${OPENROUTER_MODEL:-nvidia/nemotron-3.5-lightning:free}"
-      NEARAI_API_KEY: "${NEARAI_API_KEY:-}"
-      NEAR_MODEL: "${NEAR_MODEL:-z-ai/glm-5.3-flash}"
-      TOJU_API_URL: "${TOJU_API_URL:-https://toju-devcon-testnet.onrender.com}"
-      TOJU_PAYMENT_RECIPIENT: "${TOJU_PAYMENT_RECIPIENT:-0xbB2Fc1cc295b53a75217319eA421256dABB3eacb}"
-      TOJU_NODE_BINARY: "${TOJU_NODE_BINARY:-node}"
+      KUBO_RPC_URL: http://kubo:5001
+    ports:
+      - "4011:4011"
     volumes:
       - backend_runtime:/workspace/backend/quantum-backend
     healthcheck:
@@ -144,7 +101,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health', timeout=5)"
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/ready', timeout=5)"
         ]
       interval: 15s
       timeout: 5s
@@ -162,14 +119,11 @@ services:
       backend:
         condition: service_healthy
     environment:
-      API_DOMAIN: "${API_DOMAIN:-api.distributed-quantum.com}"
-      FRONTEND_DOMAIN: "${FRONTEND_DOMAIN:-distributed-quantum.com}"
+      API_DOMAIN: "${API_DOMAIN:-http://localhost}"
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"  # HTTP/3 support
-      # libp2p port for peer-to-peer communication
-      - "4011:4011"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

@@ -1,6 +1,7 @@
 """Pharma docking API router."""
 from __future__ import annotations
 
+import importlib.util
 import time
 import uuid
 from datetime import datetime, timezone
@@ -9,6 +10,8 @@ from typing import Any, Callable
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
+from quantum_backend_v2.api.deps.auth import CurrentUser
+from quantum_backend_v2.identity.models import UserTokenClaims
 from quantum_backend_v2.pharma.config import PharmaMode, PharmaWorkflowConfig
 from quantum_backend_v2.pharma.live_state import (
     LiveJobState,
@@ -21,7 +24,7 @@ from quantum_backend_v2.pharma.live_state import (
 
 router = APIRouter(prefix="/api/v1/pharma", tags=["pharma"])
 
-# In-memory job store — replaced by PostgreSQL in production
+# shortcut: job state is process-local; use durable storage before multi-worker deployment.
 _JOB_STORE: dict[str, dict] = {}
 
 
@@ -56,7 +59,16 @@ class PharmaJobStatus(BaseModel):
 async def submit_pharma_job(
     request: PharmaSubmitRequest,
     background_tasks: BackgroundTasks,
+    current_user: CurrentUser,
 ) -> PharmaSubmitResponse:
+    if any(importlib.util.find_spec(name) is None for name in (
+        "pennylane", "pennylane_qiskit", "rdkit", "openfermion", "openfermionpyscf",
+        "pyscf", "torch", "Bio",
+    )):
+        raise HTTPException(
+            status_code=503,
+            detail="Pharma dependencies unavailable; install with uv sync --locked --extra pharma.",
+        )
     job_id = f"pharma_{uuid.uuid4().hex[:12]}"
     submitted_at = datetime.now(timezone.utc).isoformat()
 
@@ -70,6 +82,7 @@ async def submit_pharma_job(
 
     _JOB_STORE[job_id] = {
         "job_id": job_id,
+        "owner_user_id": current_user.user_id,
         "status": "queued",
         "state": "idle",
         "mode": request.mode.value,
@@ -142,9 +155,8 @@ def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> None:
 
 
 async def _run_pharma_pipeline_async(job_id: str, config: PharmaWorkflowConfig) -> None:
-    from quantum_backend_v2.pharma.cache import FragmentCache
-    from quantum_backend_v2.pharma.orchestrator import PharmaOrchestrator
-
+    if _JOB_STORE[job_id]["status"] == "cancelled":
+        return
     _JOB_STORE[job_id]["status"] = "running"
     start_time = time.monotonic()
     init_live(job_id)
@@ -153,15 +165,20 @@ async def _run_pharma_pipeline_async(job_id: str, config: PharmaWorkflowConfig) 
     live = _make_live_callback(job_id, start_time)
 
     log("info", f"Pipeline started — mode={config.mode.value} target={config.target_pdb_id}", "init")
-    orch = PharmaOrchestrator(
-        config=config,
-        cache=FragmentCache(None),
-        execution_service=None,
-        log_callback=log,
-        live_callback=live,
-    )
     try:
+        from quantum_backend_v2.pharma.cache import FragmentCache
+        from quantum_backend_v2.pharma.orchestrator import PharmaOrchestrator
+
+        orch = PharmaOrchestrator(
+            config=config,
+            cache=FragmentCache(None),
+            execution_service=None,
+            log_callback=log,
+            live_callback=live,
+        )
         result = await orch.run(job_id=job_id)
+        if _JOB_STORE[job_id]["status"] == "cancelled":
+            return
         log("success", f"Pipeline completed — {len(result.candidates)} candidate(s) produced", "completed")
         _JOB_STORE[job_id].update(
             status="completed",
@@ -170,6 +187,8 @@ async def _run_pharma_pipeline_async(job_id: str, config: PharmaWorkflowConfig) 
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
     except Exception as exc:
+        if _JOB_STORE[job_id]["status"] == "cancelled":
+            return
         log("error", f"Pipeline failed: {exc}", "failed")
         _JOB_STORE[job_id].update(
             status="failed",
@@ -182,12 +201,25 @@ async def _run_pharma_pipeline_async(job_id: str, config: PharmaWorkflowConfig) 
 
 
 @router.get("/jobs", response_model=list[PharmaJobStatus])
-async def list_pharma_jobs() -> list[PharmaJobStatus]:
-    return [PharmaJobStatus(**job) for job in _JOB_STORE.values()]
+async def list_pharma_jobs(current_user: CurrentUser) -> list[PharmaJobStatus]:
+    return [
+        PharmaJobStatus(**job) for job in _JOB_STORE.values()
+        if current_user.is_admin() or job.get("owner_user_id") == current_user.user_id
+    ]
+
+
+def _owned_job(job_id: str, current_user: UserTokenClaims) -> dict:
+    job = _JOB_STORE.get(job_id)
+    if job is None or (
+        not current_user.is_admin() and job.get("owner_user_id") != current_user.user_id
+    ):
+        raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
+    return job
 
 
 @router.get("/jobs/{job_id}/live", response_model=LiveJobState)
-async def get_pharma_job_live(job_id: str) -> LiveJobState:
+async def get_pharma_job_live(job_id: str, current_user: CurrentUser) -> LiveJobState:
+    _owned_job(job_id, current_user)
     state = get_live(job_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"No live state for job {job_id!r}")
@@ -195,17 +227,16 @@ async def get_pharma_job_live(job_id: str) -> LiveJobState:
 
 
 @router.get("/jobs/{job_id}", response_model=PharmaJobStatus)
-async def get_pharma_job(job_id: str) -> PharmaJobStatus:
-    job = _JOB_STORE.get(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
+async def get_pharma_job(job_id: str, current_user: CurrentUser) -> PharmaJobStatus:
+    job = _owned_job(job_id, current_user)
     return PharmaJobStatus(**job)
 
 
 @router.delete("/jobs/{job_id}", status_code=204)
-async def cancel_pharma_job(job_id: str) -> None:
-    if job_id not in _JOB_STORE:
-        raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
+async def cancel_pharma_job(job_id: str, current_user: CurrentUser) -> None:
+    _owned_job(job_id, current_user)
+    # shortcut: running compute finishes in its thread; add cooperative cancellation for workers.
     if _JOB_STORE[job_id]["status"] in ("queued", "running"):
         _JOB_STORE[job_id]["status"] = "cancelled"
         _JOB_STORE[job_id]["state"] = "failed"
+        _JOB_STORE[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()

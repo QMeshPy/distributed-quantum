@@ -68,6 +68,7 @@ from utils.basescan import validate_address
 from quantum_backend_v2.payments.ledger import LedgerService
 from quantum_backend_v2.payments.models import PaymentPurpose, PaymentRail
 from services.payment_events import confirm_quietly, settle_failed_send
+from services.mongodb import mongodb_connection_settings
 
 
 class AgentKitService:
@@ -89,8 +90,7 @@ class AgentKitService:
         - CDP_API_KEY_SECRET
         - CDP_WALLET_SECRET
         - NETWORK (default: base-sepolia)
-        - MONGODB_URI
-        - MONGODB_DATABASE
+        - QB2_MONGODB_* (shared with the core API)
         """
         if registry is None:
             settings = load_settings()
@@ -114,8 +114,7 @@ class AgentKitService:
         self._init_encryption_key()
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
-        mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
+        mongodb_uri, mongodb_database = mongodb_connection_settings()
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
         self._ledger: Optional[LedgerService] = None

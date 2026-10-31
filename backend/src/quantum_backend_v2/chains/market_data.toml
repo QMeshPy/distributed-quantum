@@ -1,5 +1,5 @@
 # Read-only market data for #18. Mainnet is allowed here only for eth_call price reads:
-# no wallet, signing or trading path uses this file. Sources and review: backend/CHAIN_REGISTRY.md
+# no wallet, signing or trading path uses this file. Sources and review: documentations/repository/backend/CHAIN_REGISTRY.md
 chain_id = "eip155:4663"
 display_name = "Robinhood Chain"
 rpc_env_var = "QB2_ROBINHOOD_MAINNET_RPC_URL"

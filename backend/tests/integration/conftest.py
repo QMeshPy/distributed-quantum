@@ -11,6 +11,8 @@ import os
 from decimal import Decimal
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
+from urllib.parse import urlsplit
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -36,37 +38,38 @@ from db.agentkit_collections import (
 @pytest_asyncio.fixture(scope="session")
 async def test_db_client() -> AsyncGenerator[AsyncIOMotorClient, None]:
     """Session-scoped MongoDB client for test database."""
-    mongodb_uri = os.getenv("QB2_MONGODB_TEST_URI", "mongodb://localhost:27017")
-    client = AsyncIOMotorClient(mongodb_uri)
+    mongodb_uri = os.getenv("QB2_MONGODB_TEST_URI")
+    if not mongodb_uri:
+        pytest.skip("Set QB2_MONGODB_TEST_URI to opt into disposable local MongoDB tests")
+    parsed = urlsplit(mongodb_uri)
+    if (
+        parsed.scheme != "mongodb"
+        or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
+        or "," in parsed.netloc
+    ):
+        pytest.fail("Integration tests accept only local MongoDB")
+    client = AsyncIOMotorClient(mongodb_uri, serverSelectionTimeoutMS=2000)
 
-    # Verify connection
     try:
-        await client.admin.command("ping")
-        print(f"\n✓ Connected to test MongoDB at {mongodb_uri}")
-    except Exception as e:
-        pytest.fail(f"Failed to connect to test MongoDB: {e}")
-
-    yield client
-
-    # Cleanup: Drop test database
-    await client.drop_database("test_agentkit")
-    client.close()
-    print("\n✓ Test database cleaned up")
+        try:
+            await client.admin.command("ping")
+        except Exception:
+            pytest.fail("Failed to connect to disposable local test MongoDB", pytrace=False)
+        yield client
+    finally:
+        client.close()
 
 
 @pytest_asyncio.fixture
 async def test_db(test_db_client: AsyncIOMotorClient) -> AsyncGenerator[AsyncIOMotorClient, None]:
     """Function-scoped test database with clean state for each test."""
-    db = test_db_client["test_agentkit"]
-
-    # Initialize Beanie with test collections
-    await init_beanie(database=db, document_models=AGENTKIT_COLLECTIONS)
-
-    yield db
-
-    # Cleanup: Clear all collections after test
-    for collection in AGENTKIT_COLLECTIONS:
-        await collection.delete_all()
+    database_name = f"test_agentkit_{uuid4().hex}"
+    db = test_db_client[database_name]
+    try:
+        await init_beanie(database=db, document_models=AGENTKIT_COLLECTIONS)
+        yield db
+    finally:
+        await test_db_client.drop_database(database_name)
 
 
 # ---------------------------------------------------------------------------

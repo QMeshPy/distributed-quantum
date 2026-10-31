@@ -1,6 +1,9 @@
 """Unit tests — Stage 2: QWGAN molecule generator."""
 from __future__ import annotations
 import pytest
+
+pytest.importorskip("rdkit", reason="Install the pharma extra to run chemistry tests")
+
 from rdkit import Chem
 from quantum_backend_v2.pharma.config import PharmaMode, QWGANConfig
 from quantum_backend_v2.pharma.stages.stage_2 import GeneratorOutput, QWGANGenerator

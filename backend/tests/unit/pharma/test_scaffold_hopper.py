@@ -1,6 +1,9 @@
 """Unit tests — ScaffoldHopper (hop(smiles, admet, vqc_affinity, iteration))."""
 from __future__ import annotations
 import pytest
+
+pytest.importorskip("rdkit", reason="Install the pharma extra to run chemistry tests")
+
 from rdkit import Chem
 from quantum_backend_v2.pharma.models import ADMETResult
 from quantum_backend_v2.pharma.scaffold_hopper import HopResult, ScaffoldHopper

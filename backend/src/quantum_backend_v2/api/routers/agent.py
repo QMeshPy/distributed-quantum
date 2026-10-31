@@ -8,6 +8,11 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
+from quantum_backend_v2.api.deps.auth import (
+    CurrentUser, _resolve_user_claims, require_authenticated,
+)
+from quantum_backend_v2.api.errors.models import PlatformException
+
 from quantum_backend_v2.agent.schemas import (
     CreateSessionRequest,
     SendMessageRequest,
@@ -36,40 +41,39 @@ def get_user_settings(user_id: str) -> AgentSettings:
 
 # Session Management
 @router.post("/sessions", response_model=AgentSession)
-async def create_session(request: CreateSessionRequest):
+async def create_session(request: CreateSessionRequest, current_user: CurrentUser):
     """
     Create new agent session.
 
     Creates a new conversational session where users can interact with
     the autonomous agent workspace.
     """
-    # TODO: Get user_id from auth
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
     return await service.create_session(user_id, request.title)
 
 
 @router.get("/sessions", response_model=List[AgentSession])
-async def list_sessions():
+async def list_sessions(current_user: CurrentUser):
     """
     List user's sessions.
 
     Returns all sessions for the authenticated user, sorted by most recent.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
     return await service.list_sessions(user_id)
 
 
 @router.get("/sessions/{session_id}", response_model=AgentSession)
-async def get_session(session_id: str):
+async def get_session(session_id: str, current_user: CurrentUser):
     """
     Get session details.
 
     Retrieves complete session data including messages, workflow state,
     and execution history.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
     session = await service.get_session(session_id, user_id)
     if not session:
@@ -78,13 +82,13 @@ async def get_session(session_id: str):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str):
+async def delete_session(session_id: str, current_user: CurrentUser):
     """
     Delete session.
 
     Permanently deletes a session and all associated data.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
     deleted = await service.delete_session(session_id, user_id)
     if not deleted:
@@ -94,7 +98,7 @@ async def delete_session(session_id: str):
 
 # Messaging
 @router.post("/sessions/{session_id}/messages")
-async def send_message(session_id: str, request: SendMessageRequest):
+async def send_message(session_id: str, request: SendMessageRequest, current_user: CurrentUser):
     """
     Send message to agent.
 
@@ -105,7 +109,7 @@ async def send_message(session_id: str, request: SendMessageRequest):
 
     The user must then call the /approve endpoint to execute the plan.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
 
     # Check session exists
@@ -180,13 +184,13 @@ async def send_message(session_id: str, request: SendMessageRequest):
 
 # Approval
 @router.post("/sessions/{session_id}/approve")
-async def approve_action(session_id: str):
+async def approve_action(session_id: str, current_user: CurrentUser):
     """
     Approve agent action.
 
     Approves the planned workflow and begins execution.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
 
     session = await service.get_session(session_id, user_id)
@@ -210,13 +214,13 @@ async def approve_action(session_id: str):
 
 
 @router.post("/sessions/{session_id}/reject")
-async def reject_action(session_id: str):
+async def reject_action(session_id: str, current_user: CurrentUser):
     """
     Reject agent action.
 
     Rejects the planned workflow and returns to chat.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
 
     session = await service.get_session(session_id, user_id)
@@ -244,13 +248,13 @@ async def reject_action(session_id: str):
 
 # Budget
 @router.get("/budget", response_model=BudgetStatusResponse)
-async def get_budget():
+async def get_budget(current_user: CurrentUser):
     """
     Get budget status.
 
     Returns current spending and limits for the authenticated user.
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     user_settings = get_user_settings(user_id)
     cost_guard = CostGuard()
     status = cost_guard.get_budget_status(user_settings)
@@ -277,6 +281,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     Send a ping message periodically to keep the connection alive.
     """
+    try:
+        claims = await _resolve_user_claims(websocket.headers.get("authorization"))
+        current_user = await require_authenticated(claims)
+    except PlatformException:
+        await websocket.close(code=1008)
+        return
+    if await AgentService().get_session(session_id, current_user.user_id) is None:
+        await websocket.close(code=1008)
+        return
     await manager.connect(session_id, websocket)
     try:
         while True:
@@ -288,7 +301,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
 # Model Management
 @router.get("/models", response_model=List[BedrockModel])
-async def list_models():
+async def list_models(current_user: CurrentUser):
     """
     List available Bedrock models.
 
@@ -299,7 +312,7 @@ async def list_models():
 
 
 @router.get("/models/available")
-async def get_available_models():
+async def get_available_models(current_user: CurrentUser):
     """
     Get curated list of Claude models with descriptions.
 
@@ -309,7 +322,7 @@ async def get_available_models():
 
 
 @router.get("/models/default")
-async def get_default_model():
+async def get_default_model(current_user: CurrentUser):
     """
     Get the default model configuration.
 
@@ -322,7 +335,7 @@ async def get_default_model():
 
 
 @router.patch("/sessions/{session_id}/model")
-async def update_session_model(session_id: str, model_id: str):
+async def update_session_model(session_id: str, model_id: str, current_user: CurrentUser):
     """
     Update the model used for a specific session.
 
@@ -333,7 +346,7 @@ async def update_session_model(session_id: str, model_id: str):
     Returns:
         Updated session with new model setting
     """
-    user_id = "default_user"
+    user_id = current_user.user_id
     service = AgentService()
 
     session = await service.get_session(session_id, user_id)

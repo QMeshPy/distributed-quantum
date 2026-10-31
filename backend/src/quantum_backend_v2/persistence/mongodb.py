@@ -19,6 +19,7 @@ from db.agentkit_collections import (
 from pydantic import Field
 from pymongo import ASCENDING, AsyncMongoClient, IndexModel
 
+from quantum_backend_v2.agent.models import AgentSession
 from quantum_backend_v2.config import MongoSettings, MongoTarget
 
 
@@ -243,6 +244,7 @@ class WorkflowDefinitionDocument(Document):
 class WorkflowRunDocument(Document):
     """Durable header for a workflow execution run."""
 
+    coordinator_peer_id: str | None = None
     id: str  # type: ignore[assignment]
     workflow_definition_id: str
     owner_user_id: str
@@ -289,6 +291,7 @@ class ExecutionPlanDocument(Document):
 class FinancialJobDocument(Document):
     """Durable financial analysis job state."""
 
+    coordinator_peer_id: str | None = None
     id: str  # type: ignore[assignment]
     owner_user_id: str | None = None
     filename: str
@@ -312,6 +315,7 @@ class FinancialJobDocument(Document):
 class OptionsJobDocument(Document):
     """Durable real options pricing job state."""
 
+    coordinator_peer_id: str | None = None
     id: str  # type: ignore[assignment]
     owner_user_id: str | None = None
     option_type: str
@@ -333,6 +337,7 @@ class OptionsJobDocument(Document):
 class RiskJobDocument(Document):
     """Durable Track D quantum risk engine job state."""
 
+    coordinator_peer_id: str | None = None
     id: str  # type: ignore[assignment]
     owner_user_id: str | None = None
     risk_model: str
@@ -481,6 +486,7 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
             RiskJobDocument,
             ReservationEventDocument,
             ExecutionEventDocument,
+            AgentSession,
             # AgentKit documents
             WalletDocument,
             WorkerPricingDocument,
