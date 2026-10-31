@@ -6,7 +6,8 @@ import { useRef, useState } from "react";
 import type { Layer } from "../landing-content";
 import styles from "../landing.module.css";
 import { DRAW, type Kind } from "./devices";
-import { add, clamp, COS, iso, plane, pts, SIN, type V3 } from "./iso";
+import { add, COS, iso, plane, pts, SIN, type V3 } from "./iso";
+import { architectureFrame } from "./architecture-motion";
 
 // ── Choreography, measured from griffin.com's "built to evolve" section ──
 // The intro holds the heading with the plates evenly spread; then each layer
@@ -16,6 +17,7 @@ import { add, clamp, COS, iso, plane, pts, SIN, type V3 } from "./iso";
 const INTRO_GAP = 128; // px between plates while the intro heading shows
 // Wide gaps either side of the active plate leave room for its labels.
 const SLOTS: ReadonlyArray<[number, number]> = [
+  [-5, -720],
   [-4, -660],
   [-3, -590],
   [-2, -515],
@@ -25,6 +27,7 @@ const SLOTS: ReadonlyArray<[number, number]> = [
   [2, 590],
   [3, 630],
   [4, 655],
+  [5, 680],
 ];
 const CENTER_Y = 420; // active step and plate centre in the 900-tall stage
 const STEP_PITCH = 30; // px between collapsed step labels
@@ -41,17 +44,13 @@ const slotY = (s: number) => {
   }
   return SLOTS[SLOTS.length - 1][1];
 };
-const smooth = (n: number) => {
-  const c = clamp(n);
-  return c * c * (3 - 2 * c);
-};
 
 // Plate geometry (world units → about 470px wide on screen).
 const S = 270;
 const T = 16;
 const ORIGIN: V3 = [-S / 2, -S / 2, 0];
 
-const ACCENTS = ["var(--accent-1)", "var(--accent-2)", "var(--accent-3)", "var(--accent-4)", "var(--accent-5)"];
+const ACCENTS = ["var(--accent-1)", "var(--accent-2)", "var(--accent-3)", "var(--accent-4)", "var(--accent-5)", "var(--accent-1)"];
 
 export function ArchStack({
   title,
@@ -68,12 +67,8 @@ export function ArchStack({
   useMotionValueEvent(scrollYProgress, "change", (value) => setF(Math.round(value * 1000) / 1000));
 
   const n = layers.length;
-  // Intro until 12%, then each layer gets an equal share of the scroll.
-  const p = clamp((f - 0.2) / 0.72) * (n - 1);
-  const blend = smooth((f - 0.04) / 0.16);
-  const intro = f < 0.12;
-  const active = intro ? -1 : Math.round(p);
-  const settled = !intro && Math.abs(p - active) < 0.22 && blend > 0.98;
+  const { position: p, blend, intro, active, focus } = architectureFrame(f, n);
+  const settled = !intro && focus > 0.78 && blend > 0.98;
   const passedTop = active > 0 ? 80 + (active - 1) * STEP_PITCH + 7 : 0;
 
   const plateY = (i: number) => {
@@ -353,6 +348,7 @@ const ANCHORS: Record<Layer["key"], V3[]> = {
     raised(133, 55, 18),
   ],
   provenance: [raised(171, 53, 48), raised(146, 130, 26), raised(54, 76, 18), raised(60, 245, 0)],
+  results: [raised(60, 60, 24), raised(140, 140, 40), raised(220, 220, 20)],
 };
 
 function Objects({ kind }: { kind: Layer["key"] }) {
@@ -411,6 +407,16 @@ function Objects({ kind }: { kind: Layer["key"] }) {
               <DeviceOn kind={k} x={x} y={y} />
             </g>
           ))}
+        </>
+      );
+    case "results":
+      return (
+        <>
+          <Wire a={[60, 60, 24]} b={[140, 140, 40]} live />
+          <Wire a={[140, 140, 40]} b={[220, 220, 20]} live />
+          <Block x={36} y={36} w={48} d={48} h={24} front="bays" />
+          <Block x={110} y={110} w={60} d={60} h={40} tone="light" />
+          <Block x={190} y={190} w={60} d={60} h={20} front="ports" />
         </>
       );
     case "provenance": {
@@ -510,6 +516,13 @@ function Drawing({ kind }: { kind: Layer["key"] }) {
             )),
           )}
           {label("PEER:MESH", 8, 97)}
+        </>
+      );
+    case "results":
+      return (
+        <>
+          <rect {...ink} x={4} y={4} width={92} height={92} />
+          {label("JOB:RESULT", 8, 94)}
         </>
       );
     case "provenance":

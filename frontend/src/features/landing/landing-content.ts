@@ -71,7 +71,7 @@ export const BUILT_ON = {
 } as const;
 
 export interface Layer {
-  key: "app" | "coordinator" | "payments" | "mesh" | "provenance";
+  key: "app" | "coordinator" | "payments" | "mesh" | "results" | "provenance";
   name: string;
   title: string;
   body: string;
@@ -85,19 +85,26 @@ export const ARCHITECTURE: {
   layers: ReadonlyArray<Layer>;
 } = {
   title: ["Quantum infrastructure built in", "layers"],
-  body: "One coordinator, a mesh of ordinary devices, a payment per request and a receipt for every result.",
+  body: "Follow a circuit from submission and payment authorization through peer execution, collected results and provenance.",
   layers: [
     {
       key: "app",
       name: "Your app",
       title: "Submit",
-      body: "Send OpenQASM from the console or the API, and get a receipt back.",
+      body: "Send OpenQASM from the console or API and track the job as it runs.",
       callouts: [
         "Operator console",
         "Job status",
         "OpenQASM editor",
         "REST API",
       ],
+    },
+    {
+      key: "payments",
+      name: "Payment gateway",
+      title: "Authorize",
+      body: "Paid API requests use x402 authorization with Algorand TestNet USDC. This payment authorizes gateway access.",
+      callouts: ["TestNet USDC", "x402 receipt", "Chain registry"],
     },
     {
       key: "coordinator",
@@ -112,16 +119,9 @@ export const ARCHITECTURE: {
       ],
     },
     {
-      key: "payments",
-      name: "Payments and registry",
-      title: "Pay",
-      body: "Every run pays its peers per request, in Algorand USDC on TestNet.",
-      callouts: ["USDC on Algorand", "x402 receipt", "Chain registry"],
-    },
-    {
       key: "mesh",
       name: "Peer mesh",
-      title: "Run",
+      title: "Execute",
       body: "Worker peers on py-libp2p run their fragments with Qiskit.",
       callouts: [
         "Laptop",
@@ -133,15 +133,22 @@ export const ARCHITECTURE: {
       ],
     },
     {
+      key: "results",
+      name: "Result collection",
+      title: "Collect",
+      body: "The coordinator collects fragment outputs and assembles the job result for the console and API.",
+      callouts: ["Fragment outputs", "Result assembly", "Job result"],
+    },
+    {
       key: "provenance",
       name: "Provenance",
-      title: "Prove",
-      body: "Every result becomes a provenance bundle, pinned on IPFS by content.",
+      title: "Verify",
+      body: "Provenance hashes let you check artifact integrity. IPFS pinning and chain anchoring depend on the integrations you enable.",
       callouts: [
         "Merkle root",
         "Branch hashes",
         "Result bundles",
-        "Pinned by CID",
+        "Optional IPFS pin",
       ],
     },
   ],
