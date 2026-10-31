@@ -1,3 +1,18 @@
+/** Worker Connect Express onboarding status (#110). */
+export type ConnectPayoutStatus =
+  | "not_started"
+  | "pending"
+  | "ready"
+  | "unavailable";
+
+export interface ConnectOverview {
+  status: ConnectPayoutStatus;
+  /** Stripe connected account id when onboarding has started. */
+  accountId: string | null;
+  /** True when Express Dashboard login links are available. */
+  dashboardAvailable: boolean;
+}
+
 /** A credit pack as offered in the UI. */
 export interface CreditOffer {
   priceId: string;
