@@ -8,8 +8,10 @@ export const EXTERNAL_LINKS = {
   DOCS: {
     OVERVIEW: `${REPOSITORY}#what-this-is`,
     X402: `${REPOSITORY}#algorand-x402-machine-payable-quantum-services`,
-    PROVENANCE: `${REPOSITORY}/blob/main/backend/PROVENANCE.md`,
-    CHAIN_REGISTRY: `${REPOSITORY}/blob/main/backend/CHAIN_REGISTRY.md`,
+    PROVENANCE:
+      "https://github.com/QMeshPy/documentations/blob/main/repository/backend/PROVENANCE.md",
+    CHAIN_REGISTRY:
+      "https://github.com/QMeshPy/documentations/blob/main/repository/backend/CHAIN_REGISTRY.md",
     BACKEND: `${REPOSITORY}/blob/main/backend/README.md`,
     TOKENIZED_STOCKS_PR: `${REPOSITORY}/pull/108`,
   },

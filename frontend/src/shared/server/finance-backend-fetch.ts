@@ -1,4 +1,5 @@
 import "server-only";
+import { AUTH } from "@/constants";
 import { backendAssertion } from "@/features/auth/server/backend-assertion";
 import { getSession } from "@/features/auth/server/session";
 
@@ -6,7 +7,7 @@ export async function financeBackendFetch(url: string, init: RequestInit = {}) {
   const session = await getSession();
   if (!session?.user)
     return Response.json(
-      { detail: "Sign in to run financial analysis." },
+      { detail: AUTH.SIGNIN_REQUIRED_MESSAGE },
       { status: 401 },
     );
   const assertion = backendAssertion(session.user);

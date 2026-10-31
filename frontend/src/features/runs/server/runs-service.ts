@@ -3,6 +3,7 @@ import { cache } from "react";
 import { BACKEND } from "@/constants";
 import { backendAssertion } from "@/features/auth/server/backend-assertion";
 import { getSession } from "@/features/auth/server/session";
+import { financeBackendFetch } from "@/shared/server/finance-backend-fetch";
 import type { BackendJobListItem, BackendJobDetail } from "../types";
 import {
   transformRunSummary,
@@ -11,7 +12,7 @@ import {
 
 export const getRunsList = cache(async () => {
   try {
-    const res = await fetch(BACKEND.JOBS.LIST, { next: { revalidate: 0 } });
+    const res = await financeBackendFetch(BACKEND.JOBS.LIST);
     if (!res.ok) return null;
     const data = (await res.json()) as BackendJobListItem[];
     return data.map(transformRunSummary);
@@ -22,9 +23,7 @@ export const getRunsList = cache(async () => {
 
 export const getRunDetail = cache(async (jobId: string) => {
   try {
-    const res = await fetch(BACKEND.JOBS.DETAIL(jobId), {
-      next: { revalidate: 0 },
-    });
+    const res = await financeBackendFetch(BACKEND.JOBS.DETAIL(jobId));
     if (!res.ok) return null;
     const data = (await res.json()) as BackendJobDetail;
     return transformRunDetail(data);

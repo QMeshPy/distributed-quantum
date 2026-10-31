@@ -14,26 +14,33 @@ function getClientPromise(): Promise<MongoClient> {
     );
   }
 
-  if (process.env.NODE_ENV === "development") {
-    if (!global._mongoClientPromise) {
-      global._mongoClientPromise = new MongoClient(uri).connect();
-    }
+  if (process.env.NODE_ENV === "development" && global._mongoClientPromise) {
     return global._mongoClientPromise;
   }
 
-  return new MongoClient(uri).connect();
+  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+  const connection = client.connect().catch(async (error) => {
+    if (process.env.NODE_ENV === "development") global._mongoClientPromise = undefined;
+    await client.close();
+    throw error;
+  });
+  if (process.env.NODE_ENV === "development") global._mongoClientPromise = connection;
+  return connection;
 }
 
 let _promise: Promise<MongoClient> | null = null;
 
 export default function getClient(): Promise<MongoClient> {
   if (!_promise) {
-    _promise = getClientPromise();
+    _promise = getClientPromise().catch((error) => {
+      _promise = null;
+      throw error;
+    });
   }
   return _promise;
 }
 
 export async function getDatabase(): Promise<Db> {
   const c = await getClient();
-  return c.db(process.env.MONGODB_DB_NAME || "quantum_platform");
+  return c.db(process.env.MONGODB_DB_NAME || process.env.MONGODB_DATABASE || "quantum_platform");
 }

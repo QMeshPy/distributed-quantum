@@ -4,13 +4,27 @@ import { getTrustlessGateways } from "./gateways";
 let heliaInstance: Helia | null = null;
 let initPromise: Promise<Helia> | null = null;
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Helia init timed out at: ${label} (${ms}ms)`)), ms),
-    ),
-  ]);
+async function withTimeout<T>(
+  promise: Promise<T>, ms: number, label: string, closeLate: (value: T) => Promise<void>,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  try {
+    return await Promise.race([
+      promise.then(async (value) => {
+        if (timedOut) await closeLate(value);
+        return value;
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          timedOut = true;
+          reject(new Error(`Helia startup timed out at ${label}. Close other VAULT tabs and reload. Your local vault data has been preserved.`));
+        }, ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getHelia(): Promise<Helia> {
@@ -18,60 +32,42 @@ export async function getHelia(): Promise<Helia> {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    console.log("[helia-init] starting…");
-
     const { createHelia } = await import("helia");
     const { IDBBlockstore } = await import("blockstore-idb");
     const { IDBDatastore } = await import("datastore-idb");
     const { trustlessGateway } = await import("@helia/block-brokers");
     const { httpGatewayRouting } = await import("@helia/routers");
 
-    console.log("[helia-init] modules loaded, opening IDB stores…");
-
     const blockstore = new IDBBlockstore("vault/blockstore");
     const datastore = new IDBDatastore("vault/datastore");
 
-    // IDB open can hang indefinitely if a previous tab left a version-change
-    // transaction open. Timeout at 8 s and surface a clear error.
-    await withTimeout(blockstore.open(), 8_000, "blockstore.open()").catch(async (err) => {
-      console.error("[helia-init] blockstore.open() failed:", err);
-      // Attempt to delete the corrupted store so next reload recovers.
-      try { indexedDB.deleteDatabase("vault/blockstore"); } catch {}
-      throw err;
-    });
-    console.log("[helia-init] blockstore open ✓");
+    try {
+      await withTimeout(blockstore.open(), 8_000, "blockstore.open()", () => blockstore.close());
+      await withTimeout(datastore.open(), 8_000, "datastore.open()", () => datastore.close());
 
-    await withTimeout(datastore.open(), 8_000, "datastore.open()").catch(async (err) => {
-      console.error("[helia-init] datastore.open() failed:", err);
-      try { indexedDB.deleteDatabase("vault/datastore"); } catch {}
-      throw err;
-    });
-    console.log("[helia-init] datastore open ✓");
+      const gateways = getTrustlessGateways();
+      // Verified gateway blocks are cached locally; gateways see the requested CID.
+      const helia = await withTimeout(
+        createHelia({
+          blockstore,
+          datastore,
+          blockBrokers: [trustlessGateway()],
+          routers: [httpGatewayRouting({ gateways, shuffle: false })],
+        }),
+        10_000,
+        "createHelia()",
+        (instance) => instance.stop(),
+      );
 
-    const gateways = getTrustlessGateways();
-    console.log("[helia-init] creating Helia with trustless gateways:", gateways);
-
-    // Trustless-gateway broker + HTTP gateway routing so CIDs pinned elsewhere
-    // resolve on a fresh browser without the sender's peers. Local IDB still
-    // caches verified blocks. (Gateways see the CID — see gateways.ts.)
-    const helia = await withTimeout(
-      createHelia({
-        blockstore,
-        datastore,
-        blockBrokers: [trustlessGateway()],
-        routers: [httpGatewayRouting({ gateways, shuffle: false })],
-      }),
-      10_000,
-      "createHelia()",
-    );
-    console.log("[helia-init] Helia ready ✓");
-
-    heliaInstance = helia;
-    return helia;
+      heliaInstance = helia;
+      return helia;
+    } catch (error) {
+      await Promise.allSettled([blockstore.close(), datastore.close()]);
+      throw error;
+    }
   })().catch((err) => {
     // Reset so a page reload can retry rather than getting stuck on the same
     // rejected promise forever.
-    console.error("[helia-init] FAILED:", err);
     initPromise = null;
     throw err;
   });

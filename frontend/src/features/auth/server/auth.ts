@@ -1,6 +1,7 @@
 import "server-only";
 
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { emailOTP } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
@@ -9,9 +10,15 @@ import { AUTH } from "@/constants";
 import { createStripePlugin } from "@/features/billing/server/stripe";
 
 async function sendOTPEmail(email: string, otp: string) {
+  if (!process.env.RESEND_API_KEY) {
+    console.error("OTP delivery unavailable: RESEND_API_KEY is not set.");
+    throw new APIError("SERVICE_UNAVAILABLE", {
+      message: AUTH.OTP_NOT_CONFIGURED_MESSAGE,
+    });
+  }
   const { Resend } = await import("resend");
   const resend = new Resend(process.env.RESEND_API_KEY);
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: process.env.OTP_EMAIL_FROM || "noreply@distributed-quantum.com",
     to: email,
     subject: `Your verification code: ${otp}`,
@@ -26,6 +33,11 @@ async function sendOTPEmail(email: string, otp: string) {
       </div>
     `,
   });
+  if (error) {
+    throw new APIError("BAD_GATEWAY", {
+      message: AUTH.OTP_SEND_FAILED_MESSAGE,
+    });
+  }
 }
 
 function createAuthInstance(
@@ -37,6 +49,16 @@ function createAuthInstance(
   return betterAuth({
     database: mongodbAdapter(db, { client }),
     emailAndPassword: { enabled: false },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === AUTH.OTP_SEND_PATH) {
+          // Better Auth otherwise swallows delivery failures and reports success.
+          ctx.context.runInBackgroundOrAwait = async (promise) => {
+            await promise;
+          };
+        }
+      }),
+    },
     plugins: [
       emailOTP({
         otpLength: AUTH.OTP_LENGTH,

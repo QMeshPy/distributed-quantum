@@ -27,3 +27,17 @@ test("text errors and non-JSON failures have a safe display message", async () =
     ),
   ).toBe("Failed");
 });
+
+test("platform errors show their message without serializing private details", async () => {
+  expect(await readApiError(Response.json({
+    error: "validation_error",
+    message: "The portfolio cannot be priced.",
+    details: [{ message: "private input", input: "private", ctx: { secret: "private" } }],
+  }), "Failed")).toBe("The portfolio cannot be priced.");
+  expect(await readApiError(Response.json({ error: "Backend unreachable" }), "Failed"))
+    .toBe("Backend unreachable");
+  expect(await readApiError(Response.json({ message: {}, error: {}, details: ["private"] }), "Failed"))
+    .toBe("Failed");
+  expect(await readApiError(Response.json({ message: "", detail: "", error: "" }), "Failed"))
+    .toBe("Failed");
+});

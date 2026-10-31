@@ -17,10 +17,11 @@ import {
 } from "@/components/ui/input-otp";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { authClient } from "@/features/auth/hooks/use-auth";
-import { ROUTES, UI, AUTH, API } from "@/constants";
+import { checkEmailExists } from "@/features/auth/lib/check-email";
+import { ROUTES, UI, AUTH } from "@/constants";
 
 const emailSchema = z.object({
-  email: z.email(),
+  email: z.string().trim().toLowerCase().pipe(z.email()),
 });
 
 const detailsSchema = z.object({
@@ -32,16 +33,6 @@ const detailsSchema = z.object({
 
 type EmailValues = z.infer<typeof emailSchema>;
 type DetailsValues = z.infer<typeof detailsSchema>;
-
-async function checkEmailExists(email: string): Promise<boolean> {
-  const res = await fetch(API.AUTH.CHECK_EMAIL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const data = (await res.json()) as { exists: boolean };
-  return data.exists;
-}
 
 export function SignupForm() {
   const router = useRouter();
@@ -71,36 +62,42 @@ export function SignupForm() {
     setLoading(true);
     setEmailTaken(false);
 
-    const exists = await checkEmailExists(values.email);
-    setLoading(false);
-
-    if (exists) {
-      setEmailTaken(true);
-      emailForm.setError("email", { message: UI.ERRORS.EMAIL_EXISTS });
-      return;
+    try {
+      const exists = await checkEmailExists(values.email);
+      if (exists) {
+        setEmailTaken(true);
+        emailForm.setError("email", { message: UI.ERRORS.EMAIL_EXISTS });
+        return;
+      }
+      setEmail(values.email);
+      setStep("details");
+    } catch {
+      toast.error(AUTH.UNAVAILABLE_MESSAGE);
+    } finally {
+      setLoading(false);
     }
-
-    setEmail(values.email);
-    setStep("details");
   };
 
   const handleDetailsSubmit = async (values: DetailsValues) => {
     setDetails(values);
     setLoading(true);
 
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-    });
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message || UI.ERRORS.OTP_SEND_FAILED);
-      return;
+    try {
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "sign-in",
+      });
+      if (error) {
+        toast.error(error.message || UI.ERRORS.OTP_SEND_FAILED);
+        return;
+      }
+      toast.success(UI.SUCCESS.OTP_SENT);
+      setStep("otp");
+    } catch {
+      toast.error(AUTH.UNAVAILABLE_MESSAGE);
+    } finally {
+      setLoading(false);
     }
-
-    toast.success(UI.SUCCESS.OTP_SENT);
-    setStep("otp");
   };
 
   const handleOTPSubmit = async (e: React.FormEvent) => {
@@ -108,35 +105,42 @@ export function SignupForm() {
     if (otp.length !== AUTH.OTP_LENGTH || !details) return;
 
     setLoading(true);
-    const { error } = await authClient.signIn.emailOtp({
-      email,
-      otp,
-      name: `${details.firstName} ${details.lastName}`,
-    });
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message || UI.ERRORS.SIGNUP_FAILED);
-      return;
+    try {
+      const { error } = await authClient.signIn.emailOtp({
+        email,
+        otp,
+        name: `${details.firstName} ${details.lastName}`,
+      });
+      if (error) {
+        toast.error(error.message || UI.ERRORS.SIGNUP_FAILED);
+        return;
+      }
+      toast.success(UI.SUCCESS.SIGNUP);
+      router.push(ROUTES.DASHBOARD);
+    } catch {
+      toast.error(AUTH.UNAVAILABLE_MESSAGE);
+    } finally {
+      setLoading(false);
     }
-
-    toast.success(UI.SUCCESS.SIGNUP);
-    router.push(ROUTES.DASHBOARD);
   };
 
   const handleResend = async () => {
     setLoading(true);
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-    });
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message || UI.ERRORS.OTP_SEND_FAILED);
-      return;
+    try {
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "sign-in",
+      });
+      if (error) {
+        toast.error(error.message || UI.ERRORS.OTP_SEND_FAILED);
+        return;
+      }
+      toast.success(UI.SUCCESS.OTP_RESENT);
+    } catch {
+      toast.error(AUTH.UNAVAILABLE_MESSAGE);
+    } finally {
+      setLoading(false);
     }
-    toast.success(UI.SUCCESS.OTP_RESENT);
   };
 
   if (step === "otp") {

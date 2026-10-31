@@ -51,11 +51,11 @@ export function PinButton({ cid, type, metadata }: PinButtonProps) {
     }
   };
 
-  const handleUnpin = async (hardDelete: boolean) => {
+  const handleUnpin = async () => {
     if (!pinMeta) return;
     try {
-      await unpin(cid, pinMeta.service, hardDelete);
-      toast.success(hardDelete ? "Unpinned and freed quota" : "Removed from tracking");
+      await unpin(cid, pinMeta.service);
+      toast.success("Removed from tracking");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unpin failed");
     }

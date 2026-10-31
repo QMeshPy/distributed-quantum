@@ -1,11 +1,12 @@
 import { BACKEND } from "@/constants";
+import { financeBackendFetch } from "@/shared/server/finance-backend-fetch";
 import { submitCircuitRun } from "@/features/runs/server/runs-service";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const res = await fetch(BACKEND.JOBS.LIST);
+    const res = await financeBackendFetch(BACKEND.JOBS.LIST);
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {
