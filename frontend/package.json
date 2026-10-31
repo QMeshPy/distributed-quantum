@@ -12,6 +12,7 @@
     "test:x402": "node --conditions=react-server --test tests/x402-*.test.ts",
     "test:billing": "bun test tests/billing-webhook.test.mjs",
     "test:chains": "bun test tests/chains.test.mjs",
+    "test:connect": "bun test tests/connect-onboarding.test.mjs tests/connect-onboarding-server.test.mjs",
     "test:vault": "bun test tests/vault-pinning.test.mjs",
     "test:vault-cid": "bun test tests/vault-cid-resolve.test.mjs",
     "test:vault-run-link": "bun test tests/vault-run-circuit-link.test.mjs",
