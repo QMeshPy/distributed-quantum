@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useEnsResolve } from "../hooks/use-ens";
 import { isHexAddress, looksLikeEnsName, truncateAddress } from "../lib/ens";
@@ -34,53 +34,23 @@ export function AddressOrEnsInput({
   const isHex = isHexAddress(deferred);
   const resolve = useEnsResolve(deferred, { enabled: isEns, fresh: false });
 
-  const [localError, setLocalError] = useState<string | null>(null);
+  let localError: string | null = null;
+  if (deferred && !isHex) {
+    if (!isEns) {
+      localError = "Enter a 0x address or an ENS name (e.g. alice.eth)";
+    } else if (resolve.isError) {
+      localError = resolve.error instanceof Error
+        ? resolve.error.message
+        : "Could not resolve ENS name";
+    }
+  }
+  const resolvedAddress = isHex
+    ? deferred
+    : isEns && !localError ? resolve.data?.address ?? null : null;
 
   useEffect(() => {
-    if (!deferred) {
-      setLocalError(null);
-      onResolvedAddressChange?.(null);
-      return;
-    }
-    if (isHex) {
-      setLocalError(null);
-      onResolvedAddressChange?.(deferred);
-      return;
-    }
-    if (!isEns) {
-      setLocalError("Enter a 0x address or an ENS name (e.g. alice.eth)");
-      onResolvedAddressChange?.(null);
-      return;
-    }
-    if (resolve.isError) {
-      setLocalError(
-        resolve.error instanceof Error
-          ? resolve.error.message
-          : "Could not resolve ENS name",
-      );
-      onResolvedAddressChange?.(null);
-      return;
-    }
-    if (resolve.data?.address) {
-      setLocalError(null);
-      onResolvedAddressChange?.(resolve.data.address);
-      return;
-    }
-    if (resolve.isFetching || resolve.isLoading) {
-      setLocalError(null);
-      onResolvedAddressChange?.(null);
-    }
-  }, [
-    deferred,
-    isEns,
-    isHex,
-    resolve.data?.address,
-    resolve.error,
-    resolve.isError,
-    resolve.isFetching,
-    resolve.isLoading,
-    onResolvedAddressChange,
-  ]);
+    onResolvedAddressChange?.(resolvedAddress);
+  }, [resolvedAddress, onResolvedAddressChange]);
 
   const previewAddress = resolve.data?.address;
 

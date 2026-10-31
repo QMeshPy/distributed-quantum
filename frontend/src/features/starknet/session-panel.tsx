@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useNoteStarknetTx, useRefreshStarknetTxs, useRevokeStarknetSession, type StarknetSessionStatus } from "@/features/agentkit/hooks/use-agents";
 import { formatStrk } from "@/features/starknet/format-strk";
 import { SessionHistoryDialog } from "@/features/starknet/session-history-dialog";
@@ -88,9 +88,8 @@ export function StarknetSessionPanel({
   const revokeSession = useRevokeStarknetSession();
   const noteTx = useNoteStarknetTx();
   const refreshTxs = useRefreshStarknetTxs();
-  const refreshAgent = useRef(refreshTxs.mutate);
+  const refreshAgent = useEffectEvent((id: string) => refreshTxs.mutate(id));
   const receiptTimers = useRef(new Map<string, number>());
-  refreshAgent.current = refreshTxs.mutate;
   const { address, connectWallet, signAndSend } = useStarknetWallet();
   const status = session.status ?? "active";
   const header = variant === "header";
@@ -114,7 +113,7 @@ export function StarknetSessionPanel({
         const remaining = submittedAt * 1000 + delayMs - now;
         if (remaining <= 0) continue;
         const timer = window.setTimeout(() => {
-          refreshAgent.current(agentId);
+          refreshAgent(agentId);
         }, remaining);
         timers.set(key, timer);
       }

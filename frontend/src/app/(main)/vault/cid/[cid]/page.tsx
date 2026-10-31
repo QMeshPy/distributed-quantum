@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { use } from "react";
 
 const VaultCidClient = dynamic(
   () =>
@@ -10,11 +11,11 @@ const VaultCidClient = dynamic(
   { ssr: false },
 );
 
-export default async function VaultCidPage({
+export default function VaultCidPage({
   params,
 }: {
   params: Promise<{ cid: string }>;
 }) {
-  const { cid } = await params;
+  const { cid } = use(params);
   return <VaultCidClient cid={decodeURIComponent(cid)} />;
 }

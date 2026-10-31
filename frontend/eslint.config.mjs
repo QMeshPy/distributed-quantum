@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Upstream Mol* bundle; lint the source components that load it instead.
+    "public/molstar.js",
   ]),
 ]);
 

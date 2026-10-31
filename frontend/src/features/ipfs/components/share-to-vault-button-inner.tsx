@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Share2, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -11,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIpfsUpload } from "../hooks/use-ipfs-upload";
-import { getLocalItems } from "../lib/local-index";
+import { useLocalVaultIndex } from "../hooks/use-local-vault-index";
 import { PinButton } from "@/features/vault-pinning/components/pin-button";
 
 interface ShareToVaultButtonProps {
@@ -23,19 +22,8 @@ interface ShareToVaultButtonProps {
 export function ShareToVaultButtonInner({ data, name, type }: ShareToVaultButtonProps) {
   const { upload, uploading, ready, heliaStatus } = useIpfsUpload();
 
-  // Restore CID from the local vault index so the button stays in "pinning"
-  // state when navigating away and back to the page.
-  const [sharedCid, setSharedCid] = useState<string | null>(() => {
-    const existing = getLocalItems().find((i) => i.name === name && i.type === type);
-    return existing?.cid ?? null;
-  });
-
-  // Keep in sync if another tab/upload adds the item while this component is mounted.
-  useEffect(() => {
-    if (sharedCid) return;
-    const existing = getLocalItems().find((i) => i.name === name && i.type === type);
-    if (existing) setSharedCid(existing.cid);
-  }, [name, type, sharedCid]);
+  const { items } = useLocalVaultIndex();
+  const sharedCid = items.find((item) => item.name === name && item.type === type)?.cid;
 
   const handleShare = async () => {
     if (!ready) {
@@ -44,7 +32,6 @@ export function ShareToVaultButtonInner({ data, name, type }: ShareToVaultButton
     }
     const cid = await upload(data, name, type);
     if (cid) {
-      setSharedCid(cid);
       toast.success("Shared to VAULT via IPFS");
     } else {
       toast.error("Failed to share to VAULT");

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { LLM_PROVIDER_STORAGE_KEY, type AgentLlmProvider } from "./constants";
 import {
   FALLBACK_LLM_PROVIDERS,
@@ -17,8 +17,20 @@ type AgentLlmProviderContextValue = {
 
 export const AgentLlmProviderContext = createContext<AgentLlmProviderContextValue | null>(null);
 
+function readStoredProvider(): AgentLlmProvider | null {
+  const stored = localStorage.getItem(LLM_PROVIDER_STORAGE_KEY);
+  return stored === "groq" || stored === "openrouter" || stored === "near" ? stored : null;
+}
+
+function subscribeToProvider(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
 export function AgentLlmProviderProvider({ children }: { children: ReactNode }) {
-  const [provider, setProviderState] = useState<AgentLlmProvider>("groq");
+  const storedProvider = useSyncExternalStore(subscribeToProvider, readStoredProvider, () => null);
+  const [selectedProvider, setProviderState] = useState<AgentLlmProvider | null>(null);
+  const provider = selectedProvider ?? storedProvider ?? "groq";
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,11 +38,7 @@ export function AgentLlmProviderProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     let cancelled = false;
 
-    // First, try to read from localStorage
-    const stored = localStorage.getItem(LLM_PROVIDER_STORAGE_KEY);
-    if (stored && (stored === "groq" || stored === "openrouter" || stored === "near")) {
-      setProviderState(stored);
-    }
+    const stored = readStoredProvider();
 
     // Then fetch from backend to get default and provider list
     fetch("/api/agentkit/agents/llm-providers")

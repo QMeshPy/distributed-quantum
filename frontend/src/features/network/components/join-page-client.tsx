@@ -210,20 +210,18 @@ function ManualRegistrationForm() {
 export function JoinPageClient() {
   const [scriptViewerOpen, setScriptViewerOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [origin, setOrigin] = useState("");
-  const [coordinatorMultiaddr, setCoordinatorMultiaddr] = useState<string | null>(null);
+  const [runCmd, setRunCmd] = useState<string | null>(null);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
     fetch("/api/network/coordinator-info")
       .then((r) => r.json())
-      .then((d) => { if (d.multiaddr) setCoordinatorMultiaddr(d.multiaddr); })
+      .then((d) => {
+        if (d.multiaddr) {
+          setRunCmd(`curl -fsSL ${window.location.origin}/api/network/node-script -o node-starter-template.py && python3 node-starter-template.py --coordinator ${d.multiaddr} --label my-node`);
+        }
+      })
       .catch(() => {});
   }, []);
-
-  const runCmd = coordinatorMultiaddr
-    ? `curl -fsSL ${origin || ""}/api/network/node-script -o node-starter-template.py && python3 node-starter-template.py --coordinator ${coordinatorMultiaddr} --label my-node`
-    : null;
 
   return (
     <div className="flex min-h-full flex-col">

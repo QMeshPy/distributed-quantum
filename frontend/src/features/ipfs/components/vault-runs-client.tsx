@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HardDrive, Calendar, Hash } from "lucide-react";
 import {
@@ -41,34 +41,39 @@ interface EnrichedRun {
   record: RunIPFSRecord | null;
 }
 
-function useEnrichedRuns(runs: VaultItem[]) {
+function useEnrichedRuns(runs: VaultItem[]): EnrichedRun[] {
   const { fetchData, ready } = useIpfsFetch();
-  const [enriched, setEnriched] = useState<EnrichedRun[]>([]);
+  const [enriched, setEnriched] = useState<{
+    cidKey: string;
+    records: Record<string, RunIPFSRecord | null>;
+  } | null>(null);
 
   const cidKey = runs.map((r) => r.cid).join(",");
+  const fetchRuns = useEffectEvent(() => Promise.all(
+    runs.map(async (item) => {
+      const record = await fetchData<RunIPFSRecord>(item.cid);
+      return [item.cid, record ?? null] as const;
+    }),
+  ));
 
   useEffect(() => {
-    setEnriched(runs.map((item) => ({ item, record: null })));
     if (!ready) return;
 
     let cancelled = false;
     (async () => {
-      const results = await Promise.all(
-        runs.map(async (item) => {
-          const record = await fetchData<RunIPFSRecord>(item.cid);
-          return { item, record: record ?? null };
-        }),
-      );
-      if (!cancelled) setEnriched(results);
+      const results = await fetchRuns();
+      if (!cancelled) setEnriched({ cidKey, records: Object.fromEntries(results) });
     })();
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, cidKey]);
 
-  return enriched;
+  return runs.map((item) => ({
+    item,
+    record: ready && enriched?.cidKey === cidKey ? enriched.records[item.cid] ?? null : null,
+  }));
 }
 
 export function VaultRunsClient() {

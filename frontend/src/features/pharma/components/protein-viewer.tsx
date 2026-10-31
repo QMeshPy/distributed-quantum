@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, RotateCcw, Maximize2, Layers } from "lucide-react";
+import { Loader2, RotateCcw, Layers } from "lucide-react";
+import type { Stage } from "ngl";
 
 type RepStyle = "cartoon" | "surface" | "ball+stick";
 
 interface Props {
   pdbId: string;
   height?: number;
-  onStageReady?: (stage: any) => void;
+  onStageReady?: (stage: Stage) => void;
 }
 
 const REP_LABELS: { key: RepStyle; label: string }[] = [
@@ -19,8 +20,7 @@ const REP_LABELS: { key: RepStyle; label: string }[] = [
 
 export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stageRef = useRef<any>(null);
+  const stageRef = useRef<Stage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [repStyle, setRepStyle] = useState<RepStyle>("cartoon");
@@ -57,8 +57,9 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
       // Load the PDB from RCSB
       stage
         .loadFile(`rcsb://${pdbId.toUpperCase()}`, { defaultRepresentation: false })
-        .then((comp: any) => {
+        .then((comp) => {
           if (cancelled) return;
+          if (!comp) throw new Error("No protein structure returned");
 
           // Protein ribbon colored by chain
           comp.addRepresentation("cartoon", {
@@ -112,7 +113,7 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
     const stage = stageRef.current;
     if (!stage) return;
     setRepStyle(style);
-    stage.compList.forEach((comp: any) => {
+    stage.compList.forEach((comp) => {
       comp.removeAllRepresentations();
       if (style === "cartoon") {
         comp.addRepresentation("cartoon", { colorScheme: "chainid", smoothSheet: true });

@@ -19,6 +19,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { motion, AnimatePresence } from "motion/react";
+import type { Stage } from "ngl";
 import { usePharmaJobLive } from "../hooks/use-pharma-job-live";
 import { LigandViewer } from "./ligand-viewer";
 import { CandidateCard } from "./candidate-card";
@@ -193,13 +194,38 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
     ? (job.result?.candidates[0]?.smiles ?? liveData?.best_smiles ?? derived.bestSmiles ?? derived.currentCandidateSmiles)
     : (liveData?.best_smiles ?? derived.bestSmiles ?? derived.currentCandidateSmiles);
 
-  const stageRef      = useRef<any>(null);
+  const stageRef      = useRef<Stage | null>(null);
   const prevSmilesRef = useRef<string | null>(null);
   const prevScoreRef  = useRef<number | null>(null);
   const prevStageRef  = useRef<string | null>(null);
   const logScrollRef  = useRef<HTMLDivElement>(null);
   const [discoveredSmiles, setDiscoveredSmiles] = useState<string[]>([]);
+  const completedResult = isCompleted ? job.result : undefined;
+  const [discoveryInputs, setDiscoveryInputs] = useState<{
+    smiles: string | null;
+    admet: number;
+    result: PharmaJob["result"];
+  } | null>(null);
   const discoveredScrollRef = useRef<HTMLDivElement>(null);
+
+  // Retain observed candidates while adjusting history before the next render.
+  if (!discoveryInputs || discoveryInputs.smiles !== effectiveSmiles ||
+      discoveryInputs.admet !== effectiveAdmet || discoveryInputs.result !== completedResult) {
+    setDiscoveryInputs({ smiles: effectiveSmiles, admet: effectiveAdmet, result: completedResult });
+    setDiscoveredSmiles((prev) => {
+      let next = prev;
+      if (effectiveSmiles && effectiveAdmet !== 0 &&
+          (discoveryInputs?.smiles !== effectiveSmiles || discoveryInputs?.admet !== effectiveAdmet) &&
+          !next.includes(effectiveSmiles)) {
+        next = [...next, effectiveSmiles].slice(-20);
+      }
+      if (completedResult && discoveryInputs?.result !== completedResult) {
+        const fresh = completedResult.candidates.map((c) => c.smiles).filter((s) => !next.includes(s));
+        next = [...next, ...fresh].slice(-20);
+      }
+      return next;
+    });
+  }
 
   // Elapsed-time timer (ticks every second while running)
   const [elapsedSec, setElapsedSec] = useState<number>(0);
@@ -228,11 +254,11 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
     if (!stage || !smiles || smiles === prevSmilesRef.current) return;
     prevSmilesRef.current = smiles;
     stage.compList
-      .filter((c: any) => c.name === "live-ligand")
-      .forEach((c: any) => stage.removeComponent(c));
+      .filter((c) => c.name === "live-ligand")
+      .forEach((c) => stage.removeComponent(c));
     stage
       .loadFile(`smiles://${smiles}`, { name: "live-ligand" })
-      .then((comp: any) => {
+      .then((comp) => {
         if (!comp) return;
         comp.addRepresentation("ball+stick", { colorScheme: "element", quality: "high" });
         comp.autoView(400);
@@ -245,10 +271,10 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
     const stage = stageRef.current;
     if (!stage || effectiveScore === null || effectiveScore === prevScoreRef.current) return;
     prevScoreRef.current = effectiveScore;
-    stage.compList.forEach((comp: any) => {
+    stage.compList.forEach((comp) => {
       comp.reprList
-        .filter((r: any) => r.type === "surface")
-        .forEach((r: any) => {
+        .filter((r) => r.type === "surface")
+        .forEach((r) => {
           r.setParameters({ opacity: 0.5 });
           setTimeout(() => r.setParameters({ opacity: 0.18 }), 700);
         });
@@ -268,25 +294,6 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
     const el = logScrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [bioLogLines.length]);
-
-  // Accumulate discovered SMILES on ADMET pass
-  useEffect(() => {
-    const smiles = effectiveSmiles;
-    if (!smiles || effectiveAdmet === 0) return;
-    setDiscoveredSmiles((prev) => {
-      if (prev.includes(smiles)) return prev;
-      return [...prev, smiles].slice(-20);
-    });
-  }, [effectiveAdmet, effectiveSmiles]);
-
-  // On completion, add final candidates
-  useEffect(() => {
-    if (!isCompleted || !job.result) return;
-    setDiscoveredSmiles((prev) => {
-      const fresh = job.result!.candidates.map((c) => c.smiles).filter((s) => !prev.includes(s));
-      return [...prev, ...fresh].slice(-20);
-    });
-  }, [isCompleted, job.result]);
 
   useEffect(() => {
     const el = discoveredScrollRef.current;

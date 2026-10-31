@@ -76,7 +76,8 @@ function AgentsChatInner() {
   const [input, setInput]                     = useState("");
   const [loading, setLoading]                 = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [introShown, setIntroShown]           = useState(false);
+  const [previousUrlNew, setPreviousUrlNew]   = useState(urlNew);
+  const introRequest = useRef<string | null>(null);
   const [testSpendOpen, setTestSpendOpen]     = useState(false);
   const [openSession, setOpenSession]         = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -102,31 +103,34 @@ function AgentsChatInner() {
     }
   }, [agentsLoading, agents.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset to blank chat when ?new= param changes (New Chat button)
-  useEffect(() => {
-    if (!urlNew) return;
-    setMessages([]);
-    setActiveSessionId(null);
-    setIntroShown(false);
-    setInput("");
-  }, [urlNew]);
-
   const agentSessions = urlAgentId
     ? sessions.filter((session) => session.agentId === urlAgentId)
     : sessions;
+  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
+
+  // Reset local drafts before rendering a newly requested chat or another agent.
+  if (urlNew !== previousUrlNew) {
+    setPreviousUrlNew(urlNew);
+    if (urlNew) {
+      setMessages([]);
+      setActiveSessionId(null);
+      setInput("");
+    }
+  }
+  if (urlAgentId && activeSession?.agentId && activeSession.agentId !== urlAgentId) {
+    setMessages([]);
+    setActiveSessionId(null);
+    setInput("");
+  }
 
   // Drop another agent's open chat when the agent in the URL changes.
   useEffect(() => {
-    const current = sessions.find((session) => session.id === activeSessionId);
+    const current = sessions.find((session) => session.id === urlSessionId);
     if (!urlAgentId || !current?.agentId || current.agentId === urlAgentId) return;
-    setMessages([]);
-    setActiveSessionId(null);
-    setIntroShown(false);
-    setInput("");
     const url = new URL(window.location.href);
     url.searchParams.delete("sessionId");
     window.history.replaceState(null, "", url);
-  }, [urlAgentId, activeSessionId, sessions]);
+  }, [urlAgentId, urlSessionId, sessions]);
 
   // Restore an existing session when navigating from history
   useEffect(() => {
@@ -140,19 +144,25 @@ function AgentsChatInner() {
   }, [urlSessionId, urlAgentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // /agents/chat has no sessionId. Select the newest session for this agent only.
-  useEffect(() => {
-    if (urlNew || urlAgentName || urlSessionId || activeSessionId || !sessionsReady || agentSessions.length === 0) return;
+  if (!urlNew && !urlAgentName && !urlSessionId && !activeSessionId && sessionsReady && agentSessions.length > 0) {
     const latest = agentSessions[0];
     setActiveSessionId(latest.id);
     setMessages(latest.messages);
-    activateSession(latest.id);
-  }, [urlNew, urlAgentName, urlSessionId, activeSessionId, sessionsReady, agentSessions]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
+
+  useEffect(() => {
+    if (urlNew || urlAgentName || urlSessionId || !activeSessionId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("sessionId", activeSessionId);
+    window.history.replaceState(null, "", url);
+  }, [urlNew, urlAgentName, urlSessionId, activeSessionId]);
 
   // Show persona intro once when arriving from marketplace
   useEffect(() => {
-    if (introShown || !urlAgentName || urlSessionId) return;
+    const requestKey = JSON.stringify([urlNew, urlAgentId, urlAgentName]);
+    if (introRequest.current === requestKey || !urlAgentName || urlSessionId) return;
     if (agentsLoading) return;
-    setIntroShown(true);
+    introRequest.current = requestKey;
     const activeAgent = urlAgentId
       ? (agents.find((a) => a.agent_id === urlAgentId) ?? agents[0])
       : agents[0];
@@ -181,8 +191,6 @@ function AgentsChatInner() {
   const activeAgent = urlAgentId
     ? (agents.find((a) => a.agent_id === urlAgentId) ?? agents[0])
     : agents[0];
-  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
-
   const storage = useStorageExports(activeAgent?.agent_id, activeSessionId);
 
   const pushMessage = useCallback((msg: ChatMessage, sessionId: string) => {

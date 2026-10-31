@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,24 +56,16 @@ function errorCopy(error: CidResolveError): { title: string; body: string } {
 export function VaultCidClient({ cid }: VaultCidClientProps) {
   const router = useRouter();
   const { resolve, resolving, error, result, ready } = useCidResolve();
-  const [activeCid, setActiveCid] = useState(cid);
 
   const form = useForm<PasteValues>({
     resolver: zodResolver(pasteSchema),
-    defaultValues: { cid: cid || "" },
+    values: { cid },
   });
 
   useEffect(() => {
-    setActiveCid(cid);
-    form.reset({ cid: cid || "" });
-    // form.reset is stable; only re-sync when the route CID changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cid]);
-
-  useEffect(() => {
-    if (!ready || !activeCid) return;
-    void resolve(activeCid);
-  }, [ready, activeCid, resolve]);
+    if (!ready || !cid) return;
+    void resolve(cid);
+  }, [ready, cid, resolve]);
 
   const onPaste = form.handleSubmit((values) => {
     const next = values.cid.trim();
@@ -117,12 +109,12 @@ export function VaultCidClient({ cid }: VaultCidClientProps) {
         </form>
       </GlassCard>
 
-      {!activeCid ? (
+      {!cid ? (
         <p className="text-sm text-muted-foreground">{UI.VAULT_CID.EMPTY_HINT}</p>
       ) : resolving || !ready ? (
         <CidSkeleton />
       ) : error ? (
-        <ErrorPanel error={error} cid={activeCid} />
+        <ErrorPanel error={error} cid={cid} />
       ) : result ? (
         <ResolvedRecord result={result} />
       ) : null}

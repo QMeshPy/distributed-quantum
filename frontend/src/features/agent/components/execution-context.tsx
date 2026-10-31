@@ -28,7 +28,7 @@ export function ExecutionContext({ sessionId }: ExecutionContextProps) {
 
   return (
     <div className="w-96 border-l border-white/10 bg-background flex flex-col">
-      <Tabs value={executionView} onValueChange={(v) => setExecutionView(v as any)} className="flex-1 flex flex-col">
+      <Tabs value={executionView} onValueChange={(v) => setExecutionView(v as typeof executionView)} className="flex-1 flex flex-col">
         <div className="border-b border-white/10 px-4 pt-3">
           <TabsList className="w-full">
             <TabsTrigger value="results" className="flex-1">Results</TabsTrigger>
