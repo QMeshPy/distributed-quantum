@@ -1,7 +1,11 @@
+import { financeBackendFetch } from "@/shared/server/finance-backend-fetch";
 import { type NextRequest, NextResponse } from "next/server";
 import { BACKEND } from "@/constants";
 
 export const dynamic = "force-dynamic";
+
+const pharmaFetch = (url: string, init?: RequestInit) =>
+  financeBackendFetch(url, init, "Sign in to run pharma analysis.");
 
 export async function GET(
   _request: NextRequest,
@@ -9,7 +13,7 @@ export async function GET(
 ) {
   const { jobId } = await params;
   try {
-    const res = await fetch(BACKEND.PHARMA.LIVE(jobId));
+    const res = await pharmaFetch(BACKEND.PHARMA.LIVE(jobId));
     if (res.status === 404) return new NextResponse(null, { status: 404 });
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });

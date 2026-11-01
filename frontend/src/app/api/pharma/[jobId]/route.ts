@@ -1,7 +1,11 @@
+import { financeBackendFetch } from "@/shared/server/finance-backend-fetch";
 import { type NextRequest, NextResponse } from "next/server";
 import { BACKEND } from "@/constants";
 
 export const dynamic = "force-dynamic";
+
+const pharmaFetch = (url: string, init?: RequestInit) =>
+  financeBackendFetch(url, init, "Sign in to run pharma analysis.");
 
 export async function GET(
   _request: NextRequest,
@@ -9,7 +13,7 @@ export async function GET(
 ) {
   const { jobId } = await params;
   try {
-    const res = await fetch(BACKEND.PHARMA.JOB(jobId));
+    const res = await pharmaFetch(BACKEND.PHARMA.JOB(jobId));
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {
@@ -23,7 +27,7 @@ export async function DELETE(
 ) {
   const { jobId } = await params;
   try {
-    const res = await fetch(BACKEND.PHARMA.CANCEL(jobId), { method: "DELETE" });
+    const res = await pharmaFetch(BACKEND.PHARMA.CANCEL(jobId), { method: "DELETE" });
     if (res.status === 204) return new NextResponse(null, { status: 204 });
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });
