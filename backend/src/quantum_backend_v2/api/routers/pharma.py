@@ -7,10 +7,11 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
+from quantum_backend_v2.api.deps.x402_gateway import X402_OWNER_USER_ID, build_x402_gateway_guard
 from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.persistence.mongodb import PharmaJobDocument
 from quantum_backend_v2.pharma.config import PharmaMode, PharmaWorkflowConfig
@@ -23,6 +24,10 @@ from quantum_backend_v2.pharma.live_state import (
     update_live,
 )
 
+# Paid x402 callers are anonymous, so bound the work one payment can request.
+_X402_MAX_ITERATIONS = 5
+_X402_MAX_CANDIDATES = 100
+
 # Log lines of jobs this process is running; they reach MongoDB when the job ends.
 _RUNNING_LOGS: dict[str, list[dict[str, Any]]] = {}
 
@@ -30,7 +35,7 @@ _RUNNING_LOGS: dict[str, list[dict[str, Any]]] = {}
 class PharmaSubmitRequest(BaseModel):
     mode: PharmaMode
     target_pdb_id: str = Field(min_length=3, max_length=10)
-    initial_ligand_smiles: str | None = None
+    initial_ligand_smiles: str | None = Field(default=None, max_length=500)
     max_iterations: int = Field(default=5, ge=1, le=20)
     candidate_count: int = Field(default=100, ge=10, le=500)
 
@@ -184,7 +189,11 @@ async def _run_pharma_job(
         _RUNNING_LOGS.pop(job_id, None)
 
 
-def build_pharma_router(*, pharma_job_service: PharmaJobService) -> APIRouter:
+def build_pharma_router(
+    *,
+    pharma_job_service: PharmaJobService,
+    x402_gateway_secret: str | None = None,
+) -> APIRouter:
     """Build the pharma docking router."""
     router = APIRouter(prefix="/api/v1/pharma", tags=["pharma"])
 
@@ -243,5 +252,42 @@ def build_pharma_router(*, pharma_job_service: PharmaJobService) -> APIRouter:
     async def cancel_pharma_job(job_id: str, current_user: CurrentUser) -> None:
         if await pharma_job_service.cancel(job_id, current_user=current_user) is None:
             raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
+
+    if x402_gateway_secret is not None:
+        require_x402_gateway = build_x402_gateway_guard(x402_gateway_secret)
+
+        @router.post(
+            "/internal/x402/submit",
+            response_model=PharmaSubmitResponse,
+            status_code=202,
+            include_in_schema=False,
+        )
+        async def submit_x402_pharma_job(
+            request: PharmaSubmitRequest,
+            background_tasks: BackgroundTasks,
+            _: None = Depends(require_x402_gateway),
+        ) -> PharmaSubmitResponse:
+            if (
+                request.max_iterations > _X402_MAX_ITERATIONS
+                or request.candidate_count > _X402_MAX_CANDIDATES
+            ):
+                raise HTTPException(status_code=422, detail="job is too large for x402")
+            return await queue_job(request, background_tasks, X402_OWNER_USER_ID)
+
+        @router.get(
+            "/internal/x402/jobs/{job_id}",
+            response_model=PharmaJobStatus,
+            include_in_schema=False,
+        )
+        async def get_x402_pharma_job(
+            job_id: str,
+            _: None = Depends(require_x402_gateway),
+        ) -> PharmaJobStatus:
+            record = await pharma_job_service.get_job_for_owner(
+                job_id, owner_user_id=X402_OWNER_USER_ID
+            )
+            if record is None:
+                raise HTTPException(status_code=404, detail=f"Job {job_id!r} not found")
+            return _job_status(record)
 
     return router

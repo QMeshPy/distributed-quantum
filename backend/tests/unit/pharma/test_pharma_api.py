@@ -12,6 +12,8 @@ from quantum_backend_v2.api.routers.pharma import build_pharma_router
 
 from .fakes import FakePharmaJobService
 
+SECRET = "correct-shared-secret"
+X402_HEADERS = {"X-X402-Gateway-Secret": SECRET}
 
 
 @pytest.fixture(autouse=True)
@@ -28,10 +30,10 @@ def service():
     return FakePharmaJobService()
 
 
-def _client(service, user="alice"):
+def _client(service, user="alice", secret=None):
     app = FastAPI()
     register_exception_handlers(app)
-    app.include_router(build_pharma_router(pharma_job_service=service))
+    app.include_router(build_pharma_router(pharma_job_service=service, x402_gateway_secret=secret))
     client = TestClient(app)
     if user is not None:
         client.headers["Authorization"] = f"Bearer dev-{user}"
@@ -189,3 +191,47 @@ class TestPharmaOwnership:
         assert bobby.get(f"/api/v1/pharma/jobs/{jid}/live").status_code == 404
         assert bobby.delete(f"/api/v1/pharma/jobs/{jid}").status_code == 404
         assert alice.get(f"/api/v1/pharma/jobs/{jid}").json()["status"] == "queued"
+
+    def test_overlong_ligand_smiles_422(self, client):
+        assert client.post("/api/v1/pharma/submit",
+                           json={**OPT_PAYLOAD, "initial_ligand_smiles": "C" * 501}).status_code == 422
+
+
+class TestPharmaX402Routes:
+    SUBMIT = "/api/v1/pharma/internal/x402/submit"
+
+    def test_routes_are_disabled_without_secret(self, service):
+        assert _client(service, user=None).post(self.SUBMIT, json=OPT_PAYLOAD).status_code == 404
+
+    def test_submit_requires_secret_and_creates_no_job_when_rejected(self, service):
+        client = _client(service, user=None, secret=SECRET)
+        wrong = {"X-X402-Gateway-Secret": "wrong"}
+        assert client.post(self.SUBMIT, json=OPT_PAYLOAD).status_code == 401
+        assert client.post(self.SUBMIT, headers=wrong, json=OPT_PAYLOAD).status_code == 401
+        assert service.jobs == {}
+
+    def test_submit_and_status_use_the_paid_owner(self, service):
+        client = _client(service, user=None, secret=SECRET)
+        accepted = client.post(self.SUBMIT, headers=X402_HEADERS, json=OPT_PAYLOAD)
+        assert accepted.status_code == 202
+        jid = accepted.json()["job_id"]
+        assert service.jobs[jid].owner_user_id == "x402-algorand"
+        status = client.get(f"/api/v1/pharma/internal/x402/jobs/{jid}", headers=X402_HEADERS)
+        assert status.status_code == 200
+        assert status.json()["job_id"] == jid
+
+    def test_status_requires_secret_and_hides_other_owners_jobs(self, service):
+        client = _client(service, user=None, secret=SECRET)
+        user_job = _client(service, "alice").post("/api/v1/pharma/submit", json=OPT_PAYLOAD)
+        jid = user_job.json()["job_id"]
+        url = f"/api/v1/pharma/internal/x402/jobs/{jid}"
+        assert client.get(url).status_code == 401
+        assert client.get(url, headers=X402_HEADERS).status_code == 404
+
+    def test_submit_rejects_oversized_jobs(self, service):
+        client = _client(service, user=None, secret=SECRET)
+        too_many_iterations = {**OPT_PAYLOAD, "max_iterations": 6}
+        too_many_candidates = {**OPT_PAYLOAD, "candidate_count": 101}
+        for payload in (too_many_iterations, too_many_candidates):
+            assert client.post(self.SUBMIT, headers=X402_HEADERS, json=payload).status_code == 422
+        assert service.jobs == {}

@@ -262,7 +262,12 @@ def create_app(
 
     app.include_router(benchmark_router)
     if pharma_job_service is not None:
-        app.include_router(build_pharma_router(pharma_job_service=pharma_job_service))
+        app.include_router(
+            build_pharma_router(
+                pharma_job_service=pharma_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     app.include_router(agent_router)
 
     # Register AgentKit integration routers (v1 API)
