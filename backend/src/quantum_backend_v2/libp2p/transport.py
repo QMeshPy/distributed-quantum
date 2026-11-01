@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 _STOP_POLL_INTERVAL = 0.5
 _BOOTSTRAP_CONNECT_RETRIES = 20
 _BOOTSTRAP_CONNECT_RETRY_DELAY_SECONDS = 0.5
+_BOOTSTRAP_RECONNECT_INTERVAL_SECONDS = 15.0
+_BOOTSTRAP_RECONNECT_TIMEOUT_SECONDS = 10.0
 _ADVERTISEMENT_REFRESH_EVERY_HEARTBEATS = 5
 _READY_WAIT_SECONDS = 15.0
 _STREAM_READ_MAX_BYTES = 2**32 - 1
@@ -202,6 +204,8 @@ class LibP2pNetworkThread:
                                     DiscoveryEventKind.HEARTBEAT,
                                 )
                             nursery.start_soon(self._heartbeat_loop, pubsub)
+                            if settings.bootstrap_peers:
+                                nursery.start_soon(self._reconnect_bootstrap_loop, host)
                             nursery.start_soon(self._watch_stop, nursery)
         except Exception:
             logger.exception("libp2p network thread encountered an unhandled exception")
@@ -328,6 +332,25 @@ class LibP2pNetworkThread:
                         )
                     else:
                         await trio.sleep(_BOOTSTRAP_CONNECT_RETRY_DELAY_SECONDS)
+
+    async def _reconnect_bootstrap_loop(self, host: object) -> None:
+        """Re-dial bootstrap peers whose connection dropped (or never came up).
+
+        A peer behind NAT cannot be dialed back, so it must restore the link itself.
+        """
+        peer_infos = [info_from_p2p_addr(Multiaddr(addr)) for addr in self._settings.bootstrap_peers]
+        while True:
+            await trio.sleep(_BOOTSTRAP_RECONNECT_INTERVAL_SECONDS)
+            connected = {str(p) for p in host.get_connected_peers()}  # type: ignore[attr-defined]
+            for peer_info in peer_infos:
+                if str(peer_info.peer_id) in connected:
+                    continue
+                try:
+                    with trio.fail_after(_BOOTSTRAP_RECONNECT_TIMEOUT_SECONDS):
+                        await host.connect(peer_info)  # type: ignore[attr-defined]
+                    logger.info("reconnected to bootstrap peer %s", peer_info.peer_id)
+                except Exception:
+                    logger.debug("bootstrap peer %s still unreachable", peer_info.peer_id)
 
     def _refresh_local_peer_record(self, host: object) -> None:
         try:

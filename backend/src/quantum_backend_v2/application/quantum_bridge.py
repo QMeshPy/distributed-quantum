@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -55,6 +57,12 @@ from quantum_backend_v2.protocols.reservation import (
 )
 from quantum_backend_v2.reservations.service import ReservationService
 from quantum_backend_v2.runtime.service import ExecutionService
+
+logger = logging.getLogger(__name__)
+
+
+class PeerRpcError(Exception):
+    """A peer could not be reached or its stream failed mid-request."""
 
 
 def _utc_now() -> datetime:
@@ -680,6 +688,26 @@ class QuantumExecutionBridge:
             )
         return payload
 
+    async def _peer_rpc(self, **kwargs: Any) -> bytes:
+        try:
+            return await self._discovery_service.request_peer_rpc(**kwargs)
+        except Exception as exc:  # dead or unreachable peer; CancelledError is not an Exception
+            raise PeerRpcError(f"{type(exc).__name__}: {exc}") from exc
+
+    async def _abandon_attempt(self, reservation_id: str, execution_id: str, reason: str) -> None:
+        """Close ledger entries of an attempt on an unreachable peer; never blocks the fallback."""
+        if self._execution_service is not None:
+            # Raises if this attempt never reached dispatch (no execution recorded); that is fine.
+            with suppress(Exception):
+                await self._execution_service.record_failed(
+                    execution_id=execution_id, error_detail=reason[:300]
+                )
+        if self._reservation_service is not None:
+            with suppress(Exception):
+                await self._reservation_service.cancel(
+                    reservation_id=reservation_id, reason=reason[:300]
+                )
+
     async def _execute_block(
         self,
         *,
@@ -697,190 +725,194 @@ class QuantumExecutionBridge:
         service_id = self._reservation_service_id(block)
 
         for attempt_index, node_id in enumerate(candidate_node_ids, start=1):
-            peer = self._discovery_service.registry.get_peer(node_id)
-            peer_addresses = tuple(peer.network_addresses) if peer is not None else ()
-            reservation_id = f"res-{uuid.uuid4()}"
-            execution_id = f"exec-{uuid.uuid4()}"
-            prepare_request = ReservationPrepareRequest(
-                reservation_id=reservation_id,
-                workflow_run_id=workflow_run_id,
-                fragment_id=block.block_id,
-                requesting_peer_id=str(self._libp2p_runtime.host.get_id()),
-                service_id=service_id,
-                estimated_qubits=max(1, len(block.state_qubits)),
-                estimated_depth=max(
-                    1,
-                    sum(
-                        len(plan.fragments[fragment_id].operation_ids)
-                        for fragment_id in block.fragment_ids
-                    ),
-                ),
-                idempotency_key=uuid.uuid4().hex,
-            )
-            if self._reservation_service is not None:
-                await self._reservation_service.request(
+            try:
+                peer = self._discovery_service.registry.get_peer(node_id)
+                peer_addresses = tuple(peer.network_addresses) if peer is not None else ()
+                reservation_id = f"res-{uuid.uuid4()}"
+                execution_id = f"exec-{uuid.uuid4()}"
+                prepare_request = ReservationPrepareRequest(
                     reservation_id=reservation_id,
                     workflow_run_id=workflow_run_id,
                     fragment_id=block.block_id,
-                    service_id=service_id,
                     requesting_peer_id=str(self._libp2p_runtime.host.get_id()),
-                    ttl_seconds=prepare_request.ttl_seconds,
-                    idempotency_key=prepare_request.idempotency_key,
-                )
-
-            prepare_response = ReservationPrepareResponse.model_validate_json(
-                await self._discovery_service.request_peer_rpc(
-                    peer_id=node_id,
-                    protocol_id=self._protocol_ids.reservation_prepare,
-                    payload=prepare_request.model_dump_json().encode("utf-8"),
-                    peer_addresses=peer_addresses,
-                )
-            )
-            if prepare_response.transition not in {
-                ReservationTransition.ACCEPTED,
-                ReservationTransition.COMMITTED,
-            }:
-                last_error = prepare_response.reason or (
-                    f"reservation {prepare_response.transition.value}"
+                    service_id=service_id,
+                    estimated_qubits=max(1, len(block.state_qubits)),
+                    estimated_depth=max(
+                        1,
+                        sum(
+                            len(plan.fragments[fragment_id].operation_ids)
+                            for fragment_id in block.fragment_ids
+                        ),
+                    ),
+                    idempotency_key=uuid.uuid4().hex,
                 )
                 if self._reservation_service is not None:
-                    await self._reservation_service.reject(
+                    await self._reservation_service.request(
                         reservation_id=reservation_id,
-                        reason=last_error,
-                        accepting_peer_id=node_id,
+                        workflow_run_id=workflow_run_id,
+                        fragment_id=block.block_id,
+                        service_id=service_id,
+                        requesting_peer_id=str(self._libp2p_runtime.host.get_id()),
+                        ttl_seconds=prepare_request.ttl_seconds,
+                        idempotency_key=prepare_request.idempotency_key,
                     )
-                continue
 
-            if self._reservation_service is not None:
-                await self._reservation_service.accept(
-                    reservation_id=reservation_id,
-                    accepting_peer_id=node_id,
-                )
-
-            if prepare_response.transition != ReservationTransition.COMMITTED:
-                commit_response = ReservationCommitResponse.model_validate_json(
-                    await self._discovery_service.request_peer_rpc(
+                prepare_response = ReservationPrepareResponse.model_validate_json(
+                    await self._peer_rpc(
                         peer_id=node_id,
-                        protocol_id=self._protocol_ids.reservation_commit,
-                        payload=ReservationCommitRequest(
-                            reservation_id=reservation_id,
-                            workflow_run_id=workflow_run_id,
-                            fragment_id=block.block_id,
-                        ).model_dump_json().encode("utf-8"),
+                        protocol_id=self._protocol_ids.reservation_prepare,
+                        payload=prepare_request.model_dump_json().encode("utf-8"),
                         peer_addresses=peer_addresses,
                     )
                 )
-                if commit_response.transition != ReservationTransition.COMMITTED:
-                    last_error = (
-                        "reservation commit failed "
-                        f"with {commit_response.transition.value}"
-                    )
-                    await self._discovery_service.request_peer_rpc(
-                        peer_id=node_id,
-                        protocol_id=self._protocol_ids.reservation_cancel,
-                        payload=ReservationCancelRequest(
-                            reservation_id=reservation_id,
-                            reason=last_error,
-                        ).model_dump_json().encode("utf-8"),
-                        peer_addresses=peer_addresses,
+                if prepare_response.transition not in {
+                    ReservationTransition.ACCEPTED,
+                    ReservationTransition.COMMITTED,
+                }:
+                    last_error = prepare_response.reason or (
+                        f"reservation {prepare_response.transition.value}"
                     )
                     if self._reservation_service is not None:
-                        await self._reservation_service.cancel(
+                        await self._reservation_service.reject(
                             reservation_id=reservation_id,
                             reason=last_error,
                         )
                     continue
 
-            if self._reservation_service is not None:
-                await self._reservation_service.commit(reservation_id=reservation_id)
-
-            dispatch_input = FragmentDispatchInput(
-                plan_id=plan_id,
-                block_id=block.block_id,
-                fragments=tuple(
-                    FragmentDescriptor(
-                        fragment_id=plan.fragments[fragment_id].fragment_id,
-                        service_id=plan.fragments[fragment_id].service_type.value,
-                        qubits=tuple(plan.fragments[fragment_id].qubits),
-                        operation_ids=tuple(plan.fragments[fragment_id].operation_ids),
-                        dependencies=tuple(plan.fragments[fragment_id].dependencies),
-                        raw_text=plan.fragments[fragment_id].raw_text,
+                if self._reservation_service is not None:
+                    await self._reservation_service.accept(
+                        reservation_id=reservation_id,
+                        accepting_peer_id=node_id,
                     )
-                    for fragment_id in block.fragment_ids
-                ),
-                state=state,
-            )
-            dispatch_request = FragmentDispatchRequest(
-                execution_id=execution_id,
-                reservation_id=reservation_id,
-                workflow_run_id=workflow_run_id,
-                fragment_id=block.block_id,
-                service_id=service_id,
-                input_payload=dispatch_input.model_dump(mode="json"),
-                idempotency_key=uuid.uuid4().hex,
-            )
-            started_at = _utc_now()
-            if self._execution_service is not None:
-                await self._execution_service.dispatch(
+
+                if prepare_response.transition != ReservationTransition.COMMITTED:
+                    commit_response = ReservationCommitResponse.model_validate_json(
+                        await self._peer_rpc(
+                            peer_id=node_id,
+                            protocol_id=self._protocol_ids.reservation_commit,
+                            payload=ReservationCommitRequest(
+                                reservation_id=reservation_id,
+                                workflow_run_id=workflow_run_id,
+                                fragment_id=block.block_id,
+                            ).model_dump_json().encode("utf-8"),
+                            peer_addresses=peer_addresses,
+                        )
+                    )
+                    if commit_response.transition != ReservationTransition.COMMITTED:
+                        last_error = (
+                            "reservation commit failed "
+                            f"with {commit_response.transition.value}"
+                        )
+                        await self._peer_rpc(
+                            peer_id=node_id,
+                            protocol_id=self._protocol_ids.reservation_cancel,
+                            payload=ReservationCancelRequest(
+                                reservation_id=reservation_id,
+                                reason=last_error,
+                            ).model_dump_json().encode("utf-8"),
+                            peer_addresses=peer_addresses,
+                        )
+                        if self._reservation_service is not None:
+                            await self._reservation_service.cancel(
+                                reservation_id=reservation_id,
+                                reason=last_error,
+                            )
+                        continue
+
+                if self._reservation_service is not None:
+                    await self._reservation_service.commit(reservation_id=reservation_id)
+
+                dispatch_input = FragmentDispatchInput(
+                    plan_id=plan_id,
+                    block_id=block.block_id,
+                    fragments=tuple(
+                        FragmentDescriptor(
+                            fragment_id=plan.fragments[fragment_id].fragment_id,
+                            service_id=plan.fragments[fragment_id].service_type.value,
+                            qubits=tuple(plan.fragments[fragment_id].qubits),
+                            operation_ids=tuple(plan.fragments[fragment_id].operation_ids),
+                            dependencies=tuple(plan.fragments[fragment_id].dependencies),
+                            raw_text=plan.fragments[fragment_id].raw_text,
+                        )
+                        for fragment_id in block.fragment_ids
+                    ),
+                    state=state,
+                )
+                dispatch_request = FragmentDispatchRequest(
                     execution_id=execution_id,
                     reservation_id=reservation_id,
                     workflow_run_id=workflow_run_id,
                     fragment_id=block.block_id,
                     service_id=service_id,
-                    executing_peer_id=node_id,
-                    idempotency_key=dispatch_request.idempotency_key,
+                    input_payload=dispatch_input.model_dump(mode="json"),
+                    idempotency_key=uuid.uuid4().hex,
                 )
-                await self._execution_service.record_running(execution_id=execution_id)
-
-            dispatch_response = ExecutionResultPayload.model_validate_json(
-                await self._discovery_service.request_peer_rpc(
-                    peer_id=node_id,
-                    protocol_id=self._protocol_ids.fragment_dispatch,
-                    payload=dispatch_request.model_dump_json().encode("utf-8"),
-                    peer_addresses=peer_addresses,
-                )
-            )
-            if dispatch_response.transition != ExecutionTransition.COMPLETED:
-                last_error = dispatch_response.error_detail or "block execution failed"
+                started_at = _utc_now()
                 if self._execution_service is not None:
-                    await self._execution_service.record_failed(
+                    await self._execution_service.dispatch(
                         execution_id=execution_id,
-                        error_detail=last_error,
+                        reservation_id=reservation_id,
+                        workflow_run_id=workflow_run_id,
+                        fragment_id=block.block_id,
+                        service_id=service_id,
+                        executing_peer_id=node_id,
+                        idempotency_key=dispatch_request.idempotency_key,
                     )
-                continue
+                    await self._execution_service.record_running(execution_id=execution_id)
 
-            if self._execution_service is not None:
-                await self._execution_service.record_completed(
+                dispatch_response = ExecutionResultPayload.model_validate_json(
+                    await self._peer_rpc(
+                        peer_id=node_id,
+                        protocol_id=self._protocol_ids.fragment_dispatch,
+                        payload=dispatch_request.model_dump_json().encode("utf-8"),
+                        peer_addresses=peer_addresses,
+                    )
+                )
+                if dispatch_response.transition != ExecutionTransition.COMPLETED:
+                    last_error = dispatch_response.error_detail or "block execution failed"
+                    if self._execution_service is not None:
+                        await self._execution_service.record_failed(
+                            execution_id=execution_id,
+                            error_detail=last_error,
+                        )
+                    continue
+
+                if self._execution_service is not None:
+                    await self._execution_service.record_completed(
+                        execution_id=execution_id,
+                        fidelity_score=dispatch_response.fidelity_score,
+                        latency_ms=dispatch_response.latency_ms,
+                    )
+
+                if dispatch_response.fidelity_score is not None:
+                    self._quality.update_peer_fidelity(node_id, dispatch_response.fidelity_score)
+
+                output = FragmentDispatchOutput.model_validate(dispatch_response.output_payload)
+                fragment_results = tuple(
+                    fragment_result_type(
+                        fragment_id=fragment_id,
+                        node_id=node_id,
+                        status=fragment_status_type.SUCCESS,
+                        attempts=attempt_index,
+                        started_at=started_at,
+                        finished_at=dispatch_response.completed_at,
+                        observed_fidelity=dispatch_response.fidelity_score,
+                        error=None,
+                    )
+                    for fragment_id in block.fragment_ids
+                )
+                return DistributedBlockExecution(
+                    block=block,
+                    reservation_id=reservation_id,
                     execution_id=execution_id,
-                    fidelity_score=dispatch_response.fidelity_score,
-                    latency_ms=dispatch_response.latency_ms,
+                    output=output,
+                    fragment_results=fragment_results,
+                    incoming_state_peer_ids=incoming_state_peer_ids,
                 )
-
-            if dispatch_response.fidelity_score is not None:
-                self._quality.update_peer_fidelity(node_id, dispatch_response.fidelity_score)
-
-            output = FragmentDispatchOutput.model_validate(dispatch_response.output_payload)
-            fragment_results = tuple(
-                fragment_result_type(
-                    fragment_id=fragment_id,
-                    node_id=node_id,
-                    status=fragment_status_type.SUCCESS,
-                    attempts=attempt_index,
-                    started_at=started_at,
-                    finished_at=dispatch_response.completed_at,
-                    observed_fidelity=dispatch_response.fidelity_score,
-                    error=None,
-                )
-                for fragment_id in block.fragment_ids
-            )
-            return DistributedBlockExecution(
-                block=block,
-                reservation_id=reservation_id,
-                execution_id=execution_id,
-                output=output,
-                fragment_results=fragment_results,
-                incoming_state_peer_ids=incoming_state_peer_ids,
-            )
+            except PeerRpcError as exc:
+                last_error = f"peer {node_id} unreachable: {exc}"
+                logger.warning("block %s: %s; trying next peer", block.block_id, last_error)
+                await self._abandon_attempt(reservation_id, execution_id, last_error)
 
         raise RuntimeError(
             f"Execution block {block.block_id} failed across all assigned peers: {last_error}"

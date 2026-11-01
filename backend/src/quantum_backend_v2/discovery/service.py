@@ -327,6 +327,8 @@ class DiscoveryService:
             update={
                 "peer_id": worker_peer_label,
                 "listen_multiaddrs": (f"/ip4/127.0.0.1/tcp/{worker_port}",),
+                # The coordinator's public advertise address must not leak onto its local workers.
+                "advertise_multiaddrs": (),
                 "bootstrap_peers": bootstrap_peers,
                 "peerstore_path": _with_path_suffix(
                     self.settings.peerstore_path,
@@ -337,9 +339,10 @@ class DiscoveryService:
 
     def _bootstrap_peer_multiaddrs(self) -> tuple[str, ...]:
         local_peer_id = str(self.libp2p_runtime.host.get_id())
+        # Local workers dial the coordinator over loopback, never its public advertise address.
         advertised = resolve_advertised_network_addresses(
             self.libp2p_runtime.host,
-            self.settings,
+            self.settings.model_copy(update={"advertise_multiaddrs": ()}),
         )
         if not advertised:
             raise RuntimeError("local embedded service peers require at least one listen multiaddr")
