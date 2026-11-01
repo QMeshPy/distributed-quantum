@@ -30,7 +30,7 @@ class PersistenceRuntime:
         mongo = build_mongo_runtime(settings.mongodb)
         if mongo is None:
             raise RuntimeError(
-                "MongoDB is not configured. Set QB2_MONGODB_LOCAL_URI or QB2_MONGODB_REMOTE_URI."
+                "MongoDB is not configured. Set QB2_MONGODB_URI."
             )
         return cls(
             settings=settings,
@@ -47,7 +47,7 @@ class PersistenceRuntime:
         return PersistenceReadiness(
             mongodb=_configured_database_snapshot(
                 backend="mongodb",
-                target=self.settings.mongodb.target.value,
+                target="uri",
                 database=self.settings.mongodb.database,
                 configured=self.settings.mongodb.configured,
             ),
@@ -66,7 +66,7 @@ class PersistenceRuntime:
         """Run lightweight readiness checks for configured durable stores."""
         mongodb_ready = await _probe_database_runtime(
             backend="mongodb",
-            target=self.settings.mongodb.target.value,
+            target="uri",
             database=self.settings.mongodb.database,
             configured=self.settings.mongodb.configured,
             runtime=self.mongodb,

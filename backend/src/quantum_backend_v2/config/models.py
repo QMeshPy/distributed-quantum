@@ -29,33 +29,18 @@ class LoggingSettings(BaseModel):
     json_logs: bool = True
 
 
-class MongoTarget(str, Enum):
-    """Supported MongoDB deployment targets."""
-
-    LOCAL = "local"
-    REMOTE = "remote"
-
-
 class MongoSettings(BaseModel):
-    """Projection and document-store configuration for local and remote MongoDB."""
+    """Projection and document-store configuration for MongoDB (local or hosted)."""
 
     model_config = ConfigDict(extra="forbid")
 
-    target: MongoTarget = MongoTarget.LOCAL
-    local_uri: str | None = Field(default=None, min_length=1)
-    remote_uri: str | None = Field(default=None, min_length=1)
+    uri: str | None = Field(default=None, min_length=1)
     database: str = Field(default="quantum_backend_v2", min_length=1)
     server_selection_timeout_ms: int = Field(default=5000, ge=100)
 
     @property
     def configured(self) -> bool:
-        return self.effective_uri is not None
-
-    @property
-    def effective_uri(self) -> str | None:
-        if self.target == MongoTarget.LOCAL:
-            return self.local_uri
-        return self.remote_uri
+        return self.uri is not None
 
 
 class PeerLogSettings(BaseModel):
@@ -271,9 +256,7 @@ class AppSettings(BaseModel):
             ),
             persistence=PersistenceSettings(
                 mongodb=MongoSettings(
-                    target=MongoTarget(env.get("QB2_MONGODB_TARGET", "local")),
-                    local_uri=_optional(env.get("QB2_MONGODB_LOCAL_URI")),
-                    remote_uri=_optional(env.get("QB2_MONGODB_REMOTE_URI")),
+                    uri=_optional(env.get("QB2_MONGODB_URI")),
                     database=env.get("QB2_MONGODB_DATABASE", "quantum_backend_v2"),
                     server_selection_timeout_ms=int(
                         env.get("QB2_MONGODB_SERVER_SELECTION_TIMEOUT_MS", "5000")

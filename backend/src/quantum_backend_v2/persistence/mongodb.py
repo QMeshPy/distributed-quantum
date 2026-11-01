@@ -19,7 +19,7 @@ from db.agentkit_collections import (
 from pydantic import Field
 from pymongo import ASCENDING, AsyncMongoClient, IndexModel
 
-from quantum_backend_v2.config import MongoSettings, MongoTarget
+from quantum_backend_v2.config import MongoSettings
 
 
 def _utc_now() -> datetime:
@@ -420,7 +420,6 @@ class ExecutionEventDocument(Document):
 class MongoRuntime:
     """Async Mongo runtime using Beanie-ready document models."""
 
-    target: MongoTarget
     uri: str
     database_name: str
     client: AsyncMongoClient
@@ -448,7 +447,7 @@ class MongoRuntime:
 
 def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
     """Create an async Mongo runtime for the configured target."""
-    uri = settings.effective_uri
+    uri = settings.uri
     if uri is None:
         return None
 
@@ -457,7 +456,6 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
         serverSelectionTimeoutMS=settings.server_selection_timeout_ms,
     )
     return MongoRuntime(
-        target=settings.target,
         uri=uri,
         database_name=settings.database,
         client=client,

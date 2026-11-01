@@ -434,7 +434,7 @@ print(f"Subscribed topics: {topics}")
 ```bash
 # Required
 ✅ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-✅ QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017
+✅ QB2_MONGODB_URI=mongodb://127.0.0.1:27017
 ✅ QB2_MONGODB_DATABASE=qds
 
 # Optional but recommended

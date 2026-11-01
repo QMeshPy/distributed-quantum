@@ -109,7 +109,7 @@ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 RESEND_FROM_EMAIL=onboarding@resend.dev
 RESEND_TO_EMAIL=your-email@example.com
 PLATFORM_BASE_URL=http://localhost:3000
-QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017
+QB2_MONGODB_URI=mongodb://127.0.0.1:27017
 QB2_MONGODB_DATABASE=qds
 ```
 
