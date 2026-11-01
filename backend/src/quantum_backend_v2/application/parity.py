@@ -491,6 +491,17 @@ class FinancialJobService:
             return None
         return doc
 
+    async def get_job_for_owner(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+    ) -> FinancialJobDocument | None:
+        doc = await FinancialJobDocument.get(job_id)
+        if doc is None or doc.owner_user_id != owner_user_id:
+            return None
+        return doc
+
     async def list_jobs(
         self,
         *,
@@ -720,6 +731,17 @@ class RiskJobService:
         if doc is None:
             return None
         if not current_user.is_admin() and doc.owner_user_id != current_user.user_id:
+            return None
+        return doc
+
+    async def get_job_for_owner(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+    ) -> RiskJobDocument | None:
+        doc = await RiskJobDocument.get(job_id)
+        if doc is None or doc.owner_user_id != owner_user_id:
             return None
         return doc
 
