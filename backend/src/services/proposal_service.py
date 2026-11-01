@@ -64,6 +64,7 @@ from services.payment_events import (
     record_settled_quietly,
     settle_failed_send,
 )
+from quantum_backend_v2.config import constants as C
 
 
 def _utc_now() -> datetime:
@@ -102,7 +103,7 @@ class ProposalService:
         logger.info("Initializing ProposalService")
 
         # AWS Bedrock configuration
-        self.aws_region = os.getenv("AWS_REGION", "us-east-1")
+        self.aws_region = os.getenv("AWS_REGION", C.AWS_REGION)
         self.bedrock_model_id = os.getenv(
             "BEDROCK_MODEL_ID",
             "us.anthropic.claude-sonnet-4-6"

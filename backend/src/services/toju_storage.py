@@ -12,6 +12,7 @@ from pathlib import Path
 
 import httpx
 from pymongo import ReturnDocument
+from quantum_backend_v2.config import constants as C
 
 NETWORK = "eip155:84532"
 USDC = "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
@@ -29,7 +30,7 @@ class TojuStorage:
     def __init__(self, db):
         self.db = db
         self.exports = db.toju_exports
-        self.endpoint = os.getenv("TOJU_API_URL", "https://toju-devcon-testnet.onrender.com").rstrip("/")
+        self.endpoint = os.getenv("TOJU_API_URL", C.TOJU_API_URL).rstrip("/")
 
     async def owned_session(self, owner, agent, session):
         a = await self.db.ai_agents.find_one({"agent_id": agent, "owner_id": owner})
@@ -129,7 +130,7 @@ class TojuStorage:
     async def upload(self, row, receipt=None):
         from services.agentkit_service import AgentKitService
         wallet = await self.db.wallets.find_one({"default_address": row["wallet_address"], "entity_id": row["agent_id"], "network": "base-sepolia"})
-        if not wallet or os.getenv("NETWORK", "base-sepolia") != "base-sepolia":
+        if not wallet or os.getenv("NETWORK", C.WALLET_NETWORK) != "base-sepolia":
             raise ValueError("Agent's Base Sepolia wallet is required.")
         service = AgentKitService()
         try:
