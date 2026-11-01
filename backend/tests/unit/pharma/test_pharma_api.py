@@ -6,24 +6,41 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import quantum_backend_v2.api.routers.pharma as pharma_router_module
-from quantum_backend_v2.api.routers.pharma import router as pharma_router
+from quantum_backend_v2.api.deps.auth import configure_auth
+from quantum_backend_v2.api.errors import register_exception_handlers
+from quantum_backend_v2.api.routers.pharma import build_pharma_router
 
-# Patch the pipeline at import time so TestClient never executes PennyLane
-pharma_router_module._run_pharma_pipeline = AsyncMock()
+from .fakes import FakePharmaJobService
+
 
 
 @pytest.fixture(autouse=True)
-def reset_job_store():
-    pharma_router_module._JOB_STORE.clear()
+def pipeline_and_auth(monkeypatch):
+    # Keep PennyLane out of the tests: the background task becomes a no-op.
+    monkeypatch.setattr(pharma_router_module, "_run_pharma_job", AsyncMock())
+    configure_auth(enabled=True, allow_dev_bearer_tokens=True)
     yield
-    pharma_router_module._JOB_STORE.clear()
+    configure_auth(enabled=True, allow_dev_bearer_tokens=False)
 
 
 @pytest.fixture
-def client():
+def service():
+    return FakePharmaJobService()
+
+
+def _client(service, user="alice"):
     app = FastAPI()
-    app.include_router(pharma_router)
-    return TestClient(app)
+    register_exception_handlers(app)
+    app.include_router(build_pharma_router(pharma_job_service=service))
+    client = TestClient(app)
+    if user is not None:
+        client.headers["Authorization"] = f"Bearer dev-{user}"
+    return client
+
+
+@pytest.fixture
+def client(service):
+    return _client(service)
 
 
 OPT_PAYLOAD = {
@@ -144,3 +161,31 @@ class TestPharmaCancelJob:
                for p in [OPT_PAYLOAD, DISCOVERY_PAYLOAD]]
         for jid in ids:
             assert client.delete(f"/api/v1/pharma/jobs/{jid}").status_code == 204
+
+
+class TestPharmaOwnership:
+    def test_requests_without_a_token_are_rejected(self, service):
+        anonymous = _client(service, user=None)
+        assert anonymous.post("/api/v1/pharma/submit", json=OPT_PAYLOAD).status_code == 401
+        assert anonymous.get("/api/v1/pharma/jobs").status_code == 401
+        assert anonymous.get("/api/v1/pharma/jobs/pharma_x").status_code == 401
+        assert anonymous.delete("/api/v1/pharma/jobs/pharma_x").status_code == 401
+        assert service.jobs == {}
+
+    def test_job_is_stored_under_the_caller(self, client, service):
+        jid = client.post("/api/v1/pharma/submit", json=OPT_PAYLOAD).json()["job_id"]
+        assert service.jobs[jid].owner_user_id == "alice"
+
+    def test_list_returns_only_own_jobs(self, service):
+        alice, bobby = _client(service, "alice"), _client(service, "bobby")
+        mine = alice.post("/api/v1/pharma/submit", json=OPT_PAYLOAD).json()["job_id"]
+        bobby.post("/api/v1/pharma/submit", json=DISCOVERY_PAYLOAD)
+        assert [j["job_id"] for j in alice.get("/api/v1/pharma/jobs").json()] == [mine]
+
+    def test_other_users_job_is_hidden_from_get_live_and_cancel(self, service):
+        alice, bobby = _client(service, "alice"), _client(service, "bobby")
+        jid = alice.post("/api/v1/pharma/submit", json=OPT_PAYLOAD).json()["job_id"]
+        assert bobby.get(f"/api/v1/pharma/jobs/{jid}").status_code == 404
+        assert bobby.get(f"/api/v1/pharma/jobs/{jid}/live").status_code == 404
+        assert bobby.delete(f"/api/v1/pharma/jobs/{jid}").status_code == 404
+        assert alice.get(f"/api/v1/pharma/jobs/{jid}").json()["status"] == "queued"

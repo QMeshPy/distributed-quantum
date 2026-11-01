@@ -18,6 +18,7 @@ from quantum_backend_v2.application.parity import (
     OptionsJobService,
     RiskJobService,
 )
+from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.application.price_sources import ChainlinkPriceSource
 from quantum_backend_v2.application.provenance import (
     KuboBundlePublisher,
@@ -71,6 +72,7 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
     )
     options_job_service = OptionsJobService(price_source=ChainlinkPriceSource(chain_registry, env))
     risk_job_service = RiskJobService(price_source=ChainlinkPriceSource(chain_registry, env))
+    pharma_job_service = PharmaJobService()
     reservation_service = ReservationService()
     runtime_recovery_service = RuntimeRecoveryService()
     provenance_service = None
@@ -113,6 +115,7 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         financial_job_service=financial_job_service,
         options_job_service=options_job_service,
         risk_job_service=risk_job_service,
+        pharma_job_service=pharma_job_service,
         reservation_service=reservation_service,
         runtime_recovery_service=runtime_recovery_service,
         provenance_service=provenance_service,
