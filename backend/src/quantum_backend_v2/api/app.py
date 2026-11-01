@@ -220,7 +220,12 @@ def create_app(
     if circuit_job_service is not None:
         app.include_router(build_plans_router(job_service=circuit_job_service))
     if financial_job_service is not None:
-        app.include_router(build_financial_router(financial_job_service=financial_job_service))
+        app.include_router(
+            build_financial_router(
+                financial_job_service=financial_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     if options_job_service is not None:
         app.include_router(
             build_options_router(
