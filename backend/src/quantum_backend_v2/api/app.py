@@ -229,7 +229,12 @@ def create_app(
             )
         )
     if risk_job_service is not None:
-        app.include_router(build_risk_router(risk_job_service=risk_job_service))
+        app.include_router(
+            build_risk_router(
+                risk_job_service=risk_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     if reservation_service is not None:
         app.include_router(build_reservations_router(reservation_service=reservation_service))
 
