@@ -333,6 +333,10 @@ docker compose up --build
 
 ---
 
+### Multi-laptop mesh (remote workers)
+
+Other laptops, including ones on different Wi-Fi networks and Windows machines, can join as peers without port-forwarding by dialing out to the coordinator. See **[docs/remote-workers.md](docs/remote-workers.md)** for Windows, Mac and Linux setup, health checks and troubleshooting.
+
 ## Platform content node (Kubo)
 
 The Compose stack includes **Kubo v0.43.1**, pinned by release tag and multi-platform
@@ -527,6 +531,7 @@ The repository is also checked out as a git submodule at [`documentations/`](doc
 | Contribute code | [CONTEXT.md](CONTEXT.md) (in this repo), then [ARCHITECTURE](https://github.com/QMeshPy/documentations/blob/main/ARCHITECTURE.md) |
 | Understand the system design | [ARCHITECTURE](https://github.com/QMeshPy/documentations/blob/main/ARCHITECTURE.md), [design](https://github.com/QMeshPy/documentations/blob/main/design.md), [requirements](https://github.com/QMeshPy/documentations/blob/main/requirements.md) |
 | Work on the frontend | [frontend/DESIGN.md](frontend/DESIGN.md) (in this repo) |
+| Connect more laptops as peers | [docs/remote-workers.md](docs/remote-workers.md) (in this repo) |
 | Deploy it | [DEPLOYMENT-MANUAL.md](DEPLOYMENT-MANUAL.md) (in this repo), [Lightsail guide](https://github.com/QMeshPy/documentations/blob/main/LIGHTSAIL-DEPLOYMENT.md) |
 | Read the research | [Paper draft](https://github.com/QMeshPy/documentations/blob/main/research/RESEARCH_PAPER_DRAFT.md), [math appendix](https://github.com/QMeshPy/documentations/blob/main/research/MATHEMATICAL_APPENDIX.md), [scaling strategy](https://github.com/QMeshPy/documentations/blob/main/research/QUANTUM_SCALING_STRATEGY.md) |
 | Reproduce the benchmarks | [Implementation notes](https://github.com/QMeshPy/documentations/blob/main/technical/IMPLEMENTATION_NOTES.md), [benchmark results](https://github.com/QMeshPy/documentations/blob/main/technical/BENCHMARK.md), and the scripts in `backend/scripts/` |

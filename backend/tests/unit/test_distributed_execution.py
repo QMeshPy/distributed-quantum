@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 
@@ -15,6 +15,8 @@ from quantum_backend_v2.application.distributed_statevector import (
     summarize_state_handoff,
 )
 from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
+from quantum_backend_v2.reservations.service import ReservationService
+from quantum_backend_v2.runtime.service import ExecutionService
 from quantum_backend_v2.discovery.registry import PeerRegistryEntry
 from quantum_backend_v2.libp2p.fragment_worker import PeerFragmentWorker
 from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
@@ -542,3 +544,123 @@ def test_quantum_bridge_spreads_assignments_across_peers() -> None:
         assignment.primary_node_id for assignment in plan.assignments.values()
     }
     assert len(assigned_nodes) >= 2
+
+
+class _DeadFirstPeerDiscoveryService(_FakeDiscoveryService):
+    """The first peer the bridge contacts is unreachable (e.g. a laptop that went to sleep)."""
+
+    def __init__(self, *, fail_all: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.dead_peer_id: str | None = None
+        self._fail_all = fail_all
+
+    async def request_peer_rpc(self, *, peer_id: str, **kwargs) -> bytes:
+        if self.dead_peer_id is None:
+            self.dead_peer_id = peer_id
+        if self._fail_all or peer_id == self.dead_peer_id:
+            raise TimeoutError("libp2p stream request timed out")
+        return await super().request_peer_rpc(peer_id=peer_id, **kwargs)
+
+
+def _two_peer_bridge(*, fail_all: bool = False, discovery_cls=None, **bridge_kwargs):
+    now = datetime.now(timezone.utc)
+    peers = [
+        PeerRegistryEntry(
+            peer_id=f"12D3KooWPeer{name}",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            service_ids=("hadamard", "subcircuit_bundle"),
+            last_seen_at=now,
+        )
+        for name in ("A", "B")
+    ]
+    workers = {p.peer_id: PeerFragmentWorker(peer_id=p.peer_id, max_concurrent_slots=4) for p in peers}
+    if discovery_cls is None:
+        discovery = _DeadFirstPeerDiscoveryService(peers=peers, workers=workers, fail_all=fail_all)
+    else:
+        discovery = discovery_cls(peers=peers, workers=workers)
+    runtime = SimpleNamespace(
+        settings=SimpleNamespace(rendezvous_namespace="test-ns", dev_service_peer_count=2),
+        host=MagicMock(),
+    )
+    runtime.host.get_id.return_value = "12D3KooWCoordinator"
+    bridge = QuantumExecutionBridge(discovery_service=discovery, libp2p_runtime=runtime, **bridge_kwargs)
+    plan = bridge.compile_plan('OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[1];\ncreg c[1];\nh q[0];')
+    return bridge, discovery, plan
+
+
+async def test_quantum_bridge_falls_back_to_next_peer_when_a_peer_is_unreachable() -> None:
+    bridge, discovery, plan = _two_peer_bridge()
+
+    executions = [
+        execution
+        async for execution in bridge.iter_fragment_executions(workflow_run_id="job-12345678", plan=plan)
+    ]
+
+    result = executions[0].fragment_result
+    assert discovery.dead_peer_id is not None
+    assert result.node_id != discovery.dead_peer_id
+    assert result.attempts == 2
+
+
+async def test_quantum_bridge_raises_when_every_peer_is_unreachable() -> None:
+    bridge, _, plan = _two_peer_bridge(fail_all=True)
+
+    with pytest.raises(RuntimeError, match="failed across all assigned peers"):
+        _ = [
+            execution
+            async for execution in bridge.iter_fragment_executions(workflow_run_id="job-12345678", plan=plan)
+        ]
+
+
+class _RejectFirstPeerDiscoveryService(_FakeDiscoveryService):
+    """The first peer contacted answers 'capacity exhausted' to the reservation request."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.rejecting_peer_id: str | None = None
+
+    async def request_peer_rpc(self, *, peer_id: str, protocol_id: str, **kwargs) -> bytes:
+        if self.rejecting_peer_id is None:
+            self.rejecting_peer_id = peer_id
+        if peer_id == self.rejecting_peer_id and protocol_id == self._protocol_ids.reservation_prepare:
+            request = ReservationPrepareRequest.model_validate_json(kwargs["payload"])
+            return ReservationPrepareResponse(
+                reservation_id=request.reservation_id,
+                accepting_peer_id=peer_id,
+                transition=ReservationTransition.REJECTED,
+                reason="peer capacity exhausted",
+            ).model_dump_json().encode("utf-8")
+        return await super().request_peer_rpc(peer_id=peer_id, protocol_id=protocol_id, **kwargs)
+
+
+async def test_quantum_bridge_falls_back_when_a_peer_reports_capacity_exhausted() -> None:
+    # autospec checks call signatures, which is what caught reject() being called with a bad kwarg.
+    reservations = create_autospec(ReservationService, instance=True)
+    bridge, discovery, plan = _two_peer_bridge(
+        discovery_cls=_RejectFirstPeerDiscoveryService, reservation_service=reservations
+    )
+
+    executions = [
+        execution
+        async for execution in bridge.iter_fragment_executions(workflow_run_id="job-12345678", plan=plan)
+    ]
+
+    assert executions[0].fragment_result.node_id != discovery.rejecting_peer_id
+    reservations.reject.assert_awaited_once()
+
+
+async def test_quantum_bridge_closes_ledger_entries_of_an_unreachable_peer_attempt() -> None:
+    reservations = create_autospec(ReservationService, instance=True)
+    executions_ledger = create_autospec(ExecutionService, instance=True)
+    bridge, _, plan = _two_peer_bridge(
+        reservation_service=reservations, execution_service=executions_ledger
+    )
+
+    _ = [
+        execution
+        async for execution in bridge.iter_fragment_executions(workflow_run_id="job-12345678", plan=plan)
+    ]
+
+    reservations.cancel.assert_awaited_once()
+    executions_ledger.record_failed.assert_awaited_once()

@@ -218,6 +218,26 @@ class TestLibp2pSettingsDefaults:
 
         assert service._local_service_ids() == KNOWN_SERVICE_IDS
 
+    def test_embedded_workers_do_not_inherit_the_public_advertise_address(self) -> None:
+        mock_runtime = MagicMock()
+        mock_runtime.host.get_id.return_value = "12D3KooWCoordinator"
+        mock_runtime.host.get_addrs.return_value = []
+        service = build_discovery_service(
+            settings=_offline_settings(
+                dev_service_peer_count=2,
+                listen_multiaddrs=("/ip4/0.0.0.0/tcp/4011",),
+                advertise_multiaddrs=("/ip4/203.0.113.7/tcp/4011",),
+            ),
+            libp2p_runtime=mock_runtime,
+            mongo_runtime=None,
+        )
+
+        bootstrap = service._bootstrap_peer_multiaddrs()
+        worker = service._build_embedded_service_settings(worker_index=0, bootstrap_peers=bootstrap)
+
+        assert bootstrap == ("/ip4/127.0.0.1/tcp/4011/p2p/12D3KooWCoordinator",)
+        assert worker.advertise_multiaddrs == ()
+
     def test_from_env_reads_new_fields(self) -> None:
         from quantum_backend_v2.config.models import AppSettings
 
