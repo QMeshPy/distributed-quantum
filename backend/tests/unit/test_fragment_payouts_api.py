@@ -209,6 +209,14 @@ async def test_fragments_a_failed_job_never_ran_go_to_their_planned_node() -> No
     assert payouts.recorded[0].status == "not_run"
 
 
+async def test_fragments_whose_block_failed_are_failed_without_blaming_a_node() -> None:
+    payouts = FakePayouts()
+    await _service(payouts)._record_payout(
+        "job-1", _plan(), None, fragment_id="frag-2", failed=True
+    )
+    assert (payouts.recorded[0].status, payouts.recorded[0].peer_id) == ("failed", None)
+
+
 async def test_a_payout_error_never_fails_the_job() -> None:
     class Broken(FakePayouts):
         async def record_fragment(self, outcome: FragmentOutcome) -> None:

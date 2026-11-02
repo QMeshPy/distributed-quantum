@@ -233,9 +233,16 @@ class CircuitJobService:
             await doc.save()
             if plan is not None:
                 recorded = {result["fragment_id"] for result in partial_results}
+                failed = set(getattr(exc, "failed_fragment_ids", ()))
                 for fragment_id in plan.fragment_order:
                     if fragment_id not in recorded:
-                        await self._record_payout(job_id, plan, None, fragment_id=fragment_id)
+                        await self._record_payout(
+                            job_id,
+                            plan,
+                            None,
+                            fragment_id=fragment_id,
+                            failed=fragment_id in failed,
+                        )
 
     async def _record_payout(
         self,
@@ -244,6 +251,7 @@ class CircuitJobService:
         result: dict[str, Any] | None,
         *,
         fragment_id: str | None = None,
+        failed: bool = False,
     ) -> None:
         """Best effort: a payout bookkeeping error must never fail the job."""
         if self.payouts is None:
@@ -252,7 +260,10 @@ class CircuitJobService:
         assert fragment_id is not None
         fragment = plan.fragments.get(fragment_id)
         assignment = plan.assignments.get(fragment_id)
-        if result is None:
+        if result is None and failed:
+            # Dispatched, but its block failed on a node we cannot tell, so no one is penalized.
+            peer_id, status, fidelity = None, "failed", None
+        elif result is None:
             # Never reached: attributed to the planned node, withheld without a penalty.
             peer_id = getattr(assignment, "primary_node_id", None)
             status, fidelity = "not_run", None
