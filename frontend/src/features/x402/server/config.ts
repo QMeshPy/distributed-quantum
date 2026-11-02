@@ -21,7 +21,17 @@ export interface X402Config {
   networkName: "mainnet" | "testnet";
   payTo: string;
   price: string;
+  servicePrices: Readonly<Record<PricedService, string>>;
 }
+
+export type PricedService = "risk" | "finance" | "pharma";
+
+// Flat price per call; dynamic pricing waits for per-service cost models.
+const SERVICE_PRICES: Record<PricedService, { variable: string; fallback: string }> = {
+  risk: { variable: "X402_RISK_RUN_PRICE", fallback: "$0.05" },
+  finance: { variable: "X402_FINANCE_RUN_PRICE", fallback: "$0.05" },
+  pharma: { variable: "X402_PHARMA_RUN_PRICE", fallback: "$0.25" },
+};
 
 const ALGORAND_MAINNET_FACILITATOR_NETWORK =
   `algorand:${ALGORAND_MAINNET_GENESIS_HASH}` as const;
@@ -54,10 +64,13 @@ export function loadX402Config(environment: Environment): X402Config | null {
     throw new Error("X402_AVM_ADDRESS must be a valid Algorand address.");
   }
 
-  const price = environment.X402_QUANTUM_RUN_PRICE ?? "$0.01";
-  if (!/^\$(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(price) || Number(price.slice(1)) <= 0) {
-    throw new Error("X402_QUANTUM_RUN_PRICE must be a positive USD amount.");
-  }
+  const price = usdPrice(environment, "X402_QUANTUM_RUN_PRICE", "$0.01");
+  const servicePrices = Object.fromEntries(
+    Object.entries(SERVICE_PRICES).map(([service, { variable, fallback }]) => [
+      service,
+      usdPrice(environment, variable, fallback),
+    ]),
+  ) as Record<PricedService, string>;
 
   const facilitatorUrl = validUrl(
     environment.X402_FACILITATOR_URL ?? "https://facilitator.goplausible.xyz",
@@ -80,7 +93,16 @@ export function loadX402Config(environment: Environment): X402Config | null {
     networkName,
     payTo,
     price,
+    servicePrices,
   };
+}
+
+function usdPrice(environment: Environment, name: string, fallback: string): string {
+  const price = environment[name] ?? fallback;
+  if (!/^\$(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(price) || Number(price.slice(1)) <= 0) {
+    throw new Error(`${name} must be a positive USD amount.`);
+  }
+  return price;
 }
 
 function required(environment: Environment, name: string): string {

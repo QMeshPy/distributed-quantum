@@ -16,6 +16,7 @@ const config: X402Config = {
   networkName: "testnet",
   payTo: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
   price: "$0.01",
+  servicePrices: { risk: "$0.05", finance: "$0.05", pharma: "$0.25" },
 };
 
 test("paid submissions forward only the internal credential and body", async () => {
@@ -68,3 +69,26 @@ test("options submissions forward to the options-scoped internal route", async (
 
   assert.equal(capturedUrl, "http://backend.test/api/v1/options/internal/x402/submit");
 });
+
+for (const service of ["risk", "finance", "pharma"] as const) {
+  test(`${service} submissions and polling use the ${service} internal routes`, async () => {
+    const captured: string[] = [];
+    const fetcher: typeof fetch = async (input) => {
+      captured.push(String(input));
+      return Response.json({ job_id: "job-1", status: "queued" }, { status: 201 });
+    };
+    const request = new Request(`https://example.test/api/x402/${service}/runs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+
+    await submitX402Job(request, config, service, fetcher);
+    await fetchX402Job("job/1", config, service, fetcher);
+
+    assert.deepEqual(captured, [
+      `http://backend.test/api/v1/${service}/internal/x402/submit`,
+      `http://backend.test/api/v1/${service}/internal/x402/jobs/job%2F1`,
+    ]);
+  });
+}

@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test:proxy": "bun test tests/proxy-public-root.test.mjs",
     "test:x402": "node --conditions=react-server --test tests/x402-*.test.ts",
+    "test:x402-paywall": "bun test tests/x402-paywall.test.mjs",
     "test:billing": "bun test tests/billing-webhook.test.mjs",
     "test:chains": "bun test tests/chains.test.mjs",
     "test:vault": "bun test tests/vault-pinning.test.mjs",
