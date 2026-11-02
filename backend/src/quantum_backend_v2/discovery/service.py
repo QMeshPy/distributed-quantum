@@ -105,7 +105,7 @@ class DiscoveryService:
             enforce_enrollment=self.enforce_enrollment,
             trusted_peer_ids=trusted_peer_ids,
         )
-        await self._registry.rehydrate()
+        # Not rehydrated from Mongo: after a restart saved peers can't be verified alive, so they only show up as ghosts.
         self._network_thread = build_network_thread(
             settings=self.settings,
             runtime=self.libp2p_runtime,
