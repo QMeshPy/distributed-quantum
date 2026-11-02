@@ -16,6 +16,7 @@ export const NAV = {
   ],
   secondary: "GitHub",
   primary: "Open the console",
+  menu: { open: "Open menu", close: "Close menu" },
 } as const;
 
 export const HERO = {

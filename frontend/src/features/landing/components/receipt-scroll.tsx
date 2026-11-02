@@ -1,7 +1,7 @@
 "use client";
 
 import { useMotionValueEvent, useScroll } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { RECEIPT } from "../landing-content";
 import styles from "../landing.module.css";
@@ -36,7 +36,19 @@ export function ReceiptScroll({ receipt }: { receipt: Receipt }) {
   const track = useRef<HTMLDivElement>(null);
   const total = receipt.groups.reduce((n, g) => n + g.lines.length, 0);
   const [printed, setPrinted] = useState(0);
-  const { scrollYProgress } = useScroll({ target: track, offset: ["start start", "end end"] });
+  // Below 1080px the receipt sits in the page flow, so it prints as it crosses the viewport.
+  const [inFlow, setInFlow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1080px)");
+    const sync = () => setInFlow(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+  const { scrollYProgress } = useScroll({
+    target: track,
+    offset: inFlow ? ["start 0.7", "end 0.9"] : ["start start", "end end"],
+  });
   useMotionValueEvent(scrollYProgress, "change", (v) => {
     // Print across the first 85% of the track, then hold the finished receipt.
     const next = Math.min(total, Math.floor((v / 0.85) * (total + 0.999)));
