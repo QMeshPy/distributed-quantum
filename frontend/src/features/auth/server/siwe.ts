@@ -9,11 +9,13 @@ import { getDatabase } from "@/shared/lib/mongodb";
 import { BACKEND_AGENTKIT } from "@/constants/backend";
 
 import {
+  recoverAddressFromEthSig,
+  verifySiweSignature,
+} from "../lib/siwe-crypto";
+import {
   normalizeSiweDomain,
   parseSiweMessage,
   toChecksumAddress,
-  recoverAddressFromEthSig,
-  verifySiweSignature,
   generateSiweNonce,
   getExpectedSiweDomain,
   type ParsedSiweMessage,
