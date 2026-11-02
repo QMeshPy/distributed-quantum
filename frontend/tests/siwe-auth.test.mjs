@@ -2,12 +2,14 @@ import { describe, it, expect } from "bun:test";
 import { secp256k1 } from "../node_modules/@noble/curves/secp256k1.js";
 import { keccak_256 } from "../node_modules/@noble/hashes/sha3.js";
 import {
+  recoverAddressFromEthSig,
+  verifySiweSignature,
+} from "../src/features/auth/lib/siwe-crypto.ts";
+import {
   parseSiweMessage,
   formatSiweMessage,
   normalizeSiweDomain,
   toChecksumAddress,
-  recoverAddressFromEthSig,
-  verifySiweSignature,
   generateSiweNonce,
   getExpectedSiweDomain,
 } from "../src/features/auth/lib/siwe-parser.ts";

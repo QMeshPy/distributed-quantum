@@ -1,4 +1,3 @@
-import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 
 export interface ParsedSiweMessage {
@@ -156,77 +155,16 @@ export function toChecksumAddress(address: string): string {
 }
 
 /**
- * Recovers the Ethereum address from an EIP-191 personal_sign signature and message.
- */
-export function recoverAddressFromEthSig(
-  message: string,
-  signatureHex: string,
-): string {
-  const cleanSig = signatureHex.startsWith("0x")
-    ? signatureHex.slice(2)
-    : signatureHex;
-  if (cleanSig.length !== 130) {
-    throw new Error(
-      `Invalid signature length: expected 130 hex characters, got ${cleanSig.length}`,
-    );
-  }
-
-  const r = Buffer.from(cleanSig.slice(0, 64), "hex");
-  const s = Buffer.from(cleanSig.slice(64, 128), "hex");
-  const v = parseInt(cleanSig.slice(128, 130), 16);
-  const recid = v >= 27 ? v - 27 : v;
-  if (recid !== 0 && recid !== 1) {
-    throw new Error(`Invalid signature recovery byte (v): ${v}`);
-  }
-
-  const prefix = Buffer.from(
-    "\x19Ethereum Signed Message:\n" + Buffer.byteLength(message, "utf8"),
-    "utf8",
-  );
-  const digest = keccak_256(
-    Buffer.concat([prefix, Buffer.from(message, "utf8")]),
-  );
-
-  // CurveFn typings omit recoverPublicKey; Signature.recoverPublicKey is typed.
-  const sig = new secp256k1.Signature(
-    BigInt("0x" + Buffer.from(r).toString("hex")),
-    BigInt("0x" + Buffer.from(s).toString("hex")),
-    recid,
-  );
-  const point = sig.recoverPublicKey(digest);
-  const uncompressed = point.toBytes(false).slice(1);
-  const addrBytes = keccak_256(uncompressed).slice(-20);
-  return toChecksumAddress("0x" + Buffer.from(addrBytes).toString("hex"));
-}
-
-/**
- * Verifies that a SIWE message was signed by the expected address.
- */
-export function verifySiweSignature(
-  message: string,
-  signature: string,
-  expectedAddress: string,
-): boolean {
-  try {
-    const recovered = recoverAddressFromEthSig(message, signature);
-    return recovered.toLowerCase() === expectedAddress.toLowerCase();
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Generates an unguessable 16-byte (32-character) alphanumeric nonce.
+ * Generates an unguessable 16-byte (32-character) hex nonce.
+ * Uses Web Crypto only so this module stays safe to import from client components.
  */
 export function generateSiweNonce(): string {
   const bytes = new Uint8Array(16);
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    crypto.getRandomValues(bytes);
-  } else {
-    // Node environment fallback
-    const { randomBytes } = require("node:crypto");
-    return randomBytes(16).toString("hex");
+  const webCrypto = globalThis.crypto;
+  if (!webCrypto?.getRandomValues) {
+    throw new Error("Secure random number generator unavailable");
   }
+  webCrypto.getRandomValues(bytes);
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
