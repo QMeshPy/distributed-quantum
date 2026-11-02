@@ -167,11 +167,20 @@ class AgentKitService:
             raise UnsupportedOperationError("wallet operation is unavailable on this network")
 
     def validate_wallet_network(self, network: str | None) -> ChainSpec:
+        """Resolve a stored wallet network. Must be a registry wallet-capable chain."""
         if network is None:
             raise ValueError("stored wallet network is missing")
         chain = self.registry.resolve(network)
-        if chain.chain_id != self.chain.chain_id:
-            raise ValueError("stored wallet network does not match the configured wallet network")
+        wallet_ops = {
+            "create_wallet",
+            "get_balance",
+            "transfer_stablecoin",
+            "aave_supply",
+            "aave_withdraw",
+            "faucet_instructions",
+        }
+        if not wallet_ops.intersection(chain.capabilities):
+            raise ValueError("stored wallet network does not support wallet operations")
         return chain
 
     async def _validate_stored_wallet(self, wallet_address: str) -> None:
@@ -188,13 +197,34 @@ class AgentKitService:
         key_bytes = hashlib.sha256(secret.encode()).digest()
         self.fernet = Fernet(base64.urlsafe_b64encode(key_bytes))
 
-    async def create_wallet(self, entity_id: str, entity_type: str) -> dict:
+    def for_network(self, network: str) -> "AgentKitService":
+        """Return a service scoped to ``network``, reusing this instance's Mongo client."""
+        chain = self.registry.resolve(network)
+        if chain.chain_id == self.chain.chain_id:
+            return self
+        sibling = object.__new__(AgentKitService)
+        sibling.registry = self.registry
+        sibling._chain = chain
+        sibling.explorer = EvmExplorerAdapter(chain)
+        sibling.api_key_id = self.api_key_id
+        sibling.api_key_secret = self.api_key_secret
+        sibling.wallet_secret = self.wallet_secret
+        sibling.fernet = self.fernet
+        sibling.mongo_client = self.mongo_client
+        sibling.db = self.db
+        sibling._ledger = self._ledger
+        return sibling
+
+    async def create_wallet(
+        self, entity_id: str, entity_type: str, *, network: str | None = None
+    ) -> dict:
         """
         Create a new wallet for an entity (user, node, or platform).
 
         Args:
             entity_id: Unique identifier for the entity (user_id, node_id, or 'platform')
             entity_type: Type of entity ('user', 'agent', or 'worker')
+            network: Optional registry alias or CAIP-2 id; defaults to this service's network
 
         Returns:
             dict: Wallet information containing:
@@ -208,6 +238,10 @@ class AgentKitService:
             ValueError: If entity_type is invalid
             Exception: If wallet creation fails
         """
+        if network is not None:
+            service = self.for_network(network)
+            if service is not self:
+                return await service.create_wallet(entity_id, entity_type)
         logger.info(f"Creating wallet for {entity_type}:{entity_id}")
         try:
             self.require_operation("create_wallet")
