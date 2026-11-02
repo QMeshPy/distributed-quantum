@@ -98,11 +98,13 @@ export function loadX402Config(environment: Environment): X402Config | null {
 }
 
 function usdPrice(environment: Environment, name: string, fallback: string): string {
-  const price = environment[name] ?? fallback;
-  if (!/^\$(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(price) || Number(price.slice(1)) <= 0) {
-    throw new Error(`${name} must be a positive USD amount.`);
+  const raw = (environment[name] ?? fallback).trim();
+  // Env-file loaders expand "$0" inside "$0.01", so the dollar sign is optional.
+  const amount = raw.startsWith("$") ? raw.slice(1) : raw;
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) || Number(amount) <= 0) {
+    throw new Error(`${name} must be a positive USD amount such as 0.05.`);
   }
-  return price;
+  return `$${amount}`;
 }
 
 function required(environment: Environment, name: string): string {

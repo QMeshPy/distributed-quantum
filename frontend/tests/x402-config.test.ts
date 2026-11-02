@@ -65,3 +65,19 @@ test("each paid service reads its own price", () => {
     assert.throws(() => loadX402Config({ ...baseEnvironment, [name]: "free" }), new RegExp(name));
   }
 });
+
+test("prices may be written without a dollar sign", () => {
+  // Env files expand "$0" in "$0.01" to an empty string, leaving ".01".
+  const config = loadX402Config({
+    ...baseEnvironment,
+    X402_QUANTUM_RUN_PRICE: "0.02",
+    X402_RISK_RUN_PRICE: "$0.10",
+  });
+
+  assert.equal(config?.price, "$0.02");
+  assert.equal(config?.servicePrices.risk, "$0.10");
+  assert.throws(
+    () => loadX402Config({ ...baseEnvironment, X402_QUANTUM_RUN_PRICE: ".01" }),
+    /X402_QUANTUM_RUN_PRICE/,
+  );
+});
