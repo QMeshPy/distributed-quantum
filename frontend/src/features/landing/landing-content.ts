@@ -16,6 +16,7 @@ export const NAV = {
   ],
   secondary: "GitHub",
   primary: "Open the console",
+  menu: { open: "Open menu", close: "Close menu" },
 } as const;
 
 export const HERO = {
@@ -541,6 +542,12 @@ export const TEAM: {
       x: "https://x.com/manusheel",
     },
     { name: "Harshal Dulera", role: "Contributor", github: "harshaldulera" },
+    {
+      name: "Gaurish Baliga",
+      role: "Contributor",
+      x: "https://x.com/gaurishcodes",
+      linkedin: "https://www.linkedin.com/in/gaurish-baliga-443894131/",
+    },
     {
       name: "Saish Korgaonkar",
       role: "Contributor",

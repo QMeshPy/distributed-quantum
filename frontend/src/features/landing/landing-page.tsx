@@ -5,6 +5,7 @@ import localFont from "next/font/local";
 import { ArchStack } from "./components/arch-stack";
 import { InfrastructureStrip } from "./components/infrastructure-strip";
 import { Identicon, MeshMark } from "./components/mesh-mark";
+import { NavMenu } from "./components/nav-menu";
 import { LinkedInIcon, XIcon } from "./components/social-icons";
 import { GlyphBand, HeroMesh, InkWordmark, ResultsStory, Reveal, RollingNumber } from "./components/motion-bits";
 import { SmoothScroll } from "./components/smooth-scroll";
@@ -81,6 +82,7 @@ export function LandingPage() {
           <Link href={CONSOLE_HREF} className={styles.pill}>
             {NAV.primary}
           </Link>
+          <NavMenu nav={NAV} repositoryHref={REPOSITORY_URL} consoleHref={CONSOLE_HREF} />
         </div>
       </header>
 
