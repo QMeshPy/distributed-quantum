@@ -12,23 +12,31 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 import pytest
+from beanie import init_beanie
 from bson.decimal128 import Decimal128
 from pymongo import AsyncMongoClient
 
+from db.agentkit_collections import PaymentDocument
 from quantum_backend_v2.chains.adapter import TransactionVerification
+from quantum_backend_v2.chains.loader import load_chain_registry
 from quantum_backend_v2.payments.credits import JobCreditMeter
 from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.payments.models import PaymentEventStatus, PaymentPurpose, PaymentRail
+from quantum_backend_v2.payments.onchain_payouts import wallet_payout_rail
 from quantum_backend_v2.payments.payouts import (
     FragmentOutcome,
     FragmentPayoutService,
     IntentStatus,
     PayoutSettler,
     WithheldReason,
+    payout_key,
 )
+from services.agentkit_service import AgentKitService
 
 pytestmark = pytest.mark.anyio
 
@@ -94,6 +102,57 @@ def _fragment(job_id: str = "job-1", fragment_id: str = "frag-1", **fields: Any)
     return FragmentOutcome(**values)
 
 
+class Paused:
+    """Wraps a collection and holds the first matching call to ``method`` until released.
+
+    It holds before the call runs, or after it with ``after=True``.
+    """
+
+    def __init__(
+        self,
+        collection: Any,
+        method: str,
+        when: Any = lambda *a, **k: True,
+        *,
+        after: bool = False,
+    ) -> None:
+        self._collection, self._method, self._when = collection, method, when
+        self._after = after
+        self.reached, self.release = asyncio.Event(), asyncio.Event()
+
+    def __getattr__(self, name: str) -> Any:
+        call = getattr(self._collection, name)
+        if name != self._method:
+            return call
+
+        async def paused(*args: Any, **kwargs: Any) -> Any:
+            if self.reached.is_set() or not self._when(*args, **kwargs):
+                return await call(*args, **kwargs)
+            result = await call(*args, **kwargs) if self._after else None
+            self.reached.set()
+            await self.release.wait()
+            return result if self._after else await call(*args, **kwargs)
+
+        return paused
+
+
+class FailsOnce(Paused):
+    """Wraps a collection and fails the first matching call to ``method``."""
+
+    def __getattr__(self, name: str) -> Any:
+        call = getattr(self._collection, name)
+        if name != self._method:
+            return call
+
+        async def failing(*args: Any, **kwargs: Any) -> Any:
+            if not self.reached.is_set() and self._when(*args, **kwargs):
+                self.reached.set()
+                raise RuntimeError("database write failed")
+            return await call(*args, **kwargs)
+
+        return failing
+
+
 async def _reputation(env: Env) -> float:
     doc = await env.db.worker_pricing.find_one({"worker_id": "worker-1"})
     return float(doc["reputation_score"])
@@ -120,6 +179,35 @@ async def test_concurrent_replays_record_one_intent_and_reserve_once(env: Env) -
     results = await asyncio.gather(*(env.payouts.record_fragment(_fragment()) for _ in range(10)))
     assert {r.intent_key for r in results} == {"fragment:job-1:frag-1"}
     assert await env.db.payout_intents.count_documents({}) == 1
+    assert await env.payouts.committed("job-1") == D("1")
+
+
+async def test_a_replay_during_a_slow_reservation_never_withholds_the_fragment(env: Env) -> None:
+    await _fund_job(env.ledger, "job-1", "1")  # exactly one fragment's price
+    paused = Paused(env.payouts._budgets, "find_one_and_update", after=True)
+    env.payouts._budgets = paused
+    first = asyncio.create_task(env.payouts.record_fragment(_fragment()))
+    await paused.reached.wait()  # the whole budget is reserved, the intent not yet accrued
+    replay = await env.payouts.record_fragment(_fragment())
+    paused.release.set()
+    original = await first
+    assert replay.status is IntentStatus.ACCRUED and original.status is IntentStatus.ACCRUED
+    assert await env.payouts.committed("job-1") == D("1")
+    assert await _reputation(env) == 52.0
+
+
+async def test_a_claim_interrupted_before_its_reservation_is_finished_by_a_replay(
+    env: Env,
+) -> None:
+    await _fund_job(env.ledger, "job-1", "1")
+    paused = Paused(env.payouts._budgets, "find_one_and_update")
+    env.payouts._budgets = paused
+    crashed = asyncio.create_task(env.payouts.record_fragment(_fragment()))
+    await paused.reached.wait()
+    crashed.cancel()
+    assert await _statuses(env) == ["reserving"]
+    intent = await env.payouts.record_fragment(_fragment())
+    assert intent.status is IntentStatus.ACCRUED and intent.amount == D("1")
     assert await env.payouts.committed("job-1") == D("1")
 
 
@@ -202,9 +290,21 @@ class FakeRail:
     verification: TransactionVerification = field(
         default_factory=lambda: TransactionVerification(status="confirmed", transfer_matched=True)
     )
+    # When set, the send records its payment event as transfer_usdc does.
+    ledger: LedgerService | None = None
 
     async def send(self, to: str, amount: Decimal, key: str, metadata: dict[str, Any]) -> str:
+        if self.ledger is not None:
+            await self.ledger.record_event(
+                idempotency_key=key,
+                rail=PaymentRail.ONCHAIN,
+                purpose=PaymentPurpose.WORKER_PAYOUT,
+                amount=amount,
+                payee_ref=to,
+            )
         if self.fail_with is not None:
+            if self.ledger is not None and not isinstance(self.fail_with, ValueError):
+                await self.ledger.mark_uncertain(key, reason=str(self.fail_with))
             raise self.fail_with
         self.sent.append((to, amount, key))
         return "0x" + "c" * 64
@@ -216,6 +316,7 @@ class FakeRail:
 def _settler(env: Env, rail: FakeRail, threshold: str = "2") -> PayoutSettler:
     return PayoutSettler(
         env.db,
+        env.ledger,
         send=rail.send,
         verify=rail.verify,
         threshold=D(threshold),
@@ -315,3 +416,180 @@ async def test_a_transfer_that_does_not_match_is_left_for_an_admin(env: Env) -> 
     assert (await settler.run_once()).uncertain == 1
     assert await _statuses(env) == ["submitted", "submitted"]
     assert len(rail.sent) == 1
+
+
+async def _two_accrued(env: Env) -> None:
+    await _fund_job(env.ledger, "job-1", "10")
+    for i in range(2):
+        await env.payouts.record_fragment(_fragment(fragment_id=f"f-{i}"))
+
+
+async def _total_earned(env: Env) -> Decimal:
+    doc = await env.db.worker_pricing.find_one({"worker_id": "worker-1"})
+    return doc["total_earned"].to_decimal()
+
+
+async def test_claims_are_released_when_the_batch_cannot_start(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail()
+    settler = _settler(env, rail)
+    settler._batches = FailsOnce(settler._batches, "find_one_and_update")
+    with pytest.raises(RuntimeError):
+        await settler.run_once()
+    assert await _statuses(env) == ["accrued", "accrued"]
+    assert (await settler.run_once()).sent == 1
+    assert len(rail.sent) == 1
+
+
+async def test_claims_a_stopped_settler_left_behind_are_paid_by_a_later_sweep(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail()
+    stopped = _settler(env, rail)
+    paused = Paused(stopped._batches, "find_one_and_update")
+    stopped._batches = paused
+    crashed = asyncio.create_task(stopped.run_once())
+    await paused.reached.wait()  # intents claimed, batch not started
+    crashed.cancel()
+    assert await _statuses(env) == ["settling", "settling"]
+
+    settler = _settler(env, rail)
+    assert (await settler.run_once()).sent == 0  # the claim is not stale yet
+    later = datetime.now(timezone.utc) + timedelta(minutes=20)
+    report = await settler.run_once(now=later)
+    assert (report.returned, report.sent) == (1, 1)
+    assert await _statuses(env) == ["submitted", "submitted"]
+    assert len(rail.sent) == 1
+
+
+async def test_concurrent_confirmations_count_a_transfer_once(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail()
+    await _settler(env, rail).run_once()
+    reports = await asyncio.gather(*(_settler(env, rail).confirm_submitted() for _ in range(5)))
+    assert sum(paid for paid, _, _ in reports) == 1
+    assert await _total_earned(env) == D("2")
+
+
+async def test_an_interrupted_confirmation_is_finished_once_by_the_next_sweep(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail()
+    settler = _settler(env, rail)
+    await settler.run_once()
+    settler._workers = FailsOnce(settler._workers, "update_one")
+    with pytest.raises(RuntimeError):
+        await settler.run_once()
+    assert await env.db.payout_batches.count_documents({"status": "finishing"}) == 1
+    await settler.run_once()
+    await settler.run_once()
+    assert await _statuses(env) == ["paid", "paid"]
+    assert await env.db.payout_batches.count_documents({"status": "paid"}) == 1
+    assert await _total_earned(env) == D("2")
+
+
+async def test_a_batch_confirmed_while_it_is_being_submitted_stays_paid(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail()
+    sender = _settler(env, rail)
+    paused = Paused(
+        sender._intents,
+        "update_many",
+        when=lambda query, update: query.get("status") == IntentStatus.SETTLING.value,
+    )
+    sender._intents = paused
+    sending = asyncio.create_task(sender.run_once())
+    await paused.reached.wait()  # batch published as submitted, intents not yet
+    assert (await _settler(env, rail).confirm_submitted())[0] == 1
+    paused.release.set()
+    await sending
+    assert await _statuses(env) == ["paid", "paid"]
+    totals = await env.payouts.worker_totals("worker-1")
+    assert (totals.paid, totals.pending, totals.paid_fragments) == (D("2"), D("0"), 2)
+
+
+async def test_an_uncertain_batch_an_admin_confirms_is_paid_once(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail(fail_with=TimeoutError("RPC timed out after broadcast"), ledger=env.ledger)
+    settler = _settler(env, rail)
+    assert (await settler.run_once()).uncertain == 1
+    batch = await env.db.payout_batches.find_one({"status": "uncertain"})
+    await env.ledger.reconcile(
+        payout_key(batch["batch_id"]),
+        outcome=PaymentEventStatus.CONFIRMED,
+        actor="admin-1",
+        reason="transfer found on the explorer",
+        external_ref="0x" + "d" * 64,
+    )
+    rail.fail_with = None
+    assert (await settler.run_once()).paid == 1
+    assert (await settler.run_once()).paid == 0
+    assert await _statuses(env) == ["paid", "paid"]
+    assert await _total_earned(env) == D("2")
+    assert rail.sent == []  # never sent again
+
+
+async def test_an_uncertain_batch_an_admin_fails_is_sent_again(env: Env) -> None:
+    await _two_accrued(env)
+    rail = FakeRail(fail_with=TimeoutError("RPC timed out"), ledger=env.ledger)
+    settler = _settler(env, rail)
+    await settler.run_once()
+    batch = await env.db.payout_batches.find_one({"status": "uncertain"})
+    await env.ledger.reconcile(
+        payout_key(batch["batch_id"]),
+        outcome=PaymentEventStatus.FAILED,
+        actor="admin-1",
+        reason="never broadcast",
+    )
+    rail.fail_with = None
+    report = await settler.run_once()
+    assert (report.returned, report.sent) == (1, 1)
+    assert (await settler.run_once()).returned == 0
+    assert len(rail.sent) == 1
+
+
+PLATFORM = "0x" + "a" * 40
+
+
+def _wallet_service(env: Env, monkeypatch: pytest.MonkeyPatch, balances: list[Any]) -> Any:
+    monkeypatch.setenv("CDP_WALLET_SECRET", "test-wallet-secret-not-a-live-credential")
+    service = AgentKitService(registry=load_chain_registry(), network="base-sepolia")
+    service.db = env.db
+    service._ledger = env.ledger
+    provider = MagicMock()
+    provider.send_transaction.return_value = "0x" + "e" * 64
+    provider._web3.eth.get_transaction_count.return_value = 0
+    contract = provider._web3.eth.contract.return_value
+    contract.functions.transfer.return_value.build_transaction.return_value = {"nonce": 0}
+    service._load_wallet = AsyncMock(return_value=provider)  # type: ignore[method-assign]
+    service.get_balance = AsyncMock(side_effect=balances)  # type: ignore[method-assign]
+    return service, provider
+
+
+@pytest.mark.parametrize("after_send", [None, ValueError("balance refresh failed")])
+async def test_payouts_sent_through_the_wallet_service_are_sent_once(
+    env: Env, monkeypatch: pytest.MonkeyPatch, after_send: Exception | None
+) -> None:
+    await init_beanie(database=env.db, document_models=[PaymentDocument])
+    funded = {"usdc_balance": D("100"), "eth_balance": D("1")}
+    service, provider = _wallet_service(env, monkeypatch, [funded, after_send or funded])
+    send, _ = wallet_payout_rail(lambda: service, from_address=PLATFORM)
+    settler = PayoutSettler(
+        env.db,
+        env.ledger,
+        send=send,
+        verify=FakeRail().verify,
+        threshold=D("2"),
+        max_age=timedelta(hours=1),
+    )
+    await _two_accrued(env)
+    assert (await settler.run_once()).sent == 1
+    assert (await settler.run_once()).sent == 0
+    assert provider.send_transaction.call_count == 1
+    assert await _statuses(env) == ["paid", "paid"]
+    payment = await env.db.payments.find_one({})
+    assert payment["type"] == "worker_payment"
+    batch = await env.db.payout_batches.find_one({})
+    event = await env.ledger.get_event(payout_key(batch["batch_id"]))
+    assert (event.status, event.purpose) == (
+        PaymentEventStatus.CONFIRMED,
+        PaymentPurpose.WORKER_PAYOUT,
+    )

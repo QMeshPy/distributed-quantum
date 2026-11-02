@@ -93,6 +93,17 @@ def test_unpayable_fragments_are_withheld(
     assert _service()._price(outcome, worker, "hadamard") == (D("0"), reason)
 
 
+def test_prices_finer_than_usdc_are_truncated_to_what_a_transfer_sends() -> None:
+    # transfer_usdc sends whole micro-USDC, and the receipt is verified against this amount.
+    worker = {**WORKER, "pricing": {"hadamard": "1.0000001"}}
+    assert _service()._price(_outcome(), worker, "hadamard") == (D("1.000000"), None)
+
+
+def test_prices_below_one_micro_usdc_are_unpriced() -> None:
+    worker = {**WORKER, "pricing": {"hadamard": "0.0000009"}}
+    assert _service()._price(_outcome(), worker, "hadamard") == (D("0"), WithheldReason.UNPRICED)
+
+
 def test_fragments_without_a_fidelity_reading_are_not_rejected() -> None:
     assert _service()._price(_outcome(observed_fidelity=None), WORKER, "hadamard")[1] is None
 

@@ -284,7 +284,13 @@ price for that operation type (`hadamard`, `cnot`, …), or their `custom` price
 
 **Exactly once.** The intent's unique key is `(job, fragment)`. Re-processing a
 job, or recording the same fragment concurrently, stores one intent, reserves the
-budget once and changes reputation once.
+budget once and changes reputation once. The intent is claimed (`reserving`)
+before its budget is reserved, and the budget guard records which intents it
+reserved, so a replay finishes an interrupted claim instead of recording a
+false `over_budget`.
+
+**Price.** Prices are truncated to whole micro-USDC (6 decimals) before they are
+reserved, so the amount charged, sent and verified on-chain is the same.
 
 **Budget.** The first intent for a job copies the job's credit hold into a
 `payout_budgets` guard. Each intent is reserved with one atomic conditional
@@ -312,15 +318,32 @@ deactivated, as in `MarketplaceService.update_worker_reputation`.
 only runs when `QB2_WORKER_PAYOUT_WALLET` names a platform-managed wallet in the
 `wallets` collection; otherwise intents accrue and nothing is sent.
 
+A batch moves `claiming → sending → submitted → finishing → paid`, or to `failed`
+(its intents return to `accrued`) or `uncertain`. Each move is a conditional update
+on the current status, so with several app instances a batch is sent, confirmed
+and added to `total_earned` once. Earnings are also de-duplicated by batch id.
+
 - A send that fails validation (`ValueError`, nothing broadcast) returns the
-  batch's intents to `accrued` for the next run.
+  batch's intents to `accrued` for the next run. Once a transfer is broadcast,
+  `transfer_usdc` logs bookkeeping errors instead of raising them.
 - Any other send error leaves the batch `uncertain` and its intents `settling`.
-  They are **never sent again automatically**; resolve the batch's
-  `worker_payout:<batch id>` event with the admin reconcile route.
+  They are **never sent again automatically**. Reconcile the batch's
+  `worker_payout:<batch id>` event with the admin reconcile route: on its next
+  sweep the settler pays the intents (`confirmed`) or returns them for a new
+  send (`failed`).
 - A submitted batch is paid only when `verify_transaction` confirms a USDC
   transfer of the batch amount from the payout wallet to the worker. A reverted
-  transaction returns the intents to `accrued`; a confirmed transaction that
-  does not contain that transfer marks the batch `uncertain`.
+  transaction returns the intents to `accrued`. A confirmed transaction that
+  does not contain that transfer marks the batch `uncertain`. Its event is
+  already confirmed, so it cannot be reconciled and needs a manual investigation.
+
+**Recovery.** Every sweep first picks up batches a stopped settler left behind:
+
+| Batch left in | Next sweep |
+| --- | --- |
+| `finishing` | Applies the outcome that was already decided |
+| `claiming`, untouched 15 minutes | Nothing was sent: returns the intents to `accrued` |
+| `sending`, untouched 15 minutes | Follows the payment event. No event: nothing was broadcast, intents return. Confirmed with a tx hash: verified like any send. Otherwise `uncertain` |
 
 ### API
 

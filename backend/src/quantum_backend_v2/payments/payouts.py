@@ -19,17 +19,18 @@ import logging
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from enum import Enum
 from typing import Any
 
 from bson.decimal128 import Decimal128
 from pydantic import BaseModel, ConfigDict, Field
-from pymongo import ASCENDING, IndexModel
+from pymongo import ASCENDING, IndexModel, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from quantum_backend_v2.chains.adapter import TransactionVerification
 from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.payments.models import PaymentEvent, PaymentEventStatus
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ WORKER_PRICING = "worker_pricing"
 PEER_ENROLLMENTS = "peer_enrollments"
 
 _ZERO = Decimal("0")
+# USDC has 6 decimals; transfers truncate anything finer.
+_USDC_UNIT = Decimal("0.000001")
 
 # OpenQASM gate names mapped to the operation types workers price.
 OPERATION_TYPES: dict[str, str] = {
@@ -81,6 +84,11 @@ def intent_key(job_id: str, fragment_id: str) -> str:
     return f"fragment:{job_id}:{fragment_id}"
 
 
+def payout_key(batch_id: str) -> str:
+    # The batch's payment event in the ledger, which admins reconcile.
+    return f"worker_payout:{batch_id}"
+
+
 def _hold_id(job_id: str) -> str:
     # The circuit job's credit hold (see JobCreditMeter).
     return f"job:{job_id}"
@@ -105,10 +113,12 @@ def _dec(value: Any) -> Decimal:
 class IntentStatus(str, Enum):
     """Lifecycle of a payout intent.
 
-    accrued -> settling -> submitted -> paid. A failed send or a reverted
-    transfer returns intents to accrued. withheld intents are never paid.
+    reserving -> accrued -> settling -> submitted -> paid. A failed send or a
+    reverted transfer returns intents to accrued. withheld intents are never paid.
     """
 
+    # Claimed for its fragment; its budget reservation has not finished yet.
+    RESERVING = "reserving"
     ACCRUED = "accrued"
     SETTLING = "settling"
     SUBMITTED = "submitted"
@@ -211,58 +221,76 @@ class FragmentPayoutService:
         await self._budgets.create_indexes([IndexModel("job_id", unique=True)])
 
     async def record_fragment(self, outcome: FragmentOutcome) -> PayoutIntent:
-        """Record the fragment's payout intent once; replays return the stored intent."""
+        """Record the fragment's payout intent once; replays return the stored intent.
+
+        The intent is claimed before its budget is reserved, so a replay can never
+        store a withholding decision while the first recording is still reserving.
+        A claim left ``reserving`` by a crash is finished by the next replay.
+        """
         key = intent_key(outcome.job_id, outcome.fragment_id)
-        existing = await self._intents.find_one({"intent_key": key})
-        if existing is not None:
-            return _doc_to_intent(existing)
-
-        worker = await self._worker_for_peer(outcome.peer_id)
-        operation = operation_type(outcome.operation_text)
-        amount, reason = self._price(outcome, worker, operation)
-        reserved = False
-        if reason is None:
-            budget_ok = await self._reserve(outcome.job_id, amount)
-            if budget_ok is None:
-                reason = WithheldReason.NO_BUDGET
-            elif not budget_ok:
-                reason = WithheldReason.OVER_BUDGET
-            reserved = bool(budget_ok)
-        if reason is not None:
-            amount = _ZERO
-
-        now = _utc_now()
-        intent = PayoutIntent(
-            intent_key=key,
-            job_id=outcome.job_id,
-            fragment_id=outcome.fragment_id,
-            peer_id=outcome.peer_id,
-            worker_id=worker["worker_id"] if worker else None,
-            payee_address=worker.get("wallet_address") if worker else None,
-            operation=operation,
-            amount=amount,
-            status=IntentStatus.WITHHELD if reason else IntentStatus.ACCRUED,
-            reason=reason,
-            observed_fidelity=outcome.observed_fidelity,
-            created_at=now,
-            updated_at=now,
-        )
-        try:
-            await self._intents.insert_one(_intent_to_doc(intent))
-        except DuplicateKeyError:
-            # A concurrent replay recorded this fragment first; give the reservation back.
-            if reserved:
-                await self._unreserve(outcome.job_id, amount)
-            stored = await self._intents.find_one({"intent_key": key})
-            assert stored is not None
-            return _doc_to_intent(stored)
-
-        if worker is not None and outcome.status != "not_run":
-            penalized = reason in _PENALIZED
-            await self._adjust_reputation(
-                worker["worker_id"], _REPUTATION_FAILURE if penalized else _REPUTATION_SUCCESS
+        stored = await self._intents.find_one({"intent_key": key})
+        if stored is None:
+            worker = await self._worker_for_peer(outcome.peer_id)
+            operation = operation_type(outcome.operation_text)
+            amount, reason = self._price(outcome, worker, operation)
+            now = _utc_now()
+            intent = PayoutIntent(
+                intent_key=key,
+                job_id=outcome.job_id,
+                fragment_id=outcome.fragment_id,
+                peer_id=outcome.peer_id,
+                worker_id=worker["worker_id"] if worker else None,
+                payee_address=worker.get("wallet_address") if worker else None,
+                operation=operation,
+                amount=amount,
+                status=IntentStatus.WITHHELD if reason else IntentStatus.RESERVING,
+                reason=reason,
+                observed_fidelity=outcome.observed_fidelity,
+                created_at=now,
+                updated_at=now,
             )
-        return intent
+            try:
+                await self._intents.insert_one(_intent_to_doc(intent))
+            except DuplicateKeyError:
+                # A concurrent replay claimed this fragment first.
+                stored = await self._intents.find_one({"intent_key": key})
+                assert stored is not None
+            else:
+                if reason is not None:
+                    if worker is not None and outcome.status != "not_run":
+                        penalized = reason in _PENALIZED
+                        await self._adjust_reputation(
+                            worker["worker_id"],
+                            _REPUTATION_FAILURE if penalized else _REPUTATION_SUCCESS,
+                        )
+                    return intent
+                stored = _intent_to_doc(intent)
+        if stored["status"] != IntentStatus.RESERVING.value:
+            return _doc_to_intent(stored)
+        return await self._finish_reservation(stored)
+
+    async def _finish_reservation(self, stored: dict[str, Any]) -> PayoutIntent:
+        """Reserve a claimed intent's budget and settle it as accrued or withheld."""
+        key = stored["intent_key"]
+        budget_ok = await self._reserve(stored["job_id"], key, _dec(stored["amount"]))
+        update: dict[str, Any] = {"status": IntentStatus.ACCRUED.value, "updated_at": _utc_now()}
+        if not budget_ok:
+            reason = WithheldReason.NO_BUDGET if budget_ok is None else WithheldReason.OVER_BUDGET
+            update.update(
+                status=IntentStatus.WITHHELD.value, amount=_d128(_ZERO), reason=reason.value
+            )
+        finished = await self._intents.find_one_and_update(
+            {"intent_key": key, "status": IntentStatus.RESERVING.value},
+            {"$set": update},
+            return_document=ReturnDocument.AFTER,
+        )
+        if finished is None:
+            # Another replay finished this claim first, with the same reservation.
+            finished = await self._intents.find_one({"intent_key": key})
+            assert finished is not None
+        elif finished.get("worker_id"):
+            await self._adjust_reputation(finished["worker_id"], _REPUTATION_SUCCESS)
+        return _doc_to_intent(finished)
 
     async def committed(self, job_id: str) -> Decimal:
         """Value reserved for this job's workers so far."""
@@ -311,7 +339,7 @@ class FragmentPayoutService:
                 totals["paid_fragments"] = row["count"]
             elif status == IntentStatus.WITHHELD.value:
                 totals["withheld_fragments"] = row["count"]
-            else:
+            elif status != IntentStatus.RESERVING.value:
                 pending += amount
         totals["pending"] = pending
         return WorkerPayoutTotals(**totals)
@@ -339,13 +367,17 @@ class FragmentPayoutService:
             return _ZERO, WithheldReason.UNKNOWN_WORKER
         pricing = worker.get("pricing") or {}
         price = pricing.get(operation, pricing.get("custom"))
-        amount = _dec(price) if price is not None else _ZERO
+        # Truncate as the transfer does, so the amount reserved, sent and verified is the same.
+        amount = _dec(price).quantize(_USDC_UNIT, ROUND_DOWN) if price is not None else _ZERO
         if amount <= 0:
             return _ZERO, WithheldReason.UNPRICED
         return amount, None
 
-    async def _reserve(self, job_id: str, amount: Decimal) -> bool | None:
-        """Reserve ``amount`` of the job's budget. None when the job has no budget."""
+    async def _reserve(self, job_id: str, key: str, amount: Decimal) -> bool | None:
+        """Reserve ``amount`` of the job's budget for intent ``key``, at most once.
+
+        None when the job has no budget.
+        """
         if await self._budgets.find_one({"job_id": job_id}) is None:
             hold = await self._ledger.hold_amount(_hold_id(job_id))
             if hold is None:
@@ -358,23 +390,25 @@ class FragmentPayoutService:
                         "budget": _d128(hold),
                         "remaining": _d128(hold),
                         "committed": _d128(_ZERO),
+                        "reserved": [],
                         "created_at": _utc_now(),
                     }
                 },
                 upsert=True,
             )
-        # The atomic conditional update is what keeps payouts within the budget.
+        # The atomic conditional update is what keeps payouts within the budget;
+        # the reserved list lets a resumed claim find its earlier reservation.
         reserved = await self._budgets.find_one_and_update(
-            {"job_id": job_id, "remaining": {"$gte": _d128(amount)}},
-            {"$inc": {"remaining": _d128(-amount), "committed": _d128(amount)}},
+            {"job_id": job_id, "remaining": {"$gte": _d128(amount)}, "reserved": {"$ne": key}},
+            {
+                "$inc": {"remaining": _d128(-amount), "committed": _d128(amount)},
+                "$push": {"reserved": key},
+            },
         )
-        return reserved is not None
-
-    async def _unreserve(self, job_id: str, amount: Decimal) -> None:
-        await self._budgets.update_one(
-            {"job_id": job_id},
-            {"$inc": {"remaining": _d128(amount), "committed": _d128(-amount)}},
-        )
+        if reserved is not None:
+            return True
+        found: int = await self._budgets.count_documents({"job_id": job_id, "reserved": key})
+        return found > 0
 
     async def _adjust_reputation(self, worker_id: str, change: float) -> None:
         score = {"$min": [100.0, {"$max": [0.0, {"$add": ["$reputation_score", change]}]}]}
@@ -412,24 +446,36 @@ class SettlementReport(BaseModel):
 
 
 class PayoutSettler:
-    """Batches accrued intents into on-chain transfers and confirms them by receipt."""
+    """Batches accrued intents into on-chain transfers and confirms them by receipt.
+
+    A batch moves ``claiming -> sending -> submitted -> finishing -> paid``, or to
+    ``failed`` (its intents are returned) or ``uncertain`` (left for an admin).
+    Every move is a conditional update on the current status, so concurrent
+    settlers act on a batch once, and each sweep first picks up batches that an
+    interrupted settler, or an admin reconciliation, left behind.
+    """
 
     def __init__(
         self,
         database: Any,
+        ledger: LedgerService,
         *,
         send: SendPayout,
         verify: VerifyPayout,
         threshold: Decimal,
         max_age: timedelta,
+        stale_after: timedelta = timedelta(minutes=15),
     ) -> None:
         self._intents = database[PAYOUT_INTENTS]
         self._batches = database[PAYOUT_BATCHES]
         self._workers = database[WORKER_PRICING]
+        self._ledger = ledger
         self._send = send
         self._verify = verify
         self.threshold = threshold
         self.max_age = max_age
+        # A claiming or sending batch untouched this long was abandoned by its settler.
+        self.stale_after = stale_after
 
     async def ensure_indexes(self) -> None:
         await self._batches.create_indexes(
@@ -437,11 +483,16 @@ class PayoutSettler:
         )
 
     async def run_once(self, *, now: datetime | None = None) -> SettlementReport:
-        """Confirm submitted batches, then send every batch that is due."""
+        """Recover left-behind batches, confirm submitted ones, then send every due batch."""
+        now = now or _utc_now()
+        recovered_paid, recovered_returned, recovered_uncertain = await self.recover(now=now)
         paid, returned, uncertain = await self.confirm_submitted()
-        sent, send_uncertain = await self.send_due(now=now or _utc_now())
+        sent, send_uncertain = await self.send_due(now=now)
         return SettlementReport(
-            sent=sent, paid=paid, returned=returned, uncertain=uncertain + send_uncertain
+            sent=sent,
+            paid=paid + recovered_paid,
+            returned=returned + recovered_returned,
+            uncertain=uncertain + send_uncertain + recovered_uncertain,
         )
 
     async def send_due(self, *, now: datetime) -> tuple[int, int]:
@@ -481,74 +532,149 @@ class PayoutSettler:
                 logger.exception("could not verify payout batch %s", batch["batch_id"])
                 continue
             if check.verified:
-                await self._finish(batch, "paid", IntentStatus.PAID)
-                await self._workers.update_one(
-                    {"worker_id": batch["worker_id"]},
-                    {"$inc": {"total_earned": _d128(amount)}, "$set": {"updated_at": _utc_now()}},
-                )
-                paid += 1
+                paid += await self._finish(batch["batch_id"], "submitted", "paid")
             elif check.status == "failed":
                 # A reverted transfer moved nothing, so the intents can be paid again.
-                await self._finish(batch, "failed", IntentStatus.ACCRUED)
-                returned += 1
+                returned += await self._finish(batch["batch_id"], "submitted", "failed")
             elif check.status == "confirmed":
                 # Confirmed, but not the transfer we sent: never pay it again automatically.
-                await self._finish(batch, "uncertain", None)
-                uncertain += 1
+                uncertain += await self._mark_uncertain(
+                    batch["batch_id"], "submitted", error="confirmed transfer did not match"
+                )
+        return paid, returned, uncertain
+
+    async def recover(self, *, now: datetime) -> tuple[int, int, int]:
+        """Pick up batches an interrupted settler or an admin reconciliation left behind.
+
+        - ``finishing``: apply the outcome that was already decided.
+        - ``claiming`` and stale: nothing was sent, so the claims are released.
+        - ``sending`` and stale, or ``uncertain``: follow the batch's payment event.
+          No event means nothing was broadcast, since it is recorded first; a failed
+          one moved nothing; a confirmed one is verified, or paid if an admin
+          confirmed it. Anything else stays uncertain until an admin reconciles it.
+        """
+        paid = returned = uncertain = 0
+        for batch in await self._batches.find({"status": "finishing"}).to_list(length=None):
+            await self._complete(batch)
+        stale = {"$lt": now - self.stale_after}
+        abandoned = self._batches.find({"status": "claiming", "updated_at": stale})
+        for batch in await abandoned.to_list(length=None):
+            returned += await self._finish(
+                batch["batch_id"], "claiming", "failed", error="claim abandoned before sending"
+            )
+        unresolved = self._batches.find(
+            {
+                "$or": [
+                    {"status": "sending", "updated_at": stale},
+                    {"status": "uncertain"},
+                ]
+            }
+        )
+        for batch in await unresolved.to_list(length=None):
+            batch_id, status = batch["batch_id"], batch["status"]
+            event = await self._ledger.get_event(payout_key(batch_id))
+            if event is None:
+                if status == "sending":
+                    returned += await self._finish(
+                        batch_id, status, "failed", error="send abandoned before broadcast"
+                    )
+            elif event.status is PaymentEventStatus.FAILED:
+                returned += await self._finish(batch_id, status, "failed", error="payment failed")
+            elif event.status is PaymentEventStatus.CONFIRMED and _admin_resolved(event):
+                tx_hash = event.external_ref or batch.get("tx_hash")
+                paid += await self._finish(batch_id, status, "paid", tx_hash=tx_hash)
+            elif status == "sending" and event.external_ref:
+                # Broadcast before the settler stopped: verify it like any other send.
+                await self._submitted(batch_id, event.external_ref)
+            elif status == "sending":
+                uncertain += await self._mark_uncertain(
+                    batch_id, status, error="send interrupted; reconcile its payment event"
+                )
         return paid, returned, uncertain
 
     async def _send_batch(self, worker_id: str, payee_address: str, keys: list[str]) -> str:
         batch_id = f"wpb-{uuid.uuid4().hex}"
         now = _utc_now()
-        # Claim the intents; a concurrent settler may already have taken some.
-        await self._intents.update_many(
-            {"intent_key": {"$in": keys}, "status": IntentStatus.ACCRUED.value},
+        # The batch exists before any intent is claimed, so a sweep can always
+        # find, and release, claims a stopped settler left behind.
+        await self._batches.insert_one(
             {
-                "$set": {
-                    "status": IntentStatus.SETTLING.value,
-                    "batch_id": batch_id,
-                    "updated_at": now,
-                }
-            },
+                "batch_id": batch_id,
+                "worker_id": worker_id,
+                "payee_address": payee_address,
+                "amount": _d128(_ZERO),
+                "intent_keys": [],
+                "status": "claiming",
+                "tx_hash": None,
+                "created_at": now,
+                "updated_at": now,
+            }
         )
-        claimed = await self._intents.find({"batch_id": batch_id}).to_list(length=None)
+        try:
+            # Claim the intents; a concurrent settler may already have taken some.
+            await self._intents.update_many(
+                {"intent_key": {"$in": keys}, "status": IntentStatus.ACCRUED.value},
+                {
+                    "$set": {
+                        "status": IntentStatus.SETTLING.value,
+                        "batch_id": batch_id,
+                        "updated_at": now,
+                    }
+                },
+            )
+            claimed = await self._intents.find({"batch_id": batch_id}).to_list(length=None)
+            amount = sum((_dec(doc["amount"]) for doc in claimed), _ZERO)
+            started = await self._batches.find_one_and_update(
+                {"batch_id": batch_id, "status": "claiming"},
+                {
+                    "$set": {
+                        "status": "sending" if claimed else "empty",
+                        "amount": _d128(amount),
+                        "intent_keys": [doc["intent_key"] for doc in claimed],
+                        "updated_at": _utc_now(),
+                    }
+                },
+            )
+        except Exception as exc:
+            # Nothing was sent: release the claims now, or leave them to the next sweep.
+            try:
+                await self._finish(batch_id, "claiming", "failed", error=str(exc))
+            except Exception:
+                logger.exception("payout batch %s claims left for recovery", batch_id)
+            raise
+        if started is None:
+            # A sweep released this batch as abandoned; release anything claimed since.
+            await self._release_intents(batch_id)
+            return "failed"
         if not claimed:
             return "empty"
-        amount = sum((_dec(doc["amount"]) for doc in claimed), _ZERO)
-        batch = {
-            "batch_id": batch_id,
-            "worker_id": worker_id,
-            "payee_address": payee_address,
-            "amount": _d128(amount),
-            "intent_keys": [doc["intent_key"] for doc in claimed],
-            "status": "sending",
-            "tx_hash": None,
-            "created_at": now,
-            "updated_at": now,
-        }
-        await self._batches.insert_one(batch)
         try:
             tx_hash = await self._send(
                 payee_address,
                 amount,
-                f"worker_payout:{batch_id}",
+                payout_key(batch_id),
                 {"worker_id": worker_id, "batch_id": batch_id, "fragments": len(claimed)},
             )
         except ValueError as exc:
             logger.warning("payout batch %s not sent: %s", batch_id, exc)
-            await self._finish(batch, "failed", IntentStatus.ACCRUED, error=str(exc))
+            await self._finish(batch_id, "sending", "failed", error=str(exc))
             return "failed"
         except Exception as exc:
             # The transfer may have been broadcast: never send these intents again automatically.
             logger.exception("payout batch %s has an unknown outcome", batch_id)
-            await self._finish(batch, "uncertain", None, error=str(exc))
+            await self._mark_uncertain(batch_id, "sending", error=str(exc))
             return "uncertain"
+        await self._submitted(batch_id, tx_hash)
+        return "submitted"
+
+    async def _submitted(self, batch_id: str, tx_hash: str) -> None:
         await self._batches.update_one(
-            {"batch_id": batch_id},
+            {"batch_id": batch_id, "status": "sending"},
             {"$set": {"status": "submitted", "tx_hash": tx_hash, "updated_at": _utc_now()}},
         )
+        # Only intents still settling: a concurrent confirmation may already have paid them.
         await self._intents.update_many(
-            {"batch_id": batch_id},
+            {"batch_id": batch_id, "status": IntentStatus.SETTLING.value},
             {
                 "$set": {
                     "status": IntentStatus.SUBMITTED.value,
@@ -557,27 +683,99 @@ class PayoutSettler:
                 }
             },
         )
-        return "submitted"
+
+    async def _mark_uncertain(self, batch_id: str, from_status: str, *, error: str) -> bool:
+        """Leave the batch and its intents in place for an admin to reconcile."""
+        result = await self._batches.update_one(
+            {"batch_id": batch_id, "status": from_status},
+            {"$set": {"status": "uncertain", "error": error, "updated_at": _utc_now()}},
+        )
+        return bool(result.modified_count)
 
     async def _finish(
         self,
-        batch: dict[str, Any],
-        batch_status: str,
-        intent_status: IntentStatus | None,
+        batch_id: str,
+        from_status: str,
+        outcome: str,
         *,
         error: str | None = None,
-    ) -> None:
-        now = _utc_now()
-        await self._batches.update_one(
-            {"batch_id": batch["batch_id"]},
-            {"$set": {"status": batch_status, "error": error, "updated_at": now}},
+        tx_hash: str | None = None,
+    ) -> bool:
+        """Decide a batch's outcome once, then apply it.
+
+        The conditional status change picks a single settler. The outcome is
+        stored with it, so a sweep completes a finish that was interrupted.
+        """
+        update: dict[str, Any] = {
+            "status": "finishing",
+            "outcome": outcome,
+            "error": error,
+            "updated_at": _utc_now(),
+        }
+        if tx_hash is not None:
+            update["tx_hash"] = tx_hash
+        batch = await self._batches.find_one_and_update(
+            {"batch_id": batch_id, "status": from_status},
+            {"$set": update},
+            return_document=ReturnDocument.AFTER,
         )
-        if intent_status is None:
-            return  # Left in place for an admin to reconcile.
-        update: dict[str, Any] = {"$set": {"status": intent_status.value, "updated_at": now}}
-        if intent_status is IntentStatus.ACCRUED:
-            update["$set"].update({"batch_id": None, "tx_hash": None})
-        await self._intents.update_many({"batch_id": batch["batch_id"]}, update)
+        if batch is None:
+            return False
+        await self._complete(batch)
+        return True
+
+    async def _complete(self, batch: dict[str, Any]) -> None:
+        """Apply a finishing batch's outcome. Every step is safe to repeat."""
+        batch_id, now = batch["batch_id"], _utc_now()
+        if batch["outcome"] == "paid":
+            await self._intents.update_many(
+                {"batch_id": batch_id},
+                {
+                    "$set": {
+                        "status": IntentStatus.PAID.value,
+                        "tx_hash": batch.get("tx_hash"),
+                        "updated_at": now,
+                    }
+                },
+            )
+            # Each batch is added to the worker's earnings once, however often this runs.
+            await self._workers.update_one(
+                {"worker_id": batch["worker_id"], "paid_batches": {"$ne": batch_id}},
+                {
+                    "$inc": {"total_earned": batch["amount"]},
+                    "$push": {"paid_batches": batch_id},
+                    "$set": {"updated_at": now},
+                },
+            )
+        else:
+            # Nothing moved, so the intents can be paid again.
+            await self._release_intents(batch_id)
+        await self._batches.update_one(
+            {"batch_id": batch_id, "status": "finishing"},
+            {"$set": {"status": batch["outcome"], "updated_at": now}},
+        )
+
+    async def _release_intents(self, batch_id: str) -> None:
+        await self._intents.update_many(
+            {
+                "batch_id": batch_id,
+                "status": {"$in": [IntentStatus.SETTLING.value, IntentStatus.SUBMITTED.value]},
+            },
+            {
+                "$set": {
+                    "status": IntentStatus.ACCRUED.value,
+                    "batch_id": None,
+                    "tx_hash": None,
+                    "updated_at": _utc_now(),
+                }
+            },
+        )
+
+
+def _admin_resolved(event: PaymentEvent) -> bool:
+    # The admin reconcile route records who confirmed it; automatic confirms do not.
+    last = event.status_history[-1] if event.status_history else None
+    return last is not None and last.status is event.status and last.actor is not None
 
 
 async def _aggregate(collection: Any, pipeline: list[dict[str, Any]]) -> Any:
@@ -617,4 +815,5 @@ __all__ = [
     "WorkerPayoutTotals",
     "intent_key",
     "operation_type",
+    "payout_key",
 ]

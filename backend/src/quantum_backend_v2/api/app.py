@@ -114,6 +114,7 @@ def create_app(
         )
         payout_settler = PayoutSettler(
             mongodb.database,
+            ledger_service,
             send=send,
             verify=verify,
             threshold=payout_settings.threshold,
