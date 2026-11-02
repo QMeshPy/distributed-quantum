@@ -8,6 +8,8 @@ export interface UserProfile {
   designation?: string;
   trialEndsAt?: string;
   hasSubscription?: boolean;
+  stripeConnectedAccountId?: string;
+  stripeConnectPayoutsEnabled?: boolean;
   emailVerified: boolean;
   image?: string | null;
   createdAt: Date;

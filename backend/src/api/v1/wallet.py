@@ -22,6 +22,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+class WalletCreateRequest(BaseModel):
+    """Optional body for wallet creation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    network: str | None = Field(
+        default=None,
+        description="Registry alias or CAIP-2 id (e.g. arbitrum-sepolia). "
+        "Defaults to the process wallet network.",
+    )
+
+
 class WalletCreateResponse(BaseModel):
     """Response from wallet creation."""
 
@@ -118,26 +130,17 @@ router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
     response_model=WalletCreateResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new wallet",
-    description="Creates a new CDP wallet for the current user on Base Sepolia testnet.",
+    description=(
+        "Creates a new CDP wallet for the current user on a registry wallet network "
+        "(Base Sepolia by default; pass network=arbitrum-sepolia for Arbitrum Sepolia)."
+    ),
 )
 async def create_wallet(
     current_user: CurrentUser,
     agentkit_service: WalletService,
+    body: WalletCreateRequest | None = None,
 ) -> WalletCreateResponse:
-    """Create a new wallet for the current user.
-
-    This endpoint initializes a new CDP wallet on the Base Sepolia testnet
-    and associates it with the authenticated user's account.
-
-    Args:
-        current_user: Authenticated user from dependency injection
-
-    Returns:
-        WalletCreateResponse with wallet_id, address, and network
-
-    Raises:
-        PlatformException: If wallet creation fails or user already has a wallet
-    """
+    """Create a new wallet for the current user on an enabled wallet-capable network."""
     try:
         # Check if user already has a wallet
         existing_wallet = await WalletDocument.find_one(
@@ -150,10 +153,11 @@ async def create_wallet(
                 message="User already has a wallet",
             )
 
-        # Create wallet via AgentKit service
+        requested = body.network if body is not None else None
         wallet_data = await agentkit_service.create_wallet(
             entity_id=current_user.user_id,
-            entity_type="user"
+            entity_type="user",
+            network=requested,
         )
 
         return WalletCreateResponse(
@@ -218,7 +222,8 @@ async def get_balance(
             )
 
         agentkit_service.validate_wallet_network(wallet_doc.network)
-        balance_data = await agentkit_service.get_balance(wallet_doc.default_address)
+        service = agentkit_service.for_network(wallet_doc.network)
+        balance_data = await service.get_balance(wallet_doc.default_address)
 
         return WalletBalanceResponse(
             usdc=str(balance_data["usdc_balance"]),
@@ -286,6 +291,7 @@ async def transfer_usdc(
             )
 
         agentkit_service.validate_wallet_network(wallet_doc.network)
+        service = agentkit_service.for_network(wallet_doc.network)
         # Convert amount string to Decimal for precision
         amount = Decimal(body.amount)
 
@@ -295,15 +301,15 @@ async def transfer_usdc(
             "user_email": current_user.email,
         }
 
-        # Execute transfer via AgentKit service
-        transfer_result = await agentkit_service.transfer_usdc(
+        # Execute transfer via AgentKit service on the wallet's stored network
+        transfer_result = await service.transfer_usdc(
             from_address=wallet_doc.default_address,
             to_address=body.to_address,
             amount=amount,
             metadata=metadata
         )
 
-        basescan_url = agentkit_service.explorer.explorer_url(
+        basescan_url = service.explorer.explorer_url(
             "transaction", transfer_result["transaction_hash"]
         )
 
@@ -344,13 +350,13 @@ async def transfer_usdc(
     response_model=FundTestnetResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Request testnet faucet funds",
-    description="Requests test ETH and USDC from the Base Sepolia CDP faucet.",
+    description="Requests test ETH and USDC from the CDP faucet for the wallet's network.",
 )
 async def fund_testnet_wallet(
     current_user: CurrentUser,
     agentkit_service: WalletService,
 ) -> FundTestnetResponse:
-    """Request funds from the Base Sepolia testnet faucet.
+    """Request funds from the CDP testnet faucet for the wallet's network.
 
     Requests test ETH and USDC from the CDP faucet for the authenticated user's
     wallet. A token the faucet rejects is omitted. This endpoint is only
@@ -378,9 +384,10 @@ async def fund_testnet_wallet(
             )
 
         agentkit_service.validate_wallet_network(wallet_doc.network)
+        service = agentkit_service.for_network(wallet_doc.network)
 
         # Request testnet funds via AgentKit service
-        faucet_result = await agentkit_service.request_testnet_funds(wallet_doc.default_address)
+        faucet_result = await service.request_testnet_funds(wallet_doc.default_address)
 
         return FundTestnetResponse(
             eth_transaction_hash=faucet_result["eth_transaction_hash"],
@@ -448,8 +455,9 @@ async def get_transactions(
             )
 
         agentkit_service.validate_wallet_network(wallet_doc.network)
-        agentkit_service.require_operation("get_balance")
-        explorer = agentkit_service.explorer
+        service = agentkit_service.for_network(wallet_doc.network)
+        service.require_operation("get_balance")
+        explorer = service.explorer
 
         # Query transactions where user's wallet is either sender or recipient
         transactions = await PaymentDocument.find(

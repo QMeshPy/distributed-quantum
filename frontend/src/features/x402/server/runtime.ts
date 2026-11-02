@@ -19,7 +19,7 @@ import { API } from "@/constants";
 import type { X402Resource } from "./backend";
 import { fetchX402Job, submitX402Job } from "./backend";
 import { loadX402Config } from "./config";
-import type { X402Config } from "./config";
+import type { PricedService, X402Config } from "./config";
 
 type Environment = Readonly<Record<string, string | undefined>>;
 type PaidHandler = (request: NextRequest) => Promise<NextResponse>;
@@ -128,7 +128,164 @@ const PAID_ROUTES: readonly PaidRouteDefinition[] = [
       }),
     }),
   },
+  paidServiceRoute({
+    path: API.X402.RISK_RUNS,
+    resource: "risk",
+    description:
+      "Quantum risk analysis: iterative amplitude estimation of VaR and CVaR for an equity or credit portfolio, against a Monte Carlo baseline",
+    input: {
+      risk_model: "equity",
+      holdings: [
+        { ticker: "AAPL", weight: 0.5 },
+        { ticker: "MSFT", weight: 0.5 },
+      ],
+      lookback_days: 504,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        risk_model: { type: "string", enum: ["equity", "credit"] },
+        holdings: {
+          type: "array",
+          maxItems: 20,
+          description:
+            "Equity mode: stocks with a ticker and a weight. Oracle-priced holdings are not available over x402.",
+          items: {
+            type: "object",
+            properties: {
+              ticker: { type: "string" },
+              weight: { type: "number", description: "Relative weight, normalised to 1" },
+            },
+            required: ["ticker", "weight"],
+          },
+        },
+        assets: {
+          type: "array",
+          maxItems: 15,
+          description: "Credit mode: loans with principal, default_probability and recovery_rate",
+          items: {
+            type: "object",
+            properties: {
+              principal: { type: "number" },
+              default_probability: { type: "number", description: "12-month PD, 0 to 1" },
+              recovery_rate: { type: "number", description: "0 to 1" },
+            },
+            required: ["principal", "default_probability", "recovery_rate"],
+          },
+        },
+        lookback_days: { type: "integer", description: "Trading days of history, 60 to 2520" },
+      },
+      required: ["risk_model"],
+    },
+    output: {
+      job_id: "risk-8d0f5af2-fd36-40be-8d62-a9f48f8d3d6d",
+      status: "queued",
+      risk_model: "equity",
+      portfolio_size: 2,
+    },
+  }),
+  paidServiceRoute({
+    path: API.X402.FINANCE_RUNS,
+    resource: "finance",
+    description:
+      "Quantum portfolio optimisation (QAOA) over allowlisted tokenized stocks for a date range. Analysis only, it never trades.",
+    input: {
+      symbols: ["AAPL", "MSFT", "NVDA"],
+      start_date: "2025-01-01",
+      end_date: "2025-06-30",
+      risk_aversion: 0.5,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        symbols: {
+          type: "array",
+          minItems: 2,
+          maxItems: 20,
+          items: { type: "string" },
+          description: "Allowlisted tickers: AAPL, MSFT, NVDA, GOOGL, AMZN, META, TSLA, SPY, QQQ",
+        },
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string", description: "YYYY-MM-DD" },
+        budget: { type: "integer", description: "Number of assets to select, at least 1" },
+        risk_aversion: { type: "number", description: "0 to 10, default 0.5" },
+      },
+      required: ["symbols", "start_date", "end_date"],
+    },
+    output: {
+      job_id: "fin-8d0f5af2-fd36-40be-8d62-a9f48f8d3d6d",
+      status: "queued",
+      problem_type: "portfolio",
+    },
+  }),
+  paidServiceRoute({
+    path: API.X402.PHARMA_RUNS,
+    resource: "pharma",
+    description:
+      "Quantum-assisted drug discovery: dock and score candidate ligands against a protein target (PDB id)",
+    input: {
+      mode: "discovery",
+      target_pdb_id: "1HSG",
+      max_iterations: 3,
+      candidate_count: 50,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["optimization", "discovery"] },
+        target_pdb_id: { type: "string", description: "Protein Data Bank id, 3 to 10 characters" },
+        initial_ligand_smiles: {
+          type: "string",
+          maxLength: 500,
+          description: "Starting molecule in SMILES notation (optimization mode)",
+        },
+        max_iterations: { type: "integer", minimum: 1, maximum: 5 },
+        candidate_count: { type: "integer", minimum: 10, maximum: 100 },
+      },
+      required: ["mode", "target_pdb_id"],
+    },
+    output: {
+      job_id: "pharma_8d0f5af2fd36",
+      status: "queued",
+      submitted_at: "2026-01-01T00:00:00+00:00",
+    },
+  }),
 ];
+
+type PaidServiceRoute = {
+  path: string;
+  resource: PricedService;
+  description: string;
+  input: Record<string, unknown>;
+  inputSchema: Record<string, unknown>;
+  output: Record<string, unknown>;
+};
+
+function paidServiceRoute(service: PaidServiceRoute): PaidRouteDefinition {
+  return {
+    path: service.path,
+    resource: service.resource,
+    buildRouteConfig: (config) => ({
+      accepts: [
+        {
+          scheme: "exact",
+          price: config.servicePrices[service.resource],
+          network: config.network,
+          payTo: config.payTo,
+          extra: { asset: config.asset, tag: "x402-global-challenge" },
+        },
+      ],
+      description: service.description,
+      mimeType: "application/json",
+      extensions: declareDiscoveryExtension({
+        bodyType: "json",
+        input: service.input,
+        inputSchema: service.inputSchema,
+        output: { example: service.output },
+      }),
+    }),
+  };
+}
 
 const PAID_ROUTES_BY_PATH = new Map(PAID_ROUTES.map((route) => [route.path, route]));
 

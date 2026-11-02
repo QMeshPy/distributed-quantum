@@ -95,7 +95,7 @@ def test_application_registers_public_chains_and_honors_override(application_fac
             response = client.get("/api/v1/chains")
             assert response.status_code == 200
             assert response.json()["default_chain_id"] == chain_id
-            assert len(response.json()["chains"]) == 4
+            assert len(response.json()["chains"]) == 5
 
 
 @pytest.mark.parametrize("contents", ['default_chain_id = "eip155:1"', "chains = ["])
@@ -164,7 +164,9 @@ def test_anchor_settings_wire_a_read_only_verifier(application_factory):
         create_application(env={})
         default = create_app.call_args.kwargs["provenance_service"]
     assert list(anchored._anchor_adapters) == ["eip155:11155111"]
-    assert default is None
+    assert default._anchor_adapters is None
+    # Published bundles are read back with or without anchoring.
+    assert list(anchored._storage_adapters) == list(default._storage_adapters) == ["kubo"]
     # A network without anchoring support fails startup rather than skipping checks.
     with pytest.raises(ValueError, match="does not support provenance anchoring"):
         create_application(env={"QB2_ANCHOR_NETWORK": "base-sepolia", "QB2_ANCHOR_SENDER": sender})

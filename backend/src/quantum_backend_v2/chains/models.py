@@ -47,6 +47,13 @@ _KNOWN_MAINNETS = frozenset(
     }
 )
 
+# CDP/AgentKit wallet networks we have validated end-to-end (testnet only).
+# chain_id → (agentkit alias, cdp alias)
+_WALLET_PROVIDER_NETWORKS: dict[str, tuple[str, str]] = {
+    "eip155:84532": ("base-sepolia", "base-sepolia"),
+    "eip155:421614": ("arbitrum-sepolia", "arbitrum-sepolia"),
+}
+
 
 class _RegistryModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
@@ -141,11 +148,11 @@ class ChainSpec(_RegistryModel):
             "anchor_root",
         }
         if wallet_operations:
-            # Only the existing Base Sepolia wallet path is enabled in this migration.
+            expected = _WALLET_PROVIDER_NETWORKS.get(self.chain_id)
             if (
-                self.chain_id != "eip155:84532"
-                or self.provider_aliases.agentkit != "base-sepolia"
-                or self.provider_aliases.cdp != "base-sepolia"
+                expected is None
+                or self.provider_aliases.agentkit != expected[0]
+                or self.provider_aliases.cdp != expected[1]
             ):
                 raise ValueError("wallet provider does not support this network")
             if self.stablecoin is None or self.stablecoin.symbol != "USDC":

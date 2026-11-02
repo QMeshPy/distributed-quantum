@@ -12,7 +12,11 @@ export const authClient = createAuthClient({
     siweClient(),
     stripeClient({ subscription: true }),
     inferAdditionalFields({
-      user: { hasSubscription: { type: "boolean", required: false } },
+      user: {
+        hasSubscription: { type: "boolean", required: false },
+        stripeConnectedAccountId: { type: "string", required: false },
+        stripeConnectPayoutsEnabled: { type: "boolean", required: false },
+      },
     }),
   ],
 });

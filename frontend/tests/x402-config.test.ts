@@ -22,6 +22,11 @@ test("x402 is opt-in and defaults to Algorand TestNet USDC", () => {
   );
   assert.equal(config?.asset, "10458941");
   assert.equal(config?.price, "$0.01");
+  assert.deepEqual(config?.servicePrices, {
+    risk: "$0.05",
+    finance: "$0.05",
+    pharma: "$0.25",
+  });
   assert.equal(config?.facilitatorUrl, "https://facilitator.goplausible.xyz");
 });
 
@@ -36,6 +41,43 @@ test("x402 validates payment-boundary configuration", () => {
   );
   assert.throws(
     () => loadX402Config({ ...baseEnvironment, X402_QUANTUM_RUN_PRICE: "$0" }),
+    /X402_QUANTUM_RUN_PRICE/,
+  );
+});
+
+test("each paid service reads its own price", () => {
+  const config = loadX402Config({
+    ...baseEnvironment,
+    X402_RISK_RUN_PRICE: "$0.10",
+    X402_FINANCE_RUN_PRICE: "$0.20",
+    X402_PHARMA_RUN_PRICE: "$1",
+  });
+
+  assert.deepEqual(config?.servicePrices, {
+    risk: "$0.10",
+    finance: "$0.20",
+    pharma: "$1",
+  });
+  assert.equal(config?.price, "$0.01");
+
+  for (const name of ["X402_RISK_RUN_PRICE", "X402_FINANCE_RUN_PRICE", "X402_PHARMA_RUN_PRICE"]) {
+    assert.throws(() => loadX402Config({ ...baseEnvironment, [name]: "$0" }), new RegExp(name));
+    assert.throws(() => loadX402Config({ ...baseEnvironment, [name]: "free" }), new RegExp(name));
+  }
+});
+
+test("prices may be written without a dollar sign", () => {
+  // Env files expand "$0" in "$0.01" to an empty string, leaving ".01".
+  const config = loadX402Config({
+    ...baseEnvironment,
+    X402_QUANTUM_RUN_PRICE: "0.02",
+    X402_RISK_RUN_PRICE: "$0.10",
+  });
+
+  assert.equal(config?.price, "$0.02");
+  assert.equal(config?.servicePrices.risk, "$0.10");
+  assert.throws(
+    () => loadX402Config({ ...baseEnvironment, X402_QUANTUM_RUN_PRICE: ".01" }),
     /X402_QUANTUM_RUN_PRICE/,
   );
 });

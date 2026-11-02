@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import lru_cache
 from datetime import datetime
 from typing import Any
 
@@ -123,9 +124,10 @@ router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 
 # Initialize MongoDB connection
+@lru_cache(maxsize=1)
 def get_db():
-    """Get MongoDB database instance."""
-    mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+    """Get the MongoDB database; the client is created once and reused."""
+    mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
     mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
     client = AsyncIOMotorClient(mongodb_uri)
     return client[mongodb_database]

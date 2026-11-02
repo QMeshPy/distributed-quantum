@@ -143,8 +143,10 @@ change the commitment.
   gets a `url`, which the run page shows as an "Open evidence" link. Leave it blank
   when the gateway has no public address: bundles are still published, without a
   link. The private `IPFS_GATEWAY_URL` is never used for links.
-- **Verification.** No Kubo storage adapter ships here, so verification reports the
-  new reference's `storage_content` check as `unavailable` rather than passed.
+- **Verification.** `storage_content` reads the bundle back through the private
+  `IPFS_GATEWAY_URL`, checks the bytes against the CID, then compares `bundle_hash`.
+  It passes only on a match, fails on a mismatch and reports `unavailable` when the
+  gateway cannot be reached, so a run never shows `verified` without the read-back.
 
 ## Verification API and UI
 

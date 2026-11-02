@@ -65,6 +65,17 @@ function createAuthInstance(
         designation: { type: "string", required: false },
         trialEndsAt: { type: "string", required: false },
         hasSubscription: { type: "boolean", required: false, defaultValue: false },
+        stripeConnectedAccountId: {
+          type: "string",
+          required: false,
+          input: false,
+        },
+        stripeConnectPayoutsEnabled: {
+          type: "boolean",
+          required: false,
+          defaultValue: false,
+          input: false,
+        },
       },
     },
   });

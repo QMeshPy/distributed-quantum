@@ -17,30 +17,43 @@ PDB IDs (2023-2025 RCSB):
   7NXB  EGFR T790M/C797S triple-mutant benchmark
 """
 from __future__ import annotations
+import importlib.util
 import json
+from pathlib import Path
 import pytest
 from unittest.mock import AsyncMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import quantum_backend_v2.api.routers.pharma as pharma_module
-from quantum_backend_v2.api.routers.pharma import router as pharma_router
+from quantum_backend_v2.api.deps.auth import configure_auth
+from quantum_backend_v2.api.errors import register_exception_handlers
+from quantum_backend_v2.api.routers.pharma import build_pharma_router
 
-# Patch pipeline at module level — prevents PennyLane from running in tests
-pharma_module._run_pharma_pipeline = AsyncMock()
+# The in-memory service lives with the unit tests; load it by path because the
+# two test directories are separate import roots.
+_fakes_path = Path(__file__).parents[1] / "unit" / "pharma" / "fakes.py"
+_spec = importlib.util.spec_from_file_location("pharma_fakes", _fakes_path)
+_fakes = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_fakes)
 
 
 @pytest.fixture(autouse=True)
-def reset_store():
-    pharma_module._JOB_STORE.clear()
+def pipeline_and_auth(monkeypatch):
+    # Prevent PennyLane from running in tests
+    monkeypatch.setattr(pharma_module, "_run_pharma_job", AsyncMock())
+    configure_auth(enabled=True, allow_dev_bearer_tokens=True)
     yield
-    pharma_module._JOB_STORE.clear()
+    configure_auth(enabled=True, allow_dev_bearer_tokens=False)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def api():
     app = FastAPI(title="Pharma Integration Tests")
-    app.include_router(pharma_router)
-    return TestClient(app, raise_server_exceptions=False)
+    register_exception_handlers(app)
+    app.include_router(build_pharma_router(pharma_job_service=_fakes.FakePharmaJobService()))
+    client = TestClient(app, raise_server_exceptions=False)
+    client.headers["Authorization"] = "Bearer dev-alice"
+    return client
 
 
 def submit_and_get(api, payload: dict) -> dict:

@@ -1,0 +1,10 @@
+# Minimal dependencies for scripts/run_remote_worker.py (a laptop that only executes fragments).
+# Versions come from constraints-remote-worker.txt (exported from uv.lock).
+libp2p==0.6.0
+qiskit
+qiskit-aer
+pydantic
+beanie
+python-dotenv
+anyio
+zeroconf==0.147.3  # 0.147.4 has no Windows wheel

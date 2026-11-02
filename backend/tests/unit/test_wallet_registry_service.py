@@ -125,7 +125,8 @@ def test_unknown_config_fails_before_client_creation(wallet_boundary, network):
 
 def test_disabled_config_fails_before_client_creation(wallet_boundary):
     data = load_chain_registry().model_dump()
-    data["chains"][1]["enabled"] = False
+    eth = next(c for c in data["chains"] if c["chain_id"] == "eip155:11155111")
+    eth["enabled"] = False
     with pytest.raises(DisabledNetworkError):
         module.AgentKitService(
             registry=ChainRegistry.model_validate(data), network="ethereum-sepolia"
@@ -170,7 +171,7 @@ async def test_stored_network_is_checked_before_rpc_or_provider(
 async def test_existing_wallet_on_other_network_is_not_reused(wallet_boundary):
     wallet_boundary.db.wallets.find_one.return_value["network"] = "ethereum-sepolia"
     service = module.AgentKitService(registry=load_chain_registry())
-    with pytest.raises(ValueError, match="does not match"):
+    with pytest.raises(ValueError, match="does not support wallet operations"):
         await service.create_wallet("alice", "user")
     wallet_boundary.provider.assert_not_called()
     wallet_boundary.db.wallets.insert_one.assert_not_awaited()

@@ -552,6 +552,13 @@ class LedgerService:
         await self._inc_balance(entry.account_id, available=amount, held=-amount)
         return entry
 
+    async def hold_amount(self, hold_id: str) -> Decimal | None:
+        """The amount originally held under ``hold_id``, or None when there is no such hold."""
+        doc = await self._ledger.find_one(
+            {"hold_id": hold_id, "entry_type": LedgerEntryType.HOLD.value}
+        )
+        return _dec(doc["amount"]) if doc is not None else None
+
     async def balance(self, account_id: str) -> CreditBalance:
         """Derive the balance by summing every ledger entry for the account."""
         cursor = self._ledger.find({"account_id": account_id}).sort("created_at", ASCENDING)

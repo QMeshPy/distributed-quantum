@@ -4,7 +4,7 @@ import type { X402Config } from "./config";
 
 const GATEWAY_HEADER = "X-X402-Gateway-Secret";
 
-export type X402Resource = "circuits" | "options";
+export type X402Resource = "circuits" | "options" | "risk" | "finance" | "pharma";
 
 const RESOURCE_PATHS: Record<
   X402Resource,
@@ -17,6 +17,18 @@ const RESOURCE_PATHS: Record<
   options: {
     submit: "/api/v1/options/internal/x402/submit",
     job: (jobId) => `/api/v1/options/internal/x402/jobs/${encodeURIComponent(jobId)}`,
+  },
+  risk: {
+    submit: "/api/v1/risk/internal/x402/submit",
+    job: (jobId) => `/api/v1/risk/internal/x402/jobs/${encodeURIComponent(jobId)}`,
+  },
+  finance: {
+    submit: "/api/v1/finance/internal/x402/submit",
+    job: (jobId) => `/api/v1/finance/internal/x402/jobs/${encodeURIComponent(jobId)}`,
+  },
+  pharma: {
+    submit: "/api/v1/pharma/internal/x402/submit",
+    job: (jobId) => `/api/v1/pharma/internal/x402/jobs/${encodeURIComponent(jobId)}`,
   },
 };
 

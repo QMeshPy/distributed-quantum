@@ -57,8 +57,7 @@ def test_persistence_runtime_snapshot_reports_configured_stores(tmp_path) -> Non
                 database="platform",
             ),
             mongodb=MongoSettings(
-                target="remote",
-                remote_uri="mongodb://mongo.example:27017",
+                uri="mongodb://mongo.example:27017",
                 database="projections",
             ),
             peer_log=PeerLogSettings(
@@ -78,7 +77,7 @@ def test_persistence_runtime_snapshot_reports_configured_stores(tmp_path) -> Non
     assert snapshot.postgres.reachable is False
     assert snapshot.mongodb.mode == "configured"
     assert snapshot.mongodb.backend == "mongodb"
-    assert snapshot.mongodb.target == "remote"
+    assert snapshot.mongodb.target == "uri"
     assert snapshot.mongodb.database == "projections"
     assert snapshot.mongodb.reachable is False
     assert snapshot.peer_log.mode == "ready"
@@ -105,8 +104,7 @@ def test_database_runtime_builders_use_active_targets() -> None:
     )
     mongo_runtime = build_mongo_runtime(
         MongoSettings(
-            target="remote",
-            remote_uri="mongodb://mongo.example:27017",
+            uri="mongodb://mongo.example:27017",
             database="qb2_docs",
         )
     )
@@ -124,7 +122,7 @@ async def test_persistence_startup_shutdown_skips_unconfigured_databases(tmp_pat
     runtime = PersistenceRuntime.from_settings(
         PersistenceSettings(
             postgres=PostgresSettings(target="local", local_dsn=None),
-            mongodb=MongoSettings(target="local", local_uri=None),
+            mongodb=MongoSettings(uri=None),
             peer_log=PeerLogSettings(
                 directory=tmp_path / "peer-logs",
                 peer_id="peer-lifecycle",

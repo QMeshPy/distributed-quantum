@@ -39,7 +39,7 @@ def mock_env_vars(monkeypatch):
     monkeypatch.delenv("CDP_API_KEY_PRIVATE_KEY", raising=False)
     monkeypatch.setenv("CDP_WALLET_SECRET", "test-wallet-secret-not-a-live-credential")
     monkeypatch.setenv("NETWORK", "base-sepolia")
-    monkeypatch.setenv("QB2_MONGODB_LOCAL_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("QB2_MONGODB_URI", "mongodb://localhost:27017")
     monkeypatch.setenv("QB2_MONGODB_DATABASE", "test_db")
 
 

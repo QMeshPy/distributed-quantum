@@ -26,7 +26,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 # ─── configuration ────────────────────────────────────────────────────────
 
-MONGODB_URI = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+MONGODB_URI = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
 MONGODB_DB  = os.getenv("QB2_MONGODB_DATABASE", "qds")
 
 # The user_id used when QB2_AUTH_REQUIRED=false (see auth.py dev bypass)

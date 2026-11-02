@@ -3,6 +3,7 @@ import os
 import boto3
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from quantum_backend_v2.config import constants as C
 
 
 class BedrockModel(BaseModel):
@@ -21,12 +22,12 @@ class BedrockModelService:
 
     def __init__(self):
         """Initialize Bedrock client."""
-        self.enabled = os.getenv("AWS_BEDROCK_ENABLED", "true").lower() == "true"
+        self.enabled = os.getenv("AWS_BEDROCK_ENABLED", str(C.AWS_BEDROCK_ENABLED)).lower() == "true"
 
         if self.enabled:
             self.client = boto3.client(
                 service_name='bedrock',
-                region_name=os.getenv('AWS_REGION', 'us-east-1'),
+                region_name=os.getenv('AWS_REGION', C.AWS_REGION),
                 aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
             )
@@ -134,7 +135,7 @@ class BedrockModelService:
         """
         return os.getenv(
             "AWS_BEDROCK_DEFAULT_MODEL",
-            "anthropic.claude-3-5-sonnet-20241022-v2:0"
+            C.AWS_BEDROCK_DEFAULT_MODEL
         )
 
     @staticmethod

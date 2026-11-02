@@ -27,10 +27,21 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
     assert body["default_chain_id"] == "eip155:84532"
     assert [c["chain_id"] for c in body["chains"]] == [
         "eip155:84532",
+        "eip155:421614",
         "eip155:11155111",
         "eip155:46630",
         "starknet:SN_SEPOLIA",
     ]
+    wallet_caps = {
+        "explorer_url",
+        "create_wallet",
+        "get_balance",
+        "transfer_stablecoin",
+        "verify_transaction",
+        "aave_supply",
+        "aave_withdraw",
+        "faucet_instructions",
+    }
     for chain in body["chains"]:
         assert set(chain) == {
             "chain_id",
@@ -48,6 +59,7 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
             chain["aliases"]
             == {
                 "eip155:84532": ["base-sepolia"],
+                "eip155:421614": ["arbitrum-sepolia"],
                 "eip155:11155111": ["ethereum-sepolia"],
                 "eip155:46630": ["robinhood-testnet"],
                 "starknet:SN_SEPOLIA": ["starknet-sepolia"],
@@ -57,17 +69,8 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
             assert chain["stablecoin"] is None
         elif chain["chain_id"] != "eip155:46630":
             assert set(chain["stablecoin"]) == {"symbol", "decimals", "address"}
-        if chain["chain_id"] == "eip155:84532":
-            assert set(chain["capabilities"]) == {
-                "explorer_url",
-                "create_wallet",
-                "get_balance",
-                "transfer_stablecoin",
-                "verify_transaction",
-                "aave_supply",
-                "aave_withdraw",
-                "faucet_instructions",
-            }
+        if chain["chain_id"] in {"eip155:84532", "eip155:421614"}:
+            assert set(chain["capabilities"]) == wallet_caps
         elif chain["chain_id"] == "eip155:11155111":
             assert chain["capabilities"] == [
                 "explorer_url",
@@ -96,7 +99,9 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
 
 def test_disabled_networks_are_not_advertised():
     data = load_chain_registry().model_dump()
-    data["chains"][1]["enabled"] = False
+    for chain in data["chains"]:
+        if chain["chain_id"] in {"eip155:421614", "eip155:11155111"}:
+            chain["enabled"] = False
     with TestClient(make_app(ChainRegistry.model_validate(data))) as client:
         response = client.get("/api/v1/chains")
     assert [c["chain_id"] for c in response.json()["chains"]] == [

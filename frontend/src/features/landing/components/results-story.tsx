@@ -172,7 +172,7 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
       const point: Pt = [mix(home, W * 0.5, pan), mix(H * 0.6, H * 0.55, pan)];
       const shift = point[0] - home;
       const srcX = [W * 0.09, W * 0.07, W * 0.1].map((x) => x + shift);
-      const srcY = [H * 0.24, H * 0.53, H * 0.7];
+      const srcY = narrow ? [H * 0.33, H * 0.55, H * 0.72] : [H * 0.24, H * 0.53, H * 0.7];
       const dotGap = narrow ? 7 : 9;
 
       // ── Act 1 (and the loop): strands from every source dot into one point ──
@@ -261,7 +261,16 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
         ctx.globalAlpha = labelAlpha;
         ctx.font = `${narrow ? 12 : 14}px ${sans}`;
         ctx.textBaseline = "middle";
-        ctx.fillText(tinted ? story.pointLoop : story.point, point[0] + 12, point[1]);
+        const pointLabel = tinted ? story.pointLoop : story.point;
+        if (narrow) {
+          // Too little room to the right of the point: sit above it, kept on the stage.
+          const half = ctx.measureText(pointLabel).width / 2;
+          ctx.textAlign = "center";
+          ctx.fillText(pointLabel, Math.min(point[0], W - half - 10), point[1] - 18);
+          ctx.textAlign = "left";
+        } else {
+          ctx.fillText(pointLabel, point[0] + 12, point[1]);
+        }
       }
 
       // ── Act 2: burst → dot-matrix rows ──

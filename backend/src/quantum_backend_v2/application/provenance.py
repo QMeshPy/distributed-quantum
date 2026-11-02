@@ -10,7 +10,8 @@ from typing import Any, Protocol
 import httpx
 from pymongo.errors import DuplicateKeyError
 
-from quantum_backend_v2.config import KuboSettings
+from quantum_backend_v2.config import GatewaySettings, KuboSettings
+from quantum_backend_v2.content.gateway import GatewayClient, GatewayError, GatewayMismatchError
 from quantum_backend_v2.content.kubo import KuboClient
 from quantum_backend_v2.persistence.mongodb import ProvenanceBundleDocument, WorkflowRunDocument
 from quantum_backend_v2.provenance.hashing import bundle_hash, canonical_json
@@ -149,6 +150,30 @@ class KuboBundlePublisher:
             else None
         )
         return StorageReference(backend=KUBO_BACKEND, cid=added.cid, url=url)
+
+
+class GatewayBundleStorage:
+    """Read a published bundle back through the operator's gateway.
+
+    The client checks the bytes against the CID; the verifier then compares
+    ``bundle_hash``. An unreachable gateway stays ``unavailable``, never ``passed``.
+    """
+
+    def __init__(
+        self, settings: GatewaySettings, *, transport: httpx.AsyncBaseTransport | None = None
+    ) -> None:
+        self._settings = settings
+        self._transport = transport
+
+    async def retrieve(self, reference: StorageReference) -> ProvenanceBundle:
+        try:
+            async with GatewayClient(self._settings, transport=self._transport) as client:
+                data = await client.fetch(reference.cid)
+        except GatewayMismatchError:
+            raise ValueError("Gateway content does not match the stored CID") from None
+        except GatewayError:
+            raise OSError("Stored bundle could not be retrieved") from None
+        return ProvenanceBundle.model_validate_json(data)
 
 
 async def publish_run_provenance(bundle_id: str, publisher: BundlePublisher) -> dict[str, str]:

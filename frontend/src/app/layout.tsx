@@ -2,21 +2,23 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
 
 import type { Metadata } from "next";
-import { DM_Sans, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import { Providers } from "@/providers";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+// Bundle fonts so production builds do not depend on Google Fonts responses.
+const dmSans = localFont({
+  src: "../assets/fonts/dmsans/DMSans[opsz,wght].woff2",
   variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: "400 500",
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "../assets/fonts/geistmono/GeistMono[wght].woff2",
+  weight: "100 900",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
   display: "swap",
 });
 

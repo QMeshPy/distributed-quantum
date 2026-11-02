@@ -8,7 +8,7 @@
         "@base-ui/react": "^1.4.1",
         "@better-auth/stripe": "~1.6.11",
         "@helia/block-brokers": "^5.2.4",
-        "@helia/dag-json": "^6.0.6",
+        "@helia/dag-json": "5.1.1",
         "@helia/json": "^5.1.1",
         "@helia/routers": "^5.1.1",
         "@helia/unixfs": "7.0.4",
@@ -63,6 +63,7 @@
         "starknetkit": "^2.12.2",
         "stripe": "^22.6.2",
         "tailwind-merge": "^3.5.0",
+        "three": "0.187.0",
         "tw-animate-css": "^1.4.0",
         "vaul": "^1.1.2",
         "zod": "^4.4.2",
@@ -317,7 +318,7 @@
 
     "@helia/block-brokers": ["@helia/block-brokers@5.2.4", "", { "dependencies": { "@helia/bitswap": "3.2.3", "@helia/interface": "6.2.1", "@helia/utils": "2.5.2", "@libp2p/interface": "3.2.2", "@libp2p/peer-id": "6.0.9", "@libp2p/utils": "7.2.0", "@multiformats/multiaddr": "13.0.3", "@multiformats/multiaddr-matcher": "3.0.2", "@multiformats/multiaddr-to-uri": "12.0.0", "@multiformats/uri-to-multiaddr": "10.0.0", "interface-blockstore": "6.0.2", "multiformats": "13.4.2", "progress-events": "1.1.0", "uint8arraylist": "2.4.9", "uint8arrays": "5.1.1" } }, "sha512-UsxtWVy2W95FVM561BZXEnb41RL6pr+cLF+AIxVIaugEvg4edUKh+3sbZXoINtzbqS664Ss2dhisHR1ZnYI57Q=="],
 
-    "@helia/dag-json": ["@helia/dag-json@6.0.6", "", { "dependencies": { "@helia/interface": "^7.1.2", "@ipld/dag-json": "^11.0.0", "@libp2p/interface": "^3.2.3", "interface-blockstore": "^7.0.1", "it-to-buffer": "^5.0.0", "multiformats": "^14.0.0", "progress-events": "^1.1.0" } }, "sha512-ilXewkW0/VlH6Hib00NcPPFSgY0YsJb6KNaoOfKiQaIQoXu3W/nteU9PGMK2c+6AuZMdk8f+qHR6o9IaZHKR5w=="],
+    "@helia/dag-json": ["@helia/dag-json@5.1.1", "", { "dependencies": { "@helia/interface": "^6.2.1", "@ipld/dag-json": "^10.2.7", "@libp2p/interface": "^3.2.0", "interface-blockstore": "^6.0.2", "it-to-buffer": "^4.0.12", "multiformats": "^13.4.2", "progress-events": "^1.1.0" } }, "sha512-fV3f1SeXHVD9Q9dcBozZVbIk16QjTsCn0657jHO+00m+VmHqJ4MJunftvxEdgpgmN5Ta4yIqdxaLby6+68145Q=="],
 
     "@helia/delegated-routing-v1-http-api-client": ["@helia/delegated-routing-v1-http-api-client@6.0.1", "", { "dependencies": { "@libp2p/interface": "3.2.2", "@libp2p/peer-id": "6.0.9", "@multiformats/multiaddr": "13.0.3", "any-signal": "4.2.0", "browser-readablestream-to-it": "2.0.12", "ipns": "10.1.6", "it-first": "3.0.11", "it-map": "3.1.6", "it-ndjson": "1.1.6", "multiformats": "13.4.2", "p-defer": "4.0.1", "p-queue": "9.2.0", "uint8arrays": "5.1.1" } }, "sha512-Y1nGpUQrdN80XSDDAfe7azJFKKD0MxM0mQqfbefNEcrYMM344rHNQJ7xgiSqsH20vMIaKv+NnQqT/MEg2aWv6g=="],
 
@@ -417,13 +418,9 @@
 
     "@ipld/dag-cbor": ["@ipld/dag-cbor@9.2.7", "", { "dependencies": { "cborg": "5.1.1", "multiformats": "13.4.2" } }, "sha512-ZmfXmElRWATr+hoUTSAOr6HUcjVhOcNHDqgczc76qte2DHHFEK0ZhNzUcdTDQhF/VSIvf2ioaRTRLWwLc83sNw=="],
 
-    "@ipld/dag-json": ["@ipld/dag-json@11.0.1", "", { "dependencies": { "cborg": "^6.1.1", "multiformats": "^14.0.0" } }, "sha512-cMDD0yWkUruqhbLDwAWaV5q92hYKQDP2xP0n+yZp0oxsC68Pw+xFZNc9rj0v2n5m5m/Aa1A+Qlb2tY3NjQMsWg=="],
+    "@ipld/dag-json": ["@ipld/dag-json@10.2.9", "", { "dependencies": { "cborg": "5.1.1", "multiformats": "13.4.2" } }, "sha512-opNPQQsTuCFZkaJCAqXrB/n9OqUD6W2Boz/Au5HjhLQyczmT8lxoOZObqQ5S5hhnV8p6sgKAimNhUB2W6y0Mzg=="],
 
     "@ipld/dag-pb": ["@ipld/dag-pb@4.2.0", "", { "dependencies": { "multiformats": "^14.0.0" } }, "sha512-T2hsy18NNAUkIiQgvtrhKJXIkTjKcGHPJzp6mYp/tx4x0X9wedUTrCNADEP4hAS7Vy4/bJtc37eX4GSDFiKLhw=="],
-
-    "@ipshipyard/crypto": ["@ipshipyard/crypto@1.1.0", "", { "dependencies": { "abort-error": "^1.0.2", "multiformats": "^14.0.0", "protons-runtime": "^7.0.0", "uint8arraylist": "^3.0.2", "uint8arrays": "^6.1.1" } }, "sha512-xMnzqJFuDirmjdMlmHb9r/olj++oFv3Pf5utF49+MvNQqKjYZ2YHMiO8Y8xk8nh6E+xa4g9+r/hij0FpNVZusw=="],
-
-    "@ipshipyard/keychain": ["@ipshipyard/keychain@1.0.2", "", { "dependencies": { "@ipshipyard/crypto": "^1.1.0", "abort-error": "^1.0.2", "interface-datastore": "^10.0.1", "multiformats": "^14.0.0", "sanitize-filename": "^1.6.4", "uint8arrays": "^6.1.1" } }, "sha512-otMCFOItScEX3VNy/gHF+CVd2QGPNo75uwZBoYUj2Rr8xnF5eq1nlbk6iEqH6cwqu2j/UuzFvtD2s2lmGo0mDA=="],
 
     "@ipshipyard/libp2p-auto-tls": ["@ipshipyard/libp2p-auto-tls@2.0.1", "", { "dependencies": { "@chainsafe/is-ip": "2.1.0", "@libp2p/crypto": "5.1.18", "@libp2p/http": "2.0.2", "@libp2p/interface": "3.2.2", "@libp2p/interface-internal": "3.1.4", "@libp2p/keychain": "6.1.1", "@libp2p/utils": "7.2.0", "@multiformats/multiaddr": "13.0.3", "@multiformats/multiaddr-matcher": "3.0.2", "@peculiar/x509": "1.14.3", "acme-client": "5.4.0", "any-signal": "4.2.0", "delay": "6.0.0", "interface-datastore": "9.0.3", "multiformats": "13.4.2", "uint8arrays": "5.1.1" } }, "sha512-zpDXVMY1ZgB6o30zFocXUzrD9+tz1bbEdgewFoBf4olDh5/CwjDi/k9v2RrJqujWKYWyRuHRg6Q+VRpvtGrpuw=="],
 
@@ -1414,8 +1411,6 @@
     "big.js": ["big.js@6.2.2", "", {}, "sha512-y/ie+Faknx7sZA5MfGA2xKlu0GDv8RWrXGsmlteyJQ2lvoKv9GBK/fpRMc2qlSoBAgNxrixICFCBefIq8WCQpQ=="],
 
     "bignumber.js": ["bignumber.js@9.3.1", "", {}, "sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ=="],
-
-    "birnam": ["birnam@1.0.0", "", { "dependencies": { "multiformats": "^14.0.0", "weald": "^1.1.2" } }, "sha512-lropqEwi52w2aoOQQ+V4MGc8KP5mVef9DaEKv73dkVXb8UN6moQ7j/f19NesXPYt/l+8MkkHtMBAQsBKR8BqgQ=="],
 
     "bl": ["bl@5.1.0", "", { "dependencies": { "buffer": "^6.0.3", "inherits": "^2.0.4", "readable-stream": "^3.4.0" } }, "sha512-tv1ZJHLfTDnXE6tMHv73YgSJaWR2AFuPwMntBe7XL/GBFHnT0CLnsHMogfk5+GzCDC5ZWarSCYaIGATZt9dNsQ=="],
 
@@ -3249,7 +3244,7 @@
 
     "thread-stream": ["thread-stream@3.2.0", "", { "dependencies": { "real-require": "^0.2.0" } }, "sha512-zLBvqpwr4Esa0kRjcrzGU6zL25lePWaCLMx0RQFrmteozIfeNdaMLpG5U7PeHzvlFkAWaRKA9/KVW4F60iB+qw=="],
 
-    "three": ["three@0.158.0", "", {}, "sha512-TALj4EOpdDPF1henk2Q+s17K61uEAAWQ7TJB68nr7FKxqwyDr3msOt5IWdbGm4TaWKjrtWS8DJJWe9JnvsWOhQ=="],
+    "three": ["three@0.187.0", "", {}, "sha512-Qiu7R+Cmh8CstZsY1uJOSWnVlfo7ZtNLV7mF8Jltk3LB3AtDu9cRZlcnRKkAk8Y4z6KKw35z7Y7Urd7jWY8etA=="],
 
     "throat": ["throat@5.0.0", "", {}, "sha512-fcwX4mndzpLQKBS1DVYhGAcYaYt7vsHNIvQV+WXMvnow5cgjPphq5CaayLaGsjRdSCKZFNGt7/GYAuXaNOiYCA=="],
 
@@ -3577,13 +3572,9 @@
 
     "@helia/bitswap/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
 
-    "@helia/dag-json/@helia/interface": ["@helia/interface@7.1.2", "", { "dependencies": { "@ipshipyard/crypto": "^1.1.0", "@ipshipyard/keychain": "^1.0.2", "@libp2p/interface": "^3.2.3", "@multiformats/dns": "^1.0.13", "@multiformats/multiaddr": "^13.0.3", "abort-error": "^1.0.2", "birnam": "^1.0.0", "interface-blockstore": "^7.0.1", "interface-datastore": "^10.0.1", "main-event": "^1.0.4", "multiformats": "^14.0.0", "progress-events": "^1.1.0" } }, "sha512-wzbtRy+HbEP4Rn78Uks42U5PwioO12H2y7qiYfTkYM73qGvmmZe4JB34cQqm60fTbWOOBUB09a4coy8o7/x9Uw=="],
-
     "@helia/dag-json/@libp2p/interface": ["@libp2p/interface@3.4.0", "", { "dependencies": { "@multiformats/dns": "^1.0.6", "@multiformats/multiaddr": "^13.0.3", "main-event": "^1.0.5", "multiformats": "^14.0.0", "progress-events": "^1.1.0", "uint8arraylist": "^3.0.2" } }, "sha512-WBBw0NyLAWZz2HYfG2bXjBB2Qa0Aa6ssrQQCLZXHaMEJTdXiEagmQDojqXpy2Y6uvn1C+c4vBJkUulrgV0nfsg=="],
 
-    "@helia/dag-json/interface-blockstore": ["interface-blockstore@7.0.1", "", { "dependencies": { "interface-store": "^8.0.0", "multiformats": "^14.0.0" } }, "sha512-a3NsgRXpRppVWtQnJjmZ9jxvjcttY1+WNWqHFWwgKhRcNMMGwWGtFNYpQmcZ+mEnIt5NTJVYzNwLCcALMWPNsA=="],
-
-    "@helia/dag-json/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
+    "@helia/dag-json/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
 
     "@helia/json/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
 
@@ -3593,31 +3584,11 @@
 
     "@helia/unixfs/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
 
-    "@helia/utils/@ipld/dag-json": ["@ipld/dag-json@10.2.9", "", { "dependencies": { "cborg": "5.1.1", "multiformats": "13.4.2" } }, "sha512-opNPQQsTuCFZkaJCAqXrB/n9OqUD6W2Boz/Au5HjhLQyczmT8lxoOZObqQ5S5hhnV8p6sgKAimNhUB2W6y0Mzg=="],
-
     "@helia/utils/@ipld/dag-pb": ["@ipld/dag-pb@4.1.7", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-/i/13trFihjWfDyXlylRwhuYjtzYjvOFw0vlRjYGnZuv7d7MOgA2lV/vRuL5RfeUajM03aZfFLdq4S7cTbbTRg=="],
 
     "@helia/utils/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
 
-    "@ipld/dag-json/cborg": ["cborg@6.1.4", "", { "bin": { "cborg": "lib/bin.js" } }, "sha512-JqjDDfTuED2qUvy570NGQUXqfzC34H++AHJIZnLAmiAdHNqHJKbtzox5yViRz5rc0gM9OPSX7n7Sh+BNU263Xw=="],
-
-    "@ipld/dag-json/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
-
     "@ipld/dag-pb/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
-
-    "@ipshipyard/crypto/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
-
-    "@ipshipyard/crypto/protons-runtime": ["protons-runtime@7.1.2", "", { "dependencies": { "uint8-varint": "^3.0.0", "uint8arraylist": "^3.0.0", "uint8arrays": "^6.0.0" } }, "sha512-j7Y7MfCwPCxYwopyqDt8+CoJULzdajSBrFAzzfBHEhOTfdvOJ2z1QLK9aK34bSBz6V/9JAAlrsc/rFkIbqppuw=="],
-
-    "@ipshipyard/crypto/uint8arraylist": ["uint8arraylist@3.0.2", "", { "dependencies": { "uint8arrays": "6.1.1" } }, "sha512-LDVoq9BQaGJzGDUovEnoX6rpKCvnY/Jbtws4ikwnBzjRbq5qBAFpBZevUEbSmMM87aO0Sp+wOZy2ZXf5yODmXQ=="],
-
-    "@ipshipyard/crypto/uint8arrays": ["uint8arrays@6.1.1", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-iz7JN0XCSZYA111lhFG2Ui9EhFvTNekqSRHw3lvMHq+dzwWy1OQftxFQREEh4rffU0oSoXdQHsk2TiHKVm4fsA=="],
-
-    "@ipshipyard/keychain/interface-datastore": ["interface-datastore@10.0.1", "", { "dependencies": { "abort-error": "^1.0.2", "interface-store": "^8.0.0", "uint8arrays": "^6.1.1" } }, "sha512-DYMj/Og5Cz1Qwkx6/x5KRvR8SYEX7rVAv3KKCm2NzTwWSfpNAC4PahjcYbHyoZBP6zPWrhQv5n5wE+vaDdgSAg=="],
-
-    "@ipshipyard/keychain/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
-
-    "@ipshipyard/keychain/uint8arrays": ["uint8arrays@6.1.1", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-iz7JN0XCSZYA111lhFG2Ui9EhFvTNekqSRHw3lvMHq+dzwWy1OQftxFQREEh4rffU0oSoXdQHsk2TiHKVm4fsA=="],
 
     "@ipshipyard/libp2p-auto-tls/delay": ["delay@6.0.0", "", {}, "sha512-2NJozoOHQ4NuZuVIr5CWd0iiLVIRSDepakaovIN+9eIDHEhdCAEvSy2cuf1DCrPPQLvHmbqTHODlhHg8UCy4zw=="],
 
@@ -3885,10 +3856,6 @@
 
     "better-auth/jose": ["jose@6.2.3", "", {}, "sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw=="],
 
-    "birnam/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
-
-    "birnam/weald": ["weald@1.1.3", "", { "dependencies": { "ms": "^4.0.0-nightly.202508271359", "supports-color": "^10.0.0" } }, "sha512-vMWtNbYuPb58NeG2+0sKA0Een4VMDwzf+3oHqh68buWRSOMUBlUeRb11LhV28czV+DUpJHRykifijZDuS9bInA=="],
-
     "blockstore-core/@libp2p/logger": ["@libp2p/logger@6.2.7", "", { "dependencies": { "@libp2p/interface": "3.2.2", "@multiformats/multiaddr": "13.0.3", "interface-datastore": "9.0.3", "multiformats": "13.4.2", "weald": "1.1.1" } }, "sha512-IVEz5+0kE4mRWwMzXP34AlXe2k1FLzBqKkjeASyhPVdMz0A4qH9nYmCBwonzmRzymklGjFIEDa1s7Vjhd9V4Rg=="],
 
     "blockstore-idb/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
@@ -3965,8 +3932,6 @@
 
     "hamt-sharding/uint8arrays": ["uint8arrays@6.1.1", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-iz7JN0XCSZYA111lhFG2Ui9EhFvTNekqSRHw3lvMHq+dzwWy1OQftxFQREEh4rffU0oSoXdQHsk2TiHKVm4fsA=="],
 
-    "ipfs-unixfs-exporter/@ipld/dag-json": ["@ipld/dag-json@10.2.9", "", { "dependencies": { "cborg": "5.1.1", "multiformats": "13.4.2" } }, "sha512-opNPQQsTuCFZkaJCAqXrB/n9OqUD6W2Boz/Au5HjhLQyczmT8lxoOZObqQ5S5hhnV8p6sgKAimNhUB2W6y0Mzg=="],
-
     "ipfs-unixfs-exporter/it-to-buffer": ["it-to-buffer@4.0.12", "", { "dependencies": { "uint8arrays": "5.1.1" } }, "sha512-spgKdZMsY2+d8hJbdbUyPdCArXdz0yJUqY3eXOFUzzgdDV0wk/lWIj4u2HGJhF3jLUun5p7nmPCqGzZGA0WVfw=="],
 
     "ipns/@libp2p/logger": ["@libp2p/logger@6.2.7", "", { "dependencies": { "@libp2p/interface": "3.2.2", "@multiformats/multiaddr": "13.0.3", "interface-datastore": "9.0.3", "multiformats": "13.4.2", "weald": "1.1.1" } }, "sha512-IVEz5+0kE4mRWwMzXP34AlXe2k1FLzBqKkjeASyhPVdMz0A4qH9nYmCBwonzmRzymklGjFIEDa1s7Vjhd9V4Rg=="],
@@ -4020,6 +3985,8 @@
     "molstar/@types/node": ["@types/node@22.19.19", "", { "dependencies": { "undici-types": "6.21.0" } }, "sha512-dyh/xO2Fh5bYrfWaaqGrRQQGkNdmYw6AmaAUvYeUMNTWQtvb796ikLdmTchRmOlOiIJ1TDXfWgVx1QkUlQ6Hew=="],
 
     "ngl/molstar": ["molstar@4.18.0", "", { "dependencies": { "@types/argparse": "2.0.17", "@types/benchmark": "2.1.5", "@types/compression": "1.8.1", "@types/express": "5.0.6", "@types/node": "18.19.130", "@types/node-fetch": "2.6.13", "@types/swagger-ui-dist": "3.30.5", "argparse": "2.0.1", "compression": "1.8.1", "cors": "2.8.6", "express": "5.2.1", "h264-mp4-encoder": "1.0.12", "immer": "10.2.0", "immutable": "5.1.5", "io-ts": "2.2.22", "node-fetch": "2.7.0", "react-markdown": "10.1.0", "rxjs": "7.8.2", "swagger-ui-dist": "5.32.6", "tslib": "2.8.1", "util.promisify": "1.1.3" }, "peerDependencies": { "react": "19.2.4", "react-dom": "19.2.4" }, "bin": { "cif2bcif": "lib/commonjs/cli/cif2bcif/index.js", "cifschema": "lib/commonjs/cli/cifschema/index.js", "mvs-render": "lib/commonjs/cli/mvs/mvs-render.js", "model-server": "lib/commonjs/servers/model/server.js", "mvs-validate": "lib/commonjs/cli/mvs/mvs-validate.js", "volume-server": "lib/commonjs/servers/volume/server.js", "mvs-print-schema": "lib/commonjs/cli/mvs/mvs-print-schema.js", "model-server-query": "lib/commonjs/servers/model/query.js", "volume-server-pack": "lib/commonjs/servers/volume/pack.js", "volume-server-query": "lib/commonjs/servers/volume/query.js", "model-server-preprocess": "lib/commonjs/servers/model/preprocess.js" } }, "sha512-mU2da9laqdFtGKGCqOyFywCAxuvRYevOMFjrX/6RwIUd+HB5yOpbLXXRA5ErVadHXLTlEYOutCzNv+AwvmrfmA=="],
+
+    "ngl/three": ["three@0.158.0", "", {}, "sha512-TALj4EOpdDPF1henk2Q+s17K61uEAAWQ7TJB68nr7FKxqwyDr3msOt5IWdbGm4TaWKjrtWS8DJJWe9JnvsWOhQ=="],
 
     "node-abi/semver": ["semver@7.8.0", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA=="],
 
@@ -4167,15 +4134,11 @@
 
     "@dotenvx/dotenvx/which/isexe": ["isexe@3.1.5", "", {}, "sha512-6B3tLtFqtQS4ekarvLVMZ+X+VlvQekbe4taUkf/rhVO3d/h0M2rfARm/pXLcPEsjjMsFgrFgSrhQIxcSVrBz8w=="],
 
-    "@helia/dag-json/@helia/interface/interface-datastore": ["interface-datastore@10.0.1", "", { "dependencies": { "abort-error": "^1.0.2", "interface-store": "^8.0.0", "uint8arrays": "^6.1.1" } }, "sha512-DYMj/Og5Cz1Qwkx6/x5KRvR8SYEX7rVAv3KKCm2NzTwWSfpNAC4PahjcYbHyoZBP6zPWrhQv5n5wE+vaDdgSAg=="],
-
-    "@helia/dag-json/@helia/interface/main-event": ["main-event@1.0.5", "", {}, "sha512-4l9z8r7Q446mhhVTwdHmfPksOYBwN2xa7ewEW2yxPVNQapIaAf57ORFLMB91SpMEMa4wXowect7fq3uMLjDnGA=="],
-
     "@helia/dag-json/@libp2p/interface/main-event": ["main-event@1.0.5", "", {}, "sha512-4l9z8r7Q446mhhVTwdHmfPksOYBwN2xa7ewEW2yxPVNQapIaAf57ORFLMB91SpMEMa4wXowect7fq3uMLjDnGA=="],
 
-    "@helia/dag-json/@libp2p/interface/uint8arraylist": ["uint8arraylist@3.0.2", "", { "dependencies": { "uint8arrays": "6.1.1" } }, "sha512-LDVoq9BQaGJzGDUovEnoX6rpKCvnY/Jbtws4ikwnBzjRbq5qBAFpBZevUEbSmMM87aO0Sp+wOZy2ZXf5yODmXQ=="],
+    "@helia/dag-json/@libp2p/interface/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
 
-    "@helia/dag-json/interface-blockstore/interface-store": ["interface-store@8.0.0", "", { "dependencies": { "abort-error": "^1.0.2" } }, "sha512-e2+s3EEROzM+Wlas4hU3zveTUscvVMf1BOvdsJfpzFm19SoEXLVadpACjWOnM491HqGpvtfFnevyiaN8W+I6Eg=="],
+    "@helia/dag-json/@libp2p/interface/uint8arraylist": ["uint8arraylist@3.0.2", "", { "dependencies": { "uint8arrays": "6.1.1" } }, "sha512-LDVoq9BQaGJzGDUovEnoX6rpKCvnY/Jbtws4ikwnBzjRbq5qBAFpBZevUEbSmMM87aO0Sp+wOZy2ZXf5yODmXQ=="],
 
     "@helia/unixfs/@libp2p/interface/main-event": ["main-event@1.0.5", "", {}, "sha512-4l9z8r7Q446mhhVTwdHmfPksOYBwN2xa7ewEW2yxPVNQapIaAf57ORFLMB91SpMEMa4wXowect7fq3uMLjDnGA=="],
 
@@ -4200,10 +4163,6 @@
     "@helia/unixfs/@libp2p/utils/uint8arrays": ["uint8arrays@6.1.1", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-iz7JN0XCSZYA111lhFG2Ui9EhFvTNekqSRHw3lvMHq+dzwWy1OQftxFQREEh4rffU0oSoXdQHsk2TiHKVm4fsA=="],
 
     "@helia/utils/@ipld/dag-pb/multiformats": ["multiformats@14.0.0", "", {}, "sha512-iWK1RrAS58p2NDfeZFuSUSv3ZPewTIhsGbh/5NgeGGJwJmRljLxGtjRR3nkn+loG3zl+IrfR/W1590QnrSK+Gg=="],
-
-    "@ipshipyard/crypto/protons-runtime/uint8-varint": ["uint8-varint@3.0.0", "", { "dependencies": { "uint8arraylist": "3.0.2", "uint8arrays": "6.1.1" } }, "sha512-S4DdpXBaLwKcFo7f0bWzWfHjbZ/i3QhM842qn+ZvHjxqFCfUcEB9SQNcmI69S+zMlcmIcKxsk9Iyw77S2Kxv6Q=="],
-
-    "@ipshipyard/keychain/interface-datastore/interface-store": ["interface-store@8.0.0", "", { "dependencies": { "abort-error": "^1.0.2" } }, "sha512-e2+s3EEROzM+Wlas4hU3zveTUscvVMf1BOvdsJfpzFm19SoEXLVadpACjWOnM491HqGpvtfFnevyiaN8W+I6Eg=="],
 
     "@libp2p/logger/@libp2p/interface/main-event": ["main-event@1.0.5", "", {}, "sha512-4l9z8r7Q446mhhVTwdHmfPksOYBwN2xa7ewEW2yxPVNQapIaAf57ORFLMB91SpMEMa4wXowect7fq3uMLjDnGA=="],
 
@@ -4292,10 +4251,6 @@
     "babel-plugin-macros/resolve/is-core-module": ["is-core-module@2.17.0", "", { "dependencies": { "hasown": "^2.0.4" } }, "sha512-J/vG0zBCbIKOQFfufSwyXdMrsohyJIUNkrnmo6WZGzoM7tr/lsbfW5b2BvisL6zsyMzK9UxV9L6c7AoFbyXHOA=="],
 
     "babel-plugin-syntax-hermes-parser/hermes-parser/hermes-estree": ["hermes-estree@0.33.3", "", {}, "sha512-6kzYZHCk8Fy1Uc+t3HGYyJn3OL4aeqKLTyina4UFtWl8I0kSL7OmKThaiX+Uh2f8nGw3mo4Ifxg0M5Zk3/Oeqg=="],
-
-    "birnam/weald/ms": ["ms@4.0.0-nightly.202508271359", "", {}, "sha512-WC/Eo7NzFrOV/RRrTaI0fxKVbNCzEy76j2VqNV8SxDf9D69gSE2Lh0QwYvDlhiYmheBYExAvEAxVf5NoN0cj2A=="],
-
-    "birnam/weald/supports-color": ["supports-color@10.2.2", "", {}, "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="],
 
     "bs58check/bs58/base-x": ["base-x@4.0.1", "", {}, "sha512-uAZ8x6r6S3aUM9rbHGVOIsR15U/ZSc82b3ymnCPsT45Gk1DDvhDPdIgB5MrhirZWt+5K0EEPQH985kNqZgNPFw=="],
 
@@ -4400,10 +4355,6 @@
     "@coinbase/cdp-sdk/axios/form-data/mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
 
     "@coinbase/cdp-sdk/axios/https-proxy-agent/agent-base": ["agent-base@6.0.2", "", { "dependencies": { "debug": "4.4.3" } }, "sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ=="],
-
-    "@helia/dag-json/@helia/interface/interface-datastore/interface-store": ["interface-store@8.0.0", "", { "dependencies": { "abort-error": "^1.0.2" } }, "sha512-e2+s3EEROzM+Wlas4hU3zveTUscvVMf1BOvdsJfpzFm19SoEXLVadpACjWOnM491HqGpvtfFnevyiaN8W+I6Eg=="],
-
-    "@helia/dag-json/@helia/interface/interface-datastore/uint8arrays": ["uint8arrays@6.1.1", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-iz7JN0XCSZYA111lhFG2Ui9EhFvTNekqSRHw3lvMHq+dzwWy1OQftxFQREEh4rffU0oSoXdQHsk2TiHKVm4fsA=="],
 
     "@helia/dag-json/@libp2p/interface/uint8arraylist/uint8arrays": ["uint8arrays@6.1.1", "", { "dependencies": { "multiformats": "14.0.0" } }, "sha512-iz7JN0XCSZYA111lhFG2Ui9EhFvTNekqSRHw3lvMHq+dzwWy1OQftxFQREEh4rffU0oSoXdQHsk2TiHKVm4fsA=="],
 

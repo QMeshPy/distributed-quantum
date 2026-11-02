@@ -86,7 +86,8 @@ export function useIpfsUpload() {
 
         const linked = await linkifyRunForDagJson(record);
         const { dagJson } = await import("@helia/dag-json");
-        const cid = await dagJson(helia).add(linked);
+        // Helia vs @helia/dag-json pull divergent multiformats/blockstore types.
+        const cid = await dagJson(helia as never).add(linked);
         cidStr = cid.toString();
       } else {
         const { json } = await import("@helia/json");

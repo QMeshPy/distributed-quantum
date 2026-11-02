@@ -114,7 +114,7 @@ class AgentKitService:
         self._init_encryption_key()
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+        mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
         mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
@@ -167,11 +167,20 @@ class AgentKitService:
             raise UnsupportedOperationError("wallet operation is unavailable on this network")
 
     def validate_wallet_network(self, network: str | None) -> ChainSpec:
+        """Resolve a stored wallet network. Must be a registry wallet-capable chain."""
         if network is None:
             raise ValueError("stored wallet network is missing")
         chain = self.registry.resolve(network)
-        if chain.chain_id != self.chain.chain_id:
-            raise ValueError("stored wallet network does not match the configured wallet network")
+        wallet_ops = {
+            "create_wallet",
+            "get_balance",
+            "transfer_stablecoin",
+            "aave_supply",
+            "aave_withdraw",
+            "faucet_instructions",
+        }
+        if not wallet_ops.intersection(chain.capabilities):
+            raise ValueError("stored wallet network does not support wallet operations")
         return chain
 
     async def _validate_stored_wallet(self, wallet_address: str) -> None:
@@ -188,13 +197,34 @@ class AgentKitService:
         key_bytes = hashlib.sha256(secret.encode()).digest()
         self.fernet = Fernet(base64.urlsafe_b64encode(key_bytes))
 
-    async def create_wallet(self, entity_id: str, entity_type: str) -> dict:
+    def for_network(self, network: str) -> "AgentKitService":
+        """Return a service scoped to ``network``, reusing this instance's Mongo client."""
+        chain = self.registry.resolve(network)
+        if chain.chain_id == self.chain.chain_id:
+            return self
+        sibling = object.__new__(AgentKitService)
+        sibling.registry = self.registry
+        sibling._chain = chain
+        sibling.explorer = EvmExplorerAdapter(chain)
+        sibling.api_key_id = self.api_key_id
+        sibling.api_key_secret = self.api_key_secret
+        sibling.wallet_secret = self.wallet_secret
+        sibling.fernet = self.fernet
+        sibling.mongo_client = self.mongo_client
+        sibling.db = self.db
+        sibling._ledger = self._ledger
+        return sibling
+
+    async def create_wallet(
+        self, entity_id: str, entity_type: str, *, network: str | None = None
+    ) -> dict:
         """
         Create a new wallet for an entity (user, node, or platform).
 
         Args:
             entity_id: Unique identifier for the entity (user_id, node_id, or 'platform')
             entity_type: Type of entity ('user', 'agent', or 'worker')
+            network: Optional registry alias or CAIP-2 id; defaults to this service's network
 
         Returns:
             dict: Wallet information containing:
@@ -208,6 +238,10 @@ class AgentKitService:
             ValueError: If entity_type is invalid
             Exception: If wallet creation fails
         """
+        if network is not None:
+            service = self.for_network(network)
+            if service is not self:
+                return await service.create_wallet(entity_id, entity_type)
         logger.info(f"Creating wallet for {entity_type}:{entity_id}")
         try:
             self.require_operation("create_wallet")
@@ -355,7 +389,8 @@ class AgentKitService:
         from_address: str,
         to_address: str,
         amount: Decimal,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        purpose: PaymentPurpose = PaymentPurpose.TRANSFER,
     ) -> dict:
         """
         Execute a USDC transfer between wallets.
@@ -365,6 +400,7 @@ class AgentKitService:
             to_address: Destination wallet address
             amount: Amount of USDC to transfer (as Decimal)
             metadata: Optional transaction metadata (e.g., job_id, purpose)
+            purpose: What the payment event records the transfer as
 
         Returns:
             dict: Transaction result containing:
@@ -449,7 +485,7 @@ class AgentKitService:
             recorded = await self.ledger.record_event(
                 idempotency_key=payment_key,
                 rail=PaymentRail.ONCHAIN,
-                purpose=PaymentPurpose.TRANSFER,
+                purpose=purpose,
                 amount=amount,
                 chain_id=self.chain.chain_id,
                 payer_ref=from_address,
@@ -479,29 +515,33 @@ class AgentKitService:
 
             timestamp = datetime.utcnow()
 
-            # Record transaction in database
-            payment_id = str(uuid.uuid4())
-            payment_doc = PaymentDocument(
-                payment_id=payment_id,
-                type=metadata.get("type", "other") if metadata else "other",
-                from_wallet=from_address,
-                to_wallet=to_address,
-                amount=_decimal_to_decimal128(amount),
-                currency="USDC",
-                status="submitted",
-                job_id=metadata.get("job_id") if metadata else None,
-                proposal_id=metadata.get("proposal_id") if metadata else None,
-                transaction_hash=tx_hash,
-                basescan_url=basescan_url,
-                created_at=timestamp,
-            )
+            # The transfer is broadcast: bookkeeping errors from here on must not
+            # raise, or a caller could take them for a send that never happened.
+            try:
+                payment_id = str(uuid.uuid4())
+                payment_doc = PaymentDocument(
+                    payment_id=payment_id,
+                    type=metadata.get("type", "other") if metadata else "other",
+                    from_wallet=from_address,
+                    to_wallet=to_address,
+                    amount=_decimal_to_decimal128(amount),
+                    currency="USDC",
+                    status="submitted",
+                    job_id=metadata.get("job_id") if metadata else None,
+                    proposal_id=metadata.get("proposal_id") if metadata else None,
+                    transaction_hash=tx_hash,
+                    basescan_url=basescan_url,
+                    created_at=timestamp,
+                )
 
-            await self.db.payments.insert_one(payment_doc.model_dump())
+                await self.db.payments.insert_one(payment_doc.model_dump())
 
-            logger.info(f"Payment {payment_id} recorded in database")
+                logger.info(f"Payment {payment_id} recorded in database")
 
-            # Update wallet balances (optimistic update)
-            await self.get_balance(from_address)
+                # Update wallet balances (optimistic update)
+                await self.get_balance(from_address)
+            except Exception:
+                logger.exception(f"USDC transfer {tx_hash} sent but not recorded")
 
             return {
                 "transaction_hash": tx_hash,

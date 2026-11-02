@@ -13,6 +13,7 @@ export {
   normalizeCircuitCid,
 } from "./lib/run-record";
 export { resolveRunCircuit, getVaultJson } from "./lib/run-circuit-link";
+export {
   buildCircuitRecord,
   countGatesFromQasm,
   countQubitsFromQasm,

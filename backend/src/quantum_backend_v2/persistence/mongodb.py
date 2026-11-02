@@ -19,7 +19,7 @@ from db.agentkit_collections import (
 from pydantic import Field
 from pymongo import ASCENDING, AsyncMongoClient, IndexModel
 
-from quantum_backend_v2.config import MongoSettings, MongoTarget
+from quantum_backend_v2.config import MongoSettings
 
 
 def _utc_now() -> datetime:
@@ -352,6 +352,30 @@ class RiskJobDocument(Document):
         ]
 
 
+class PharmaJobDocument(Document):
+    """Durable pharma docking job, owned by the user or x402 payer who submitted it."""
+
+    id: str  # type: ignore[assignment]
+    owner_user_id: str
+    status: str
+    state: str = "idle"
+    mode: str
+    target_pdb_id: str
+    error: str | None = None
+    result_payload: dict[str, Any] | None = None
+    log_lines: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+    completed_at: datetime | None = None
+
+    class Settings:
+        name = "pharma_jobs"
+        indexes = [
+            IndexModel("owner_user_id"),
+            IndexModel("status"),
+        ]
+
+
 class ReservationEventDocument(Document):
     """Append-only reservation event log — never updated, only inserted.
 
@@ -420,7 +444,6 @@ class ExecutionEventDocument(Document):
 class MongoRuntime:
     """Async Mongo runtime using Beanie-ready document models."""
 
-    target: MongoTarget
     uri: str
     database_name: str
     client: AsyncMongoClient
@@ -448,7 +471,7 @@ class MongoRuntime:
 
 def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
     """Create an async Mongo runtime for the configured target."""
-    uri = settings.effective_uri
+    uri = settings.uri
     if uri is None:
         return None
 
@@ -457,7 +480,6 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
         serverSelectionTimeoutMS=settings.server_selection_timeout_ms,
     )
     return MongoRuntime(
-        target=settings.target,
         uri=uri,
         database_name=settings.database,
         client=client,
@@ -479,6 +501,7 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
             FinancialJobDocument,
             OptionsJobDocument,
             RiskJobDocument,
+            PharmaJobDocument,
             ReservationEventDocument,
             ExecutionEventDocument,
             # AgentKit documents

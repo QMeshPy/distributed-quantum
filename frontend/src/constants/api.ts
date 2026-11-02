@@ -8,6 +8,9 @@ export const API = {
   BILLING: {
     CREDITS: "/api/billing/credits",
     CREDITS_CHECKOUT: "/api/billing/credits/checkout",
+    CONNECT: "/api/billing/connect",
+    CONNECT_ONBOARD: "/api/billing/connect/onboard",
+    CONNECT_DASHBOARD: "/api/billing/connect/dashboard",
   },
   DASHBOARD: {
     ROOT: "/api/dashboard",
@@ -28,6 +31,12 @@ export const API = {
     OPTIONS_RUNS: "/api/x402/options/runs",
     OPTIONS_RUN: (jobId: string) =>
       `/api/x402/options/runs/${jobId}` as const,
+    RISK_RUNS: "/api/x402/risk/runs",
+    RISK_RUN: (jobId: string) => `/api/x402/risk/runs/${jobId}` as const,
+    FINANCE_RUNS: "/api/x402/finance/runs",
+    FINANCE_RUN: (jobId: string) => `/api/x402/finance/runs/${jobId}` as const,
+    PHARMA_RUNS: "/api/x402/pharma/runs",
+    PHARMA_RUN: (jobId: string) => `/api/x402/pharma/runs/${jobId}` as const,
   },
   PROVENANCE: {
     VERIFY: (bundleId: string) => `/api/provenance/${encodeURIComponent(bundleId)}/verify` as const,

@@ -56,14 +56,17 @@ The same infrastructure powers a QAOA portfolio optimizer that benchmarks quantu
 
 ## Algorand x402: machine-payable quantum services
 
-QMeshPy exposes two paid services through the x402 `402 Payment Required` flow, settled in Algorand USDC. A client requests a service, receives the payment requirement, pays on-chain, and the coordinator then runs the job across the libp2p mesh.
+QMeshPy exposes five paid services through the x402 `402 Payment Required` flow, settled in Algorand USDC. A client requests a service, receives the payment requirement, pays on-chain, and the coordinator then runs the job across the libp2p mesh.
 
 | Service | Route | Execution |
 |---|---|---|
 | Quantum circuit execution | `POST /api/x402/quantum/runs` | Distributed across worker peers |
 | QAE options pricing | `POST /api/x402/options/runs` | Quantum-finance pipeline |
+| Quantum risk (VaR / CVaR) | `POST /api/x402/risk/runs` | Iterative amplitude estimation |
+| Tokenized-stock portfolio optimisation | `POST /api/x402/finance/runs` | QAOA, analysis only |
+| Drug discovery docking | `POST /api/x402/pharma/runs` | Durable, owner-scoped job store |
 
-The routes are disabled unless `X402_ENABLED=true`. Both have completed paid calls on Algorand TestNet; the transaction evidence is in the overview.
+The routes are disabled unless `X402_ENABLED=true`. The circuit and options routes have completed paid calls on Algorand TestNet; the transaction evidence is in the overview. The risk, finance and pharma routes are new: their unpaid `402` response is tested, and a paid call has not been run yet. Request schemas, limits and example payloads for every service are in [docs/x402-paid-services.md](docs/x402-paid-services.md).
 
 - [Overview, request flow and TestNet verification](https://github.com/QMeshPy/documentations/blob/main/algorand-x402/overview.md)
 - [Design](https://github.com/QMeshPy/documentations/blob/main/algorand-x402/algorand-x402-design.md)
@@ -128,8 +131,7 @@ that same value on both sides. Generate a separate Better Auth secret.
 Backend configuration (`backend/.env`):
 
 ```dotenv
-QB2_MONGODB_TARGET=local
-QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017
+QB2_MONGODB_URI=mongodb://127.0.0.1:27017
 QB2_MONGODB_DATABASE=qds
 AGENT_AUTH_BRIDGE_SECRET=<same-generated-bridge-secret-as-frontend>
 
@@ -148,8 +150,7 @@ TOJU_NODE_BINARY=node
 ```
 
 `TOJU_NODE_BINARY` must resolve to Node 22; use its absolute path if your shell's
-default differs. The current agent services use `QB2_MONGODB_LOCAL_URI` directly;
-set that URI explicitly even if connecting to a remote MongoDB installation.
+default differs. All backend services read `QB2_MONGODB_URI`; point it at local or remote MongoDB.
 
 For Groq instead, set `AGENT_LLM_PROVIDER=groq`, `GROQ_API_KEY`, and
 `GROQ_MODEL=openai/gpt-oss-20b`. OpenRouter accepts only free model names and sends
@@ -313,7 +314,10 @@ X402_ENABLED=true
 X402_NETWORK=testnet
 X402_AVM_ADDRESS=<58-character Algorand receiver address>
 X402_FACILITATOR_URL=https://facilitator.goplausible.xyz
-X402_QUANTUM_RUN_PRICE=$0.01
+X402_QUANTUM_RUN_PRICE=0.01
+X402_RISK_RUN_PRICE=0.05
+X402_FINANCE_RUN_PRICE=0.05
+X402_PHARMA_RUN_PRICE=0.25
 X402_GATEWAY_SECRET=<openssl rand -hex 32>
 ```
 
@@ -328,6 +332,10 @@ docker compose up --build
 ```
 
 ---
+
+### Multi-laptop mesh (remote workers)
+
+Other laptops, including ones on different Wi-Fi networks and Windows machines, can join as peers without port-forwarding by dialing out to the coordinator. See **[docs/remote-workers.md](docs/remote-workers.md)** for Windows, Mac and Linux setup, health checks and troubleshooting.
 
 ## Platform content node (Kubo)
 
@@ -523,6 +531,7 @@ The repository is also checked out as a git submodule at [`documentations/`](doc
 | Contribute code | [CONTEXT.md](CONTEXT.md) (in this repo), then [ARCHITECTURE](https://github.com/QMeshPy/documentations/blob/main/ARCHITECTURE.md) |
 | Understand the system design | [ARCHITECTURE](https://github.com/QMeshPy/documentations/blob/main/ARCHITECTURE.md), [design](https://github.com/QMeshPy/documentations/blob/main/design.md), [requirements](https://github.com/QMeshPy/documentations/blob/main/requirements.md) |
 | Work on the frontend | [frontend/DESIGN.md](frontend/DESIGN.md) (in this repo) |
+| Connect more laptops as peers | [docs/remote-workers.md](docs/remote-workers.md) (in this repo) |
 | Deploy it | [DEPLOYMENT-MANUAL.md](DEPLOYMENT-MANUAL.md) (in this repo), [Lightsail guide](https://github.com/QMeshPy/documentations/blob/main/LIGHTSAIL-DEPLOYMENT.md) |
 | Read the research | [Paper draft](https://github.com/QMeshPy/documentations/blob/main/research/RESEARCH_PAPER_DRAFT.md), [math appendix](https://github.com/QMeshPy/documentations/blob/main/research/MATHEMATICAL_APPENDIX.md), [scaling strategy](https://github.com/QMeshPy/documentations/blob/main/research/QUANTUM_SCALING_STRATEGY.md) |
 | Reproduce the benchmarks | [Implementation notes](https://github.com/QMeshPy/documentations/blob/main/technical/IMPLEMENTATION_NOTES.md), [benchmark results](https://github.com/QMeshPy/documentations/blob/main/technical/BENCHMARK.md), and the scripts in `backend/scripts/` |

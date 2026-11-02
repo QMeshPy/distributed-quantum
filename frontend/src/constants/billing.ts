@@ -31,4 +31,17 @@ export const BILLING = {
   /** Sent to the backend's internal credit-purchase route. */
   BILLING_SECRET_HEADER: "X-Billing-Internal-Secret",
   MIN_BILLING_SECRET_LENGTH: 32,
+  /** Opt-in Connect Express onboarding for worker cash-out (#110). */
+  CONNECT_RESULT_PARAM: "connect",
+  CONNECT_RETURN: "return",
+  CONNECT_REFRESH: "refresh",
+  CONNECT_STATUS_NOT_STARTED: "not_started",
+  CONNECT_STATUS_PENDING: "pending",
+  CONNECT_STATUS_READY: "ready",
+  CONNECT_STATUS_UNAVAILABLE: "unavailable",
+  /** Default Express account country when the worker has none set. */
+  CONNECT_DEFAULT_COUNTRY: "US",
+  /** Settings return paths for Account Link callbacks. */
+  CONNECT_RETURN_PATH: "/settings?connect=return",
+  CONNECT_REFRESH_PATH: "/settings?connect=refresh",
 } as const;
