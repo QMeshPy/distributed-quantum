@@ -543,6 +543,12 @@ export const TEAM: {
     },
     { name: "Harshal Dulera", role: "Contributor", github: "harshaldulera" },
     {
+      name: "Gaurish Baliga",
+      role: "Contributor",
+      x: "https://x.com/gaurishcodes",
+      linkedin: "https://www.linkedin.com/in/gaurish-baliga-443894131/",
+    },
+    {
       name: "Saish Korgaonkar",
       role: "Contributor",
       github: "SaishKorgaonkar",
