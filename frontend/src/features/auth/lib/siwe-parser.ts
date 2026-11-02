@@ -179,11 +179,6 @@ export function recoverAddressFromEthSig(
     throw new Error(`Invalid signature recovery byte (v): ${v}`);
   }
 
-  const sigBytes = new Uint8Array(65);
-  sigBytes[0] = recid;
-  sigBytes.set(r, 1);
-  sigBytes.set(s, 33);
-
   const prefix = Buffer.from(
     "\x19Ethereum Signed Message:\n" + Buffer.byteLength(message, "utf8"),
     "utf8",
@@ -192,12 +187,13 @@ export function recoverAddressFromEthSig(
     Buffer.concat([prefix, Buffer.from(message, "utf8")]),
   );
 
-  const recoveredPubKey = secp256k1.recoverPublicKey(sigBytes, digest, {
-    prehash: false,
-  });
-  const point = secp256k1.Point.fromHex(
-    Buffer.from(recoveredPubKey).toString("hex"),
+  // CurveFn typings omit recoverPublicKey; Signature.recoverPublicKey is typed.
+  const sig = new secp256k1.Signature(
+    BigInt("0x" + Buffer.from(r).toString("hex")),
+    BigInt("0x" + Buffer.from(s).toString("hex")),
+    recid,
   );
+  const point = sig.recoverPublicKey(digest);
   const uncompressed = point.toBytes(false).slice(1);
   const addrBytes = keccak_256(uncompressed).slice(-20);
   return toChecksumAddress("0x" + Buffer.from(addrBytes).toString("hex"));

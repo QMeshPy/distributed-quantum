@@ -55,7 +55,8 @@ async function decodeVaultPayload(helia: Helia, cid: CID): Promise<unknown> {
   // Linked runs (#58) — @helia/dag-json with CID links
   try {
     const { dagJson } = await import("@helia/dag-json");
-    return await dagJson(helia).get(cid);
+    // Helia vs @helia/dag-json pull divergent multiformats/blockstore types.
+    return await dagJson(helia as never).get(cid as never);
   } catch {
     // not dag-json
   }
