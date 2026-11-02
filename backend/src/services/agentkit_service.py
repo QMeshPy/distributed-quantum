@@ -481,29 +481,33 @@ class AgentKitService:
 
             timestamp = datetime.utcnow()
 
-            # Record transaction in database
-            payment_id = str(uuid.uuid4())
-            payment_doc = PaymentDocument(
-                payment_id=payment_id,
-                type=metadata.get("type", "other") if metadata else "other",
-                from_wallet=from_address,
-                to_wallet=to_address,
-                amount=_decimal_to_decimal128(amount),
-                currency="USDC",
-                status="submitted",
-                job_id=metadata.get("job_id") if metadata else None,
-                proposal_id=metadata.get("proposal_id") if metadata else None,
-                transaction_hash=tx_hash,
-                basescan_url=basescan_url,
-                created_at=timestamp,
-            )
+            # The transfer is broadcast: bookkeeping errors from here on must not
+            # raise, or a caller could take them for a send that never happened.
+            try:
+                payment_id = str(uuid.uuid4())
+                payment_doc = PaymentDocument(
+                    payment_id=payment_id,
+                    type=metadata.get("type", "other") if metadata else "other",
+                    from_wallet=from_address,
+                    to_wallet=to_address,
+                    amount=_decimal_to_decimal128(amount),
+                    currency="USDC",
+                    status="submitted",
+                    job_id=metadata.get("job_id") if metadata else None,
+                    proposal_id=metadata.get("proposal_id") if metadata else None,
+                    transaction_hash=tx_hash,
+                    basescan_url=basescan_url,
+                    created_at=timestamp,
+                )
 
-            await self.db.payments.insert_one(payment_doc.model_dump())
+                await self.db.payments.insert_one(payment_doc.model_dump())
 
-            logger.info(f"Payment {payment_id} recorded in database")
+                logger.info(f"Payment {payment_id} recorded in database")
 
-            # Update wallet balances (optimistic update)
-            await self.get_balance(from_address)
+                # Update wallet balances (optimistic update)
+                await self.get_balance(from_address)
+            except Exception:
+                logger.exception(f"USDC transfer {tx_hash} sent but not recorded")
 
             return {
                 "transaction_hash": tx_hash,

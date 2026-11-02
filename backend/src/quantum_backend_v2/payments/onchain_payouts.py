@@ -30,7 +30,8 @@ def wallet_payout_rail(
             from_address=from_address,
             to_address=to,
             amount=amount,
-            metadata={**metadata, "type": "worker_payout", "idempotency_key": idempotency_key},
+            # "worker_payment" is the legacy payments-collection type for worker payouts.
+            metadata={**metadata, "type": "worker_payment", "idempotency_key": idempotency_key},
             purpose=PaymentPurpose.WORKER_PAYOUT,
         )
         return str(result["transaction_hash"])
