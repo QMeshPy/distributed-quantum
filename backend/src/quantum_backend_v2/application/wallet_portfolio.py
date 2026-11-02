@@ -36,16 +36,6 @@ from quantum_backend_v2.chains.rpc import RpcConfigurationError, resolve_rpc_url
 
 _ZERO = Decimal("0")
 _ONE = Decimal("1")
-_ETH_REFERENCE_LADDER = (
-    Decimal("1500"),
-    Decimal("2000"),
-    Decimal("2500"),
-    Decimal("3000"),
-    Decimal("3500"),
-    Decimal("4000"),
-    Decimal("4500"),
-    Decimal("5000"),
-)
 
 
 @dataclass(frozen=True)
@@ -84,10 +74,15 @@ def _close_web3(web3: Web3) -> None:
 def _enabled_balance_chains(
     registry: ChainRegistry, networks: list[str]
 ) -> list[tuple[str, ChainSpec]]:
+    """Resolve requested networks, keeping one entry per chain_id."""
     if networks:
         selected: list[tuple[str, ChainSpec]] = []
+        seen: set[str] = set()
         for name in networks:
             chain = registry.resolve(name)
+            if chain.chain_id in seen:
+                continue
+            seen.add(chain.chain_id)
             selected.append((name, chain))
         return selected
     out: list[tuple[str, ChainSpec]] = []
@@ -157,9 +152,12 @@ def fetch_raw_holdings(
     return holdings
 
 
-def _eth_reference_candidates() -> list[Decimal]:
-    """Build Chainlink reference candidates; feed policy requires a nearby reference."""
-    candidates: list[Decimal] = []
+def _eth_market_reference() -> Decimal | None:
+    """Single independent ETH/USD spot used to validate Chainlink observations.
+
+    Without this reference we refuse to price ETH rather than probing alternate
+    references that would weaken the feed deviation check.
+    """
     try:
         import yfinance as yf  # type: ignore[import]
 
@@ -167,23 +165,24 @@ def _eth_reference_candidates() -> list[Decimal]:
         if not hist.empty:
             spot = Decimal(str(float(hist["Close"].iloc[-1])))
             if spot > 0:
-                candidates.append(spot)
-                for factor in (Decimal("0.85"), Decimal("1.15"), Decimal("0.7"), Decimal("1.3")):
-                    candidates.append(spot * factor)
+                return spot
     except Exception:
-        pass
-    for rung in _ETH_REFERENCE_LADDER:
-        if rung not in candidates:
-            candidates.append(rung)
-    return candidates
+        return None
+    return None
 
 
 def _price_native_usd(
     registry: ChainRegistry,
     env: Mapping[str, str],
 ) -> tuple[Decimal, HoldingSource] | None:
-    """Price native ETH via a registry chain that exposes eth-usd."""
-    references = _eth_reference_candidates()
+    """Price native ETH via a registry chain that exposes eth-usd.
+
+    Uses one market reference. If the feed fails validation against that
+    reference, ETH stays unpriceable (no reference ladder retries).
+    """
+    reference = _eth_market_reference()
+    if reference is None:
+        return None
     for chain in registry.chains:
         if (
             not chain.enabled
@@ -198,20 +197,21 @@ def _price_native_usd(
             continue
         web3 = _web3(rpc_url)
         try:
-            adapter = EvmPriceAdapter(chain, web3)
-            for reference in references:
-                try:
-                    observation = adapter.get_price("eth-usd", reference)
-                except PriceRejectedError:
-                    continue
-                except PriceUnavailableError:
-                    break
-                alias = chain.aliases[0] if chain.aliases else chain.chain_id
-                return Decimal(observation.value), HoldingSource(
-                    kind="chainlink",
-                    detail=f"{alias}:eth-usd",
-                    observed_at=observation.observed_at,
+            try:
+                observation = EvmPriceAdapter(chain, web3).get_price(
+                    "eth-usd", reference
                 )
+            except (PriceRejectedError, PriceUnavailableError):
+                continue
+            alias = chain.aliases[0] if chain.aliases else chain.chain_id
+            return Decimal(observation.value), HoldingSource(
+                kind="chainlink",
+                detail=(
+                    f"{alias}:eth-usd "
+                    f"(validated vs market reference {format(reference, 'f')} USD)"
+                ),
+                observed_at=observation.observed_at,
+            )
         finally:
             _close_web3(web3)
     return None
@@ -229,6 +229,7 @@ def price_holdings(
     sources: list[HoldingSource] = []
     eth_price: Decimal | None = None
     eth_source: HoldingSource | None = None
+    eth_attempted = False
 
     for item in raw:
         if item.balance <= _ZERO:
@@ -259,7 +260,8 @@ def price_holdings(
             )
             continue
 
-        if eth_price is None:
+        if not eth_attempted:
+            eth_attempted = True
             priced_native = _price_native_usd(registry, environ)
             if priced_native is not None:
                 eth_price, eth_source = priced_native
@@ -274,7 +276,11 @@ def price_holdings(
                     token_address=None,
                     balance=format(item.balance, "f"),
                     decimals=item.decimals,
-                    reason="no usable eth-usd Chainlink feed on enabled registry chains",
+                    reason=(
+                        "eth-usd Chainlink observation failed validation against a "
+                        "single independent market reference, or no reference / feed "
+                        "was available"
+                    ),
                     observed_at=item.observed_at,
                 )
             )
@@ -305,18 +311,63 @@ def price_holdings(
     return priced, unpriceable, sources
 
 
+def _fetch_eth_return_series(
+    lookback_days: int,
+) -> tuple[Any, HoldingSource]:
+    """Return ETH log-returns plus an explicit history or simulation source."""
+    import numpy as np
+
+    now = datetime.now(timezone.utc)
+    try:
+        import yfinance as yf  # type: ignore[import]
+        import pandas as pd
+
+        period = f"{max(lookback_days // 252 + 1, 2)}y"
+        raw = yf.download(
+            ["ETH-USD"], period=period, auto_adjust=True, progress=False
+        )["Close"]
+        if isinstance(raw, pd.Series):
+            raw = raw.to_frame(name="ETH-USD")
+        raw = raw.ffill().dropna()
+        log_ret = np.log(raw / raw.shift(1)).dropna().values
+        if log_ret.size == 0:
+            raise RuntimeError("empty ETH-USD history")
+        series = log_ret[-lookback_days:] if len(log_ret) > lookback_days else log_ret
+        source = HoldingSource(
+            kind="eth-usd-history",
+            detail="yfinance ETH-USD daily log-returns",
+            observed_at=now,
+        )
+        return series, source
+    except Exception:
+        rng = np.random.default_rng(42)
+        series = rng.normal(-0.0001, 0.02, size=(lookback_days, 1))
+        source = HoldingSource(
+            kind="synthetic-simulation",
+            detail=(
+                "ETH-USD market history unavailable; risk uses simulated returns "
+                "(not live market history)"
+            ),
+            observed_at=now,
+        )
+        return series, source
+
+
 def _historical_returns_for_holdings(
     priced: list[PricedHolding], lookback_days: int
-) -> list[list[float]]:
+) -> tuple[list[list[float]], HoldingSource]:
     """Build return matrix: ETH-like series for native, near-zero for stablecoins."""
     import numpy as np
 
-    from quantum_backend_v2.application.risk_engine import _fetch_returns
-
     n = len(priced)
     if n == 0:
-        return []
-    eth_series = _fetch_returns(["ETH-USD"], lookback_days)
+        empty = HoldingSource(
+            kind="none",
+            detail="no priced holdings",
+            observed_at=datetime.now(timezone.utc),
+        )
+        return [], empty
+    eth_series, history_source = _fetch_eth_return_series(lookback_days)
     t = eth_series.shape[0]
     matrix = np.zeros((t, n), dtype=float)
     rng = np.random.default_rng(7)
@@ -326,7 +377,7 @@ def _historical_returns_for_holdings(
         else:
             # Stablecoin: tiny noise so covariance stays well-conditioned.
             matrix[:, i] = rng.normal(0.0, 1e-5, size=t)
-    return matrix.tolist()
+    return matrix.tolist(), history_source
 
 
 def run_portfolio_risk(
@@ -336,7 +387,7 @@ def run_portfolio_risk(
     num_uncertainty_qubits: int,
     epsilon: float,
     alpha: float,
-) -> tuple[WalletPortfolioRiskSummary, dict[str, Any]]:
+) -> tuple[WalletPortfolioRiskSummary, dict[str, Any], list[HoldingSource]]:
     if not priced:
         empty = WalletPortfolioRiskSummary(
             portfolio_value_usd=0.0,
@@ -345,7 +396,7 @@ def run_portfolio_risk(
             classical_cvar_99=0.0,
             confidence_note="No priceable holdings to analyze.",
         )
-        return empty, {}
+        return empty, {}, []
 
     holdings_payload = [
         {
@@ -356,7 +407,7 @@ def run_portfolio_risk(
         }
         for h in priced
     ]
-    historical = _historical_returns_for_holdings(priced, lookback_days)
+    historical, history_source = _historical_returns_for_holdings(priced, lookback_days)
     result = compute_equity_risk(
         {
             "job_id": "wallet-portfolio",
@@ -374,6 +425,14 @@ def run_portfolio_risk(
     def _usd(fraction: float) -> float:
         return round(fraction * portfolio_value, 6)
 
+    if history_source.kind == "synthetic-simulation":
+        history_note = (
+            "Return history is a synthetic simulation because ETH-USD market data "
+            "was unavailable; treat VaR/CVaR as illustrative only."
+        )
+    else:
+        history_note = "Native assets use ETH-USD market history for returns."
+
     summary = WalletPortfolioRiskSummary(
         portfolio_value_usd=round(portfolio_value, 6),
         classical_var_95=_usd(float(var_map[0.95]["classical_mc_var"])),
@@ -384,10 +443,10 @@ def run_portfolio_risk(
         quantum_cvar_99=_usd(float(result["quantum_cvar_99"])),
         confidence_note=(
             "VaR/CVaR are loss fractions applied to marked portfolio USD value. "
-            "Native assets use ETH-USD history; stablecoins use a 1.00 USD peg assumption."
+            f"{history_note} Stablecoins use a 1.00 USD peg assumption."
         ),
     )
-    return summary, result
+    return summary, result, [history_source]
 
 
 async def analyze_wallet_portfolio(
@@ -423,13 +482,19 @@ async def analyze_wallet_portfolio(
         risk: WalletPortfolioRiskSummary | None = None
         risk_job: dict[str, Any] | None = None
         if priced:
-            risk, risk_job = run_portfolio_risk(
+            risk, risk_job, history_sources = run_portfolio_risk(
                 priced,
                 lookback_days=lookback_days,
                 num_uncertainty_qubits=num_uncertainty_qubits,
                 epsilon=epsilon,
                 alpha=alpha,
             )
+            sources.extend(history_sources)
+            if any(s.kind == "synthetic-simulation" for s in history_sources):
+                notes.append(
+                    "Risk metrics used simulated returns because live ETH-USD history "
+                    "was unavailable."
+                )
         else:
             notes.append("No priceable holdings found; risk metrics omitted.")
 

@@ -26,9 +26,13 @@ Read-only VaR/CVaR for public EVM addresses using registry adapters and the exis
 | Holding | Source |
 | --- | --- |
 | Stablecoin (USDC) | Assumed 1.00 USD peg (`stablecoin-peg`) |
-| Native ETH | Chainlink `eth-usd` on a registry chain with `get_price` (Ethereum Sepolia) |
+| Native ETH | Chainlink `eth-usd` validated against **one** independent market reference (yfinance). If validation fails, ETH is unpriceable — no reference ladder retries. |
 
 Holdings that cannot be priced appear under `unpriceable_holdings` and are excluded from VaR weights. Every priced row and the top-level `data_sources` list include source kind, detail, and `observed_at`.
+
+Requested `networks` are deduplicated by `chain_id` (so `base-sepolia` and `eip155:84532` together fetch once).
+
+If ETH-USD history cannot be downloaded, risk still runs but is labeled `synthetic-simulation` in `data_sources` and the confidence note.
 
 ## Frontend
 
