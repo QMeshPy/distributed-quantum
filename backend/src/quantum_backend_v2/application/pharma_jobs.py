@@ -29,7 +29,7 @@ class PharmaJobService:
         target_pdb_id: str,
     ) -> PharmaJobDocument:
         doc = PharmaJobDocument(
-            id=f"pharma_{uuid.uuid4().hex[:12]}",
+            id=f"pharma_{uuid.uuid4().hex}",
             owner_user_id=owner_user_id,
             status="queued",
             mode=mode,

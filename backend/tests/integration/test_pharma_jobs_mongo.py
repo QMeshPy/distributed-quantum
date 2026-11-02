@@ -68,6 +68,8 @@ def test_job_survives_a_restart_and_stays_with_its_owner():
         assert found is not None and found.status == "queued"
         assert found.target_pdb_id == "1IEP"
         assert other is None
+        # Polling is free, so the id is the capability: a full UUID, not a short prefix.
+        assert len(submitted.id.removeprefix("pharma_")) == 32
 
     run_with_database(test)
 

@@ -13,7 +13,7 @@ class FakePharmaJobService:
 
     async def submit(self, *, owner_user_id: str, mode: str, target_pdb_id: str) -> SimpleNamespace:
         job = SimpleNamespace(
-            id=f"pharma_{uuid.uuid4().hex[:12]}",
+            id=f"pharma_{uuid.uuid4().hex}",
             owner_user_id=owner_user_id,
             status="queued",
             state="idle",
