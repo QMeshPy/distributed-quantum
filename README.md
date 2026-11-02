@@ -56,14 +56,17 @@ The same infrastructure powers a QAOA portfolio optimizer that benchmarks quantu
 
 ## Algorand x402: machine-payable quantum services
 
-QMeshPy exposes two paid services through the x402 `402 Payment Required` flow, settled in Algorand USDC. A client requests a service, receives the payment requirement, pays on-chain, and the coordinator then runs the job across the libp2p mesh.
+QMeshPy exposes five paid services through the x402 `402 Payment Required` flow, settled in Algorand USDC. A client requests a service, receives the payment requirement, pays on-chain, and the coordinator then runs the job across the libp2p mesh.
 
 | Service | Route | Execution |
 |---|---|---|
 | Quantum circuit execution | `POST /api/x402/quantum/runs` | Distributed across worker peers |
 | QAE options pricing | `POST /api/x402/options/runs` | Quantum-finance pipeline |
+| Quantum risk (VaR / CVaR) | `POST /api/x402/risk/runs` | Iterative amplitude estimation |
+| Tokenized-stock portfolio optimisation | `POST /api/x402/finance/runs` | QAOA, analysis only |
+| Drug discovery docking | `POST /api/x402/pharma/runs` | Durable, owner-scoped job store |
 
-The routes are disabled unless `X402_ENABLED=true`. Both have completed paid calls on Algorand TestNet; the transaction evidence is in the overview.
+The routes are disabled unless `X402_ENABLED=true`. The circuit and options routes have completed paid calls on Algorand TestNet; the transaction evidence is in the overview. The risk, finance and pharma routes are new: their unpaid `402` response is tested, and a paid call has not been run yet. Request schemas, limits and example payloads for every service are in [docs/x402-paid-services.md](docs/x402-paid-services.md).
 
 - [Overview, request flow and TestNet verification](https://github.com/QMeshPy/documentations/blob/main/algorand-x402/overview.md)
 - [Design](https://github.com/QMeshPy/documentations/blob/main/algorand-x402/algorand-x402-design.md)
@@ -311,7 +314,10 @@ X402_ENABLED=true
 X402_NETWORK=testnet
 X402_AVM_ADDRESS=<58-character Algorand receiver address>
 X402_FACILITATOR_URL=https://facilitator.goplausible.xyz
-X402_QUANTUM_RUN_PRICE=$0.01
+X402_QUANTUM_RUN_PRICE=0.01
+X402_RISK_RUN_PRICE=0.05
+X402_FINANCE_RUN_PRICE=0.05
+X402_PHARMA_RUN_PRICE=0.25
 X402_GATEWAY_SECRET=<openssl rand -hex 32>
 ```
 

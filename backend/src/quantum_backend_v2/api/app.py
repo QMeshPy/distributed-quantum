@@ -37,7 +37,7 @@ from quantum_backend_v2.api.routers.enrollment import build_enrollment_router
 from quantum_backend_v2.api.routers.financial import build_financial_router
 from quantum_backend_v2.api.routers.options import build_options_router
 from quantum_backend_v2.api.routers.payments_admin import build_payments_admin_router
-from quantum_backend_v2.api.routers.pharma import router as pharma_router
+from quantum_backend_v2.api.routers.pharma import build_pharma_router
 from quantum_backend_v2.api.routers.plans import build_plans_router
 from quantum_backend_v2.api.routers.provenance import build_provenance_router
 from quantum_backend_v2.api.routers.reservations import build_reservations_router
@@ -57,6 +57,7 @@ from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.payments.credits import JobCreditMeter
 from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.persistence import PersistenceRuntime
 from quantum_backend_v2.provenance.service import ProvenanceService
 from quantum_backend_v2.reservations.service import ReservationService
@@ -77,6 +78,7 @@ def create_app(
     financial_job_service: FinancialJobService | None,
     options_job_service: Any | None = None,
     risk_job_service: RiskJobService | None = None,
+    pharma_job_service: PharmaJobService | None = None,
     reservation_service: ReservationService | None = None,
     runtime_recovery_service: RuntimeRecoveryService | None = None,
     provenance_service: ProvenanceService | None = None,
@@ -100,6 +102,11 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> Any:
         await persistence_runtime.startup()
+        if pharma_job_service is not None and persistence_runtime.mongodb is not None:
+            # Pipelines run inside this process, so any job still active died with the last one.
+            interrupted = await pharma_job_service.recover_interrupted()
+            if interrupted:
+                logger.warning("failed %d pharma job(s) interrupted by a restart", interrupted)
         reconcile_task = None
         if ledger_service is not None:
             await ledger_service.ensure_indexes()
@@ -220,7 +227,12 @@ def create_app(
     if circuit_job_service is not None:
         app.include_router(build_plans_router(job_service=circuit_job_service))
     if financial_job_service is not None:
-        app.include_router(build_financial_router(financial_job_service=financial_job_service))
+        app.include_router(
+            build_financial_router(
+                financial_job_service=financial_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     if options_job_service is not None:
         app.include_router(
             build_options_router(
@@ -229,7 +241,12 @@ def create_app(
             )
         )
     if risk_job_service is not None:
-        app.include_router(build_risk_router(risk_job_service=risk_job_service))
+        app.include_router(
+            build_risk_router(
+                risk_job_service=risk_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     if reservation_service is not None:
         app.include_router(build_reservations_router(reservation_service=reservation_service))
 
@@ -244,7 +261,13 @@ def create_app(
         )
 
     app.include_router(benchmark_router)
-    app.include_router(pharma_router)
+    if pharma_job_service is not None:
+        app.include_router(
+            build_pharma_router(
+                pharma_job_service=pharma_job_service,
+                x402_gateway_secret=settings.x402_gateway_secret,
+            )
+        )
     app.include_router(agent_router)
 
     # Register AgentKit integration routers (v1 API)

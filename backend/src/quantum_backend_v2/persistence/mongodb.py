@@ -352,6 +352,30 @@ class RiskJobDocument(Document):
         ]
 
 
+class PharmaJobDocument(Document):
+    """Durable pharma docking job, owned by the user or x402 payer who submitted it."""
+
+    id: str  # type: ignore[assignment]
+    owner_user_id: str
+    status: str
+    state: str = "idle"
+    mode: str
+    target_pdb_id: str
+    error: str | None = None
+    result_payload: dict[str, Any] | None = None
+    log_lines: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+    completed_at: datetime | None = None
+
+    class Settings:
+        name = "pharma_jobs"
+        indexes = [
+            IndexModel("owner_user_id"),
+            IndexModel("status"),
+        ]
+
+
 class ReservationEventDocument(Document):
     """Append-only reservation event log — never updated, only inserted.
 
@@ -477,6 +501,7 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
             FinancialJobDocument,
             OptionsJobDocument,
             RiskJobDocument,
+            PharmaJobDocument,
             ReservationEventDocument,
             ExecutionEventDocument,
             # AgentKit documents

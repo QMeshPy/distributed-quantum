@@ -15,6 +15,12 @@ test("unauthenticated requests never contact the backend", async () => {
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 
+test("callers can name the workflow in the sign-in message", async () => {
+  const response = await financeBackendFetch("https://backend.invalid", {}, "Sign in to run pharma analysis.");
+  expect(response.status).toBe(401);
+  expect((await response.json()).detail).toBe("Sign in to run pharma analysis.");
+});
+
 test("missing signing configuration fails closed", async () => {
   user = { id: "owner", email: "owner@example.test" };
   expect((await financeBackendFetch("https://backend.invalid")).status).toBe(503);
