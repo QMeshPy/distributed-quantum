@@ -516,9 +516,11 @@ Native authentication adds defense beyond unpublished RPC; it does not make
 Docker administration or public IPFS content confidential. The typed async
 [Python RPC client](backend/README.md#kubo-rpc-client) supports content writes,
 pin management and CAR imports with bounded requests and safe errors (#61).
-Optional circuit-run provenance publishing and CID-verified gateway reads are
-documented in the backend. Storage-adapter integration and production hosting
-remain separate work.
+A Compose-based client round-trip (`#68`) adds through that client, reads via the
+loopback gateway, and compares CIDs; CI runs it on PRs that touch the content
+node or client. Optional circuit-run provenance publishing and CID-verified
+gateway reads are documented in the backend. Storage-adapter integration and
+production hosting remain separate work.
 
 ## Documentation
 
