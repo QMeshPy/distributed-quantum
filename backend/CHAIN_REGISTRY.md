@@ -17,6 +17,7 @@ Ethereum-compatible family and the number identifies the network.
 | Network | Canonical ID | AgentKit alias | CDP alias |
 | --- | --- | --- | --- |
 | Base Sepolia | `eip155:84532` | `base-sepolia` | `base-sepolia` |
+| Arbitrum Sepolia | `eip155:421614` | `arbitrum-sepolia` | `arbitrum-sepolia` |
 | Ethereum Sepolia | `eip155:11155111` | `ethereum-sepolia` | `ethereum-sepolia` |
 | Starknet Sepolia | `starknet:SN_SEPOLIA` | — | — |
 
@@ -64,13 +65,14 @@ node such as anvil. A resolved URL may carry an API key. It is never stored in t
 registry, returned by `GET /api/v1/chains` or logged: RPC failures are logged by
 exception type only, and configuration errors name the variable, not its value.
 
-Base Sepolia declares `explorer_url`, `create_wallet`, `get_balance`,
-`transfer_stablecoin`, `aave_supply`, `aave_withdraw`, and `faucet_instructions`.
-The service checks each operation before provider or RPC calls. Transaction
-capabilities require explorer metadata; transfer and supply also require balance
-queries. Aave operations require an explicit pool address. Wallet capabilities
-are currently restricted to the existing Base Sepolia provider mapping; adding
-another network requires provider validation and implementation coverage.
+Base Sepolia and Arbitrum Sepolia declare `explorer_url`, `create_wallet`,
+`get_balance`, `transfer_stablecoin`, `aave_supply`, `aave_withdraw`, and
+`faucet_instructions`. The service checks each operation before provider or RPC
+calls. Transaction capabilities require explorer metadata; transfer and supply
+also require balance queries. Aave operations require an explicit pool address.
+Wallet capabilities are limited to CDP/AgentKit networks listed in
+`_WALLET_PROVIDER_NETWORKS` in `chains/models.py` (currently Base Sepolia and
+Arbitrum Sepolia). See [Arbitrum Sepolia](docs/arbitrum-sepolia.md).
 
 Ethereum Sepolia declares `explorer_url` and `verify_transaction`. Listing its
 provider aliases does not enable wallet operations. `verify_transaction` is

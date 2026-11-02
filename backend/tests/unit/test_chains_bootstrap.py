@@ -95,7 +95,7 @@ def test_application_registers_public_chains_and_honors_override(application_fac
             response = client.get("/api/v1/chains")
             assert response.status_code == 200
             assert response.json()["default_chain_id"] == chain_id
-            assert len(response.json()["chains"]) == 4
+            assert len(response.json()["chains"]) == 5
 
 
 @pytest.mark.parametrize("contents", ['default_chain_id = "eip155:1"', "chains = ["])
