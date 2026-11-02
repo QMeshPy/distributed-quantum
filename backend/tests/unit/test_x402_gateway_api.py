@@ -28,9 +28,20 @@ class _JobService:
             updated_at=now,
         )
 
-    async def submit(self, *, circuit_text: str, owner_user_id: str) -> Any:
+    async def submit(
+        self,
+        *,
+        circuit_text: str,
+        owner_user_id: str,
+        job_id: str | None = None,
+        awaiting_payment: bool = False,
+    ) -> Any:
         self.owner_user_id = owner_user_id
         self.run.input_snapshot = {"circuit": circuit_text}
+        if job_id is not None:
+            self.run.id = job_id
+        if awaiting_payment:
+            self.run.status = "PAYMENT_PENDING"
         return self.run
 
     async def process(self, job_id: str) -> None:
@@ -95,6 +106,31 @@ def test_x402_internal_routes_require_secret_and_reuse_paid_owner() -> None:
     assert service.owner_user_id == "x402-algorand"
     assert status.status_code == 200
     assert status.json()["job_id"] == "job-paid"
+
+
+def test_paid_circuit_waits_for_confirmation_and_reuses_the_job() -> None:
+    from unittest.mock import AsyncMock
+
+    client, service = _client("correct-shared-secret")
+    service.process = AsyncMock()
+    headers = {
+        "X-X402-Gateway-Secret": "correct-shared-secret",
+        "X-X402-Payment-Id": "a" * 64,
+    }
+    endpoint = "/api/v1/internal/x402/circuits/submit"
+    body = {"circuit": "OPENQASM 2.0; qreg q[1];"}
+    first = client.post(endpoint, headers=headers, json=body)
+    second = client.post(endpoint, headers=headers, json=body)
+    assert first.status_code == second.status_code == 201
+    assert first.json() == second.json()
+    assert first.json()["status"] == "PAYMENT_PENDING"
+    service.process.assert_not_awaited()
+    assert (
+        client.post(
+            endpoint, headers=headers, json={"circuit": "OPENQASM 2.0; qreg q[2];"}
+        ).status_code
+        == 409
+    )
 
 
 class _OptionsJobService:

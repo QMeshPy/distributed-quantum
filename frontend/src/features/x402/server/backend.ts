@@ -56,7 +56,7 @@ export async function submitX402Job(
 
 export async function fetchX402Job(
   jobId: string,
-  config: X402Config,
+  config: Pick<X402Config, "backendBaseUrl" | "gatewaySecret">,
   resource: X402Resource,
   fetcher: typeof fetch = fetch,
 ): Promise<Response> {

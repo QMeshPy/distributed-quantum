@@ -191,7 +191,26 @@ def build_circuits_router(
             body: CircuitSubmitRequest,
             background_tasks: BackgroundTasks,
             _: None = Depends(require_x402_gateway),
+            payment_id: Annotated[
+                str | None, Header(alias="X-X402-Payment-Id", pattern=r"^[a-f0-9]{64}$")
+            ] = None,
         ) -> CircuitSubmitResponse:
+            if payment_id is not None:
+                job_id = f"job-x402-{payment_id}"
+                existing = await job_service.get_job_for_owner(
+                    job_id, owner_user_id=_X402_OWNER_USER_ID
+                )
+                if existing is not None:
+                    if existing.input_snapshot.get("circuit") != body.circuit:
+                        raise HTTPException(409, "Payment already belongs to another circuit.")
+                    return CircuitSubmitResponse(job_id=existing.id, status=existing.status)
+                record = await job_service.submit(
+                    circuit_text=body.circuit,
+                    owner_user_id=_X402_OWNER_USER_ID,
+                    job_id=job_id,
+                    awaiting_payment=True,
+                )
+                return CircuitSubmitResponse(job_id=record.id, status=record.status)
             record = await job_service.submit(
                 circuit_text=body.circuit,
                 owner_user_id=_X402_OWNER_USER_ID,

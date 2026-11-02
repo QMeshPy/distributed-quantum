@@ -113,6 +113,7 @@ class CircuitJobService:
         circuit_text: str,
         owner_user_id: str,
         job_id: str | None = None,
+        awaiting_payment: bool = False,
     ) -> WorkflowRunDocument:
         job_id = job_id or new_circuit_job_id()
         now = _utc_now()
@@ -122,7 +123,7 @@ class CircuitJobService:
             workflow_definition_id=_CIRCUIT_WORKFLOW_DEFINITION_ID,
             owner_user_id=owner_user_id,
             workflow_type=_WORKFLOW_TYPE_CIRCUIT,
-            status=_STATUS_QUEUED,
+            status="PAYMENT_PENDING" if awaiting_payment else _STATUS_QUEUED,
             input_snapshot={"circuit": circuit_text},
             output_snapshot={},
             fragment_count=0,
@@ -136,10 +137,23 @@ class CircuitJobService:
         await doc.insert()
         return doc
 
+    async def activate_paid_job(self, job_id: str) -> bool:
+        result = await WorkflowRunDocument.find_one(
+            {"_id": job_id, "status": "PAYMENT_PENDING"}
+        ).update({"$set": {"status": _STATUS_QUEUED, "updated_at": _utc_now()}})
+        return result.modified_count == 1
+
     async def process(self, job_id: str) -> None:
         doc = await WorkflowRunDocument.get(job_id)
         if doc is None or doc.status in _TERMINAL_JOB_STATUSES:
             return
+
+        if job_id.startswith("job-x402-"):
+            claimed = await WorkflowRunDocument.find_one(
+                {"_id": job_id, "status": _STATUS_QUEUED}
+            ).update({"$set": {"status": _STATUS_COMPILING, "updated_at": _utc_now()}})
+            if claimed.modified_count != 1:
+                return
 
         doc.status = _STATUS_COMPILING
         doc.started_at = doc.started_at or _utc_now()
