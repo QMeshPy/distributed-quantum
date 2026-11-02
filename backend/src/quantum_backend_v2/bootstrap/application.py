@@ -21,6 +21,8 @@ from quantum_backend_v2.application.parity import (
 from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.application.price_sources import ChainlinkPriceSource
 from quantum_backend_v2.application.provenance import (
+    KUBO_BACKEND,
+    GatewayBundleStorage,
     KuboBundlePublisher,
     MongoProvenanceRepository,
 )
@@ -75,7 +77,10 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
     pharma_job_service = PharmaJobService()
     reservation_service = ReservationService()
     runtime_recovery_service = RuntimeRecoveryService()
-    provenance_service = None
+    storage_adapters = {KUBO_BACKEND: GatewayBundleStorage(settings.gateway)}
+    provenance_service = ProvenanceService(
+        MongoProvenanceRepository(), storage_adapters=storage_adapters
+    )
     anchor_service = None
     anchor = settings.anchor
     if anchor.network is not None and anchor.sender is not None:
@@ -83,6 +88,7 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         anchor_chain = chain_registry.resolve(anchor.network)
         provenance_service = ProvenanceService(
             MongoProvenanceRepository(),
+            storage_adapters=storage_adapters,
             anchor_adapters={
                 anchor_chain.chain_id: RegistryAnchorAdapter(
                     anchor_chain, (anchor.sender, *anchor.past_senders), env
