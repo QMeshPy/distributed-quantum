@@ -44,6 +44,8 @@ export const BACKEND = {
   FINANCE: {
     LIST: `${BASE_URL}/api/v1/finance`,
     SUBMIT: `${BASE_URL}/api/v1/finance/submit`,
+    TOKENIZED_ASSETS: `${BASE_URL}/api/v1/finance/tokenized-assets`,
+    TOKENIZED_PORTFOLIO: `${BASE_URL}/api/v1/finance/tokenized-portfolio`,
     DETAIL: (id: string) => `${BASE_URL}/api/v1/finance/${id}` as const,
     COMPARISON: (id: string) =>
       `${BASE_URL}/api/v1/finance/${id}/comparison` as const,

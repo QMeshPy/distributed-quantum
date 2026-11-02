@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from quantum_backend_v2.chains.models import (
     Capability,
+    ChainFamily,
     ChainId,
     ChainRegistry,
     ExplorerTemplates,
@@ -20,7 +19,7 @@ from quantum_backend_v2.chains.models import (
 
 class PublicChain(BaseModel):
     chain_id: ChainId
-    family: Literal["evm"]
+    family: ChainFamily
     display_name: str
     # Legacy network names, such as the ``network`` stored on wallets.
     aliases: tuple[NetworkAlias, ...]

@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/input-otp";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { authClient } from "@/features/auth/hooks/use-auth";
+import { signInWithEthereum } from "@/features/auth/lib/siwe";
 import { ROUTES, UI, AUTH, API } from "@/constants";
 
 const emailSchema = z.object({
@@ -41,6 +42,7 @@ export function SigninForm() {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const emailForm = useForm<EmailValues>({
     resolver: zodResolver(emailSchema),
@@ -106,6 +108,23 @@ export function SigninForm() {
       return;
     }
     toast.success(UI.SUCCESS.OTP_RESENT);
+  };
+
+  const handleEthereumSignIn = async () => {
+    setWalletLoading(true);
+    try {
+      const res = await signInWithEthereum();
+      if (!res.success) {
+        toast.error(res.error || UI.ERRORS.SIGNIN_FAILED);
+        return;
+      }
+      toast.success(UI.SUCCESS.SIGNIN);
+      router.push(ROUTES.DASHBOARD);
+    } catch (err: any) {
+      toast.error(err?.message || "Sign-in with Ethereum failed.");
+    } finally {
+      setWalletLoading(false);
+    }
   };
 
   if (step === "otp") {
@@ -199,9 +218,33 @@ export function SigninForm() {
         </Field>
       </FieldGroup>
 
-      <Button type="submit" className="w-full" disabled={loading}>
+      <Button type="submit" className="w-full" disabled={loading || walletLoading}>
         {loading ? <Spinner data-icon="inline-start" /> : null}
         {loading ? "Sending\u2026" : "Continue"}
+      </Button>
+
+      <div className="relative my-1 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-hairline" />
+        </div>
+        <div className="relative bg-background px-3 text-xs uppercase text-muted-foreground">
+          Or continue with
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleEthereumSignIn}
+        disabled={loading || walletLoading}
+        className="w-full gap-2"
+      >
+        {walletLoading ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <Wallet className="h-4 w-4" />
+        )}
+        {walletLoading ? "Connecting wallet…" : "Sign in with Ethereum"}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">

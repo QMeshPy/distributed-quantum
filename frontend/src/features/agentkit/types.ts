@@ -29,8 +29,10 @@ export type Proposal = {
   description: string;
   researcher_id: string;
   researcher_wallet?: string;
+  researcher_starknet_wallet?: string | null;
   budget_required: string;
   budget_raised: string;
+  budget_raised_strk?: string;
   funding_threshold?: string;
   funding_percentage?: string;
   status: "draft" | "active" | "funded" | "in_progress" | "completed" | "expired" | "cancelled";
@@ -76,6 +78,7 @@ export type CreateProposalForm = {
   tags: string[];
   auto_fragment: boolean;
   deadline_days: number;
+  researcher_starknet_wallet?: string;
 };
 
 export type TransferForm = {

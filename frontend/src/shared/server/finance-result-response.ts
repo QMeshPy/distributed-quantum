@@ -2,19 +2,19 @@ export async function financeResultResponse(
   response: Response,
   download: boolean,
 ) {
-  const data = await response.json();
   const headers = { "Cache-Control": "private, no-store" };
   if (!download || !response.ok) {
+    const data = await response.json();
     return Response.json(data, { status: response.status, headers });
   }
-  const provenance = data.result?.provenance;
-  if (!provenance) {
+  if (!response.headers.get("Content-Disposition")?.startsWith("attachment;")) {
     return Response.json(
-      { detail: "Recorded price evidence is not available for this job." },
-      { status: 404, headers },
+      { detail: "The backend did not return a provenance attachment." },
+      { status: 502, headers },
     );
   }
-  return new Response(JSON.stringify(provenance, null, 2), {
+  // Parsing and reserializing here changes committed numbers such as 1.0 to 1.
+  return new Response(response.body, {
     headers: {
       ...headers,
       "Content-Type": "application/json; charset=utf-8",

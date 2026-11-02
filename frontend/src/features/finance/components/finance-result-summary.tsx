@@ -16,6 +16,7 @@ import {
 } from "@/shared/components/detail";
 import { ROUTES } from "@/constants";
 import { PortfolioValuation } from "./portfolio-valuation";
+import { TokenizedMarketData } from "./tokenized-market-data";
 import type { FinanceResult, FinanceJobDetail } from "../types";
 
 interface FinanceResultSummaryProps {
@@ -222,6 +223,7 @@ function PortfolioOptimizationFinance({ result }: { result: FinanceResult }) {
 
   return (
     <>
+      <TokenizedMarketData result={result} />
       <PortfolioValuation result={result} />
       <GlassCard>
         <SectionTitle

@@ -47,6 +47,28 @@ class MemoryBundleDocument:
         self.stored[self.bundle_id] = self
         return self
 
+    @classmethod
+    def get_pymongo_collection(cls) -> MemoryBundleCollection:
+        return MemoryBundleCollection(cls.stored)
+
+
+@dataclass
+class MemoryBundleCollection:
+    """The one atomic update publishing uses: push a storage ref if none is from Kubo."""
+
+    stored: dict[str, MemoryBundleDocument]
+
+    async def update_one(self, query: dict[str, Any], update: dict[str, Any]) -> None:
+        document = self.stored.get(query["bundle_id"])
+        backend = query["payload.storage.backend"]["$ne"]
+        storage = document.payload.get("storage", []) if document else []
+        if document is None or any(ref.get("backend") == backend for ref in storage):
+            return
+        document.payload = {
+            **document.payload,
+            "storage": [*storage, update["$push"]["payload.storage"]],
+        }
+
 
 @dataclass
 class MemoryPlanDocument:

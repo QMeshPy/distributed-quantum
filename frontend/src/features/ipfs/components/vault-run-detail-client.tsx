@@ -1,32 +1,55 @@
 "use client";
 
+import Link from "next/link";
 import { HardDrive } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { GlassCard } from "@/shared/components/detail/glass-card";
 import { PinButton } from "@/features/vault-pinning/components/pin-button";
 import { PinStatusBadge } from "@/features/vault-pinning/components/pin-status-badge";
-import { useIpfsFetch } from "../hooks/use-ipfs-fetch";
+import { ROUTES } from "@/constants";
+import { useHeliaContext } from "../provider";
+import { resolveRunCircuit } from "../lib/run-circuit-link";
 import { useEffect, useState } from "react";
-import type { RunIPFSRecord } from "../types";
+import type { CircuitIPFSRecord, RunIPFSRecord } from "../types";
 
 interface VaultRunDetailClientProps {
   cid: string;
 }
 
 export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
-  const { fetchData, ready } = useIpfsFetch();
+  const { helia, ready } = useHeliaContext();
   const [run, setRun] = useState<RunIPFSRecord | null>(null);
+  const [circuit, setCircuit] = useState<CircuitIPFSRecord | null>(null);
+  const [circuitCid, setCircuitCid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !helia) return;
     (async () => {
-      const data = await fetchData<RunIPFSRecord>(cid);
-      setRun(data);
-      setLoading(false);
+      try {
+        const resolved = await resolveRunCircuit(helia, cid);
+        setRun(resolved.run);
+        setCircuit(resolved.circuit);
+        setCircuitCid(resolved.circuitCid);
+      } catch {
+        // Fall back: run without resolvable circuit (legacy / missing block)
+        try {
+          const { getVaultJson } = await import("../lib/run-circuit-link");
+          const { materializeRunRecord } = await import("../lib/run-record");
+          const { CID } = await import("multiformats/cid");
+          const raw = await getVaultJson(helia, CID.parse(cid));
+          const materialized = materializeRunRecord(raw);
+          setRun(materialized);
+          setCircuitCid(materialized.circuitCid || null);
+        } catch {
+          setRun(null);
+        }
+      } finally {
+        setLoading(false);
+      }
     })();
-  }, [cid, ready, fetchData]);
+  }, [cid, ready, helia]);
 
   if (loading || !ready) return <RunDetailSkeleton />;
   if (!run) {
@@ -79,6 +102,23 @@ export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
           <p className="text-lg font-medium capitalize">{run.status}</p>
         </GlassCard>
       </div>
+
+      {circuitCid ? (
+        <GlassCard>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            Circuit (IPLD link)
+          </p>
+          {circuit ? (
+            <p className="text-sm font-medium">{circuit.name}</p>
+          ) : null}
+          <Link
+            href={ROUTES.vaultCircuitDetail(circuitCid)}
+            className="mt-1 break-all font-mono text-xs text-cyan-400 hover:underline"
+          >
+            {circuitCid}
+          </Link>
+        </GlassCard>
+      ) : null}
 
       {run.results && (
         <GlassCard>

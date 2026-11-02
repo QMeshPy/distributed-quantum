@@ -25,6 +25,15 @@ export interface AuthSession {
 
 export type TrialStatus = "active" | "expired" | "bypass" | "subscribed";
 
+export interface LinkedWallet {
+  address: string;
+  chainId: number;
+  isPrimary?: boolean;
+  createdAt: string | Date;
+  ensName?: string | null;
+  ensAvatar?: string | null;
+}
+
 export function getTrialDaysLeft(trialEndsAt?: string): number {
   if (!trialEndsAt) return 0;
   const end = new Date(trialEndsAt);

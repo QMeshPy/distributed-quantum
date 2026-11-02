@@ -36,6 +36,41 @@ symbol = "USDC"
 decimals = 6
 address = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 
+# Part of #15. Aave V3 Arbitrum Sepolia pool + Circle USDC underlying
+# (bgd-labs/aave-address-book AaveV3ArbitrumSepolia).
+[[chains]]
+chain_id = "eip155:421614"
+family = "evm"
+display_name = "Arbitrum Sepolia"
+testnet = true
+enabled = true
+aliases = ["arbitrum-sepolia"]
+rpc_env_var = "QB2_ARBITRUM_SEPOLIA_RPC_URL"
+public_rpc_url = "https://sepolia-rollup.arbitrum.io/rpc"
+capabilities = [
+  "explorer_url", "create_wallet", "get_balance", "transfer_stablecoin",
+  "verify_transaction", "aave_supply", "aave_withdraw", "faucet_instructions",
+]
+aave_pool_address = "0xBfC91D59fdAA134A4ED45f7B584cAf96D7792Eff"
+
+[chains.provider_aliases]
+agentkit = "arbitrum-sepolia"
+cdp = "arbitrum-sepolia"
+
+[chains.explorers]
+transaction = "https://sepolia.arbiscan.io/tx/{tx_hash}"
+address = "https://sepolia.arbiscan.io/address/{address}"
+block = "https://sepolia.arbiscan.io/block/{block_number}"
+
+[chains.native_token]
+symbol = "ETH"
+decimals = 18
+
+[chains.stablecoin]
+symbol = "USDC"
+decimals = 6
+address = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+
 [[chains]]
 chain_id = "eip155:11155111"
 family = "evm"
@@ -45,7 +80,7 @@ enabled = true
 aliases = ["ethereum-sepolia"]
 rpc_env_var = "QB2_ETHEREUM_SEPOLIA_RPC_URL"
 public_rpc_url = "https://ethereum-sepolia-rpc.publicnode.com"
-capabilities = ["explorer_url", "verify_transaction", "get_price"]
+capabilities = ["explorer_url", "verify_transaction", "get_price", "anchor_root"]
 
 [chains.provider_aliases]
 agentkit = "ethereum-sepolia"
@@ -70,3 +105,44 @@ address = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
 address = "0x694AA1769357215DE4FAC081bf1f309aDC325306"
 max_age_seconds = 3600
 max_deviation_bps = 2000
+
+# Part of #18: metadata only. Stock-token price history comes from market_data.toml.
+[[chains]]
+chain_id = "eip155:46630"
+family = "evm"
+display_name = "Robinhood Chain Testnet"
+testnet = true
+enabled = true
+aliases = ["robinhood-testnet"]
+rpc_env_var = "QB2_ROBINHOOD_TESTNET_RPC_URL"
+public_rpc_url = "https://rpc.testnet.chain.robinhood.com"
+capabilities = ["explorer_url", "verify_transaction"]
+
+[chains.explorers]
+transaction = "https://explorer.testnet.chain.robinhood.com/tx/{tx_hash}"
+address = "https://explorer.testnet.chain.robinhood.com/address/{address}"
+block = "https://explorer.testnet.chain.robinhood.com/block/{block_number}"
+
+[chains.native_token]
+symbol = "ETH"
+decimals = 18
+
+[[chains]]
+chain_id = "starknet:SN_SEPOLIA"
+family = "starknet"
+display_name = "Starknet Sepolia"
+testnet = true
+enabled = true
+aliases = ["starknet-sepolia"]
+rpc_env_var = "QB2_STARKNET_SEPOLIA_RPC_URL"
+public_rpc_url = "https://starknet-sepolia-rpc.publicnode.com"
+capabilities = ["explorer_url", "verify_transaction"]
+
+[chains.explorers]
+transaction = "https://sepolia.voyager.online/tx/{tx_hash}"
+address = "https://sepolia.voyager.online/contract/{address}"
+block = "https://sepolia.voyager.online/block/{block_number}"
+
+[chains.native_token]
+symbol = "STRK"
+decimals = 18

@@ -2,11 +2,13 @@ import { expect, test } from "bun:test";
 import { financeResultResponse } from "../src/shared/server/finance-result-response";
 
 test("downloads recorded evidence as a private JSON attachment", async () => {
-  const evidence = { bundle_hash: "hash", bundle: { inputs: { value: 123 } } };
-  const res = await financeResultResponse(Response.json({ result: { provenance: evidence } }), true);
+  const evidence = '{"bundle":{"summary":{"inputs":{"value":1.0,"negative_zero":-0.0,"large":9007199254740993}}}}';
+  const res = await financeResultResponse(new Response(evidence, {
+    headers: { "Content-Disposition": 'attachment; filename="price-provenance.json"' },
+  }), true);
   expect(res.headers.get("Content-Disposition")).toBe('attachment; filename="price-provenance.json"');
   expect(res.headers.get("Cache-Control")).toBe("private, no-store");
-  expect(await res.json()).toEqual(evidence);
+  expect(await res.text()).toBe(evidence);
 });
 test("download requests preserve auth and ownership errors", async () => {
   for (const status of [401, 403, 404, 503]) {
@@ -15,9 +17,9 @@ test("download requests preserve auth and ownership errors", async () => {
     expect(res.headers.has("Content-Disposition")).toBe(false);
   }
 });
-test("jobs without provenance do not download empty evidence", async () => {
+test("backends without attachment support do not download a job response", async () => {
   const res = await financeResultResponse(Response.json({ result: null }), true);
-  expect(res.status).toBe(404);
+  expect(res.status).toBe(502);
   expect(res.headers.has("Content-Disposition")).toBe(false);
 });
 test("ordinary detail requests retain their response", async () => {

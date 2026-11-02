@@ -19,9 +19,11 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import Response
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
 from quantum_backend_v2.api.errors.models import not_found
+from quantum_backend_v2.api.finance_download import finance_provenance_download
 from quantum_backend_v2.api.models.options import (
     BatchOptionsResult,
     BatchOptionsRowResult,
@@ -237,10 +239,14 @@ def build_options_router(
     async def get_options_job(
         job_id: str,
         current_user: CurrentUser,
-    ) -> OptionsJobResponse:
+        download: str | None = Query(default=None, pattern="^provenance$"),
+    ) -> OptionsJobResponse | Response:
         record = await options_job_service.get_job(job_id, current_user=current_user)
         if record is None:
             raise not_found("Options job", job_id)
+
+        if download == "provenance":
+            return finance_provenance_download(record.result_payload)
 
         return OptionsJobResponse(
             job_id=record.id,

@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import { LandingPage } from "@/features/landing";
 
 export const metadata: Metadata = {
-  title: "DQS — Distributed Quantum Services",
+  title: "QMesh · Quantum, run as a network",
   description:
-    "Explore DQS, an open-source research platform for discovering, planning, and executing composable quantum circuit services over a local libp2p fabric.",
+    "QMesh turns quantum computation into network services that peers discover, pay for per request, and verify.",
   openGraph: {
-    title: "DQS — Distributed Quantum Services",
+    title: "QMesh · Quantum, run as a network",
     description:
-      "A research-grade orchestration layer for composable quantum circuit services.",
+      "Quantum computation as discoverable, payable and verifiable network services.",
     type: "website",
   },
 };

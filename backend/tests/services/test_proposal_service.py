@@ -866,8 +866,11 @@ async def test_broadcast_triggers_agents(
 
 @pytest.mark.anyio
 async def test_create_proposal_researcher_not_found(proposal_service, mock_mongo_db):
-    """Test error when researcher wallet not found."""
+    """Test error when researcher wallet cannot be provisioned."""
     mock_mongo_db.wallets.find_one.return_value = None
+    mock_agentkit = AsyncMock()
+    mock_agentkit.create_wallet = AsyncMock(return_value={})
+    proposal_service._agentkit_service = mock_agentkit
 
     with pytest.raises(ValueError, match="Researcher wallet not found"):
         await proposal_service.create_proposal(
@@ -878,6 +881,44 @@ async def test_create_proposal_researcher_not_found(proposal_service, mock_mongo
             budget_required=Decimal("100.0"),
             tags=[]
         )
+    mock_agentkit.create_wallet.assert_called_once_with(
+        entity_id="nonexistent_researcher",
+        entity_type="user",
+    )
+
+
+@pytest.mark.anyio
+async def test_create_proposal_provisions_user_wallet(
+    proposal_service, mock_mongo_db, mock_notification_service
+):
+    """Test lazy user wallet provisioning on first proposal create."""
+    researcher_id = "6ae5009530d344289f27b723"
+    wallet_row = {
+        "entity_id": researcher_id,
+        "entity_type": "user",
+        "default_address": "0x" + "ab" * 20,
+    }
+    mock_mongo_db.wallets.find_one.side_effect = [None, wallet_row]
+    mock_agentkit = AsyncMock()
+    mock_agentkit.create_wallet = AsyncMock(
+        return_value={"wallet_address": wallet_row["default_address"]}
+    )
+    proposal_service._agentkit_service = mock_agentkit
+
+    result = await proposal_service.create_proposal(
+        researcher_id=researcher_id,
+        title="Near-Term QEC",
+        description="Test",
+        methodology="Test",
+        budget_required=Decimal("500.0"),
+        tags=["quantum"],
+    )
+
+    assert result["researcher_wallet"] == wallet_row["default_address"]
+    mock_agentkit.create_wallet.assert_called_once_with(
+        entity_id=researcher_id,
+        entity_type="user",
+    )
 
 
 @pytest.mark.anyio

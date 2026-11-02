@@ -5,7 +5,8 @@ from __future__ import annotations
 import copy
 import logging
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import date, datetime, timezone
 from typing import Any
 
 from quantum_backend_v2.application.finance_provenance import build_finance_provenance
@@ -27,6 +28,15 @@ from quantum_backend_v2.application.provenance import (
     record_run_provenance,
 )
 from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
+from quantum_backend_v2.application.tokenized_portfolio import (
+    TOKENIZED_FILENAME,
+    TokenPriceHistorySource,
+    resolve_tokenized_history,
+    tokenized_request,
+    tokenized_result,
+)
+from quantum_backend_v2.chains.market_data import MarketDataSource
+from quantum_backend_v2.chains.prices import PriceUnavailableError
 from quantum_backend_v2.identity.models import UserTokenClaims
 from quantum_backend_v2.payments.payouts import FragmentOutcome, FragmentPayoutService
 from quantum_backend_v2.persistence.mongodb import (
@@ -394,8 +404,10 @@ class FinancialJobService:
         discovery_service: Any,
         libp2p_runtime: Any,
         price_source: PriceSource | None = None,
+        history_source: TokenPriceHistorySource | None = None,
     ) -> None:
         self._price_source = price_source
+        self._history_source = history_source
         self._discovery_service = discovery_service
         self._libp2p_runtime = libp2p_runtime
 
@@ -429,6 +441,39 @@ class FinancialJobService:
         await doc.insert()
         return doc
 
+    @property
+    def tokenized_market_data(self) -> MarketDataSource | None:
+        return None if self._history_source is None else self._history_source.market_data
+
+    async def submit_tokenized(
+        self,
+        *,
+        owner_user_id: str,
+        symbols: Sequence[str],
+        start: date,
+        end: date,
+        config: PortfolioOptimizationConfig,
+    ) -> FinancialJobDocument:
+        """Queue an analysis of allowlisted tokenized stocks; history is read in process()."""
+        if self._history_source is None:
+            raise PriceUnavailableError("price history source is not configured")
+        snapshot = tokenized_request(
+            self._history_source.market_data, symbols, start, end, config
+        )
+        snapshot["config"] = _submission_request_snapshot(config)
+        job_id = f"fin-{uuid.uuid4()}"
+        await _ensure_platform_user(owner_user_id)
+        doc = FinancialJobDocument(
+            id=job_id,
+            owner_user_id=owner_user_id,
+            filename=TOKENIZED_FILENAME,
+            status=_FIN_STATUS_INGESTING,
+            result_payload={"request": _submission_request_snapshot(config)},
+            request_payload=snapshot,
+        )
+        await doc.insert()
+        return doc
+
     async def process(self, *, job_id: str, csv_bytes: bytes) -> None:
         doc = await FinancialJobDocument.get(job_id)
         if doc is None or doc.status in _TERMINAL_FINANCIAL_STATUSES:
@@ -439,6 +484,11 @@ class FinancialJobService:
         await doc.save()
 
         try:
+            if doc.request_payload and "tokenized_assets" in doc.request_payload:
+                doc.request_payload = await resolve_tokenized_history(
+                    doc.request_payload, self._history_source
+                )
+                await doc.save()
             config = _config_from_doc(doc)
             artifacts = build_portfolio_optimization_artifacts(
                 csv_bytes=(
@@ -454,9 +504,14 @@ class FinancialJobService:
                     calculate_portfolio_quantities,
                 )
 
-                artifacts.payload["valuation"] = calculate_portfolio_quantities(
-                    artifacts.payload, doc.request_payload
-                )
+                if "tokenized_assets" in doc.request_payload:
+                    artifacts.payload.update(
+                        tokenized_result(artifacts.payload, doc.request_payload)
+                    )
+                else:
+                    artifacts.payload["valuation"] = calculate_portfolio_quantities(
+                        artifacts.payload, doc.request_payload
+                    )
                 if doc.owner_user_id is None:
                     raise ValueError("oracle portfolio jobs require an owner")
                 artifacts.payload["provenance"] = build_finance_provenance(
@@ -491,6 +546,17 @@ class FinancialJobService:
         if doc is None:
             return None
         if not current_user.is_admin() and doc.owner_user_id != current_user.user_id:
+            return None
+        return doc
+
+    async def get_job_for_owner(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+    ) -> FinancialJobDocument | None:
+        doc = await FinancialJobDocument.get(job_id)
+        if doc is None or doc.owner_user_id != owner_user_id:
             return None
         return doc
 
@@ -723,6 +789,17 @@ class RiskJobService:
         if doc is None:
             return None
         if not current_user.is_admin() and doc.owner_user_id != current_user.user_id:
+            return None
+        return doc
+
+    async def get_job_for_owner(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+    ) -> RiskJobDocument | None:
+        doc = await RiskJobDocument.get(job_id)
+        if doc is None or doc.owner_user_id != owner_user_id:
             return None
         return doc
 

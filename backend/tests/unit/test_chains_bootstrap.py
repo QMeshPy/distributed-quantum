@@ -95,7 +95,7 @@ def test_application_registers_public_chains_and_honors_override(application_fac
             response = client.get("/api/v1/chains")
             assert response.status_code == 200
             assert response.json()["default_chain_id"] == chain_id
-            assert len(response.json()["chains"]) == 2
+            assert len(response.json()["chains"]) == 5
 
 
 @pytest.mark.parametrize("contents", ['default_chain_id = "eip155:1"', "chains = ["])
@@ -150,3 +150,40 @@ def test_application_closes_scoped_service_clients(application_factory, bedrock_
         service.mongo_client.close.assert_called_once_with()
         if getattr(service, "bedrock", None) is not None:
             service.bedrock.close.assert_called_once_with()
+
+
+def test_anchor_settings_wire_a_read_only_verifier(application_factory):
+    create_application, _, _ = application_factory
+    bootstrap = sys.modules["quantum_backend_v2.bootstrap.application"]
+    sender = "0x" + "a1" * 20
+    with patch.object(bootstrap, "create_app", Mock()) as create_app:
+        create_application(
+            env={"QB2_ANCHOR_NETWORK": "ethereum-sepolia", "QB2_ANCHOR_SENDER": sender}
+        )
+        anchored = create_app.call_args.kwargs["provenance_service"]
+        create_application(env={})
+        default = create_app.call_args.kwargs["provenance_service"]
+    assert list(anchored._anchor_adapters) == ["eip155:11155111"]
+    assert default is None
+    # A network without anchoring support fails startup rather than skipping checks.
+    with pytest.raises(ValueError, match="does not support provenance anchoring"):
+        create_application(env={"QB2_ANCHOR_NETWORK": "base-sepolia", "QB2_ANCHOR_SENDER": sender})
+
+
+def test_anchor_key_starts_sending_only_for_its_own_account(application_factory):
+    from eth_account import Account
+
+    create_application, _, _ = application_factory
+    bootstrap = sys.modules["quantum_backend_v2.bootstrap.application"]
+    account = Account.create()
+    key = account.key.hex()
+    env = {"QB2_ANCHOR_NETWORK": "ethereum-sepolia", "QB2_ANCHOR_SENDER": account.address}
+    with patch.object(bootstrap, "create_app", Mock()) as create_app:
+        create_application(env={**env, "QB2_ANCHOR_PRIVATE_KEY": key})
+        assert create_app.call_args.kwargs["anchor_service"] is not None
+        create_application(env=env)
+        assert create_app.call_args.kwargs["anchor_service"] is None
+    for wrong in (Account.create().key.hex(), "0x" + "zz" * 32):
+        with pytest.raises(ValueError, match="QB2_ANCHOR_PRIVATE_KEY") as caught:
+            create_application(env={**env, "QB2_ANCHOR_PRIVATE_KEY": wrong})
+        assert wrong not in str(caught.value) and key not in str(caught.value)

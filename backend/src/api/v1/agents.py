@@ -14,6 +14,7 @@ Features:
 from __future__ import annotations
 
 import logging
+import time
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -25,6 +26,8 @@ from quantum_backend_v2.api.errors.models import PlatformException, ErrorCode
 import uuid
 from db.agentkit_collections import AIAgentDocument, ResearchProposalDocument, ChatSessionDocument, _decimal128_to_decimal
 from quantum_backend_v2.api.deps.research import AIAgentServiceDep
+from quantum_backend_v2.starknet.session import public_session
+from services.groq_agent import AgentLlmProvider
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,9 @@ class AgentResponse(BaseModel):
     wallet_address: str = Field(description="Agent's crypto wallet address")
     config: dict[str, Any] = Field(description="Agent configuration")
     total_spent: str = Field(description="Total amount spent by agent (USDC)")
+    starknet_session: dict[str, Any] | None = Field(
+        default=None, description="Public Starknet session status. The session key is omitted."
+    )
     created_at: str = Field(description="ISO 8601 creation timestamp")
     updated_at: str = Field(description="ISO 8601 last update timestamp")
 
@@ -99,6 +105,7 @@ class AnalyzeProposalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     proposal_id: str = Field(min_length=1, description="Proposal ID to analyze")
+    llm_provider: AgentLlmProvider | None = Field(default=None, description="Override LLM provider (groq, openrouter, or near)")
 
 
 class AnalysisResult(BaseModel):
@@ -141,6 +148,29 @@ class SpendingHistoryResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
+
+
+@router.get(
+    "/llm-providers",
+    summary="List available LLM providers",
+    description="Returns available LLM providers with configuration status and current default.",
+)
+async def list_llm_providers(current_user: CurrentUser) -> dict[str, Any]:
+    """List available LLM providers for agent inference.
+    
+    Returns the default provider from AGENT_LLM_PROVIDER env and configuration status
+    for each provider (whether API key is set).
+    """
+    import os
+    from services.groq_agent import list_agent_llm_providers
+    
+    default_provider = os.getenv("AGENT_LLM_PROVIDER", "groq").split("#")[0].strip().lower()
+    providers = list_agent_llm_providers()
+    
+    return {
+        "default": default_provider,
+        "providers": providers,
+    }
 
 
 @router.post(
@@ -277,6 +307,9 @@ async def list_agents(
                     wallet_address=agent_doc.wallet_address,
                     config=config,
                     total_spent=str(_decimal128_to_decimal(agent_doc.total_spent)),
+                    starknet_session=public_session(
+                        agent_doc.starknet_session, now=int(time.time())
+                    ),
                     created_at=agent_doc.created_at.isoformat(),
                     updated_at=agent_doc.updated_at.isoformat(),
                 )
@@ -353,6 +386,9 @@ async def get_agent(
             wallet_address=agent_doc.wallet_address,
             config=config,
             total_spent=str(_decimal128_to_decimal(agent_doc.total_spent)),
+            starknet_session=public_session(
+                agent_doc.starknet_session, now=int(time.time())
+            ),
             created_at=agent_doc.created_at.isoformat(),
             updated_at=agent_doc.updated_at.isoformat(),
         )
@@ -468,6 +504,9 @@ async def update_agent_config(
             wallet_address=updated_doc.wallet_address,
             config=config_response,
             total_spent=str(_decimal128_to_decimal(updated_doc.total_spent)),
+            starknet_session=public_session(
+                updated_doc.starknet_session, now=int(time.time())
+            ),
             created_at=updated_doc.created_at.isoformat(),
             updated_at=updated_doc.updated_at.isoformat(),
         )
@@ -566,7 +605,8 @@ async def analyze_proposal(
         # Analyze proposal via service
         decision = await ai_agent_service.analyze_proposal(
             agent_id=agent_id,
-            proposal=proposal
+            proposal=proposal,
+            llm_provider=body.llm_provider,
         )
 
         return AnalysisResult(
@@ -702,6 +742,7 @@ class ChatRequest(BaseModel):
     message: str = Field(description="Latest user message")
     history: list[ChatMessageIn] = Field(default_factory=list, description="Prior turns (oldest first)")
     session_id: str | None = None
+    llm_provider: AgentLlmProvider | None = Field(default=None, description="Override LLM provider (groq, openrouter, or near)")
 
 
 class AttestationSummary(BaseModel):
@@ -767,6 +808,7 @@ async def chat_with_agent(
             owner_id=current_user.user_id,
             session_id=body.session_id if current_user.external_subject.startswith("betterauth|") else None,
             meta=meta,
+            llm_provider=body.llm_provider,
         )
         attestation = AttestationSummary(**meta) if meta.get("provider") == "near" else None
         return ChatResponse(reply=reply, attestation=attestation)

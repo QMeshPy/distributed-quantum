@@ -19,6 +19,7 @@ from datetime import datetime, date, timezone
 from typing import TYPE_CHECKING, Any, Optional
 import logging
 import os
+import time
 import uuid
 import json
 
@@ -42,6 +43,7 @@ from db.agentkit_collections import (
     _decimal_to_decimal128,
     _decimal128_to_decimal,
 )
+from quantum_backend_v2.starknet.session import public_session, submit_session_spend
 
 
 class AIAgentService:
@@ -55,7 +57,12 @@ class AIAgentService:
     - Track spending history and enforce budget limits
     """
 
-    def __init__(self, *, agentkit_service: AgentKitService | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        agentkit_service: AgentKitService | None = None,
+        starknet_submit_fn: Any = None,
+    ) -> None:
         """
         Initialize AI Agent service with Groq and MongoDB.
 
@@ -66,10 +73,11 @@ class AIAgentService:
         - MONGODB_DATABASE
         """
         self._agentkit_service = agentkit_service
+        self._starknet_submit_fn = starknet_submit_fn
         logger.info("Initializing AIAgentService")
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+        mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
         mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
@@ -213,7 +221,8 @@ class AIAgentService:
     async def analyze_proposal(
         self,
         agent_id: str,
-        proposal: dict
+        proposal: dict,
+        llm_provider: str | None = None,
     ) -> dict:
         """
         Analyze a research proposal and make funding decision.
@@ -305,7 +314,7 @@ class AIAgentService:
             logger.info("Sending proposal analysis request to configured LLM provider")
 
             # Call configured LLM provider (AGENT_LLM_PROVIDER)
-            response = await self._call_llm(prompt)
+            response = await self._call_llm(prompt, llm_provider)
 
             logger.info("Received analysis response from configured LLM provider")
 
@@ -572,7 +581,78 @@ class AIAgentService:
             if not agent_doc:
                 raise ValueError(f"Agent not found: {agent_id}")
 
-            # Check spending limits
+            # Load proposal to get researcher wallet
+            proposal_doc = await self.db.research_proposals.find_one({"proposal_id": proposal_id})
+            if not proposal_doc:
+                raise ValueError(f"Proposal not found: {proposal_id}")
+
+            raw_session = agent_doc.get("starknet_session")
+            now_unix = int(time.time())
+            session_view = public_session(raw_session, now=now_unix) if raw_session else None
+
+            if session_view and session_view.get("status") == "active":
+                starknet_payee = (proposal_doc.get("researcher_starknet_wallet") or "").strip()
+                if not starknet_payee:
+                    raise ValueError(
+                        "Proposal has no researcher_starknet_wallet for active Starknet session funding"
+                    )
+                updated_session, tx_hash = await submit_session_spend(
+                    raw_session,
+                    agent_id=agent_id,
+                    amount_strk=amount,
+                    payee=starknet_payee,
+                    now=now_unix,
+                    submit_fn=self._starknet_submit_fn,
+                )
+                logger.info(f"Starknet session funding executed: {tx_hash}")
+
+                current_strk = (
+                    _decimal128_to_decimal(proposal_doc["budget_raised_strk"])
+                    if proposal_doc.get("budget_raised_strk") is not None
+                    else Decimal("0")
+                )
+                new_budget_raised_strk = current_strk + amount
+                await self.db.research_proposals.update_one(
+                    {"proposal_id": proposal_id},
+                    {
+                        "$set": {
+                            "budget_raised_strk": _decimal_to_decimal128(new_budget_raised_strk),
+                            "updated_at": datetime.now(timezone.utc),
+                        },
+                        "$push": {
+                            "funders": {
+                                "funder_id": agent_id,
+                                "wallet_address": str(raw_session.get("owner") or agent_doc["wallet_address"]),
+                                "amount_strk": _decimal_to_decimal128(amount),
+                                "amount_usdc": _decimal_to_decimal128(Decimal("0")),
+                                "currency": "STRK",
+                                "funded_at": datetime.now(timezone.utc),
+                            }
+                        },
+                    },
+                )
+                spending_record = {
+                    "timestamp": datetime.now(timezone.utc),
+                    "amount": _decimal_to_decimal128(amount),
+                    "currency": "STRK",
+                    "purpose": f"Funded proposal {proposal_id} (Starknet session)",
+                    "transaction_hash": tx_hash,
+                }
+                new_total_spent = _decimal128_to_decimal(agent_doc["total_spent"]) + amount
+                await self.db.ai_agents.update_one(
+                    {"agent_id": agent_id},
+                    {
+                        "$push": {"spending_history": spending_record},
+                        "$set": {
+                            "starknet_session": updated_session,
+                            "total_spent": _decimal_to_decimal128(new_total_spent),
+                            "updated_at": datetime.now(timezone.utc),
+                        },
+                    },
+                )
+                return
+
+            # Check spending limits for Base USDC funding
             max_per_proposal = _decimal128_to_decimal(agent_doc["config"]["max_per_proposal"])
             daily_remaining = await self._get_daily_remaining(agent_id)
 
@@ -585,11 +665,6 @@ class AIAgentService:
                 raise ValueError(
                     f"Funding amount ({amount}) exceeds daily remaining budget ({daily_remaining})"
                 )
-
-            # Load proposal to get researcher wallet
-            proposal_doc = await self.db.research_proposals.find_one({"proposal_id": proposal_id})
-            if not proposal_doc:
-                raise ValueError(f"Proposal not found: {proposal_id}")
 
             agentkit_service = self.agentkit
 
@@ -704,10 +779,10 @@ class AIAgentService:
             logger.error(f"Failed to calculate daily remaining: {e}")
             raise
 
-    async def _call_llm(self, prompt: str) -> str:
+    async def _call_llm(self, prompt: str, llm_provider: str | None = None) -> str:
         # Call the configured LLM provider (AGENT_LLM_PROVIDER) without automatic fallback.
         from services.groq_agent import complete
-        return await complete([{"role": "user", "content": prompt}])
+        return await complete([{"role": "user", "content": prompt}], provider=llm_provider)
 
     def _parse_decision_response(self, response: str) -> dict:
         """
@@ -809,7 +884,7 @@ class AIAgentService:
     async def chat(self, agent_id: str, agent_name: str, message: str,
                    history: list[dict] | None = None, owner_id: str | None = None,
                    session_id: str | None = None,
-                   meta: dict[str, Any] | None = None) -> str:
+                   meta: dict[str, Any] | None = None, llm_provider: str | None = None) -> str:
         from services.groq_agent import complete
         from mcp_server.platform_mcp import create_platform_mcp
         mcp_server = create_platform_mcp(self.db, owner_id or "", agent_id)
@@ -857,4 +932,4 @@ class AIAgentService:
         messages.extend({"role": h["role"], "content": h["content"]}
                         for h in (history or [])[-20:] if h["role"] in ("user", "assistant"))
         messages.append({"role": "user", "content": message})
-        return await complete(messages, tools=definitions, invoke=invoke, meta=meta)
+        return await complete(messages, tools=definitions, invoke=invoke, meta=meta, provider=llm_provider)

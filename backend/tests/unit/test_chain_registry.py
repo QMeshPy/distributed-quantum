@@ -26,8 +26,23 @@ def test_packaged_registry_and_provider_mappings():
     registry = load_chain_registry()
     assert registry.default_chain_id == "eip155:84532"
     assert registry.resolve().chain_id == "eip155:84532"
+    wallet_caps = {
+        "explorer_url",
+        "create_wallet",
+        "get_balance",
+        "transfer_stablecoin",
+        "verify_transaction",
+        "aave_supply",
+        "aave_withdraw",
+        "faucet_instructions",
+    }
     for chain_id, alias, address in (
         ("eip155:84532", "base-sepolia", "0x036CbD53842c5426634e7929541eC2318f3dCF7e"),
+        (
+            "eip155:421614",
+            "arbitrum-sepolia",
+            "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+        ),
         ("eip155:11155111", "ethereum-sepolia", "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"),
     ):
         chain = registry.resolve(chain_id)
@@ -40,19 +55,16 @@ def test_packaged_registry_and_provider_mappings():
         assert chain.stablecoin.decimals == 6
         assert chain.stablecoin.address == address
         assert chain.testnet and chain.enabled
-        if alias == "base-sepolia":
-            assert set(chain.capabilities) == {
-                "explorer_url",
-                "create_wallet",
-                "get_balance",
-                "transfer_stablecoin",
-                "verify_transaction",
-                "aave_supply",
-                "aave_withdraw",
-                "faucet_instructions",
-            }
+        if alias in {"base-sepolia", "arbitrum-sepolia"}:
+            assert set(chain.capabilities) == wallet_caps
+            assert chain.aave_pool_address is not None
         elif alias == "ethereum-sepolia":
-            assert chain.capabilities == ("explorer_url", "verify_transaction", "get_price")
+            assert chain.capabilities == (
+                "explorer_url",
+                "verify_transaction",
+                "get_price",
+                "anchor_root",
+            )
         else:
             assert chain.capabilities == ("explorer_url", "verify_transaction")
 
@@ -65,7 +77,8 @@ def test_unknown_networks_never_fall_back(network):
 
 @pytest.mark.parametrize("network", ["eip155:11155111", "ethereum-sepolia"])
 def test_disabled_networks_are_rejected(data, network):
-    data["chains"][1]["enabled"] = False
+    eth = next(c for c in data["chains"] if c["chain_id"] == "eip155:11155111")
+    eth["enabled"] = False
     registry = ChainRegistry.model_validate(data)
     with pytest.raises(DisabledNetworkError, match="disabled"):
         registry.resolve(network)
@@ -73,13 +86,15 @@ def test_disabled_networks_are_rejected(data, network):
 
 @pytest.mark.parametrize("field", ["chain_id", "aliases", "provider_aliases"])
 def test_duplicate_identifiers_across_entries_are_rejected(data, field):
-    data["chains"][1][field] = data["chains"][0][field]
+    eth = next(c for c in data["chains"] if c["chain_id"] == "eip155:11155111")
+    eth[field] = data["chains"][0][field]
     with pytest.raises(ValidationError, match="duplicate"):
         ChainRegistry.model_validate(data)
 
 
 def test_alias_cannot_shadow_another_provider_mapping(data):
-    data["chains"][1]["provider_aliases"]["cdp"] = "base-sepolia"
+    eth = next(c for c in data["chains"] if c["chain_id"] == "eip155:11155111")
+    eth["provider_aliases"]["cdp"] = "base-sepolia"
     with pytest.raises(ValidationError, match="duplicate"):
         ChainRegistry.model_validate(data)
 
@@ -113,7 +128,8 @@ def test_alias_cannot_shadow_another_provider_mapping(data):
     ],
 )
 def test_invalid_chain_configuration(data, field, value):
-    data["chains"][1][field] = value
+    eth = next(c for c in data["chains"] if c["chain_id"] == "eip155:11155111")
+    eth[field] = value
     with pytest.raises(ValidationError):
         ChainRegistry.model_validate(data)
 
@@ -151,11 +167,16 @@ def test_unsafe_or_invalid_public_explorer_templates(data, url):
 
 
 def test_mainnet_must_stay_disabled(data):
-    data["chains"][1]["chain_id"] = "eip155:1"
-    data["chains"][1]["testnet"] = False
+    eth = next(c for c in data["chains"] if c["chain_id"] == "eip155:11155111")
+    eth["chain_id"] = "eip155:1"
+    eth["testnet"] = False
     with pytest.raises(ValidationError, match="mainnet"):
         ChainRegistry.model_validate(data)
-    data["chains"][1]["enabled"] = False
+    eth["enabled"] = False
+    # Provenance anchoring is testnet-only, even on a disabled mainnet entry.
+    with pytest.raises(ValidationError, match="limited to testnets"):
+        ChainRegistry.model_validate(data)
+    eth["capabilities"] = ("explorer_url", "verify_transaction", "get_price")
     registry = ChainRegistry.model_validate(data)
     with pytest.raises(DisabledNetworkError):
         registry.resolve("eip155:1")

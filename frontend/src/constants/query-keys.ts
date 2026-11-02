@@ -37,6 +37,7 @@ export const QUERY_KEYS = {
   finance: {
     all: () => ["finance"] as const,
     list: () => ["finance", "list"] as const,
+    tokenizedAssets: () => ["finance", "tokenized-assets"] as const,
     job: (jobId: string) => ["finance", "job", jobId] as const,
     comparison: (jobId: string) => ["finance", "comparison", jobId] as const,
   },

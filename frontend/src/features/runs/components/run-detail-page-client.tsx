@@ -293,7 +293,18 @@ export function RunDetailPageClient() {
       >
         {run && run.status.toLowerCase() === "completed" && (
           <ShareToVaultButton
-            data={run as unknown as Record<string, unknown>}
+            data={{
+              name: run.jobId,
+              status: run.status,
+              circuitText: run.circuitText,
+              qubitCount: 0,
+              peerCount: run.result?.fragmentResults?.length ?? 0,
+              runtime: 0,
+              author: "anonymous",
+              results: run.result
+                ? (run.result as unknown as Record<string, unknown>)
+                : undefined,
+            }}
             name={run.jobId}
             type="run"
           />

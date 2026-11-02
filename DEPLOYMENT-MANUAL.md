@@ -314,8 +314,7 @@ Before starting, gather these accounts and credentials:
    QB2_POSTGRES_POOL_PRE_PING=true
    
    # MongoDB Atlas - PASTE YOUR URI
-   QB2_MONGODB_TARGET=remote
-   QB2_MONGODB_REMOTE_URI=mongodb+srv://quantum_user:PASS@cluster.mongodb.net/?appName=quantum-backend
+   QB2_MONGODB_URI=mongodb+srv://quantum_user:PASS@cluster.mongodb.net/?appName=quantum-backend
    QB2_MONGODB_DATABASE=qds
    QB2_MONGODB_SERVER_SELECTION_TIMEOUT_MS=5000
    
@@ -627,8 +626,7 @@ If issues, check:
 QB2_POSTGRES_TARGET=neon
 QB2_POSTGRES_NEON_POOLED_DSN=<from Neon>
 QB2_POSTGRES_NEON_DIRECT_DSN=<from Neon>
-QB2_MONGODB_TARGET=remote
-QB2_MONGODB_REMOTE_URI=<from Atlas>
+QB2_MONGODB_URI=<from Atlas>
 ```
 
 **Optional but recommended**:

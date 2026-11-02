@@ -128,7 +128,7 @@ export function VaultRunsClient() {
                 <TableRow
                   key={item.cid}
                   className="cursor-pointer border-white/4 transition-colors hover:bg-orange-500/5 last:border-0"
-                  onClick={() => router.push(/^job-/.test(item.name) ? ROUTES.runDetail(item.name) : ROUTES.vaultRunDetail(item.cid))}
+                  onClick={() => router.push(ROUTES.vaultRunDetail(item.cid))}
                 >
                   <TableCell className="font-medium text-white/80">
                     {record?.name ?? item.name}

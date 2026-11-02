@@ -8,7 +8,6 @@ from quantum_backend_v2.config.models import (
     Libp2pSettings,
     LoggingSettings,
     MongoSettings,
-    MongoTarget,
     PeerLogSettings,
     PersistenceSettings,
 )
@@ -20,7 +19,6 @@ __all__ = [
     "Libp2pSettings",
     "LoggingSettings",
     "MongoSettings",
-    "MongoTarget",
     "PeerLogSettings",
     "PersistenceSettings",
     "load_settings",

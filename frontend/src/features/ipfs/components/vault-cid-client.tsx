@@ -224,6 +224,14 @@ function ResolvedRecord({ result }: { result: ResolveVaultCidResult }) {
           <p className="text-lg font-medium capitalize">{run.status}</p>
         </GlassCard>
       </div>
+      {run.circuitCid ? (
+        <GlassCard>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            Circuit (IPLD link)
+          </p>
+          <p className="break-all font-mono text-xs text-cyan-400">{run.circuitCid}</p>
+        </GlassCard>
+      ) : null}
       {run.results ? (
         <GlassCard>
           <p className="mb-2 text-xs font-medium text-muted-foreground">Results</p>

@@ -4,6 +4,7 @@ from importlib.metadata import version
 from typing import Any
 
 from quantum_backend_v2.chains.prices import PriceObservation
+from quantum_backend_v2.provenance.finance_inputs import encode_finance_inputs
 from quantum_backend_v2.provenance.hashing import bundle_hash, hash_json
 from quantum_backend_v2.provenance.models import OracleReference, ProvenanceBundle
 
@@ -42,9 +43,8 @@ def build_finance_provenance(
             "result_hash": hash_json(result),
             "result_hash_scope": "full_result_excluding_provenance",
             "result_url": result_paths[workflow],
-            "inputs": inputs,
+            **encode_finance_inputs(inputs),
             "runtime": {name: version(name) for name in ("qiskit", "qiskit-algorithms", "numpy")},
-            "price_observations": observations,
         },
     )
     return {"bundle": bundle.model_dump(mode="json"), "bundle_hash": bundle_hash(bundle)}

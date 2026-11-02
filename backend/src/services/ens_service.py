@@ -20,6 +20,7 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
 from typing import Any, Protocol
+from quantum_backend_v2.config import constants as C
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ def ens_network_for_payment_network(payment_network: str | None) -> str:
 
     ENS records live on Ethereum. Testnet payment chains resolve against Sepolia.
     """
-    network = (payment_network or os.getenv("NETWORK", "base-sepolia")).lower()
+    network = (payment_network or os.getenv("NETWORK", C.WALLET_NETWORK)).lower()
     if "mainnet" in network and "sepolia" not in network:
         return "mainnet"
     return "sepolia"
@@ -247,7 +248,7 @@ class EnsService:
         timeout: float | None = None,
         ens_client: EnsClient | None = None,
     ) -> None:
-        payment_network = os.getenv("NETWORK", "base-sepolia")
+        payment_network = os.getenv("NETWORK", C.WALLET_NETWORK)
         self.ens_network = (ens_network or os.getenv("ENS_NETWORK") or ens_network_for_payment_network(payment_network)).lower()
         if self.ens_network not in _DEFAULT_ENS_RPC:
             raise ValueError(

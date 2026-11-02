@@ -28,6 +28,12 @@ export const API = {
     OPTIONS_RUNS: "/api/x402/options/runs",
     OPTIONS_RUN: (jobId: string) =>
       `/api/x402/options/runs/${jobId}` as const,
+    RISK_RUNS: "/api/x402/risk/runs",
+    RISK_RUN: (jobId: string) => `/api/x402/risk/runs/${jobId}` as const,
+    FINANCE_RUNS: "/api/x402/finance/runs",
+    FINANCE_RUN: (jobId: string) => `/api/x402/finance/runs/${jobId}` as const,
+    PHARMA_RUNS: "/api/x402/pharma/runs",
+    PHARMA_RUN: (jobId: string) => `/api/x402/pharma/runs/${jobId}` as const,
   },
   PROVENANCE: {
     VERIFY: (bundleId: string) => `/api/provenance/${encodeURIComponent(bundleId)}/verify` as const,
@@ -46,6 +52,8 @@ export const API = {
   FINANCE: {
     LIST: "/api/finance",
     CREATE: "/api/finance",
+    TOKENIZED_ASSETS: "/api/finance/tokenized-assets",
+    TOKENIZED_PORTFOLIO: "/api/finance/tokenized-portfolio",
     JOB: (jobId: string) => `/api/finance/${jobId}` as const,
     COMPARISON: (jobId: string) =>
       `/api/finance/${jobId}/comparison` as const,

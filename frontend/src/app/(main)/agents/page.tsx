@@ -9,12 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { useAgents, type AgentItem } from "@/features/agentkit";
+import { useAgents, useCreateAgent, type AgentItem } from "@/features/agentkit";
+import { OpenSessionDialog } from "@/features/starknet/open-session-dialog";
+import { TestSpendDialog } from "@/features/starknet/test-spend-dialog";
+import { StarknetSessionPanel } from "@/features/starknet/session-panel";
 import { collapseDuplicatePersonalAgents, humanSpan, humanWhen, shortAddress } from "@/features/agentkit/hooks/use-agents";
 import { WalletAddressCopy } from "@/features/agentkit/components/wallet-address-copy";
 import { useChatSessions, type ChatSession } from "@/features/agentkit/hooks/use-chat-sessions";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring, animate } from "motion/react";
 import { toast } from "sonner";
+import { AgentLlmProviderSelect } from "@/features/agentkit/components/agent-llm-provider-select";
 
 function asDecimal(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value;
@@ -110,6 +114,8 @@ function AgentCard({
   sessionCount,
   messageCount,
   onSelect,
+  onOpenSession,
+  onTestSpend,
 }: {
   agent: AgentItem;
   index: number;
@@ -117,6 +123,8 @@ function AgentCard({
   sessionCount: number | null;
   messageCount: number | null;
   onSelect: (agentId: string) => void;
+  onOpenSession: (agentId: string) => void;
+  onTestSpend: (agentId: string) => void;
 }) {
   const config = readConfig(agent.config);
   const created = humanWhen(agent.created_at);
@@ -142,18 +150,15 @@ function AgentCard({
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight text-white/90">{agent.agent_name}</p>
-            <p className="mt-0.5 truncate font-mono text-[11px] text-white/40" title={agent.wallet_address}>
-              {shortAddress(agent.wallet_address) || "—"}
+            <p className="mt-1 truncate text-[11px] text-white/50">
+              <span className="text-white/35">Wallet:</span>{" "}
+              <span className="font-mono">{shortAddress(agent.wallet_address) || "—"}</span>
             </p>
-            {(created || updated) && (
-              <p className="mt-0.5 truncate text-[10px] text-white/35">
-                {created && <span title={created.exact}>Created {created.relative}</span>}
-                {created && updated && <span className="mx-1 text-white/20">·</span>}
-                {updated && <span title={updated.exact}>Updated {updated.relative}</span>}
-              </p>
-            )}
-            <p className="truncate font-mono text-[10px] text-white/30" title={agent.agent_id}>
-              {agent.agent_id}
+            <p className="mt-0.5 truncate text-[10px] text-white/35">
+              <span className="text-white/25">ID:</span>{" "}
+              <span className="font-mono" title={agent.agent_id}>
+                {agent.agent_id.slice(0, 8)}...{agent.agent_id.slice(-4)}
+              </span>
             </p>
           </div>
         </div>
@@ -215,6 +220,28 @@ function AgentCard({
           Configure
         </Button>
       </div>
+      {!agent.starknet_session && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-2 h-8 w-full text-purple-200/70 ring-1 ring-purple-500/20 hover:bg-purple-500/10 hover:text-purple-200"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenSession(agent.agent_id);
+          }}
+        >
+          Open Starknet Session
+        </Button>
+      )}
+      {agent.starknet_session && (
+        <StarknetSessionPanel
+          agentId={agent.agent_id}
+          session={agent.starknet_session}
+          variant="card"
+          onTestSpend={onTestSpend}
+          onOpenSession={onOpenSession}
+        />
+      )}
     </motion.div>
   );
 }
@@ -410,8 +437,11 @@ function SessionList({
 export default function AgentsOverviewPage() {
   const router = useRouter();
   const { data, isLoading, isError } = useAgents();
+  const createAgent = useCreateAgent();
   const { sessions, sessionsReady } = useChatSessions();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openSessionAgentId, setOpenSessionAgentId] = useState<string | null>(null);
+  const [testSpendAgentId, setTestSpendAgentId] = useState<string | null>(null);
   const owned = data ?? [];
   const agents = collapseDuplicatePersonalAgents(owned, sessions);
   const selected = agents.find((agent) => agent.agent_id === selectedId) ?? agents[0] ?? null;
@@ -442,19 +472,56 @@ export default function AgentsOverviewPage() {
         description="Your agents, their configuration, and stored chat sessions."
         glow="amber"
       >
-        <Button
-          type="button"
-          size="sm"
-          className="h-8 bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/25 hover:bg-amber-500/25 hover:text-amber-100"
-          onClick={() => {
-            const params = new URLSearchParams({ new: String(Date.now()) });
-            if (selected?.agent_id) params.set("agentId", selected.agent_id);
-            router.push(`/agents/chat?${params.toString()}`);
-          }}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          New Chat
-        </Button>
+        <div className="flex items-center gap-2">
+          <AgentLlmProviderSelect variant="header" />
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 text-white/75 ring-1 ring-white/10 hover:bg-white/6 hover:text-white"
+            disabled={createAgent.isPending}
+            onClick={() => {
+              const taken = new Set(agents.map((agent) => agent.agent_name));
+              let name = "Research Assistant";
+              for (let n = 2; taken.has(name); n += 1) name = `Research Assistant ${n}`;
+              createAgent.mutate(
+                {
+                  agent_name: name,
+                  config: {
+                    auto_fund: false,
+                    max_per_proposal: "50",
+                    daily_budget: "200",
+                    research_interests: ["quantum computing", "error correction", "variational algorithms"],
+                    min_reputation_threshold: 40,
+                  },
+                },
+                {
+                  onSuccess: (agent) => {
+                    setSelectedId(agent.agent_id);
+                    toast.success("Agent created", { description: agent.agent_name });
+                  },
+                  onError: (error: Error) => toast.error(error.message),
+                },
+              );
+            }}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            {createAgent.isPending ? "Creating…" : "Create new agent"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/25 hover:bg-amber-500/25 hover:text-amber-100"
+            onClick={() => {
+              const params = new URLSearchParams({ new: String(Date.now()) });
+              if (selected?.agent_id) params.set("agentId", selected.agent_id);
+              router.push(`/agents/chat?${params.toString()}`);
+            }}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            New Chat
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="relative z-10 flex flex-col gap-6 p-6">
@@ -518,6 +585,8 @@ export default function AgentsOverviewPage() {
                       sessionCount={sessionsReady ? rows.length : null}
                       messageCount={sessionsReady ? rows.reduce((sum, row) => sum + row.messages.length, 0) : null}
                       onSelect={setSelectedId}
+                      onOpenSession={setOpenSessionAgentId}
+                      onTestSpend={setTestSpendAgentId}
                     />
                   );
                 })}
@@ -545,6 +614,23 @@ export default function AgentsOverviewPage() {
           </>
         )}
       </div>
+
+      {openSessionAgentId && (
+        <OpenSessionDialog
+          agentId={openSessionAgentId}
+          open={!!openSessionAgentId}
+          onOpenChange={(open) => !open && setOpenSessionAgentId(null)}
+        />
+      )}
+
+      {testSpendAgentId && (
+        <TestSpendDialog
+          agentId={testSpendAgentId}
+          session={agents.find((agent) => agent.agent_id === testSpendAgentId)?.starknet_session}
+          open={!!testSpendAgentId}
+          onOpenChange={(open) => !open && setTestSpendAgentId(null)}
+        />
+      )}
     </div>
   );
 }

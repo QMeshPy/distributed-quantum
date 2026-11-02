@@ -41,6 +41,34 @@ export function humanSpan(created: string | number | null | undefined, updated: 
   return { text, title };
 }
 
+export type StarknetCall = {
+  kind: "register" | "spend" | "revoke";
+  tx_hash: string;
+  amount?: string;
+  submitted_at?: number;
+  status?: "pending" | "not_found" | "confirmed" | "failed" | string;
+  checked_at?: number;
+};
+
+export type StarknetSessionStatus = {
+  status?: string;
+  expires_at?: number;
+  max_per_call?: string;
+  daily_limit?: string;
+  decimals?: number;
+  spent_today?: string;
+  owner?: string;
+  token?: string;
+  recipient?: string;
+  session_public_key?: string;
+  chain_id?: string;
+  register_tx?: string;
+  last_spend_tx?: string;
+  last_spend_amount?: string;
+  revoke_tx?: string;
+  calls?: StarknetCall[];
+};
+
 export type AgentItem = {
   agent_id: string;
   agent_name: string;
@@ -48,6 +76,7 @@ export type AgentItem = {
   wallet_address: string;
   config: Record<string, unknown>;
   total_spent: string;
+  starknet_session?: StarknetSessionStatus | null;
   created_at: string;
   updated_at?: string;
 };
@@ -108,6 +137,26 @@ async function postAgent(payload: typeof DEFAULT_AGENT_BODY): Promise<AgentItem>
   return res.json();
 }
 
+export function useRevokeStarknetSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (agentId: string) => {
+      const res = await fetch(
+        `/api/agentkit/agents/${encodeURIComponent(agentId)}/starknet-session/revoke`,
+        { method: "POST" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message ?? data.error ?? "Could not revoke the session");
+      return data as {
+        revoke_session: { contract: string; entrypoint: string; calldata: string[] };
+      };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS_AGENTKIT.agents() });
+    },
+  });
+}
+
 export function useCreateAgent() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -119,6 +168,147 @@ export function useCreateAgent() {
         });
       }
       return personalAgentCreate;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS_AGENTKIT.agents() });
+    },
+  });
+}
+
+const STRK_TOKEN = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
+
+function sessionError(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object") return fallback;
+  const row = data as { message?: unknown; error?: unknown; detail?: unknown };
+  if (typeof row.message === "string" && row.message) return row.message;
+  if (typeof row.error === "string" && row.error) return row.error;
+  if (typeof row.detail === "string" && row.detail) return row.detail;
+  if (Array.isArray(row.detail)) {
+    const text = row.detail
+      .map((item) => (item && typeof item === "object" && "msg" in item ? String(item.msg) : ""))
+      .filter(Boolean)
+      .join("; ");
+    if (text) return text;
+  }
+  return fallback;
+}
+
+export function useOpenStarknetSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      agentId,
+      owner,
+      maxPerProposal,
+      dailyBudget,
+      expiresInDays,
+    }: {
+      agentId: string;
+      owner: string;
+      maxPerProposal: number;
+      dailyBudget: number;
+      expiresInDays: number;
+    }) => {
+      const expiresAt = Math.floor(Date.now() / 1000) + expiresInDays * 24 * 60 * 60;
+      const res = await fetch(
+        `${API_AGENTKIT.AGENTS}/${agentId}/starknet-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            owner,
+            token: STRK_TOKEN,
+            recipient: owner,
+            expires_at: expiresAt,
+            decimals: 18,
+            max_per_proposal: String(maxPerProposal),
+            daily_budget: String(dailyBudget),
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(sessionError(data, "Could not open session"));
+      return data as {
+        register_session: { contract: string; entrypoint: string; calldata: string[] };
+      };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS_AGENTKIT.agents() });
+    },
+  });
+}
+
+export function useNoteStarknetTx() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      agentId,
+      kind,
+      txHash,
+      amount,
+    }: {
+      agentId: string;
+      kind: "register" | "spend" | "revoke";
+      txHash: string;
+      amount?: string;
+    }) => {
+      const res = await fetch(
+        `${API_AGENTKIT.AGENTS}/${encodeURIComponent(agentId)}/starknet-session/tx`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind,
+            tx_hash: txHash,
+            ...(amount != null ? { amount } : {}),
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(sessionError(data, "Could not save the transaction hash"));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS_AGENTKIT.agents() });
+    },
+  });
+}
+
+export function useRefreshStarknetTxs() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (agentId: string) => {
+      const res = await fetch(
+        `${API_AGENTKIT.AGENTS}/${encodeURIComponent(agentId)}/starknet-session/txs`,
+        { method: "POST" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(sessionError(data, "Could not refresh transaction status"));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS_AGENTKIT.agents() });
+    },
+  });
+}
+
+export function useSpendStarknetSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ agentId, amount }: { agentId: string; amount: string }) => {
+      const res = await fetch(
+        `${API_AGENTKIT.AGENTS}/${agentId}/starknet-session/spend`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message ?? data.error ?? "Spend preflight failed");
+      return data as {
+        spend: { contract: string; entrypoint: string; calldata: string[] };
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS_AGENTKIT.agents() });

@@ -1,0 +1,110 @@
+# Read-only market data for #18. Mainnet is allowed here only for eth_call price reads:
+# no wallet, signing or trading path uses this file. Sources and review: backend/CHAIN_REGISTRY.md
+chain_id = "eip155:4663"
+display_name = "Robinhood Chain"
+rpc_env_var = "QB2_ROBINHOOD_MAINNET_RPC_URL"
+public_rpc_url = "https://rpc.mainnet.chain.robinhood.com"
+multicall_address = "0xcA11bde05977b3631167028862bE2a173976CA11"
+# Allowlist reviewed against Robinhood /rhj/assets, Chainlink's Robinhood feed directory and
+# on-chain symbol(), decimals(), uiMultiplier() and description() at this block.
+reviewed_block = 100299798
+# Each feed's launch rounds before first_valid_round were published at the wrong scale.
+
+[[assets]]
+symbol = "AAPL"
+name = "Apple"
+isin = "US0378331005"
+token_address = "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9"
+feed_address = "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0"
+feed_description = "Robinhood AAPL / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 18
+
+[[assets]]
+symbol = "MSFT"
+name = "Microsoft"
+isin = "US5949181045"
+token_address = "0xe93237C50D904957Cf27E7B1133b510C669c2e74"
+feed_address = "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E"
+feed_description = "RHMSFT / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 26
+
+[[assets]]
+symbol = "NVDA"
+name = "NVIDIA"
+isin = "US67066G1040"
+token_address = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC"
+feed_address = "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15"
+feed_description = "RHNVDA / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 25
+
+[[assets]]
+symbol = "GOOGL"
+name = "Alphabet Class A"
+isin = "US02079K3059"
+token_address = "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3"
+feed_address = "0xF6f373a037c30F0e5010d854385cA89185AE638b"
+feed_description = "Robinhood GOOGL / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 33
+
+[[assets]]
+symbol = "AMZN"
+name = "Amazon"
+isin = "US0231351067"
+token_address = "0x12f190a9F9d7D37a250758b26824B97CE941bF54"
+feed_address = "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C"
+feed_description = "Robinhood AMZN / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 27
+
+[[assets]]
+symbol = "META"
+name = "Meta Platforms"
+isin = "US30303M1027"
+token_address = "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"
+feed_address = "0x7C38C00C30BEe9378381E7B6135d7283356D71b1"
+feed_description = "Robinhood META / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 19
+
+[[assets]]
+symbol = "TSLA"
+name = "Tesla"
+isin = "US88160R1014"
+token_address = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
+feed_address = "0x4A1166a659A55625345e9515b32adECea5547C38"
+feed_description = "RHTSLA / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 38
+
+[[assets]]
+symbol = "SPY"
+name = "SPDR S&P 500 ETF Trust"
+isin = "US78462F1030"
+token_address = "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C"
+feed_address = "0x319724394D3A0e3669269846abE664Cd621f9f6A"
+feed_description = "RHSPY / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 8
+
+[[assets]]
+symbol = "QQQ"
+name = "Invesco QQQ"
+isin = "US46090E1038"
+token_address = "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68"
+feed_address = "0x80901d846d5D7B030F26B480776EE3b29374C2ae"
+feed_description = "Robinhood QQQ / USD"
+feed_decimals = 8
+phase_id = 1
+first_valid_round = 14

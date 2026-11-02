@@ -3,7 +3,13 @@ export { useWallet } from "./hooks/use-wallet";
 export { useEnsResolve, useEnsReverse, resolveEnsFresh } from "./hooks/use-ens";
 export { useProposals, useProposalDetail, useCreateProposal, useFundProposal } from "./hooks/use-proposals";
 export { useMarketplace } from "./hooks/use-marketplace";
-export { useAgents, useCreateAgent } from "./hooks/use-agents";
+export {
+  useAgents,
+  useCreateAgent,
+  useRevokeStarknetSession,
+  useOpenStarknetSession,
+  useSpendStarknetSession,
+} from "./hooks/use-agents";
 export type { AgentItem } from "./hooks/use-agents";
 export { useNotifications, useMarkNotificationRead } from "./hooks/use-notifications";
 export { ProposalCreateDialog } from "./components/proposal-create-dialog";
@@ -16,3 +22,4 @@ export {
   isHexAddress,
   truncateAddress,
 } from "./lib/ens";
+export { useAgentLlmProvider } from "./llm-provider/use-agent-llm-provider";

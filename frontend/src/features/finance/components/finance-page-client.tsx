@@ -1,6 +1,7 @@
 "use client";
 
 import { PortfolioUploadPanel } from "./portfolio-upload-panel";
+import { TokenizedPortfolioPanel } from "./tokenized-portfolio-panel";
 
 export function FinancePageClient() {
   return (
@@ -13,6 +14,7 @@ export function FinancePageClient() {
         analysis.
       </p>
       <PortfolioUploadPanel />
+      <TokenizedPortfolioPanel className="mt-6" />
     </div>
   );
 }

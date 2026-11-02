@@ -34,7 +34,7 @@ RESEND_FROM_EMAIL=onboarding@resend.dev  # For dev; use verified domain for prod
 RESEND_TO_EMAIL=your-email@example.com
 
 # MongoDB (already configured)
-QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017
+QB2_MONGODB_URI=mongodb://127.0.0.1:27017
 QB2_MONGODB_DATABASE=qds
 
 # Platform URL (for email links)

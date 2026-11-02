@@ -11,11 +11,11 @@ export async function GET(
 ) {
   const { jobId } = await params;
   try {
-    const res = await financeBackendFetch(BACKEND.OPTIONS.DETAIL(jobId));
-    return await financeResultResponse(
-      res,
-      request.nextUrl.searchParams.get("download") == "provenance",
-    );
+    const download = request.nextUrl.searchParams.get("download") === "provenance";
+    const url = new URL(BACKEND.OPTIONS.DETAIL(jobId));
+    if (download) url.searchParams.set("download", "provenance");
+    const res = await financeBackendFetch(url.toString());
+    return await financeResultResponse(res, download);
   } catch {
     return NextResponse.json(
       { detail: "Backend unreachable" },

@@ -1,4 +1,4 @@
-"""Immutable EVM metadata and capability requirements for wallet operations."""
+"""Immutable chain metadata and capability requirements for wallet operations."""
 
 from __future__ import annotations
 
@@ -7,9 +7,15 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-ChainId = Annotated[str, Field(pattern=r"^eip155:[1-9][0-9]{0,31}$")]
+# EVM ids stay canonical decimals. Starknet is Sepolia only; mainnet is out of scope.
+ChainId = Annotated[
+    str, Field(pattern=r"^(?:eip155:[1-9][0-9]{0,31}|starknet:SN_SEPOLIA)$")
+]
 NetworkAlias = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")]
 EvmAddress = Annotated[str, Field(pattern=r"^0x[0-9a-fA-F]{40}$")]
+# EVM addresses are 20 bytes. Starknet felts are checked again per family.
+TokenAddress = Annotated[str, Field(pattern=r"^0x[0-9a-fA-F]{1,64}$")]
+ChainFamily = Literal["evm", "starknet"]
 # Keyless public endpoints only: HTTPS, no credentials, query string or fragment.
 PublicRpcUrl = Annotated[
     str, Field(pattern=r"^https://[a-z0-9]+(?:[.-][a-z0-9]+)*(?:/[A-Za-z0-9._~-]+)*/?$")
@@ -21,10 +27,32 @@ Capability = Literal[
     "transfer_stablecoin",
     "verify_transaction",
     "get_price",
+    "anchor_root",
     "aave_supply",
     "aave_withdraw",
     "faucet_instructions",
 ]
+
+
+# Anchoring must never target these, whatever an entry's testnet flag says.
+_KNOWN_MAINNETS = frozenset(
+    {
+        "eip155:1",
+        "eip155:10",
+        "eip155:56",
+        "eip155:137",
+        "eip155:4663",
+        "eip155:8453",
+        "eip155:42161",
+    }
+)
+
+# CDP/AgentKit wallet networks we have validated end-to-end (testnet only).
+# chain_id → (agentkit alias, cdp alias)
+_WALLET_PROVIDER_NETWORKS: dict[str, tuple[str, str]] = {
+    "eip155:84532": ("base-sepolia", "base-sepolia"),
+    "eip155:421614": ("arbitrum-sepolia", "arbitrum-sepolia"),
+}
 
 
 class _RegistryModel(BaseModel):
@@ -37,7 +65,7 @@ class NativeToken(_RegistryModel):
 
 
 class Stablecoin(NativeToken):
-    address: EvmAddress
+    address: TokenAddress
 
 
 class ProviderAliases(_RegistryModel):
@@ -58,7 +86,8 @@ class ExplorerTemplates(_RegistryModel):
     def validate_templates(self) -> ExplorerTemplates:
         for value, path, placeholder in (
             (self.transaction, "tx", "tx_hash"),
-            (self.address, "address", "address"),
+            # Voyager publishes contracts at /contract/{address}; EVM explorers use /address/.
+            (self.address, "(?:address|contract)", "address"),
             (self.block, "block", "block_number"),
         ):
             pattern = rf"https://[a-z0-9]+(?:[.-][a-z0-9]+)*/{path}/\{{{placeholder}\}}"
@@ -75,7 +104,7 @@ class PriceFeedSpec(_RegistryModel):
 
 class ChainSpec(_RegistryModel):
     chain_id: ChainId
-    family: Literal["evm"]
+    family: ChainFamily
     display_name: str = Field(min_length=1, max_length=80, pattern=r"^\S(?:.*\S)?$")
     testnet: bool = Field(strict=True)
     enabled: bool = Field(strict=True)
@@ -100,20 +129,30 @@ class ChainSpec(_RegistryModel):
             raise ValueError("duplicate network alias")
         if len(set(self.capabilities)) != len(self.capabilities):
             raise ValueError("duplicate operation capability")
+        if self.family == "starknet":
+            self._validate_starknet()
+            return self
         # Read-only RPC checks need no wallet provider, so any EVM chain may offer them.
         if "get_price" in self.capabilities and not self.price_feeds:
             raise ValueError("price reads require configured feeds")
+        # Anchors are sent by a dedicated low-balance key, not the wallet provider.
+        if "anchor_root" in self.capabilities:
+            if not self.testnet or self.chain_id in _KNOWN_MAINNETS:
+                raise ValueError("provenance anchoring is limited to testnets")
+            if "verify_transaction" not in self.capabilities:
+                raise ValueError("provenance anchoring requires transaction verification")
         wallet_operations = set(self.capabilities) - {
             "explorer_url",
             "verify_transaction",
             "get_price",
+            "anchor_root",
         }
         if wallet_operations:
-            # Only the existing Base Sepolia wallet path is enabled in this migration.
+            expected = _WALLET_PROVIDER_NETWORKS.get(self.chain_id)
             if (
-                self.chain_id != "eip155:84532"
-                or self.provider_aliases.agentkit != "base-sepolia"
-                or self.provider_aliases.cdp != "base-sepolia"
+                expected is None
+                or self.provider_aliases.agentkit != expected[0]
+                or self.provider_aliases.cdp != expected[1]
             ):
                 raise ValueError("wallet provider does not support this network")
             if self.stablecoin is None or self.stablecoin.symbol != "USDC":
@@ -128,7 +167,25 @@ class ChainSpec(_RegistryModel):
                 raise ValueError("transaction operations require balance queries")
         if {"aave_supply", "aave_withdraw"} & wallet_operations and not self.aave_pool_address:
             raise ValueError("Aave operations require a pool address")
+        if self.stablecoin is not None and not re.fullmatch(
+            r"0x[0-9a-fA-F]{40}", self.stablecoin.address
+        ):
+            raise ValueError("invalid token address")
         return self
+
+    def _validate_starknet(self) -> None:
+        if self.chain_id != "starknet:SN_SEPOLIA" or not self.testnet:
+            raise ValueError("starknet support is sepolia testnet only")
+        if set(self.capabilities) - {"explorer_url", "verify_transaction"}:
+            raise ValueError("starknet adapter does not support this operation")
+        if self.provider_aliases.agentkit is not None or self.provider_aliases.cdp is not None:
+            raise ValueError("starknet has no EVM wallet provider")
+        if self.aave_pool_address is not None:
+            raise ValueError("starknet has no Aave pool in this adapter")
+        if self.stablecoin is not None and not re.fullmatch(
+            r"0x[0-9a-fA-F]{1,64}", self.stablecoin.address
+        ):
+            raise ValueError("invalid token address")
 
     @property
     def identifiers(self) -> frozenset[str]:

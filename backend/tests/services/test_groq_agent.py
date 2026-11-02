@@ -78,6 +78,23 @@ def test_storage_proposal_pauses_for_user_without_second_inference():
     assert "Nothing has been uploaded or paid" in asyncio.run(run())
 
 
+def test_explicit_provider_overrides_env(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_PROVIDER", "groq")
+    monkeypatch.setenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
+    def respond(request):
+        assert str(request.url) == "https://openrouter.ai/api/v1/chat/completions"
+        return httpx.Response(200, json={"choices": [{"message": {"content": "OpenRouter response"}}]})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            return await complete([], client=client, api_key="test", provider="openrouter")
+    assert asyncio.run(run()) == "OpenRouter response"
+
+
+def test_invalid_provider_raises_immediately():
+    with pytest.raises(ValueError, match="Invalid llm_provider"):
+        asyncio.run(complete([], api_key="test", provider="invalid"))
+
+
 def test_openrouter_uses_only_zero_price_tool_capable_routes(monkeypatch):
     monkeypatch.setenv("AGENT_LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")

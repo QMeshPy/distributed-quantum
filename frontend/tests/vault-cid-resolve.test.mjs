@@ -16,6 +16,7 @@ import {
 import {
   parseCidString,
   InvalidCidError,
+  resolveVaultCid,
 } from "../src/features/ipfs/lib/cid-resolve.ts";
 import {
   parseVaultRecord,
@@ -60,6 +61,38 @@ describe("CID validation", () => {
     const cid = CID.createV1(0x0129, hash); // dag-json
     const parsed = await parseCidString(cid.toString());
     expect(parsed.toString()).toBe(cid.toString());
+  });
+});
+
+describe("vault payload decoding", () => {
+  test.each(["json", "unixfs"])("resolves a local %s circuit record", async (codec) => {
+    const { MemoryBlockstore } = await import("blockstore-core");
+    const helia = { blockstore: new MemoryBlockstore() };
+    const record = {
+      name: "Bell",
+      description: "",
+      qasm: "OPENQASM 2.0;",
+      qubitCount: 2,
+      gateCount: 1,
+      author: "alice",
+      publishedAt: "2026-10-31T00:00:00.000Z",
+      tags: [],
+    };
+    const cid = codec === "json"
+      ? await (await import("@helia/json")).json(helia).add(record)
+      : await (await import("@helia/unixfs")).unixfs(helia).addBytes(
+          new TextEncoder().encode(JSON.stringify(record)),
+          { rawLeaves: false },
+        );
+
+    const resolved = await resolveVaultCid(cid.toString(), { helia });
+    expect(resolved).toEqual({
+      cid: cid.toString(),
+      kind: "circuit",
+      record,
+      verified: true,
+      source: "local",
+    });
   });
 });
 

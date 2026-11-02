@@ -2,6 +2,17 @@
 
 Browser-side Helia stores vault circuits and runs as content-addressed JSON in IndexedDB. Sharing a CID with another user only works if they can obtain the block — either from a prior pin sync or via **trustless HTTP gateways**.
 
+## Run → circuit IPLD links (dag-json)
+
+New run records are encoded with `@helia/dag-json`. The `circuitCid` field is a **real IPLD CID link** to the circuit record, so one root CID covers the run and its circuit (first step toward the provenance DAG).
+
+- Field name stays `circuitCid` (same CID string provenance stores under `storage[].cid` / StorageReference).
+- Readers still accept **legacy string-valued** `circuitCid` records.
+- Sharing a completed run from the run detail page stores the OpenQASM as a circuit block when needed, then links it from the run.
+
+```bash
+bun test:vault-run-link
+```
 ## Publish a circuit — Lab → New Run
 
 Location: `/runs/new` (`RunCreateForm`) — **Publish circuit to VAULT**.
@@ -43,5 +54,6 @@ Trustless gateways see every CID you request (and your client IP). Prefer a self
 
 ```bash
 bun test:vault-cid
+bun test:vault-run-link
 bun test:vault-circuit
 ```

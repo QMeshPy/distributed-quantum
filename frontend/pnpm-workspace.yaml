@@ -1,9 +1,0 @@
-overrides:
-  postcss: '>=8.5.10'
-
-allowBuilds:
-  '@scarf/scarf': false
-  msw: true
-  node-datachannel: true
-  sharp: true
-  unrs-resolver: true

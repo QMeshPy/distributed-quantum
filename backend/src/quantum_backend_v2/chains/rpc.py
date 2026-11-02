@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from typing import Protocol
 from urllib.parse import urlsplit
-
-from quantum_backend_v2.chains.models import ChainSpec
 
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
@@ -15,7 +14,17 @@ class RpcConfigurationError(ValueError):
     """No usable RPC endpoint. Messages name the variable, never its value."""
 
 
-def resolve_rpc_url(chain: ChainSpec, environ: Mapping[str, str] | None = None) -> str:
+class RpcEndpoint(Protocol):
+    """A registry chain or read-only market-data source."""
+
+    @property
+    def rpc_env_var(self) -> str: ...
+
+    @property
+    def public_rpc_url(self) -> str | None: ...
+
+
+def resolve_rpc_url(chain: RpcEndpoint, environ: Mapping[str, str] | None = None) -> str:
     """Return the RPC URL for ``chain``. The result may contain an API key: do not log it."""
     env = os.environ if environ is None else environ
     override = env.get(chain.rpc_env_var, "").strip()

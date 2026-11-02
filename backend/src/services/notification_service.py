@@ -201,7 +201,7 @@ class NotificationService:
         self.platform_base_url = os.getenv("PLATFORM_BASE_URL", "http://localhost:3000")
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+        mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
         mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]

@@ -7,6 +7,7 @@ import { nextCookies } from "better-auth/next-js";
 import getClient, { getDatabase } from "@/shared/lib/mongodb";
 import { AUTH } from "@/constants";
 import { createStripePlugin } from "@/features/billing/server/stripe";
+import { createSiwePlugin } from "./siwe";
 
 async function sendOTPEmail(email: string, otp: string) {
   const { Resend } = await import("resend");
@@ -48,6 +49,7 @@ function createAuthInstance(
           }
         },
       }),
+      createSiwePlugin(),
       ...(stripePlugin ? [stripePlugin] : []),
       nextCookies(),
     ],

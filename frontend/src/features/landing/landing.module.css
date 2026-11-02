@@ -1,0 +1,3589 @@
+/* QMesh landing, in Griffin's visual world: warm near-black, off-white ink,
+   hairline rails, light serif headings, mono uppercase labels, pill buttons.
+   QMesh violet takes the accent role Griffin gives to green. */
+
+.page {
+  --ground: oklch(0.155 0.002 100);
+  --ground-raised: oklch(0.205 0.003 60);
+  --ground-sunk: oklch(0.125 0.002 100);
+  --ink: oklch(0.97 0.009 80);
+  --ink-muted: oklch(0.69 0.012 75);
+  --ink-faint: oklch(0.6 0.01 70);
+  --hairline: oklch(0.33 0.004 80);
+  --hairline-soft: oklch(1 0 0 / 0.08);
+  --pill: oklch(0.91 0.012 80);
+  --pill-ink: oklch(0.155 0.002 100);
+  --black: oklch(0 0 0);
+  --bar: oklch(0.6 0.009 75);
+
+  /* Griffin's step accents; one per architecture layer, used only as signals. */
+  --accent-1: rgb(0 215 202);
+  --accent-2: rgb(245 190 14);
+  --accent-3: rgb(133 237 165);
+  --accent-4: rgb(243 92 149);
+  --accent-5: rgb(120 170 255);
+  --accent: var(--accent-1);
+
+  /* Older names still read by the isometric scenes, mapped to neutrals. */
+  --quantum: var(--ink-muted);
+  --classical: var(--accent);
+  --sea-core: var(--ink);
+  --sea-ink: var(--ink);
+  --glyph-dim: oklch(0.27 0.004 80);
+  --glyph-mid: oklch(0.42 0.006 80);
+  --glyph-hi: oklch(0.66 0.01 80);
+  --glyph-accent: var(--ink);
+
+  /* Isometric device line art. */
+  --iso-top: oklch(0.23 0.003 80);
+  --iso-side: oklch(0.15 0.002 80);
+  --iso-front: oklch(0.19 0.003 80);
+  --iso-lid: oklch(0.2 0.003 80);
+  --iso-line: oklch(0.68 0.01 80 / 0.65);
+  --iso-screen: oklch(0.14 0.004 80);
+  --iso-pcb: oklch(0.24 0.004 80);
+
+  --dots: radial-gradient(circle, var(--hairline) 1px, transparent 1px) 0 0 / 16px 16px;
+
+  --font-display: var(--landing-display), Georgia, serif;
+  --font-text: var(--landing-text), system-ui, sans-serif;
+  --font-data: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Type scale. */
+  --text-label: 0.75rem; /* mono uppercase labels, buttons, nav */
+  --text-sm: 0.875rem;
+  --text-ui: 0.9375rem;
+  --text-body: 1rem;
+  --text-lead: 1.25rem;
+  --text-title: 1.375rem;
+  --text-h2: clamp(2rem, 3vw, 2.5rem);
+  --text-h1: clamp(3rem, 5.2vw, 4.5rem);
+  --text-stat: clamp(2.75rem, 4vw, 3.5rem);
+  --text-wordmark: clamp(5rem, 15vw, 12rem);
+
+  --radius: 4px;
+  --inner: min(100% - 32px, 87.5rem);
+  --inset: clamp(1rem, 2.8vw, 2.5rem);
+  --pad-x: calc((100% - var(--inner)) / 2);
+  --space: clamp(4.5rem, 7vw, 6.5rem);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  overflow-x: clip;
+  scrollbar-color: var(--hairline) var(--ground);
+}
+
+.page ::selection {
+  background: var(--ink);
+  color: var(--ground);
+}
+
+.page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page :focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Full-height rails at the container edges. */
+.rails::before,
+.rails::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  width: 1px;
+  background: var(--hairline-soft);
+  pointer-events: none;
+}
+
+.rails::before {
+  left: var(--pad-x);
+}
+
+.rails::after {
+  right: var(--pad-x);
+}
+
+/* ── Type ── */
+
+.h1,
+.h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 300;
+  text-wrap: balance;
+}
+
+.h1 {
+  font-size: var(--text-h1);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.h2 {
+  font-size: var(--text-h2);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.h1 em,
+.h2 em {
+  font-style: italic;
+}
+
+.h2Sans {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  margin: 0;
+  max-width: 34rem;
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+/* ── Buttons: pills in mono uppercase ── */
+
+.pill,
+.pillGhost,
+.pillText {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition:
+    background 200ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    color 200ms var(--ease-out);
+}
+
+.pill svg,
+.pillGhost svg,
+.pillText svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  transition: transform 250ms var(--ease-out);
+}
+
+.pill {
+  background: var(--pill);
+  color: var(--pill-ink) !important;
+}
+
+.pill:hover {
+  background: var(--ink);
+}
+
+.pillGhost {
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+}
+
+.pillGhost:hover {
+  border-color: var(--ink-muted);
+}
+
+.pillText:hover {
+  background: var(--ground-raised);
+}
+
+.pill:hover svg,
+.pillGhost:hover svg {
+  transform: translateX(2px);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ── Nav ── */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 4rem;
+  padding-inline: var(--pad-x);
+  background: color-mix(in oklch, var(--ground) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  justify-self: start;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brandMark {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.markCore {
+  fill: var(--ink);
+}
+
+.markPeer {
+  fill: var(--ink-muted);
+}
+
+.navLinks {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.navLinks a {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 200ms var(--ease-out);
+}
+
+.navLinks a:hover {
+  background: var(--ground-raised);
+}
+
+.navActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-self: end;
+}
+
+.menuButton {
+  display: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-right: -0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.menuButton svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+/* Absolute, not fixed: the nav's backdrop-filter would contain a fixed child anyway. */
+.menuPanel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  height: calc(100dvh - 4rem);
+  padding: 1rem var(--pad-x) calc(1.5rem + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ground);
+}
+
+.menuLink {
+  display: flex;
+  align-items: center;
+  min-height: 3.75rem;
+  border-bottom: 1px solid var(--hairline-soft);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.menuActions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.menuActions .pill,
+.menuActions .pillGhost {
+  justify-content: center;
+  height: 2.75rem;
+}
+
+/* ── Hero: intro on the left, the world map on the right, bleeding off the page edge ── */
+
+.hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  align-items: center;
+  column-gap: clamp(1rem, 3vw, 3rem);
+  row-gap: 1rem;
+  width: var(--inner);
+  margin: 0 auto;
+  padding: clamp(2.5rem, 5vw, 4rem) 0 1.75rem var(--inset);
+  isolation: isolate;
+}
+
+/* Background motion: a dot field drifting slowly behind a soft glow, centred on the map. */
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero::before {
+  background: var(--dots);
+  mask-image: radial-gradient(ellipse 55% 70% at 72% 52%, black 15%, transparent 72%);
+  animation: dotDrift 18s linear infinite;
+}
+
+.hero::after {
+  background: radial-gradient(ellipse 38% 40% at 70% 55%, oklch(1 0 0 / 0.05), transparent 70%);
+  animation: glowBreathe 9s ease-in-out infinite;
+}
+
+@keyframes dotDrift {
+  to {
+    background-position: 64px 32px;
+  }
+}
+
+@keyframes glowBreathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.heroIntro {
+  display: grid;
+  gap: 1.75rem;
+  justify-items: start;
+}
+
+.heroIntro .h1 {
+  font-size: clamp(3rem, 5.2vw, 4.75rem);
+}
+
+.heroLead {
+  margin: 0;
+  max-width: 30rem;
+  font-size: var(--text-lead);
+  font-weight: 300;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.heroLead span {
+  color: var(--ink-muted);
+}
+
+/* The map runs past the column toward the page edge; the page clips it. */
+.hero .isoStage {
+  --iso-top: color-mix(in srgb, var(--ink) 10%, var(--ground));
+  --iso-front: color-mix(in srgb, var(--ink) 5%, var(--ground));
+  --iso-side: color-mix(in srgb, var(--ink) 2%, var(--ground));
+  --iso-lid: var(--iso-top);
+  --iso-pcb: color-mix(in srgb, var(--ink) 7%, var(--ground));
+  --iso-line: color-mix(in srgb, var(--ink) 72%, var(--ground));
+  --iso-detail: color-mix(in srgb, var(--ink) 40%, var(--ground));
+  width: calc(100% + var(--inset));
+  max-width: none;
+}
+
+.hero .isoCaption {
+  padding-right: var(--inset);
+  text-align: right;
+}
+
+.ribbon {
+  grid-column: 1 / -1;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  transition: color 200ms var(--ease-out);
+}
+
+.ribbon svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.ribbon:hover {
+  color: var(--ink);
+}
+
+.ribbonDot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent-1);
+}
+
+/* ── Glyph band ── */
+
+.glyphBand {
+  position: relative;
+  z-index: 1;
+  height: clamp(10rem, 14vw, 13rem);
+  border-block: 1px solid var(--hairline-soft);
+}
+
+.glyphCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* ── Built-on wall ── */
+
+.builtOn {
+  position: relative;
+  z-index: 1;
+  width: var(--inner);
+  margin: 0 auto;
+}
+
+.builtOnHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem var(--inset);
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.logoRow {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+}
+
+.logoTrack {
+  display: flex;
+  width: max-content;
+  animation: infrastructureDrift 90s linear infinite;
+}
+
+.logoRow:nth-child(2) .logoTrack {
+  animation-direction: reverse;
+  animation-duration: 100s;
+}
+
+.logoGroup {
+  display: flex;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.logoCell {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  width: 15rem;
+  min-height: 7rem;
+  padding: 1.25rem 1rem;
+  border-right: 1px solid var(--hairline-soft);
+  border-bottom: 1px solid var(--hairline-soft);
+  text-align: center;
+}
+
+.logoName {
+  font-size: var(--text-lead);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.logoRole {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.logoLabel {
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.logoPause {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: var(--text-label);
+  cursor: pointer;
+}
+
+.logoPause svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.builtOn[data-paused="true"] .logoTrack,
+.logoRows:hover .logoTrack,
+.logoRows:focus-within .logoTrack {
+  animation-play-state: paused;
+}
+
+@keyframes infrastructureDrift {
+  to { transform: translateX(-50%); }
+}
+
+/* ── Architecture: pinned, layer by layer (griffin.com's "built to evolve") ── */
+
+.architecture {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--hairline-soft);
+}
+
+.archTrack {
+  position: relative;
+}
+
+.archPin {
+  --stage: max(100svh, 640px);
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: var(--inner);
+  height: var(--stage);
+  margin: 0 auto;
+}
+
+.archLeft {
+  position: relative;
+  padding-left: calc(var(--inset) + 0px);
+}
+
+/* The rail sits on the container edge; markers are centred on it. */
+.archRail,
+.archRailLit {
+  position: absolute;
+  left: 0;
+  width: 1px;
+}
+
+.archRail {
+  top: 0;
+  bottom: 0;
+  background: var(--hairline-soft);
+}
+
+.archRailLit {
+  background: linear-gradient(to bottom, transparent, var(--step-accent));
+  transition:
+    top 450ms var(--ease-out),
+    height 450ms var(--ease-out),
+    background 400ms var(--ease-out);
+}
+
+.archSteps {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archStep {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  height: 14px;
+  transition: transform 450ms var(--ease-out);
+}
+
+.archMarker {
+  position: absolute;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(0.42 0.007 60);
+  box-shadow:
+    0 0 0 3px var(--ground),
+    0 0 0 4px oklch(0.42 0.007 60 / 0.6);
+  transition:
+    background 400ms var(--ease-out),
+    box-shadow 400ms var(--ease-out);
+}
+
+.archStep[data-state="active"] .archMarker {
+  background: var(--step-accent);
+  box-shadow:
+    0 0 0 3px var(--ground),
+    0 0 0 4px var(--step-accent),
+    0 0 0 10px color-mix(in srgb, var(--step-accent) 14%, transparent),
+    0 0 0 11px color-mix(in srgb, var(--step-accent) 30%, transparent);
+}
+
+.archStepLabel {
+  display: flex;
+  gap: 0.75rem;
+  padding-left: var(--inset);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  transition: color 400ms var(--ease-out);
+}
+
+.archStepLabel span {
+  color: var(--ink-faint);
+}
+
+.archStep[data-state="active"] .archStepLabel {
+  color: var(--ink);
+}
+
+.archStep[data-state="active"] .archStepLabel span {
+  color: var(--ink-muted);
+}
+
+.archIntro,
+.archPanel {
+  position: absolute;
+  left: var(--inset);
+  right: var(--inset);
+}
+
+.archIntro {
+  top: calc(0.44 * var(--stage));
+  translate: 0 -50%;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.archIntro p,
+.archPanel p {
+  margin: 0;
+  max-width: 26rem;
+  font-size: var(--text-lead);
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+.archIntro p {
+  color: var(--ink-muted);
+}
+
+.archPanel {
+  top: var(--panel-top);
+  display: grid;
+  gap: 1rem;
+}
+
+.archTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 3.4vw, 3rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.archVisual {
+  position: relative;
+  overflow: hidden;
+  border-left: 1px solid var(--hairline-soft);
+  background: var(--dots);
+}
+
+.archSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Plates: black tops, hairline edges. The active plate brightens its strokes. */
+.plateTop {
+  fill: var(--black);
+  stroke: oklch(0.36 0.004 80);
+  stroke-width: 1;
+}
+
+.plateSide {
+  fill: var(--black);
+  stroke: oklch(0.36 0.004 80);
+  stroke-width: 1;
+}
+
+.plateInk {
+  fill: none;
+  stroke: oklch(0.32 0.004 80);
+  stroke-width: 1;
+}
+
+.platePanel {
+  fill: var(--black);
+  stroke: oklch(0.32 0.004 80);
+  stroke-width: 1;
+}
+
+.plateBar {
+  fill: oklch(0.3 0.004 80);
+}
+
+.plateText,
+.plateCross {
+  font-family: var(--font-data);
+  font-size: 4px;
+  letter-spacing: 0.08em;
+  fill: oklch(0.36 0.004 80);
+}
+
+.plateCross {
+  font-size: 5px;
+}
+
+.plateCut {
+  stroke-dasharray: 2 2;
+}
+
+.plateLink {
+  stroke-dasharray: 1.5 2;
+}
+
+.plate[data-lit="true"] .plateTop,
+.plate[data-lit="true"] .plateSide {
+  stroke: oklch(0.78 0.008 80);
+}
+
+.plate[data-lit="true"] .plateInk,
+.plate[data-lit="true"] .platePanel {
+  stroke: oklch(0.72 0.008 80);
+}
+
+.plate[data-lit="true"] .plateBar {
+  fill: var(--bar);
+}
+
+.plate[data-lit="true"] .plateText,
+.plate[data-lit="true"] .plateCross {
+  fill: var(--ink-muted);
+}
+
+.plate * {
+  transition:
+    stroke 500ms var(--ease-out),
+    fill 500ms var(--ease-out);
+}
+
+/* Raised objects on the plates: contact shadow, bevelled top, front detail. */
+.blockShadow {
+  fill: oklch(0 0 0 / 0.55);
+  filter: blur(3px);
+}
+
+.blockBevel {
+  fill: none;
+  stroke: oklch(0.3 0.004 80);
+  stroke-width: 0.8;
+}
+
+.blockDetail {
+  fill: none;
+  stroke: oklch(0.34 0.004 80);
+  stroke-width: 1;
+}
+
+.blockLed {
+  fill: none;
+  stroke: oklch(0.4 0.004 80);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.plate[data-lit="true"] .blockBevel,
+.plate[data-lit="true"] .blockDetail {
+  stroke: oklch(0.55 0.006 80);
+}
+
+.plate[data-lit="true"] .blockLed {
+  stroke: var(--step-accent, var(--accent));
+}
+
+.block[data-ghost="true"] .blockTop,
+.block[data-ghost="true"] .blockSide,
+.block[data-ghost="true"] .blockFront,
+.block[data-ghost="true"] .blockBevel {
+  stroke-dasharray: 3 3;
+}
+
+.trace,
+.traceLive {
+  fill: none;
+  stroke: oklch(0.34 0.004 80);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.traceLive {
+  stroke-dasharray: 4 4;
+}
+
+.plate[data-lit="true"] .trace {
+  stroke: oklch(0.62 0.006 80);
+}
+
+.plate[data-lit="true"] .traceLive {
+  stroke: var(--step-accent, var(--accent));
+  animation: wireFlow 1.4s linear infinite;
+}
+
+.coinRidge {
+  fill: none;
+  stroke: oklch(0.3 0.004 80);
+  stroke-width: 0.8;
+}
+
+.plate[data-lit="true"] .coinRidge {
+  stroke: oklch(0.55 0.006 80);
+}
+
+.calloutAnchor {
+  fill: var(--ink);
+}
+
+/* Raised objects on the plates. */
+.blockTop,
+.blockSide,
+.blockFront {
+  stroke: oklch(0.34 0.004 80);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.blockTop {
+  fill: oklch(0.13 0.002 80);
+}
+
+.blockSide {
+  fill: var(--black);
+}
+
+.blockFront {
+  fill: oklch(0.07 0.002 80);
+}
+
+.block[data-tone="light"] .blockTop {
+  fill: oklch(0.24 0.004 80);
+}
+
+.plate[data-lit="true"] .blockTop,
+.plate[data-lit="true"] .blockSide,
+.plate[data-lit="true"] .blockFront {
+  stroke: oklch(0.74 0.008 80);
+}
+
+.plate[data-lit="true"] .block[data-tone="light"] .blockTop {
+  fill: var(--bar);
+}
+
+.coinSide,
+.coinBand {
+  fill: var(--black);
+  stroke: none;
+}
+
+.coinTop,
+.coinSide {
+  stroke: oklch(0.34 0.004 80);
+  stroke-width: 1;
+}
+
+.coinTop {
+  fill: oklch(0.14 0.002 80);
+}
+
+.plate[data-lit="true"] .coinTop,
+.plate[data-lit="true"] .coinSide {
+  stroke: oklch(0.74 0.008 80);
+}
+
+.plate[data-lit="true"] .coins:nth-of-type(2) .coinTop {
+  fill: var(--bar);
+}
+
+.wire,
+.wireLive {
+  fill: none;
+  stroke: oklch(0.34 0.004 80);
+  stroke-width: 1;
+}
+
+.wireLive {
+  stroke-dasharray: 3 4;
+}
+
+.plate[data-lit="true"] .wire,
+.plate[data-lit="true"] .wireLive {
+  stroke: oklch(0.74 0.008 80);
+}
+
+/* Live wires carry traffic on the lit plate. */
+.plate[data-lit="true"] .wireLive {
+  animation: wireFlow 1.4s linear infinite;
+}
+
+@keyframes wireFlow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+.calloutLine {
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+}
+
+.calloutDot {
+  fill: var(--step-accent);
+}
+
+.calloutText {
+  font-family: var(--font-data);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  fill: var(--ink);
+}
+
+/* ── Sections ── */
+
+.section {
+  position: relative;
+  z-index: 1;
+  width: var(--inner);
+  margin: 0 auto;
+  padding: var(--space) 0;
+}
+
+.section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  translate: -50% 0;
+  border-top: 1px solid var(--hairline-soft);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1.5rem 3rem;
+  margin-bottom: 3rem;
+}
+
+.reveal {
+  min-width: 0;
+}
+
+/* ── Workloads ── */
+
+
+
+
+
+.workloadToggle:hover,
+
+
+
+
+.checks {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.checks li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.checks svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--accent-3);
+}
+
+
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.statusTag::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent-3);
+}
+
+.statusTag[data-status="In review"]::before {
+  background: var(--accent-2);
+}
+
+.statusTag[data-status="Experimental"]::before {
+  background: var(--ink-faint);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ── Workloads: sticky index beside stacked panels ── */
+
+
+
+
+/* Shared diagram styles. */
+.wlVisual {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.wlLine,
+.wlAxis {
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+  fill: none;
+}
+
+.wlAxis {
+  stroke: var(--hairline);
+}
+
+.wlGate,
+.wlDevice {
+  fill: var(--ground-sunk);
+  stroke: var(--ink-muted);
+  stroke-width: 1;
+}
+
+.wlRoot {
+  fill: var(--ink);
+  stroke: var(--ink);
+}
+
+.wlText,
+.wlLabel {
+  font-family: var(--font-data);
+  font-size: 11px;
+  fill: var(--ink-muted);
+}
+
+.wlLabel {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  fill: var(--ink-faint);
+}
+
+.wlDot {
+  fill: var(--ink);
+}
+
+.wlCut {
+  stroke: var(--accent-2);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.wlFlow {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-dasharray: 2 4;
+}
+
+.wlPacket {
+  fill: var(--accent-1);
+}
+
+.wlPoint {
+  fill: var(--ink-muted);
+  animation: wlTwinkle 2.4s ease-in-out infinite;
+}
+
+.wlPick {
+  fill: none;
+  stroke: var(--accent-3);
+  stroke-width: 1.5;
+  animation: wlPulse 2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.wlDraw {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-dasharray: 400;
+  animation: wlDraw 3.2s var(--ease-out) infinite;
+}
+
+.wlBar,
+.wlBarTail {
+  fill: var(--ink-faint);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: wlGrow 3.2s var(--ease-out) infinite;
+}
+
+.wlBarTail {
+  fill: var(--accent-4);
+}
+
+.wlAtom {
+  fill: var(--ground-sunk);
+  stroke: var(--ink);
+  stroke-width: 1;
+  animation: wlTwinkle 2.4s ease-in-out infinite;
+}
+
+@keyframes wlTwinkle {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes wlPulse {
+  50% {
+    transform: scale(1.5);
+    opacity: 0.4;
+  }
+}
+
+@keyframes wlDraw {
+  from {
+    stroke-dashoffset: 400;
+  }
+  60%,
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes wlGrow {
+  from {
+    transform: scaleY(0.05);
+  }
+  55%,
+  to {
+    transform: scaleY(1);
+  }
+}
+
+
+
+/* A · Mesh console */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* B · Scroll index */
+.wlScroll {
+  display: grid;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+  margin-top: 3rem;
+}
+
+.wlIndex {
+  position: sticky;
+  top: 7rem;
+  align-self: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: 1px solid var(--hairline-soft);
+}
+
+/* A progress rail fills down the index as you move through the workloads. */
+.wlIndex::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 1px;
+  height: calc(var(--wl-progress, 0) * 100%);
+  background: var(--ink-muted);
+  transition: height 500ms var(--ease-out);
+}
+
+.wlIndex a {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  margin-left: -1px;
+  border-left: 1px solid transparent;
+  color: var(--ink-faint);
+  font-size: var(--text-ui);
+  transition:
+    color 300ms var(--ease-out),
+    border-color 300ms var(--ease-out);
+}
+
+.wlIndex a span {
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+}
+
+.wlIndex li[data-active="true"] a {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.wlStack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.wlCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+  padding: 2rem;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  background: var(--ground-sunk);
+  opacity: 0.45;
+  transition:
+    opacity 500ms var(--ease-out),
+    border-color 500ms var(--ease-out);
+}
+
+.wlCard[data-active="true"] {
+  opacity: 1;
+  border-color: var(--hairline);
+}
+
+.wlCardBody {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+}
+
+.wlCardBody h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.wlCardBody p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+}
+
+.wlCardFact {
+  margin: 0;
+  padding: 0.6rem 0;
+  border-block: 1px solid var(--hairline-soft);
+  font-family: var(--font-display);
+  font-size: 1.25rem !important;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ink) !important;
+}
+
+/* Diagrams rest while their panel is out of focus and play once it is active. */
+.wlCard:not([data-active="true"]) .wlVisual * {
+  animation-play-state: paused;
+}
+
+.wlCommand {
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  color: var(--ink-muted);
+}
+
+/* C · Code tabs */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@media (max-width: 1080px) {
+  .wlScroll,
+  .wlCard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wlIndex {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wlPoint,
+  .wlPick,
+  .wlDraw,
+  .wlBar,
+  .wlBarTail,
+  .wlAtom {
+    animation: none !important;
+  }
+
+  .wlDraw {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ── Repository and Start building: variants for review ── */
+
+.bvSwitch {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem;
+  border: 1px dashed var(--hairline);
+  border-radius: 9999px;
+}
+
+.bvSwitch button {
+  height: 1.8rem;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--ink-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.bvSwitch button[aria-pressed="true"] {
+  background: var(--pill);
+  color: var(--pill-ink);
+}
+
+.bvCommand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.85rem 0.85rem 1rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--ground-sunk);
+}
+
+.bvCommand pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+}
+
+.bvCommand pre::before {
+  content: "$ ";
+  color: var(--ink-faint);
+}
+
+.bvCommand button {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.bvCommand button svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.bvCommand button:hover {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+
+.bvDetail {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 1rem;
+  animation: bvIn 400ms var(--ease-out);
+}
+
+.bvDetail > .bvCommand {
+  justify-self: stretch;
+}
+
+@keyframes bvIn {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+.bvDetail h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.bvDetail p {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.bvGroup,
+.bvPath,
+.bvStep {
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.bvGroup {
+  text-transform: uppercase;
+}
+
+.bvPath {
+  color: var(--ink-muted);
+  word-break: break-all;
+}
+
+/* Repo 1 · Explorer */
+.bvExplorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.bvTree {
+  padding: 0.75rem 0;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  background: var(--ground-sunk);
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+}
+
+.bvTreeHead,
+.bvTreeDir {
+  padding: 0.45rem 1rem;
+  color: var(--ink-muted);
+}
+
+.bvTreeHead {
+  color: var(--ink);
+  border-bottom: 1px solid var(--hairline-soft);
+  margin-bottom: 0.35rem;
+}
+
+.bvTreeRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.45rem 1rem;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out);
+}
+
+.bvTreeRow:hover,
+.bvTreeRow[aria-selected="true"] {
+  background: var(--ground-raised);
+  color: var(--ink);
+}
+
+.bvTreeName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bvTreeTag {
+  flex-shrink: 0;
+  color: var(--ink-faint);
+}
+
+.bvTreeRow[aria-selected="true"] .bvTreeTag {
+  color: var(--accent-1);
+}
+
+/* Repo 2 · Map */
+.bvMapWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+  gap: clamp(2rem, 4vw, 3.5rem);
+}
+
+.bvMap {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  background: var(--dots), var(--ground-sunk);
+}
+
+.bvMap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.bvEdge {
+  stroke: var(--hairline);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.bvPulse {
+  fill: var(--accent-1);
+}
+
+.bvNode {
+  cursor: pointer;
+  outline: none;
+}
+
+.bvNode rect {
+  fill: var(--ground);
+  stroke: var(--hairline);
+  stroke-width: 1;
+  transition: stroke 200ms var(--ease-out);
+}
+
+.bvNode text {
+  font-family: var(--font-text);
+  font-size: 13px;
+  fill: var(--ink-muted);
+}
+
+.bvNode .bvNodeGroup {
+  font-family: var(--font-data);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  fill: var(--ink-faint);
+}
+
+.bvNode:hover rect,
+.bvNode:focus-visible rect,
+.bvNode[data-on="true"] rect {
+  stroke: var(--ink);
+}
+
+.bvNode[data-on="true"] text {
+  fill: var(--ink);
+}
+
+/* Start 1 · Three paths */
+.bvPaths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.bvPathCard {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  background: var(--ground-sunk);
+}
+
+.bvPathCard h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.bvPathCard p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+}
+
+.bvLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.bvLink svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.bvLink:hover {
+  color: var(--ink);
+}
+
+.bvFooterLine {
+  grid-column: 1 / -1;
+  margin: 1rem 0 0;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Start 2 · Step-through */
+.bvSteps {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.bvStepTabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.bvStepTabs button {
+  padding: 0.75rem 1rem;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  box-shadow: inset 0 -1px 0 transparent;
+}
+
+.bvStepTabs button[aria-selected="true"] {
+  color: var(--ink);
+  box-shadow: inset 0 -1px 0 var(--ink);
+}
+
+.bvStepBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.bvStepBody > div {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 1rem;
+}
+
+.bvStepBody > div > .bvCommand {
+  justify-self: stretch;
+}
+
+.bvStepBody p {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.bvTimeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: 1px solid var(--hairline);
+}
+
+.bvTimeline li button {
+  display: flex;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-left: -1px;
+  border: 0;
+  border-left: 1px solid transparent;
+  background: none;
+  color: var(--ink-faint);
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.04em;
+  text-align: left;
+  cursor: pointer;
+  transition: color 250ms var(--ease-out), border-color 250ms var(--ease-out);
+}
+
+.bvTimeline li[data-state="done"] button {
+  color: var(--ink-muted);
+}
+
+.bvTimeline li[data-state="now"] button {
+  border-left-color: var(--accent-1);
+  color: var(--ink);
+}
+
+.bvTimeline li button span {
+  color: var(--ink-faint);
+}
+
+.bvTimelineNav button {
+  color: var(--ink-muted) !important;
+}
+
+@media (max-width: 1080px) {
+  .bvExplorer,
+  .bvMapWrap,
+  .bvPaths,
+  .bvStepBody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bvDetail {
+    animation: none;
+  }
+}
+
+/* ── Products ── */
+
+.products {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem 3rem;
+  margin-top: 2.5rem;
+}
+
+.productGroupTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.productGroup ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.productIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+.productIcon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--ink-muted);
+}
+
+.product strong {
+  display: block;
+  font-size: var(--text-ui);
+  font-weight: 500;
+}
+
+.product small {
+  display: block;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Results ── */
+
+
+
+
+
+
+
+
+
+
+/* Results story: a pinned canvas told in three acts (giga.ai's Build/Observe/Improve rhythm). */
+.storyTrack {
+  position: relative;
+  height: 520vh;
+  margin-top: 1rem;
+}
+
+/* The story fills the page frame (between the rails) and the full viewport height while pinned. */
+.storyStage {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  border-inline: 1px solid var(--hairline-soft);
+  background: radial-gradient(ellipse 80% 70% at 50% 55%, oklch(0.14 0.01 270), var(--ground) 75%);
+}
+
+.storyCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Titles sit centred in the upper stage and are faded by the canvas loop. */
+.storyTitle {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  z-index: 1;
+  width: min(34rem, 90%);
+  translate: -50% 0;
+  text-align: center;
+  pointer-events: none;
+}
+
+.storyTitle[data-loop="true"] {
+  top: 7%;
+  width: min(44rem, 92%);
+}
+
+.storyTitle[data-loop="true"] h3 {
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+}
+
+.storyTitle h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 6vw, 5.5rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.storyTitle p {
+  margin: 0.85rem auto 0;
+  max-width: 26rem;
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  font-weight: 300;
+}
+
+.storyTabs {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  translate: -50% 0;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: oklch(0.13 0.002 100 / 0.85);
+  backdrop-filter: blur(10px);
+}
+
+.storyTabs button,
+.storyTabLink {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 1.75rem;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--ink-faint);
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    background 250ms var(--ease-out),
+    color 250ms var(--ease-out);
+}
+
+.storyTabs button[aria-pressed="true"] {
+  background: var(--ground-raised);
+  color: var(--ink);
+}
+
+.storyTabs button:hover {
+  color: var(--ink);
+}
+
+.storyTabLink {
+  margin-left: 0.2rem;
+  border-left: 1px solid var(--hairline);
+  border-radius: 0 9999px 9999px 0;
+  color: var(--ink-muted);
+}
+
+.storyTabDot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent-2);
+}
+
+.storyTabLink svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.storyTabLink:hover {
+  color: var(--ink);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 4.5rem 0 0;
+  border-top: 1px solid var(--hairline-soft);
+}
+
+.stat {
+  padding: 2rem 1.5rem 0;
+}
+
+.stat:first-child {
+  padding-left: 0;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--hairline-soft);
+}
+
+.statValue {
+  font-weight: 300;
+}
+
+.stat dd {
+  margin: 1rem 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.statTitle {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.footnote {
+  margin: 2.5rem 0 0;
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+}
+
+.rolling {
+  display: inline-flex;
+  font-family: var(--font-display);
+  font-size: var(--text-stat);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.rollingWindow {
+  position: relative;
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+
+.rollingSizer {
+  visibility: hidden;
+}
+
+.rollingColumn {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 1.6s var(--ease-out);
+}
+
+.rollingColumn > span {
+  height: 1em;
+}
+
+/* ── Receipt: printed line by line on scroll (contentarchitecture.dev's estimate) ── */
+
+/* The pinned stage carries its own top spacing, so the section adds none. */
+.receiptSection {
+  padding-top: 0;
+}
+
+.receiptTrack {
+  position: relative;
+  height: 280vh;
+}
+
+.receiptStage {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  padding-block: 6.5rem 10vh;
+  gap: clamp(2rem, 5vw, 5rem);
+  height: 100svh;
+  min-height: 640px;
+}
+
+/* The heading sits at the top of the stage; the receipt grows upward from the bottom. */
+.receiptIntro {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+  align-self: start;
+}
+
+.receipt {
+  align-self: end;
+}
+
+.receiptCounter {
+  display: grid;
+  gap: 1rem;
+  margin-top: clamp(1.5rem, 4vh, 3rem);
+}
+
+.odometer {
+  display: inline-flex;
+  font-family: var(--font-display);
+  font-size: clamp(7rem, 14vw, 12rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.odometerWindow {
+  position: relative;
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+
+.odometerColumn {
+  display: flex;
+  flex-direction: column;
+  transition: transform 700ms cubic-bezier(0.6, 0, 0.2, 1.25);
+}
+
+.odometerColumn > span {
+  height: 1em;
+}
+
+.receiptCounterLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+}
+
+.receiptChip {
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius);
+  background: var(--ground-raised);
+  color: var(--ink);
+}
+
+/* The receipt: dashed frame with "+" corners, mono lines, dotted leaders. */
+.receipt {
+  position: relative;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-block: 1px dashed var(--hairline);
+  background:
+    repeating-linear-gradient(to bottom, var(--hairline) 0 0.7rem, transparent 0.7rem 1.1rem) left / 1px 100% no-repeat,
+    repeating-linear-gradient(to bottom, var(--hairline) 0 0.7rem, transparent 0.7rem 1.1rem) right / 1px 100% no-repeat;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.04em;
+}
+
+.receipt::before,
+.receipt::after {
+  content: "+";
+  position: absolute;
+  top: -0.6rem;
+  color: var(--ink-faint);
+  line-height: 1;
+}
+
+.receipt::before {
+  left: -0.3rem;
+}
+
+.receipt::after {
+  right: -0.3rem;
+}
+
+.receiptHead {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.9rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--hairline);
+  color: var(--ink);
+}
+
+/* Groups and lines collapse until printed, so the receipt grows upward from its base. */
+.receiptGroup {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 450ms var(--ease-out);
+}
+
+.receiptGroup > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.receiptGroup[data-shown="true"] {
+  grid-template-rows: 1fr;
+  padding-top: 0.75rem;
+}
+
+.receiptGroup {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 0fr;
+}
+
+.receiptGroup[data-shown="true"] {
+  grid-auto-rows: auto;
+}
+
+.receiptGroupHead {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0.5rem;
+  color: var(--ink-faint);
+  transition: color 300ms var(--ease-out);
+}
+
+.receiptGroupHead[data-shown="true"] {
+  color: var(--ink-muted);
+}
+
+.receiptLine {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  color: var(--ink);
+  transition:
+    opacity 300ms var(--ease-out),
+    background 250ms var(--ease-out),
+    color 250ms var(--ease-out);
+}
+
+.receiptLine[data-state="pending"] {
+  display: none;
+}
+
+.receiptLine[data-state="new"] {
+  background: var(--ink);
+  color: var(--ground);
+}
+
+.receiptLabel {
+  white-space: nowrap;
+}
+
+.receiptLeader {
+  flex: 1;
+  min-width: 1rem;
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.4;
+  translate: 0 -0.25em;
+}
+
+.receiptProgress {
+  position: absolute;
+  right: 1.5rem;
+  bottom: -1px;
+  left: 1.5rem;
+  height: 2px;
+  background: var(--hairline);
+}
+
+.receiptProgress span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left;
+  transition: transform 400ms var(--ease-out);
+}
+
+/* ── Developers ── */
+
+.developers {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: stretch;
+}
+
+.devIntro {
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+}
+
+.devSubtitle {
+  margin: -0.75rem 0 0;
+  color: var(--ink-muted);
+}
+
+.devChecks {
+  display: grid;
+  gap: 1.1rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.devChecks li {
+  display: flex;
+  gap: 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.devChecks svg {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0.18rem;
+  border-radius: 50%;
+  background: var(--accent-3);
+  color: var(--ground);
+}
+
+.devChecks strong {
+  display: block;
+  color: var(--ink);
+  font-size: var(--text-ui);
+  font-weight: 500;
+}
+
+.codePanel {
+  position: relative;
+  min-height: 32rem;
+  overflow: hidden;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  background: var(--dots), var(--ground-sunk);
+}
+
+.codeCard {
+  position: absolute;
+  inset: clamp(1rem, 3vw, 2.5rem);
+  overflow: auto;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: oklch(0.13 0.002 100 / 0.92);
+  box-shadow: 0 20px 50px oklch(0 0 0 / 0.45);
+}
+
+.codeLabel {
+  display: block;
+  margin-top: 1rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.codeLabel:first-child {
+  margin-top: 0;
+}
+
+.codeCard pre {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.linkCards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 4.5rem;
+}
+
+.linkCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 9rem;
+  padding: 1.25rem;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  transition: background 250ms var(--ease-out), border-color 250ms var(--ease-out);
+}
+
+.linkCard:hover {
+  border-color: var(--hairline);
+  background: var(--ground-raised);
+}
+
+.linkCardTitle {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.linkCardTitle svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--ink-muted);
+}
+
+/* ── Team ── */
+
+.team {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline-soft);
+  border-left: 1px solid var(--hairline-soft);
+}
+
+.member {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 1.25rem;
+  border-right: 1px solid var(--hairline-soft);
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.identicon {
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+.memberPhoto {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--ground-sunk);
+}
+
+.memberPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1);
+}
+
+.memberPhoto .identicon {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Pinned to the card's foot so the icon rows line up across a row of cards. */
+.memberSocial {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.9rem;
+}
+
+.memberSocialLink,
+.memberSocialEmpty {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+}
+
+.memberSocialLink svg,
+.memberSocialEmpty svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.memberSocialLink {
+  color: var(--ink-muted);
+  transition:
+    color 200ms var(--ease-out),
+    border-color 200ms var(--ease-out);
+}
+
+.memberSocialLink:hover {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+
+/* A link not filled in yet: visible as a slot, clearly inactive. */
+.memberSocialEmpty {
+  border-style: dashed;
+  color: var(--ink-faint);
+  opacity: 0.45;
+}
+
+.memberName {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.memberRole,
+.memberLink {
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.memberRole {
+  text-transform: uppercase;
+}
+
+.memberLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  transition: color 200ms var(--ease-out);
+}
+
+.memberLink svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.memberLink:hover {
+  color: var(--ink);
+}
+
+/* ── FAQ ── */
+
+.faq {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 3rem;
+  align-items: start;
+}
+
+.faqList {
+  border-top: 1px solid var(--hairline-soft);
+}
+
+.faqItem {
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.faqItem summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  font-size: var(--text-body);
+  font-weight: 500;
+  list-style: none;
+  cursor: pointer;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqIcon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  color: var(--ink-muted);
+  transition: transform 300ms var(--ease-out);
+}
+
+.faqItem[open] .faqIcon {
+  transform: rotate(45deg);
+}
+
+.faqItem p {
+  margin: 0;
+  padding-bottom: 1.25rem;
+  max-width: 40rem;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+}
+
+/* ── Closing ── */
+
+
+
+/* ── Footer ── */
+
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+
+
+
+
+
+
+
+
+
+.footerColumn h3 {
+  margin: 0 0 1rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.footerColumn ul {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.footerColumn a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Footer: the call to action and the inkable wordmark side by side, at the same scale;
+   below them the product note and the link columns. */
+/* The wordmark spans both rows, so the heading and button sit together as one block
+   centred against it. */
+.footerTop {
+  display: grid;
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+  grid-template-areas:
+    "heading mark"
+    "action mark";
+  align-content: center;
+  align-items: center;
+  column-gap: clamp(2rem, 4vw, 4rem);
+  row-gap: 1.75rem;
+  width: var(--inner);
+  margin: 0 auto;
+  padding: var(--space) var(--inset) clamp(3rem, 5vw, 4.5rem);
+  border-top: 1px solid var(--hairline-soft);
+}
+
+.footerCta {
+  display: contents;
+}
+
+.footerCta .footerHeading {
+  grid-area: heading;
+  align-self: end;
+}
+
+.footerCta .pill {
+  grid-area: action;
+  justify-self: start;
+  align-self: start;
+}
+
+.footerTop .inkFrame {
+  grid-area: mark;
+}
+
+.footerHeading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 3.3vw, 3.5rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.footerBottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+  width: var(--inner);
+  margin: 0 auto;
+  padding: 2.5rem var(--inset) 3rem;
+  border-top: 1px solid var(--hairline-soft);
+}
+
+.footerNote {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+}
+
+.footerNote p {
+  margin: 0;
+  max-width: 24rem;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.footerNote .footerScope {
+  color: var(--ink-faint);
+}
+
+/* The inkable wordmark, unframed. */
+.inkFrame {
+  position: relative;
+}
+
+.inkCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 1.1;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+
+.footerMeta {
+  width: var(--inner);
+  margin: 0 auto;
+  padding: 1rem var(--inset) 2.5rem;
+  border-top: 1px solid var(--hairline-soft);
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ── Hero isometric mesh ── */
+
+.isoStage {
+  position: relative;
+  width: 100%;
+  margin: 0;
+}
+
+.isoSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 744 / 440;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.isoTop,
+.isoSide,
+.isoFront,
+.isoLid,
+.isoPcb,
+.isoEdge {
+  stroke: var(--iso-line);
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+}
+
+.isoTop {
+  fill: var(--iso-top);
+}
+
+.isoSide {
+  fill: var(--iso-side);
+}
+
+.isoFront {
+  fill: var(--iso-front);
+}
+
+.isoLid {
+  fill: var(--iso-lid);
+}
+
+.isoPcb {
+  fill: var(--iso-pcb);
+}
+
+.isoEdge {
+  fill: none;
+  stroke-linecap: round;
+}
+
+
+
+
+
+.isoKey {
+  fill: none;
+  stroke: oklch(0.66 0.05 310 / 0.32);
+  stroke-width: 0.75;
+}
+
+.isoPin {
+  fill: var(--classical);
+  opacity: 0.8;
+}
+
+.isoCrack {
+  fill: none;
+  stroke: oklch(0.9 0.02 320 / 0.55);
+  stroke-width: 0.8;
+}
+
+.isoScan {
+  stroke: oklch(0.66 0.05 310 / 0.18);
+  stroke-width: 0.6;
+}
+
+.isoScreen {
+  fill: var(--iso-screen);
+  stroke: oklch(0.58 0.004 80 / 0.6);
+  stroke-width: 1;
+}
+
+.isoCell {
+  fill: oklch(0.58 0.004 80 / 0.55);
+}
+
+.isoCellHot {
+  fill: var(--sea-core);
+}
+
+.isoRing {
+  fill: none;
+  stroke: var(--quantum);
+  stroke-width: 1;
+  stroke-dasharray: 2 6;
+}
+
+.isoArc {
+  fill: none;
+  stroke: oklch(0.78 0.004 80 / 0.5);
+  stroke-width: 1;
+  stroke-dasharray: 1 5;
+  stroke-linecap: round;
+}
+
+
+.isoShadow {
+  fill: oklch(0.05 0.004 80 / 0.9);
+  filter: blur(7px);
+}
+
+.isoChord {
+  fill: none;
+  stroke: oklch(0.58 0.004 80 / 0.22);
+  stroke-width: 1;
+  stroke-dasharray: 1 6;
+}
+
+.mapTop {
+  fill: oklch(0.11 0.002 100);
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+
+.mapSide {
+  fill: var(--black);
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+
+.mapDot {
+  fill: oklch(0.5 0.006 80);
+}
+
+.mapGrid {
+  stroke: var(--hairline-soft);
+  stroke-width: 1;
+}
+
+.mapPin {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+.mapPinDot {
+  fill: var(--accent);
+}
+
+/* Readout printed on the map slab (sizes are map-cell units). */
+.slabLabel {
+  font-family: var(--font-data);
+  font-size: 1.15px;
+  letter-spacing: 0.12em;
+  fill: var(--ink-muted);
+}
+
+.slabBits {
+  font-family: var(--font-data);
+  font-size: 3px;
+  letter-spacing: 0.08em;
+  fill: var(--ink);
+}
+
+.slabCheck {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.isoLand {
+  fill: none;
+  stroke: var(--classical);
+  stroke-width: 1.2;
+}
+
+.isoPacket,
+.isoPulse {
+  fill: var(--sea-core);
+}
+
+.isoPacketBack {
+  fill: var(--classical);
+}
+
+.isoPacketGlow {
+  fill: oklch(0.78 0.004 80 / 0.22);
+}
+
+.isoPacketGlowBack {
+  fill: oklch(0.68 0.004 80 / 0.25);
+}
+
+.isoLed {
+  fill: oklch(0.35 0.02 310);
+}
+
+.isoLedOn {
+  fill: var(--classical);
+}
+
+.isoDevice {
+  transition: transform 260ms var(--ease-out);
+}
+
+/* Screen-width strokes preserve the engraved detail on the small hero devices. */
+.isoDevice :is(path, polygon, ellipse, circle, line, polyline, rect) {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.isoDevice :is(.isoTop, .isoSide, .isoFront, .isoLid, .isoPcb, .isoEdge) {
+  stroke-width: 1;
+}
+
+.isoDevice :is(.isoKey, .isoScan, .isoCrack) {
+  stroke: var(--iso-detail);
+}
+
+.isoDetail {
+  fill: none;
+  stroke: var(--iso-detail, var(--iso-line));
+  stroke-width: 0.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.isoPort {
+  fill: var(--iso-screen);
+  stroke: var(--iso-detail, var(--iso-line));
+  stroke-width: 0.75;
+}
+
+.isoMount {
+  fill: var(--iso-side);
+  stroke: var(--iso-detail, var(--iso-line));
+  stroke-width: 0.75;
+}
+
+.isoStandoff {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent-2) 40%, var(--iso-line));
+  stroke-width: 0.8;
+}
+
+.hero .mapDot {
+  fill: color-mix(in srgb, var(--ink) 30%, var(--ground));
+}
+
+.isoDevice .isoPin {
+  fill: color-mix(in srgb, var(--accent-2) 65%, var(--ink-muted));
+}
+
+.isoTether {
+  stroke: oklch(0.78 0.004 80 / 0.35);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.isoBadgeRing {
+  fill: var(--ground);
+  stroke: oklch(0.58 0.004 80 / 0.8);
+  stroke-width: 1;
+}
+
+.isoBadgeEq {
+  fill: none;
+  stroke: oklch(0.58 0.004 80 / 0.5);
+  stroke-width: 0.8;
+}
+
+.isoBadgeFlash {
+  fill: oklch(0.78 0.004 80 / 0.35);
+}
+
+.isoBadgeBit {
+  font-family: var(--font-data);
+  font-size: 13px;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+
+.isoVector {
+  stroke: var(--sea-core);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.isoTip {
+  fill: var(--classical);
+}
+
+
+.isoSphere {
+  fill: oklch(0.155 0.004 80 / 0.85);
+  stroke: var(--quantum);
+  stroke-width: 1.2;
+}
+
+.isoSphereHalo {
+  fill: none;
+  stroke: oklch(0.58 0.004 80 / 0.35);
+  stroke-width: 1;
+  stroke-dasharray: 1 4;
+}
+
+.isoSphereLine {
+  fill: none;
+  stroke: oklch(0.58 0.004 80 / 0.65);
+  stroke-width: 1;
+}
+
+.isoSphereFaint {
+  fill: none;
+  stroke: oklch(0.58 0.004 80 / 0.25);
+  stroke-width: 1;
+}
+
+.isoNode {
+  fill: oklch(0.35 0.004 80);
+}
+
+.isoNodeOn {
+  fill: var(--classical);
+}
+
+.isoResultLabel {
+  font-family: var(--font-data);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: var(--ink-faint);
+}
+
+.isoResultBits {
+  font-family: var(--font-data);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  fill: var(--ink);
+}
+
+.isoReceipt path {
+  fill: none;
+  stroke: var(--classical);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.isoReceipt text {
+  font-family: var(--font-data);
+  font-size: 10px;
+  fill: var(--ink-muted);
+}
+
+.isoTag rect {
+  fill: var(--ground);
+  stroke: var(--quantum);
+  stroke-width: 1;
+}
+
+.isoTag text {
+  font-family: var(--font-data);
+  font-size: 10px;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+
+.isoCaption {
+  margin-top: 0.25rem;
+  font-family: var(--font-data);
+  font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  text-align: left;
+}
+
+
+
+/* ── Responsive ── */
+
+@media (max-width: 1080px) {
+  .navLinks {
+    display: none;
+  }
+
+  .nav {
+    grid-template-columns: 1fr auto;
+  }
+
+  .navActions {
+    align-items: center;
+  }
+
+  .menuButton {
+    display: grid;
+  }
+
+  .menuPanel {
+    display: flex;
+  }
+
+  /* The stacked receipt is taller than a phone, so it can't pin: it sits in the flow,
+     keeps its full height from the start, and its lines light up as they scroll in. */
+  .receiptTrack {
+    height: auto;
+  }
+
+  .receiptStage {
+    position: static;
+    height: auto;
+    min-height: 0;
+    padding-block: clamp(3.5rem, 10vw, 5rem) 0;
+    gap: 2.5rem;
+  }
+
+  .receipt {
+    align-self: stretch;
+  }
+
+  .receiptGroup {
+    grid-template-rows: 1fr;
+    grid-auto-rows: auto;
+    padding-top: 0.75rem;
+  }
+
+  .receiptLine[data-state="pending"] {
+    display: flex;
+    opacity: 0.22;
+  }
+
+  .hero,
+  .footerTop,
+  .receiptStage,
+  .workloads,
+  .developers,
+  .faq {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Narrow screens: text over a shorter stage, the stack below. */
+  .footerTop {
+    grid-template-areas:
+      "heading"
+      "action"
+      "mark";
+  }
+
+  .archPin {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .archVisual {
+    border-left: 0;
+    border-top: 1px solid var(--hairline-soft);
+  }
+
+  .products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .linkCards,
+  .team {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+}
+
+@media (max-width: 760px) {
+  .footerBottom {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .footerNote {
+    grid-column: 1 / -1;
+  }
+
+  .pillText {
+    display: none;
+  }
+
+  .logoCell {
+    width: 13rem;
+    min-height: 6rem;
+  }
+
+  /* Only the active step shows; it and its text sit at the top of the text half. */
+  .archStep[data-state="passed"],
+  .archStep[data-state="next"],
+  .archRailLit {
+    opacity: 0;
+  }
+
+  .archStep[data-state="active"] {
+    transform: translateY(5.5rem) !important;
+  }
+
+  .archIntro {
+    top: 5.5rem;
+    translate: none;
+  }
+
+  .archPanel {
+    top: 7.25rem;
+  }
+
+  .archIntro p,
+  .archPanel p {
+    font-size: var(--text-body);
+  }
+
+  .products,
+  .stories,
+  .linkCards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .codePanel {
+    min-height: 34rem;
+  }
+
+  .hero {
+    padding-right: var(--inset);
+  }
+
+  .hero .isoStage {
+    width: 100%;
+  }
+
+  .storyTabs button,
+  .storyTabLink {
+    padding: 0 0.55rem;
+  }
+
+  .hero .isoCaption {
+    padding: 0;
+    text-align: center;
+  }
+
+  .isoCaption {
+    padding-inline: 15%;
+    text-align: center;
+  }
+
+  .hero {
+    overflow-x: clip;
+  }
+
+  /* Touch targets. */
+  .pill,
+  .pillGhost {
+    height: 2.75rem;
+  }
+
+  .storyTabs button,
+  .storyTabLink {
+    height: 2.5rem;
+  }
+
+  .storyTitle {
+    top: 4%;
+  }
+
+  .memberSocialLink,
+  .memberSocialEmpty {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .team,
+
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Ten people: photo beside the details keeps the list short enough to scroll past. */
+  .member {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 1rem;
+    row-gap: 0.2rem;
+  }
+
+  .memberPhoto {
+    grid-row: 1 / span 4;
+  }
+
+  .member > :not(.memberPhoto) {
+    grid-column: 2;
+  }
+
+  .memberSocial {
+    margin-top: 0.25rem;
+    margin-left: -0.75rem;
+  }
+
+  .actions > * {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .receipt {
+    padding-inline: 0.75rem;
+    letter-spacing: 0.02em;
+  }
+
+  .receiptGroupHead,
+  .receiptLine {
+    padding-inline: 0.25rem;
+  }
+
+  /* Long labels wrap; the value keeps its column. */
+  .receiptLabel {
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .receiptLeader {
+    min-width: 0.5rem;
+  }
+
+  .receiptLine > :last-child {
+    flex-shrink: 0;
+  }
+
+  .storyTabs {
+    gap: 0;
+    bottom: 1rem;
+  }
+
+  .storyTabs button,
+  .storyTabLink {
+    padding: 0 0.5rem;
+    letter-spacing: 0.02em;
+  }
+
+  .storyTabDot {
+    display: none;
+  }
+
+  .stat {
+    padding-left: 0 !important;
+    border-left: 0 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .navActions > .pill {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logoTrack {
+    width: 100%;
+    animation: none;
+  }
+
+  .logoRow {
+    overflow: visible;
+    mask-image: none;
+  }
+
+  .logoGroup {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    width: 100%;
+  }
+
+  .logoCell {
+    width: auto;
+    min-width: 0;
+  }
+
+  .logoGroup[aria-hidden="true"],
+  .logoPause {
+    display: none;
+  }
+
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .rollingColumn {
+    transition: none;
+    transform: translateY(calc(var(--digit) * -10%)) !important;
+  }
+
+  .hero::before,
+  .hero::after {
+    animation: none;
+  }
+
+  .odometerColumn,
+  .receiptLine,
+  .receiptProgress span {
+    transition: none;
+  }
+
+  .archStep,
+  .archRailLit {
+    transition: none;
+  }
+
+  .wireLive {
+    animation: none !important;
+  }
+}

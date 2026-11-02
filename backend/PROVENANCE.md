@@ -3,7 +3,8 @@
 This documents issue #4: backward-compatible evidence models, deterministic
 commitments, Merkle proofs, circuit-job provenance, a verification endpoint and
 run-detail badge. It prepares evidence for #21 but does not submit transactions,
-schedule anchor batches, upload files or enable any mainnet.
+schedule anchor batches, upload files or enable any mainnet. #21 adds anchoring:
+see [Anchor transactions](#anchor-transactions-21).
 
 Provenance proves integrity of a recorded result, **not** execution on quantum
 hardware, scientific correctness, peer honesty, or availability of stored data.
@@ -225,6 +226,121 @@ reinterpret v1 roots as OpenZeppelin roots. No Keccak mode is shipped here.
 index, batch size, siblings (`proof`), hash profile and optional explorer `url`. Addresses and transaction
 formats are chain-specific and must be checked by adapters, not this schema.
 No anchor key, RPC credential or wallet secret belongs in a bundle.
+
+### Anchor transactions (#21)
+
+An anchor is a **zero-value transaction from the anchor account to itself** on a
+registry network with the `anchor_root` capability (testnets only; Ethereum Sepolia
+in the packaged registry). Its 45-byte calldata is:
+
+| Bytes | Content |
+| --- | --- |
+| 8 | ASCII `QMSHANC1` |
+| 32 | SHA-256 Merkle root (`qmesh-provenance-sha256-v1`) |
+| 4 | Batch size, big-endian unsigned |
+| 1 | Hash profile: `0x01` = `qmesh-provenance-sha256-v1` |
+
+Putting the batch size in the payload authenticates it together with the root, so a
+proof cannot claim a different `leaf_count` for the same transaction. No contract is
+deployed; a batch costs 21,780-22,740 gas (measured on a local Prague-rules node, where
+the EIP-7623 calldata floor sets the upper value).
+
+A minimal contract emitting an `Anchored(root, size, profile)` event would let anyone
+find anchors with `eth_getLogs` without knowing transaction hashes, at the cost of a
+deployment and more gas per batch. Bundles already record their transaction hash, so
+the self-send is the simpler choice here. One limit applies to both: some RPC nodes
+prune old transaction lookups, after which an anchor shows `unavailable` on that node;
+use an RPC override with full history to check old anchors.
+
+`chains.anchor.EvmAnchorAdapter.check_anchor` reports `confirmed` only when the
+transaction succeeded, came from and went to the configured anchor account, moved no
+value, carries exactly the expected payload and is at or below the `finalized` block.
+Anything else is `pending`, `not_found`, `failed` or `mismatch`.
+
+`application.anchoring.RegistryAnchorAdapter` implements `AnchorAdapter` for the verify
+endpoint. Set `QB2_ANCHOR_NETWORK` (alias or CAIP-2 ID) and the public
+`QB2_ANCHOR_SENDER` address to enable it, plus `QB2_ANCHOR_PAST_SENDERS` (comma-separated)
+for every account used before a key rotation. The RPC is the network's registry
+variable or public endpoint. A confirmed match passes; a mismatch or failed transaction
+fails; a pending, missing or unreachable transaction, or an RPC serving another chain,
+is `unavailable`, because a missing transaction cannot be told apart from an RPC node
+that pruned old history. An unknown, disabled or non-anchoring network stops startup.
+
+Anyone can check a downloaded bundle without a key or database:
+
+```bash
+cd backend
+uv run --frozen python scripts/verify_anchor.py bundle.json --sender 0xANCHOR_ACCOUNT
+```
+
+It recomputes the bundle commitment (and compares any recorded `bundle_hash`), checks
+each Merkle proof, then checks the transaction as above. Repeat `--sender` for accounts
+used before a rotation. It exits 0 if every anchor passed, 1 if any check failed, and 2
+if none failed but a transaction was unavailable. It never prints RPC errors.
+
+### Scheduled anchoring
+
+With `QB2_ANCHOR_PRIVATE_KEY` also set, the backend anchors circuit-job bundles
+(`provenance_bundles`) on a schedule. Finance bundles live inside job results and are
+not anchored yet. Each run:
+
+1. Takes up to `QB2_ANCHOR_MAX_BATCH` unanchored bundles in creation order. Bundles
+   without a `content_hash` are skipped; one whose stored payload no longer matches it is
+   marked `unanchorable` once and never anchored.
+2. Records the ordered batch and root, claims the bundles (`anchor_batch_id`; repeated
+   before signing if a crash interrupted it), then signs one anchor transaction and
+   **stores it before broadcasting**.
+3. Broadcasts it and waits for the `finalized` block, then appends a `ChainAnchor` (with
+   its explorer `url` and inclusion proof) to every bundle in the batch.
+
+A batch moves `prepared -> signed -> submitted -> anchored`, or to `failed`:
+
+- A crash at any step resumes the same batch; a resend is the identical signed
+  transaction. Applying anchors is idempotent per transaction hash.
+- Anchors are written only after finality, so a reverted or mismatched transaction, or
+  one whose nonce another transaction used, marks the batch `failed` and releases its
+  bundles for the next batch without touching them. A nonce counts as taken only after
+  10 minutes without finding any attempt, so a lagging load-balanced node cannot fail a
+  batch that was mined. A transaction the node lost is resent every 5 minutes.
+- A transaction still unmined after 30 minutes is replaced at the same nonce with fees
+  at least 12.5% higher, up to the fee cap. Every attempt is stored and checked, and
+  whichever is mined anchors the batch. If the cap prevents a bump, the batch waits and
+  a warning is logged; raise `QB2_ANCHOR_MAX_FEE_GWEI` to clear it.
+- A unique index allows one open batch, and a 10-minute lease lets one replica run the
+  scheduler at a time. The lease is renewed before every write and broadcast, and each
+  batch write must match the batch's revision, so a runner that paused past its lease
+  stops instead of overwriting its successor's work.
+- Anchors are excluded from `bundle_hash`, so anchoring never changes a commitment.
+
+Runs repeat every `QB2_ANCHOR_INTERVAL_SECONDS` (default hourly), every minute while a
+batch waits for finality (about 13-15 minutes on Ethereum), a few seconds after a batch
+completes (to clear a backlog) and five minutes after an error. The maximum fee per gas
+is capped at `QB2_ANCHOR_MAX_FEE_GWEI` (default 100); if even that cannot be included,
+the run waits rather than paying more. Errors are logged by type only, never with RPC
+URLs.
+
+**Cost and cadence.** One batch is one 21,780-22,740 gas transaction whatever its size
+(up to `QB2_ANCHOR_MAX_BATCH`: default 10,000, at most 20,000 so the batch record stays
+well under MongoDB's document limit). Hourly anchoring is 24
+transactions and about 0.55M gas a day: 0.0055 ETH a day at 10 gwei, or about 0.0011
+ETH at 2 gwei. Sepolia ETH is free from faucets. A bundle waits at most about one
+interval plus finality, about 75 minutes by default. A longer interval lowers cost; a
+shorter one shortens the wait. A backlog larger than one batch is cleared in back-to-back
+batches.
+
+**Anchor key.** Use a dedicated account for anchoring only, never a user, platform or
+deployer wallet. Fund it with a small Sepolia balance and refill as needed. Set
+`QB2_ANCHOR_SENDER` to its public address and `QB2_ANCHOR_PRIVATE_KEY` privately; startup
+fails if they do not match. The key is held only in process memory, is not logged, and
+never appears in bundles or responses. To rotate, set the new key and sender and add the
+old address to `QB2_ANCHOR_PAST_SENDERS`; older anchors keep verifying. A batch already
+signed by the old account finishes with that account: it is checked and its nonce is
+read against that account, and it is never replaced by the new key, whose nonces are
+unrelated. Keep the old account funded until that batch closes; an unsigned batch is
+signed by the new account.
+
+Publishing a bundle to Kubo now pushes its storage reference atomically instead of
+saving the whole document, so it cannot overwrite an anchor or claim written meanwhile.
 
 ## Compatibility and checks
 

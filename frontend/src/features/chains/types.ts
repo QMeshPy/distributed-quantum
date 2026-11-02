@@ -7,7 +7,8 @@ export type ChainCapability =
   | "aave_supply"
   | "aave_withdraw"
   | "faucet_instructions"
-  | "get_price";
+  | "get_price"
+  | "anchor_root";
 
 export type ExplorerKind = "transaction" | "address" | "block";
 

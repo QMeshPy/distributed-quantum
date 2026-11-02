@@ -608,20 +608,18 @@ function MarkdownContent({ content }: { content: string }) {
         em: ({ children }) => (
           <em className="italic text-white/70">{children}</em>
         ),
-        code: ({ className, children, ...props }) => {
+        // Omit `...props` — react-markdown's @types/react copy conflicts with the
+        // project's Ref types when `ref` is spread onto intrinsic elements.
+        code: ({ className, children }) => {
           const isBlock = className?.includes("language-");
           return isBlock ? (
             <code
               className={`${className} block overflow-x-auto rounded-lg bg-black/40 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-amber-200/80 ring-1 ring-white/6`}
-              {...props}
             >
               {children}
             </code>
           ) : (
-            <code
-              className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[11px] text-amber-300/80"
-              {...props}
-            >
+            <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[11px] text-amber-300/80">
               {children}
             </code>
           );

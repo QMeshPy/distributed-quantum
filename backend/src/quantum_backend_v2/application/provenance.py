@@ -165,14 +165,12 @@ async def publish_run_provenance(bundle_id: str, publisher: BundlePublisher) -> 
         reference = next((ref for ref in stored.storage if ref.backend == KUBO_BACKEND), None)
         if reference is None:
             reference = await publisher.publish(document.payload)
-            document.payload = {
-                **document.payload,
-                "storage": [
-                    *document.payload.get("storage", []),
-                    reference.model_dump(mode="json"),
-                ],
-            }
-            await document.save()
+            # Push atomically: a full save after the upload could overwrite anchors or an
+            # anchor batch claim written meanwhile (#21).
+            await ProvenanceBundleDocument.get_pymongo_collection().update_one(
+                {"bundle_id": bundle_id, "payload.storage.backend": {"$ne": KUBO_BACKEND}},
+                {"$push": {"payload.storage": reference.model_dump(mode="json")}},
+            )
         return {"status": "published", "cid": reference.cid}
     except Exception as exc:
         # Log the class only: transport errors must not carry credentials or URLs.

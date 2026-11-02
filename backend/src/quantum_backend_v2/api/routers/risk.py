@@ -7,10 +7,23 @@ import io
 import math
 from datetime import date
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
+from fastapi.responses import Response
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
+from quantum_backend_v2.api.deps.x402_gateway import X402_OWNER_USER_ID, build_x402_gateway_guard
 from quantum_backend_v2.api.errors.models import not_found
+from quantum_backend_v2.api.finance_download import finance_provenance_download
 from quantum_backend_v2.api.models.risk import (
     CreditAsset,
     EquityHolding,
@@ -24,6 +37,10 @@ from quantum_backend_v2.chains.adapter import UnsupportedOperationError
 from quantum_backend_v2.chains.models import DisabledNetworkError, UnknownNetworkError
 from quantum_backend_v2.chains.prices import PriceRejectedError, PriceUnavailableError
 from quantum_backend_v2.chains.rpc import RpcConfigurationError
+
+# Paid x402 callers are anonymous, so bound the work one payment can request.
+_X402_MAX_HOLDINGS = 20
+_X402_MAX_CREDIT_ASSETS = 15
 
 
 def _daily_log_returns(rows: list[dict[str, str]]) -> list[list[float]]:
@@ -48,7 +65,11 @@ def _daily_log_returns(rows: list[dict[str, str]]) -> list[list[float]]:
     ]
 
 
-def build_risk_router(*, risk_job_service: RiskJobService) -> APIRouter:
+def build_risk_router(
+    *,
+    risk_job_service: RiskJobService,
+    x402_gateway_secret: str | None = None,
+) -> APIRouter:
     """Build the quantum risk engine router."""
     router = APIRouter(prefix="/api/v1/risk", tags=["risk"])
 
@@ -233,10 +254,14 @@ def build_risk_router(*, risk_job_service: RiskJobService) -> APIRouter:
     async def get_risk_job(
         job_id: str,
         current_user: CurrentUser,
-    ) -> RiskJobResponse:
+        download: str | None = Query(default=None, pattern="^provenance$"),
+    ) -> RiskJobResponse | Response:
         record = await risk_job_service.get_job(job_id, current_user=current_user)
         if record is None:
             raise not_found("Risk job", job_id)
+        if download == "provenance":
+            return finance_provenance_download(record.result_payload)
+
         return RiskJobResponse(
             job_id=record.id,
             status=record.status,
@@ -270,5 +295,84 @@ def build_risk_router(*, risk_job_service: RiskJobService) -> APIRouter:
             )
             for record in records
         ]
+
+    if x402_gateway_secret is not None:
+        require_x402_gateway = build_x402_gateway_guard(x402_gateway_secret)
+
+        @router.post(
+            "/internal/x402/submit",
+            response_model=RiskSubmitResponse,
+            status_code=status.HTTP_201_CREATED,
+            include_in_schema=False,
+        )
+        async def submit_x402_risk_job(
+            request: RiskJobRequest,
+            background_tasks: BackgroundTasks,
+            _: None = Depends(require_x402_gateway),
+        ) -> RiskSubmitResponse:
+            if any(holding.chainlink_price is not None for holding in request.holdings):
+                raise HTTPException(status_code=422, detail="oracle pricing is unavailable on x402")
+            if (
+                len(request.holdings) > _X402_MAX_HOLDINGS
+                or len(request.assets) > _X402_MAX_CREDIT_ASSETS
+            ):
+                raise HTTPException(status_code=422, detail="portfolio is too large for x402")
+            request_payload = request.model_dump()
+            portfolio_size = (
+                len(request.holdings) if request.risk_model == "equity" else len(request.assets)
+            )
+            try:
+                record = await risk_job_service.submit(
+                    risk_model=request.risk_model,
+                    portfolio_size=portfolio_size,
+                    owner_user_id=X402_OWNER_USER_ID,
+                    request_payload=request_payload,
+                )
+            except (PriceUnavailableError, RpcConfigurationError):
+                raise HTTPException(status_code=503, detail="price feed is unavailable") from None
+            except (
+                PriceRejectedError,
+                DisabledNetworkError,
+                UnknownNetworkError,
+                UnsupportedOperationError,
+            ) as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from None
+            background_tasks.add_task(
+                risk_job_service.process,
+                job_id=record.id,
+                request_payload=request_payload,
+            )
+            return RiskSubmitResponse(
+                job_id=record.id,
+                status=record.status,
+                risk_model=record.risk_model,
+                portfolio_size=record.portfolio_size,
+            )
+
+        @router.get(
+            "/internal/x402/jobs/{job_id}",
+            response_model=RiskJobResponse,
+            include_in_schema=False,
+        )
+        async def get_x402_risk_job(
+            job_id: str,
+            _: None = Depends(require_x402_gateway),
+        ) -> RiskJobResponse:
+            record = await risk_job_service.get_job_for_owner(
+                job_id,
+                owner_user_id=X402_OWNER_USER_ID,
+            )
+            if record is None:
+                raise not_found("Risk job", job_id)
+            return RiskJobResponse(
+                job_id=record.id,
+                status=record.status,
+                risk_model=record.risk_model,
+                portfolio_size=record.portfolio_size,
+                result=record.result_payload,
+                error=record.error,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
 
     return router

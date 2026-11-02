@@ -70,7 +70,7 @@ def _utc_now() -> datetime:
 
 
 async def seed() -> None:
-    mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+    mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
     mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
 
     client = AsyncIOMotorClient(mongodb_uri)

@@ -1,5 +1,7 @@
 // Public barrel for the finance feature
 export { PortfolioUploadPanel } from "./components/portfolio-upload-panel";
+export { TokenizedPortfolioPanel } from "./components/tokenized-portfolio-panel";
+export { TokenizedMarketData } from "./components/tokenized-market-data";
 export { FinanceResultSummary } from "./components/finance-result-summary";
 export { FinanceQuantumSummary } from "./components/finance-quantum-summary";
 export { FinanceHistoryTable } from "./components/finance-history-table";

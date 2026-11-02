@@ -131,9 +131,11 @@ class ResearchProposalDocument(Document):
     description: str
     researcher_id: str
     researcher_wallet: str
+    researcher_starknet_wallet: str | None = None
     methodology: str = ""
     budget_required: Decimal128  # Total USDC needed
     budget_raised: Decimal128 = Field(default_factory=lambda: Decimal128("0"))
+    budget_raised_strk: Decimal128 = Field(default_factory=lambda: Decimal128("0"))
     funding_threshold: Decimal128  # Minimum to unlock funds
     deadline: datetime
     status: Literal[
@@ -195,6 +197,7 @@ class AIAgentDocument(Document):
     config: dict[str, Any] = Field(default_factory=dict)  # {auto_fund: bool, max_per_tx: Decimal128, ...}
     spending_history: list[dict[str, Any]] = Field(default_factory=list)  # SpendingHistoryRecord array
     total_spent: Decimal128 = Field(default_factory=lambda: Decimal128("0"))
+    starknet_session: dict[str, Any] | None = None
     created_at: datetime = Field(default_factory=_utc_now)
     updated_at: datetime = Field(default_factory=_utc_now)
 

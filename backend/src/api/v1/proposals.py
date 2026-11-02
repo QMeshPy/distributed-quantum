@@ -50,6 +50,10 @@ class ProposalCreateRequest(BaseModel):
     funding_threshold: str | None = Field(default=None, description="Minimum funding threshold (default: 70%)")
     deadline_days: int = Field(default=30, ge=1, le=365, description="Days until deadline")
     expected_timeline: str = Field(default="Not specified", description="Expected research duration")
+    researcher_starknet_wallet: str | None = Field(
+        default=None,
+        description="Optional Starknet payee address for STRK session funding",
+    )
 
 
 class FragmentInfo(BaseModel):
@@ -75,8 +79,10 @@ class ProposalResponse(BaseModel):
     title: str = Field(description="Proposal title")
     status: str = Field(description="Proposal status")
     researcher_id: str = Field(description="Researcher who created the proposal")
+    researcher_starknet_wallet: str | None = Field(default=None, description="Optional Starknet payee address")
     budget_required: str = Field(description="Total USDC funding needed")
     budget_raised: str = Field(description="USDC raised so far")
+    budget_raised_strk: str = Field(default="0", description="STRK raised via Starknet session spends")
     fragments: list[FragmentInfo] = Field(default_factory=list, description="Auto-generated fragments")
     created_at: str = Field(description="ISO timestamp")
 
@@ -166,8 +172,10 @@ class ProposalDetailResponse(BaseModel):
     methodology: str
     researcher_id: str
     researcher_wallet: str
+    researcher_starknet_wallet: str | None = None
     budget_required: str
     budget_raised: str
+    budget_raised_strk: str = "0"
     funding_threshold: str
     deadline: str
     status: str
@@ -187,8 +195,10 @@ class ProposalListItem(BaseModel):
     proposal_id: str
     title: str
     researcher_id: str
+    researcher_starknet_wallet: str | None = None
     budget_required: str
     budget_raised: str
+    budget_raised_strk: str = "0"
     funding_percentage: str
     status: str
     tags: list[str]
@@ -270,6 +280,7 @@ async def create_proposal(
             deadline_days=body.deadline_days,
             expected_timeline=body.expected_timeline,
             auto_fragment=body.auto_fragment,
+            researcher_starknet_wallet=body.researcher_starknet_wallet,
         )
 
         # Format fragments for response
@@ -292,8 +303,10 @@ async def create_proposal(
             title=proposal_data["title"],
             status=proposal_data["status"],
             researcher_id=proposal_data["researcher_id"],
+            researcher_starknet_wallet=proposal_data.get("researcher_starknet_wallet"),
             budget_required=str(proposal_data["budget_required"]),
             budget_raised="0",
+            budget_raised_strk="0",
             fragments=fragments,
             created_at=proposal_data["created_at"].isoformat(),
         )
@@ -369,6 +382,11 @@ async def list_proposals(
         for prop in proposals:
             budget_required = prop.budget_required.to_decimal()
             budget_raised = prop.budget_raised.to_decimal()
+            budget_raised_strk = (
+                prop.budget_raised_strk.to_decimal()
+                if getattr(prop, "budget_raised_strk", None) is not None
+                else Decimal("0")
+            )
             funding_percentage = (budget_raised / budget_required * 100) if budget_required > 0 else 0
 
             proposal_items.append(
@@ -376,8 +394,10 @@ async def list_proposals(
                     proposal_id=prop.proposal_id,
                     title=prop.title,
                     researcher_id=prop.researcher_id,
+                    researcher_starknet_wallet=getattr(prop, "researcher_starknet_wallet", None),
                     budget_required=str(budget_required),
                     budget_raised=str(budget_raised),
+                    budget_raised_strk=str(budget_raised_strk),
                     funding_percentage=f"{funding_percentage:.1f}%",
                     status=prop.status,
                     tags=prop.tags,
@@ -475,8 +495,14 @@ async def get_proposal(
             methodology=proposal.methodology,
             researcher_id=proposal.researcher_id,
             researcher_wallet=proposal.researcher_wallet,
+            researcher_starknet_wallet=getattr(proposal, "researcher_starknet_wallet", None),
             budget_required=str(proposal.budget_required.to_decimal()),
             budget_raised=str(proposal.budget_raised.to_decimal()),
+            budget_raised_strk=str(
+                proposal.budget_raised_strk.to_decimal()
+                if getattr(proposal, "budget_raised_strk", None) is not None
+                else Decimal("0")
+            ),
             funding_threshold=str(proposal.funding_threshold.to_decimal()),
             deadline=proposal.deadline.isoformat(),
             status=proposal.status,

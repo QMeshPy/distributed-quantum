@@ -10,6 +10,35 @@ grow into the full migration plan described in `backend-migration.md`.
 See [PROVENANCE.md](PROVENANCE.md) for the versioned canonical hashing and Merkle
 proof format, backward-compatible bundle fields, and Ethereum anchoring handoff.
 
+## Tokenized-stock portfolios
+
+`GET /api/v1/finance/tokenized-assets` lists the Robinhood Stock Tokens whose Chainlink
+price history can be analysed, with the sampling rules, data source and disclaimer.
+`POST /api/v1/finance/tokenized-portfolio` takes `symbols`, `start_date`, `end_date` and
+the usual optimizer settings, validates them, and queues a normal finance job (#18):
+
+```json
+{"symbols": ["AAPL", "MSFT", "SPY"], "start_date": "2026-06-23", "end_date": "2026-10-28"}
+```
+
+The job reads validated daily token prices from Robinhood Chain mainnet (read-only, see
+[Robinhood Chain market data](CHAIN_REGISTRY.md#robinhood-chain-market-data)) and runs the
+existing portfolio optimizer on them. `GET /api/v1/finance/{job_id}` then adds:
+
+- `market_data`: source, chain, block, aligned date range and per-asset token/feed
+  addresses and first/last round IDs.
+- `allocation_weights`: the optimizer's equal weights over each method's selected assets.
+- `disclaimer`: analysis only, not investment advice; nothing is signed or traded.
+- `provenance`: the existing finance bundle, with every daily close as a Chainlink
+  oracle reference, so the exact inputs can be re-read by round ID.
+
+Unsupported assets, future end dates, ranges without 60 weekdays and a `budget` the
+optimizer would reject get a 422 before a job exists. Missing, invalid or insufficient
+history (fewer than 60 aligned trading days) fails the job with a fixed message instead
+of substituting prices. At most two history reads run at once per process, because the
+default public RPC is rate-limited; `QB2_ROBINHOOD_MAINNET_RPC_URL` optionally
+overrides it. Rounds are immutable, so caching them per feed is a possible follow-up.
+
 ## Kubo RPC client
 
 `quantum_backend_v2.content.kubo.KuboClient` targets the pinned Kubo **v0.43.1**

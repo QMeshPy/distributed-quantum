@@ -89,8 +89,7 @@ services:
       KUBO_RPC_TIMEOUT_SECONDS: "${KUBO_RPC_TIMEOUT_SECONDS:-30}"
       KUBO_RPC_MAX_RESPONSE_BYTES: "${KUBO_RPC_MAX_RESPONSE_BYTES:-4194304}"
       IPFS_PUBLIC_GATEWAY_URL: "${IPFS_PUBLIC_GATEWAY_URL:-}"
-      QB2_MONGODB_TARGET: "${QB2_MONGODB_TARGET:-remote}"
-      QB2_MONGODB_REMOTE_URI: "${QB2_MONGODB_REMOTE_URI}"
+      QB2_MONGODB_URI: "${QB2_MONGODB_URI}"
       QB2_MONGODB_DATABASE: "${QB2_MONGODB_DATABASE:-qds}"
       QB2_PEER_LOG_DIR: "${QB2_PEER_LOG_DIR:-/workspace/backend/quantum-backend/peer-logs}"
       QB2_PEER_ID: "${QB2_PEER_ID:-qb2-production-peer}"
@@ -151,7 +150,9 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
-    # Only expose to Caddy, not to host network
+    ports:
+      # libp2p peer-to-peer port; Caddy only proxies HTTP so it cannot carry this.
+      - "4011:4011"
     networks:
       - backend_network
       - content_network
@@ -168,8 +169,6 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"  # HTTP/3 support
-      # libp2p port for peer-to-peer communication
-      - "4011:4011"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

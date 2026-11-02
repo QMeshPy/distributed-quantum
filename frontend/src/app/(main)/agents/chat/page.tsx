@@ -30,6 +30,11 @@ import { AttestationBadge } from "@/features/agent/components/conversation-panel
 
 import { useStorageExports, type StorageExport } from "@/features/agentkit/hooks/use-storage-exports";
 import { StorageExports } from "@/features/agentkit/components/storage-exports";
+import { AgentLlmProviderSelect } from "@/features/agentkit/components/agent-llm-provider-select";
+import { useAgentLlmProvider } from "@/features/agentkit";
+import { OpenSessionDialog } from "@/features/starknet/open-session-dialog";
+import { TestSpendDialog } from "@/features/starknet/test-spend-dialog";
+import { StarknetSessionPanel } from "@/features/starknet/session-panel";
 
 function AgentChatIdentity({ agent, session }: { agent: AgentItem; session: ChatSession | null }) {
   const span = humanSpan(session?.createdAt, session?.updatedAt);
@@ -72,12 +77,15 @@ function AgentsChatInner() {
   const [loading, setLoading]                 = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [introShown, setIntroShown]           = useState(false);
+  const [testSpendOpen, setTestSpendOpen]     = useState(false);
+  const [openSession, setOpenSession]         = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: ownedAgents = [], isLoading: agentsLoading } = useAgents();
   const createAgent = useCreateAgent();
   const { sessions, sessionsReady, createSession, appendMessage, loadSession } = useChatSessions();
   const agents = collapseDuplicatePersonalAgents(ownedAgents, sessions);
+  const { provider: llmProvider } = useAgentLlmProvider();
 
   const activateSession = (id: string) => {
     setActiveSessionId(id);
@@ -103,24 +111,42 @@ function AgentsChatInner() {
     setInput("");
   }, [urlNew]);
 
+  const agentSessions = urlAgentId
+    ? sessions.filter((session) => session.agentId === urlAgentId)
+    : sessions;
+
+  // Drop another agent's open chat when the agent in the URL changes.
+  useEffect(() => {
+    const current = sessions.find((session) => session.id === activeSessionId);
+    if (!urlAgentId || !current?.agentId || current.agentId === urlAgentId) return;
+    setMessages([]);
+    setActiveSessionId(null);
+    setIntroShown(false);
+    setInput("");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("sessionId");
+    window.history.replaceState(null, "", url);
+  }, [urlAgentId, activeSessionId, sessions]);
+
   // Restore an existing session when navigating from history
   useEffect(() => {
     if (!urlSessionId || urlSessionId === activeSessionId) return;
     loadSession(urlSessionId).then((session) => {
       if (!session) return;
+      if (urlAgentId && session.agentId && session.agentId !== urlAgentId) return;
       setActiveSessionId(session.id);
       setMessages(session.messages);
     });
-  }, [urlSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlSessionId, urlAgentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // /agents/chat has no sessionId. The list fetch already returned messages; select the newest.
+  // /agents/chat has no sessionId. Select the newest session for this agent only.
   useEffect(() => {
-    if (urlNew || urlAgentName || urlSessionId || activeSessionId || !sessionsReady || sessions.length === 0) return;
-    const latest = sessions[0];
+    if (urlNew || urlAgentName || urlSessionId || activeSessionId || !sessionsReady || agentSessions.length === 0) return;
+    const latest = agentSessions[0];
     setActiveSessionId(latest.id);
     setMessages(latest.messages);
     activateSession(latest.id);
-  }, [urlNew, urlAgentName, urlSessionId, activeSessionId, sessionsReady, sessions]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlNew, urlAgentName, urlSessionId, activeSessionId, sessionsReady, agentSessions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show persona intro once when arriving from marketplace
   useEffect(() => {
@@ -178,7 +204,16 @@ function AgentsChatInner() {
 
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
-    if (!urlNew && !urlAgentName && !urlSessionId && !activeSessionId && (!sessionsReady || sessions.length > 0)) return;
+    // Wait for session restore (effect below) before first send when this agent already has sessions.
+    if (
+      !urlNew &&
+      !urlAgentName &&
+      !urlSessionId &&
+      !activeSessionId &&
+      (!sessionsReady || agentSessions.length > 0)
+    ) {
+      return;
+    }
     storage.decision.reset();
 
     const pending = storage.data?.find(p => p.status === "pending");
@@ -223,7 +258,7 @@ function AgentsChatInner() {
       const res = await fetch(`/api/agentkit/agents/${agentId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: historyMsgs, session_id: sessionId }),
+        body: JSON.stringify({ message: text, history: historyMsgs, session_id: sessionId, llm_provider: llmProvider }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? data.detail ?? data.error ?? "AI request failed");
@@ -248,7 +283,7 @@ function AgentsChatInner() {
   const showStarters =
     messages.length === 0 &&
     !loading &&
-    (Boolean(urlNew) || (sessionsReady && !urlSessionId && !urlAgentName && !activeSessionId && sessions.length === 0));
+    (Boolean(urlNew) || (sessionsReady && !urlSessionId && !urlAgentName && !activeSessionId && agentSessions.length === 0));
 
   return (
     <div className="relative flex flex-col">
@@ -259,7 +294,7 @@ function AgentsChatInner() {
       </div>
 
       <PageHeader icon={MessageSquare} label="AgentKit" title="Chat" description="Natural language interface with your AI agent." glow="amber">
-        <div className="flex min-w-[220px] flex-col items-end gap-2">
+        <div className="flex min-w-[22.5rem] flex-col items-end gap-2">
           {displayName ? (
             <div className="flex flex-col items-end gap-1.5">
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -297,8 +332,34 @@ function AgentsChatInner() {
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             New Chat
           </Button>
+          {activeAgent?.starknet_session && (
+            <StarknetSessionPanel
+              agentId={(urlAgentId ?? activeAgent.agent_id) as string}
+              session={activeAgent.starknet_session}
+              variant="header"
+              onTestSpend={() => setTestSpendOpen(true)}
+              onOpenSession={() => setOpenSession(true)}
+            />
+          )}
         </div>
       </PageHeader>
+
+      {(urlAgentId ?? activeAgent?.agent_id) && openSession && (
+        <OpenSessionDialog
+          agentId={(urlAgentId ?? activeAgent?.agent_id) as string}
+          open={openSession}
+          onOpenChange={setOpenSession}
+        />
+      )}
+
+      {(urlAgentId ?? activeAgent?.agent_id) && testSpendOpen && (
+        <TestSpendDialog
+          agentId={(urlAgentId ?? activeAgent?.agent_id) as string}
+          session={activeAgent?.starknet_session}
+          open={testSpendOpen}
+          onOpenChange={setTestSpendOpen}
+        />
+      )}
 
       <div className="relative z-10 flex flex-col gap-4 p-6" style={{ height: "calc(100vh - 328px)" }}>
         <ScrollArea
@@ -393,22 +454,27 @@ function AgentsChatInner() {
           </AnimatePresence>
         </ScrollArea>
 
-        <div className="flex gap-2">
-          <Textarea
-            placeholder="Ask your agent anything…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-            className="min-h-[44px] resize-none border-white/10 bg-white/[0.025] text-white"
-            rows={1}
-          />
-          <Button
-            onClick={() => send(input)}
-            disabled={!input.trim() || loading}
-            className="shrink-0 cursor-pointer bg-amber-600 hover:bg-amber-700"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center">
+            <AgentLlmProviderSelect variant="composer" />
+          </div>
+          <div className="flex gap-2">
+            <Textarea
+              placeholder="Ask your agent anything…"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+              className="min-h-[44px] resize-none border-white/10 bg-white/[0.025] text-white"
+              rows={1}
+            />
+            <Button
+              onClick={() => send(input)}
+              disabled={!input.trim() || loading}
+              className="shrink-0 cursor-pointer bg-amber-600 hover:bg-amber-700"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

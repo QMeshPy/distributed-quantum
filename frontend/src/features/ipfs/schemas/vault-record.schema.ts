@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeCircuitCid } from "../lib/run-record";
 
 export const circuitIpfsRecordSchema = z.object({
   cid: z.string().optional(),
@@ -12,10 +13,16 @@ export const circuitIpfsRecordSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 
+/** Accepts legacy string CIDs and dag-json CID / `{"/":"..."}` links. */
+const circuitCidSchema = z.preprocess(
+  (value) => normalizeCircuitCid(value as Parameters<typeof normalizeCircuitCid>[0]),
+  z.string().min(1),
+);
+
 export const runIpfsRecordSchema = z.object({
   cid: z.string().optional(),
   name: z.string(),
-  circuitCid: z.string(),
+  circuitCid: circuitCidSchema,
   qubitCount: z.number(),
   peerCount: z.number(),
   runtime: z.number(),

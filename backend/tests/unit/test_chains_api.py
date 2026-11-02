@@ -25,7 +25,23 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
     body = response.json()
     assert set(body) == {"default_chain_id", "chains"}
     assert body["default_chain_id"] == "eip155:84532"
-    assert [c["chain_id"] for c in body["chains"]] == ["eip155:84532", "eip155:11155111"]
+    assert [c["chain_id"] for c in body["chains"]] == [
+        "eip155:84532",
+        "eip155:421614",
+        "eip155:11155111",
+        "eip155:46630",
+        "starknet:SN_SEPOLIA",
+    ]
+    wallet_caps = {
+        "explorer_url",
+        "create_wallet",
+        "get_balance",
+        "transfer_stablecoin",
+        "verify_transaction",
+        "aave_supply",
+        "aave_withdraw",
+        "faucet_instructions",
+    }
     for chain in body["chains"]:
         assert set(chain) == {
             "chain_id",
@@ -39,31 +55,40 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
             "capabilities",
         }
         assert set(chain["native_token"]) == {"symbol", "decimals"}
-        assert chain["aliases"] == (
-            ["base-sepolia"] if chain["chain_id"] == "eip155:84532" else ["ethereum-sepolia"]
+        assert (
+            chain["aliases"]
+            == {
+                "eip155:84532": ["base-sepolia"],
+                "eip155:421614": ["arbitrum-sepolia"],
+                "eip155:11155111": ["ethereum-sepolia"],
+                "eip155:46630": ["robinhood-testnet"],
+                "starknet:SN_SEPOLIA": ["starknet-sepolia"],
+            }[chain["chain_id"]]
         )
-        assert set(chain["stablecoin"]) == {"symbol", "decimals", "address"}
-        if chain["chain_id"] == "eip155:84532":
-            assert set(chain["capabilities"]) == {
-                "explorer_url",
-                "create_wallet",
-                "get_balance",
-                "transfer_stablecoin",
-                "verify_transaction",
-                "aave_supply",
-                "aave_withdraw",
-                "faucet_instructions",
-            }
+        if chain["chain_id"] == "starknet:SN_SEPOLIA":
+            assert chain["stablecoin"] is None
+        elif chain["chain_id"] != "eip155:46630":
+            assert set(chain["stablecoin"]) == {"symbol", "decimals", "address"}
+        if chain["chain_id"] in {"eip155:84532", "eip155:421614"}:
+            assert set(chain["capabilities"]) == wallet_caps
         elif chain["chain_id"] == "eip155:11155111":
-            assert chain["capabilities"] == ["explorer_url", "verify_transaction", "get_price"]
+            assert chain["capabilities"] == [
+                "explorer_url",
+                "verify_transaction",
+                "get_price",
+                "anchor_root",
+            ]
         else:
             assert chain["capabilities"] == ["explorer_url", "verify_transaction"]
+            assert chain["stablecoin"] is None
     for private in (
         "TOP_SECRET",
         "rpc_env_var",
         "public_rpc_url",
         "sepolia.base.org",
         "QB2_BASE_SEPOLIA_RPC_URL",
+        "QB2_STARKNET_SEPOLIA_RPC_URL",
+        "starknet-sepolia.public.blastapi.io",
         "provider_aliases",
         "aave_pool_address",
     ):
@@ -74,10 +99,16 @@ def test_public_chains_without_wallet_credentials(monkeypatch):
 
 def test_disabled_networks_are_not_advertised():
     data = load_chain_registry().model_dump()
-    data["chains"][1]["enabled"] = False
+    for chain in data["chains"]:
+        if chain["chain_id"] in {"eip155:421614", "eip155:11155111"}:
+            chain["enabled"] = False
     with TestClient(make_app(ChainRegistry.model_validate(data))) as client:
         response = client.get("/api/v1/chains")
-    assert len(response.json()["chains"]) == 1
+    assert [c["chain_id"] for c in response.json()["chains"]] == [
+        "eip155:84532",
+        "eip155:46630",
+        "starknet:SN_SEPOLIA",
+    ]
 
 
 def test_registries_are_scoped_to_each_app():

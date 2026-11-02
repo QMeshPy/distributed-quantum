@@ -7,6 +7,12 @@ __pycache__
 *.pyc
 tmp/
 references/
+
+# Cairo / Starknet artifacts
+**/target/
+**/.snfoundry_cache/
+**/Scarb.lock
+
 # Logs
 logs
 *.log

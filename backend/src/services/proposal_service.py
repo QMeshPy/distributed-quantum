@@ -56,6 +56,7 @@ from db.agentkit_collections import (
 )
 from quantum_backend_v2.payments.ledger import LedgerService
 from quantum_backend_v2.payments.models import PaymentPurpose, PaymentRail
+from quantum_backend_v2.starknet.policy import felt_address
 from services.payment_events import (
     begin_payout,
     chain_id_of,
@@ -63,6 +64,7 @@ from services.payment_events import (
     record_settled_quietly,
     settle_failed_send,
 )
+from quantum_backend_v2.config import constants as C
 
 
 def _utc_now() -> datetime:
@@ -101,7 +103,7 @@ class ProposalService:
         logger.info("Initializing ProposalService")
 
         # AWS Bedrock configuration
-        self.aws_region = os.getenv("AWS_REGION", "us-east-1")
+        self.aws_region = os.getenv("AWS_REGION", C.AWS_REGION)
         self.bedrock_model_id = os.getenv(
             "BEDROCK_MODEL_ID",
             "us.anthropic.claude-sonnet-4-6"
@@ -119,7 +121,7 @@ class ProposalService:
             self.bedrock = None
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+        mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
         mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]
@@ -146,6 +148,24 @@ class ProposalService:
             self._agentkit_service = AgentKitService()
         return self._agentkit_service
 
+    async def _researcher_wallet_address(self, researcher_id: str) -> str:
+        """Return the researcher's Base wallet address, provisioning a user wallet if needed."""
+        query = {"entity_id": researcher_id, "entity_type": "user"}
+        wallet_doc = await self.db.wallets.find_one(query)
+        if not wallet_doc:
+            logger.info(
+                "No user wallet for researcher %s; provisioning via AgentKit",
+                researcher_id,
+            )
+            await self.agentkit.create_wallet(
+                entity_id=researcher_id,
+                entity_type="user",
+            )
+            wallet_doc = await self.db.wallets.find_one(query)
+        if not wallet_doc:
+            raise ValueError(f"Researcher wallet not found for {researcher_id}")
+        return wallet_doc["default_address"]
+
     async def create_proposal(
         self,
         researcher_id: str,
@@ -157,7 +177,8 @@ class ProposalService:
         funding_threshold: Optional[Decimal] = None,
         deadline_days: int = 30,
         expected_timeline: str = "Not specified",
-        auto_fragment: bool = False
+        auto_fragment: bool = False,
+        researcher_starknet_wallet: Optional[str] = None,
     ) -> dict:
         """
         Create a new research proposal with optional AI auto-fragmentation.
@@ -194,12 +215,10 @@ class ProposalService:
         """
         logger.info(f"Creating proposal '{title}' for researcher {researcher_id}")
         try:
-            # Get researcher wallet from MongoDB
-            wallet_doc = await self.db.wallets.find_one({"entity_id": researcher_id})
-            if not wallet_doc:
-                raise ValueError(f"Researcher wallet not found for {researcher_id}")
-
-            researcher_wallet = wallet_doc["default_address"]
+            researcher_wallet = await self._researcher_wallet_address(researcher_id)
+            normalized_starknet_wallet: Optional[str] = None
+            if researcher_starknet_wallet and str(researcher_starknet_wallet).strip():
+                normalized_starknet_wallet = felt_address(str(researcher_starknet_wallet).strip())
 
             # Generate proposal_id
             proposal_id = str(uuid.uuid4())
@@ -238,6 +257,7 @@ class ProposalService:
                 description=description,
                 researcher_id=researcher_id,
                 researcher_wallet=researcher_wallet,
+                researcher_starknet_wallet=normalized_starknet_wallet,
                 methodology=methodology,
                 budget_required=_decimal_to_decimal128(budget_required),
                 budget_raised=_decimal_to_decimal128(Decimal("0")),
@@ -277,6 +297,7 @@ class ProposalService:
                 "title": title,
                 "researcher_id": researcher_id,
                 "researcher_wallet": researcher_wallet,
+                "researcher_starknet_wallet": normalized_starknet_wallet,
                 "budget_required": budget_required,
                 "funding_threshold": funding_threshold,
                 "deadline": deadline,
@@ -904,13 +925,8 @@ class ProposalService:
             # Get fragment budget
             fragment_budget = Decimal(str(fragment["budget"]))
 
-            # Get researcher wallet
             researcher_id = fragment["claimed_by"]
-            researcher_wallet_doc = await self.db.wallets.find_one({"entity_id": researcher_id})
-            if not researcher_wallet_doc:
-                raise ValueError(f"Researcher wallet not found for {researcher_id}")
-
-            researcher_wallet = researcher_wallet_doc["default_address"]
+            researcher_wallet = await self._researcher_wallet_address(researcher_id)
 
             agentkit_service = self.agentkit
 

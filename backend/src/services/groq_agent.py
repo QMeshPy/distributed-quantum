@@ -5,7 +5,7 @@ import json
 import logging
 import math
 import os
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from nearai_inference_sdk import (
@@ -17,13 +17,16 @@ from nearai_inference_sdk import (
     ModelVerificationOptions,
     VerificationError,
 )
+from quantum_backend_v2.config import constants as C
+
+AgentLlmProvider = Literal["groq", "openrouter", "near"]
 
 PROVIDERS: dict[str, dict[str, Any]] = {
     "groq": {
         "label": "Groq",
         "key_env": "GROQ_API_KEY",
         "model_env": "GROQ_MODEL",
-        "default_model": "openai/gpt-oss-20b",
+        "default_model": C.GROQ_MODEL,
         "endpoint": "https://api.groq.com/openai/v1/chat/completions",
         "token_field": "max_completion_tokens",
     },
@@ -31,7 +34,7 @@ PROVIDERS: dict[str, dict[str, Any]] = {
         "label": "OpenRouter",
         "key_env": "OPENROUTER_API_KEY",
         "model_env": "OPENROUTER_MODEL",
-        "default_model": "nvidia/nemotron-3.5-lightning:free",
+        "default_model": C.OPENROUTER_MODEL,
         "endpoint": "https://openrouter.ai/api/v1/chat/completions",
         "token_field": "max_tokens",
     },
@@ -46,6 +49,30 @@ PROVIDERS: dict[str, dict[str, Any]] = {
 }
 
 
+def resolve_provider(explicit: str | None) -> str:
+    """Resolve provider from explicit override or AGENT_LLM_PROVIDER env."""
+    if explicit is not None:
+        provider = explicit.strip().lower()
+        if provider not in PROVIDERS:
+            raise ValueError(f"Invalid llm_provider '{explicit}'. Must be groq, openrouter, or near.")
+        return provider
+    return os.getenv("AGENT_LLM_PROVIDER", "groq").split("#")[0].strip().lower()
+
+
+def list_agent_llm_providers() -> list[dict[str, Any]]:
+    """List available LLM providers with configuration status."""
+    providers = []
+    for provider_id, cfg in PROVIDERS.items():
+        key_env = cfg["key_env"]
+        configured = bool(os.getenv(key_env, "").strip())
+        providers.append({
+            "id": provider_id,
+            "label": cfg["label"],
+            "configured": configured,
+        })
+    return providers
+
+
 async def complete(
     messages: list[dict],
     *,
@@ -55,10 +82,11 @@ async def complete(
     api_key: str | None = None,
     meta: dict[str, Any] | None = None,
     inference_client: InferenceClient | None = None,
+    provider: str | None = None,
 ) -> str:
-    provider = os.getenv("AGENT_LLM_PROVIDER", "groq").split("#")[0].strip().lower()
+    provider = resolve_provider(provider)
     if provider not in PROVIDERS:
-        raise ValueError("AGENT_LLM_PROVIDER must be groq, openrouter, or near.")
+        raise ValueError("Provider must be groq, openrouter, or near.")
     cfg = PROVIDERS[provider]
     label = cfg["label"]
     key_name = cfg["key_env"]
@@ -85,6 +113,7 @@ async def complete(
                     api_key=key,
                     meta=meta,
                     inference_client=owned_near,
+                    provider=provider,
                 )
     if client is None:
         async with httpx.AsyncClient(timeout=60) as owned:
@@ -96,6 +125,7 @@ async def complete(
                 api_key=key,
                 meta=meta,
                 inference_client=inference_client,
+                provider=provider,
             )
 
     endpoint = cfg["endpoint"]

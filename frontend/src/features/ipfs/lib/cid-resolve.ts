@@ -52,7 +52,16 @@ export async function parseCidString(input: string): Promise<CID> {
 }
 
 async function decodeVaultPayload(helia: Helia, cid: CID): Promise<unknown> {
-  // Helia JSON codec (vault Share-to-VAULT path)
+  // Linked runs (#58) — @helia/dag-json with CID links
+  try {
+    const { dagJson } = await import("@helia/dag-json");
+    // Helia vs @helia/dag-json pull divergent multiformats/blockstore types.
+    return await dagJson(helia as never).get(cid as never);
+  } catch {
+    // not dag-json
+  }
+
+  // Helia JSON codec (circuits / legacy Share-to-VAULT path)
   try {
     const { json } = await import("@helia/json");
     return await json(helia).get(cid);
@@ -70,7 +79,7 @@ async function decodeVaultPayload(helia: Helia, cid: CID): Promise<unknown> {
   }
 
   throw new SchemaInvalidError(
-    "Block verified against CID but is not Helia JSON or a UnixFS JSON file",
+    "Block verified against CID but is not dag-json, Helia JSON, or a UnixFS JSON file",
   );
 }
 
