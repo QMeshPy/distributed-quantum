@@ -8,6 +8,9 @@ export const API = {
   BILLING: {
     CREDITS: "/api/billing/credits",
     CREDITS_CHECKOUT: "/api/billing/credits/checkout",
+    CONNECT: "/api/billing/connect",
+    CONNECT_ONBOARD: "/api/billing/connect/onboard",
+    CONNECT_DASHBOARD: "/api/billing/connect/dashboard",
   },
   DASHBOARD: {
     ROOT: "/api/dashboard",

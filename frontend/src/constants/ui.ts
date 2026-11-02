@@ -113,6 +113,24 @@ export const UI = {
     CHECKOUT_CANCELLED: "Checkout cancelled. You have not been charged.",
     ERROR: "Could not load credits. Please try again.",
   },
+  CONNECT: {
+    TITLE: "Worker payouts (Connect)",
+    DESCRIPTION:
+      "Optional Stripe Express onboarding for bank or stablecoin cash-out. On-chain earnings still work if you skip this.",
+    STATUS_NOT_STARTED: "Not set up",
+    STATUS_PENDING: "Pending",
+    STATUS_READY: "Payout ready",
+    STATUS_UNAVAILABLE: "Connect is not enabled",
+    ONBOARD_CTA: "Set up Connect payouts",
+    CONTINUE_CTA: "Continue onboarding",
+    DASHBOARD_CTA: "Open Express Dashboard",
+    SKIP_NOTE:
+      "Skipping Connect does not block on-chain worker earnings (pay-per-fragment).",
+    RETURN_SUCCESS: "Connect onboarding updated — status will refresh in a moment.",
+    RETURN_REFRESH: "Connect onboarding was interrupted. You can continue when ready.",
+    ERROR: "Could not reach Connect onboarding. Please try again.",
+    UNAVAILABLE: "Connect payouts are not available in this environment.",
+  },
   NAV: {
     DASHBOARD: "Dashboard",
     ANALYTICS: "Analytics",
