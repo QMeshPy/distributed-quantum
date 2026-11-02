@@ -93,6 +93,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
   "live_kubo: opt-in integration against a disposable private Kubo node",
+  "kubo_compose: opt-in Compose Kubo client add/gateway round-trip",
   "live_robinhood: opt-in read-only Robinhood Chain mainnet price-feed check",
 ]
 
