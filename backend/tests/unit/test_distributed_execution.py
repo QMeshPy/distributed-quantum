@@ -14,7 +14,10 @@ from quantum_backend_v2.application.distributed_statevector import (
     make_initial_state_handoff,
     summarize_state_handoff,
 )
-from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
+from quantum_backend_v2.application.quantum_bridge import (
+    QuantumExecutionBridge,
+    StageExecutionError,
+)
 from quantum_backend_v2.reservations.service import ReservationService
 from quantum_backend_v2.runtime.service import ExecutionService
 from quantum_backend_v2.discovery.registry import PeerRegistryEntry
@@ -312,7 +315,8 @@ def test_quantum_bridge_merges_same_stage_blocks_with_overlapping_live_component
     assert block.state_qubits == (0, 1, 2)
 
 
-async def test_quantum_bridge_executes_parallel_blocks_with_local_component_state() -> None:
+def _parallel_bridge_and_plan() -> tuple[QuantumExecutionBridge, object]:
+    """Two peers and a plan whose first stage runs two independent blocks."""
     now = datetime.now(timezone.utc)
     peers = [
         PeerRegistryEntry(
@@ -363,6 +367,11 @@ async def test_quantum_bridge_executes_parallel_blocks_with_local_component_stat
             ]
         )
     )
+    return bridge, plan
+
+
+async def test_quantum_bridge_executes_parallel_blocks_with_local_component_state() -> None:
+    bridge, plan = _parallel_bridge_and_plan()
 
     executions = [
         execution
@@ -544,6 +553,31 @@ def test_quantum_bridge_spreads_assignments_across_peers() -> None:
         assignment.primary_node_id for assignment in plan.assignments.values()
     }
     assert len(assigned_nodes) >= 2
+
+
+async def test_a_failed_block_still_hands_over_the_blocks_that_finished_beside_it() -> None:
+    bridge, plan = _parallel_bridge_and_plan()
+    finished_block, failed_block = plan.stages[0].block_ids
+    execute_block = bridge._execute_block
+
+    async def fail_one_block(**kwargs: object) -> object:
+        if kwargs["block"].block_id == failed_block:
+            raise RuntimeError("peer went away")
+        return await execute_block(**kwargs)
+
+    bridge._execute_block = fail_one_block
+    executions = []
+    with pytest.raises(StageExecutionError) as caught:
+        async for execution in bridge.iter_fragment_executions(
+            workflow_run_id="job-12345678",
+            plan=plan,
+        ):
+            executions.append(execution)
+
+    assert {execution.execution_block_id for execution in executions} == {finished_block}
+    assert len(executions) == len(plan.blocks[finished_block].fragment_ids)
+    assert caught.value.failed_fragment_ids == plan.blocks[failed_block].fragment_ids
+    assert str(caught.value) == "peer went away"
 
 
 class _DeadFirstPeerDiscoveryService(_FakeDiscoveryService):

@@ -158,6 +158,13 @@ class WorkerEarningsResponse(BaseModel):
     worker_id: str = Field(description="Worker identifier")
     wallet_address: str = Field(description="Worker wallet address")
     total_earned: float = Field(description="Total USDC earned")
+    pending_earnings: float = Field(
+        default=0.0, description="USDC earned for fragments but not yet confirmed on-chain"
+    )
+    paid_fragments: int = Field(default=0, description="Fragments paid on-chain")
+    withheld_fragments: int = Field(
+        default=0, description="Fragments not paid (failed, low fidelity, or over budget)"
+    )
     jobs_completed: int = Field(description="Number of jobs completed")
     reputation_score: float = Field(description="Current reputation score (0-100)")
     performance_tier: str = Field(description="Performance tier")
@@ -422,6 +429,9 @@ async def get_worker_earnings(
             worker_id=stats["worker_id"],
             wallet_address=stats["wallet_address"],
             total_earned=stats["total_earned"],
+            pending_earnings=stats["pending_earnings"],
+            paid_fragments=stats["paid_fragments"],
+            withheld_fragments=stats["withheld_fragments"],
             jobs_completed=stats["jobs_completed"],
             reputation_score=stats["reputation_score"],
             performance_tier=stats["performance_tier"],

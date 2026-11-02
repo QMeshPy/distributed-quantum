@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
@@ -21,6 +22,7 @@ from quantum_backend_v2.api.models.circuits import (
 from quantum_backend_v2.application.parity import CircuitJobService, new_circuit_job_id
 from quantum_backend_v2.payments.credits import JobCreditMeter
 from quantum_backend_v2.payments.errors import InsufficientCreditError
+from quantum_backend_v2.payments.payouts import FragmentPayoutService, JobPayoutSummary
 from quantum_backend_v2.persistence.mongodb import WorkflowRunDocument
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ def build_circuits_router(
     job_service: CircuitJobService,
     x402_gateway_secret: str | None = None,
     credit_meter: JobCreditMeter | None = None,
+    payout_service: FragmentPayoutService | None = None,
 ) -> APIRouter:
     """Build the circuits/jobs router.
 
@@ -49,7 +52,10 @@ def build_circuits_router(
             run = await job_service.get_job_for_owner(job_id, owner_user_id=owner_user_id)
             succeeded = run is not None and run.status == "COMPLETED"
             try:
-                await meter.settle(job_id, succeeded=succeeded)
+                payable = (
+                    await payout_service.committed(job_id) if payout_service is not None else None
+                )
+                await meter.settle(job_id, succeeded=succeeded, payable=payable or Decimal("0"))
             except Exception:
                 # The hold stays reserved, never spendable twice; the
                 # reconciliation sweep reports it.
@@ -143,6 +149,20 @@ def build_circuits_router(
         if run is None:
             raise not_found("Job", job_id)
         return _to_job_status_response(job_service, run, result_detail=result_detail)
+
+    if payout_service is not None:
+
+        @router.get(
+            "/jobs/{job_id}/payouts",
+            response_model=JobPayoutSummary,
+            summary="Get the job's worker payout summary",
+        )
+        async def get_job_payouts(job_id: str, current_user: CurrentUser) -> JobPayoutSummary:
+            """Every fragment's payout: paid, pending, or withheld with a reason."""
+            run = await job_service.get_job(job_id, current_user=current_user)
+            if run is None:
+                raise not_found("Job", job_id)
+            return await payout_service.job_summary(job_id)
 
     if x402_gateway_secret is not None:
 

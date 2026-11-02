@@ -33,6 +33,7 @@ from db.agentkit_collections import (
     _decimal_to_decimal128,
     _decimal128_to_decimal,
 )
+from quantum_backend_v2.payments.payouts import OPERATION_TYPES, PAYOUT_INTENTS, IntentStatus
 from services.agentkit_service import AgentKitService
 
 logger = logging.getLogger(__name__)
@@ -93,28 +94,8 @@ class MarketplaceService:
         # GossipSub broadcast callback for network-wide price discovery
         self._gossipsub_broadcast = gossipsub_broadcast_callback
 
-        # Operation type mappings for circuit parsing
-        self._operation_mappings = {
-            "h": "hadamard",
-            "x": "pauli_x",
-            "y": "pauli_y",
-            "z": "pauli_z",
-            "cx": "cnot",
-            "cnot": "cnot",
-            "cz": "cz",
-            "swap": "swap",
-            "rx": "rotation_x",
-            "ry": "rotation_y",
-            "rz": "rotation_z",
-            "t": "t_gate",
-            "tdg": "t_dagger",
-            "s": "s_gate",
-            "sdg": "s_dagger",
-            # Custom gates
-            "qft": "qft",
-            "teleport": "teleport",
-            "custom": "custom",
-        }
+        # Operation type mappings for circuit parsing, shared with fragment payouts
+        self._operation_mappings = OPERATION_TYPES
 
         logger.info("MarketplaceService initialized successfully")
 
@@ -833,8 +814,10 @@ class MarketplaceService:
             worker_doc = await self.db.worker_pricing.find_one({"worker_id": worker_id})
             if not worker_doc:
                 raise ValueError(f"Worker not found: {worker_id}")
+            payouts = await self._fragment_payout_totals(worker_id)
 
             return {
+                **payouts,
                 "worker_id": worker_doc["worker_id"],
                 "wallet_address": worker_doc["wallet_address"],
                 "pricing": worker_doc["pricing"],
@@ -850,6 +833,27 @@ class MarketplaceService:
         except Exception as e:
             logger.error(f"Failed to get worker stats: {e}")
             raise
+
+    async def _fragment_payout_totals(self, worker_id: str) -> dict[str, Any]:
+        """Per-fragment payouts (#8): pending value and paid/withheld fragment counts."""
+        pending = Decimal("0")
+        counts = {IntentStatus.PAID.value: 0, IntentStatus.WITHHELD.value: 0}
+        cursor = self.db[PAYOUT_INTENTS].aggregate(
+            [
+                {"$match": {"worker_id": worker_id}},
+                {"$group": {"_id": "$status", "amount": {"$sum": "$amount"}, "count": {"$sum": 1}}},
+            ]
+        )
+        async for row in cursor:
+            if row["_id"] in counts:
+                counts[row["_id"]] = row["count"]
+            else:
+                pending += Decimal(str(_safe_decimal(row["amount"])))
+        return {
+            "pending_earnings": float(pending),
+            "paid_fragments": counts[IntentStatus.PAID.value],
+            "withheld_fragments": counts[IntentStatus.WITHHELD.value],
+        }
 
     async def list_active_workers(
         self,

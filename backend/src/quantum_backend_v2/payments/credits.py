@@ -82,12 +82,22 @@ class JobCreditMeter:
         """Hold the job's cost. Raises InsufficientCreditError when it cannot be covered."""
         await self.ledger.hold(account_id, self.cost, hold_id=_hold_id(job_id), job_id=job_id)
 
-    async def settle(self, job_id: str, *, succeeded: bool) -> None:
-        """Spend the hold for a completed job, or return it for a failed one."""
+    async def settle(
+        self, job_id: str, *, succeeded: bool, payable: Decimal = Decimal("0")
+    ) -> None:
+        """Spend the hold for a completed job, or return it for a failed one.
+
+        A failed job still spends ``payable``: what its workers earned for the
+        fragments they finished (#8). Only the rest is returned.
+        """
         if succeeded:
             await self.ledger.capture(_hold_id(job_id), idempotency_key=f"capture:job:{job_id}")
-        else:
-            await self.ledger.release(_hold_id(job_id), idempotency_key=f"release:job:{job_id}")
+            return
+        if payable > 0:
+            await self.ledger.capture(
+                _hold_id(job_id), payable, idempotency_key=f"capture:job:{job_id}"
+            )
+        await self.ledger.release(_hold_id(job_id), idempotency_key=f"release:job:{job_id}")
 
 
 def _hold_id(job_id: str) -> str:

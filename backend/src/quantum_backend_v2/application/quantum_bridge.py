@@ -161,6 +161,18 @@ class CompiledExecutionPlan:
     num_qubits: int
 
 
+class StageExecutionError(RuntimeError):
+    """A stage block failed after its sibling blocks' fragments were yielded.
+
+    ``failed_fragment_ids`` are the fragments of the blocks that were dispatched
+    and failed; fragments of later stages were never dispatched.
+    """
+
+    def __init__(self, cause: Exception, failed_fragment_ids: tuple[str, ...]) -> None:
+        super().__init__(str(cause))
+        self.failed_fragment_ids = failed_fragment_ids
+
+
 @dataclass(frozen=True)
 class DistributedFragmentExecution:
     fragment_result: Any
@@ -181,6 +193,24 @@ class DistributedBlockExecution:
     output: FragmentDispatchOutput
     fragment_results: tuple[Any, ...]
     incoming_state_peer_ids: tuple[str, ...]
+
+
+def _fragment_executions(
+    result: DistributedBlockExecution, state: DistributedStateHandoff
+) -> list[DistributedFragmentExecution]:
+    return [
+        DistributedFragmentExecution(
+            fragment_result=fragment_result,
+            reservation_id=result.reservation_id,
+            execution_id=result.execution_id,
+            output=result.output,
+            state=state,
+            execution_block_id=result.block.block_id,
+            stage_index=result.block.stage_index,
+            incoming_state_peer_ids=result.incoming_state_peer_ids,
+        )
+        for fragment_result in result.fragment_results
+    ]
 
 
 def _topological_stages(
@@ -517,11 +547,27 @@ class QuantumExecutionBridge:
                         fragment_status_type=fragment_status_type,
                     )
                     for block, incoming_state_peer_ids, block_state in block_inputs
-                ]
+                ],
+                return_exceptions=True,
             )
-            stage_results_by_id = {
-                result.block.block_id: result for result in stage_results
-            }
+            for outcome in stage_results:
+                if isinstance(outcome, BaseException) and not isinstance(outcome, Exception):
+                    raise outcome  # Cancellation, not a block failure.
+            finished = [r for r in stage_results if isinstance(r, DistributedBlockExecution)]
+            failures = [r for r in stage_results if isinstance(r, Exception)]
+            if failures:
+                # Hand over the blocks that finished, so their workers are credited.
+                for result in finished:
+                    for execution in _fragment_executions(result, result.output.state):
+                        yield execution
+                failed_ids = tuple(
+                    fragment_id
+                    for (block, _, _), outcome in zip(block_inputs, stage_results, strict=True)
+                    if isinstance(outcome, Exception)
+                    for fragment_id in block.fragment_ids
+                )
+                raise StageExecutionError(failures[0], failed_ids) from failures[0]
+            stage_results_by_id = {result.block.block_id: result for result in finished}
             for block_id in stage.block_ids:
                 block = plan.blocks[block_id]
                 result = stage_results_by_id[block_id]
@@ -532,18 +578,8 @@ class QuantumExecutionBridge:
 
             global_state = self._combine_component_states(component_states)
             for block_id in stage.block_ids:
-                result = stage_results_by_id[block_id]
-                for fragment_result in result.fragment_results:
-                    yield DistributedFragmentExecution(
-                        fragment_result=fragment_result,
-                        reservation_id=result.reservation_id,
-                        execution_id=result.execution_id,
-                        output=result.output,
-                        state=global_state,
-                        execution_block_id=result.block.block_id,
-                        stage_index=result.block.stage_index,
-                        incoming_state_peer_ids=result.incoming_state_peer_ids,
-                    )
+                for execution in _fragment_executions(stage_results_by_id[block_id], global_state):
+                    yield execution
 
     def build_quantum_result(
         self,

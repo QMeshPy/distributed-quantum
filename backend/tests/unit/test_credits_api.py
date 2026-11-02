@@ -199,7 +199,9 @@ class FakeMeter:
         self.available -= self.cost
         self.calls.append(("reserve", account_id, job_id))
 
-    async def settle(self, job_id: str, *, succeeded: bool) -> None:
+    async def settle(
+        self, job_id: str, *, succeeded: bool, payable: Decimal = Decimal("0")
+    ) -> None:
         self.calls.append(("capture" if succeeded else "release", job_id))
 
 
