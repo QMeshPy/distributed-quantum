@@ -2,6 +2,7 @@ import os
 import json
 from typing import Dict, Any, List, Optional
 from enum import Enum
+from quantum_backend_v2.config import constants as C
 
 
 class IntentType(Enum):
@@ -29,21 +30,21 @@ class IntentClassifier:
             model_id: Optional model ID to use. If not provided, uses default from env.
         """
         # Check which provider is configured
-        self.use_bedrock = os.getenv("AWS_BEDROCK_ENABLED", "true").lower() == "true"
+        self.use_bedrock = os.getenv("AWS_BEDROCK_ENABLED", str(C.AWS_BEDROCK_ENABLED)).lower() == "true"
 
         if self.use_bedrock:
             # AWS Bedrock setup
             import boto3
             self.bedrock_client = boto3.client(
                 service_name='bedrock-runtime',
-                region_name=os.getenv('AWS_REGION', 'us-east-1'),
+                region_name=os.getenv('AWS_REGION', C.AWS_REGION),
                 aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
             )
             # Use provided model or default from environment
             self.model_id = model_id or os.getenv(
                 "AWS_BEDROCK_DEFAULT_MODEL",
-                "anthropic.claude-3-5-sonnet-20241022-v2:0"
+                C.AWS_BEDROCK_DEFAULT_MODEL
             )
         else:
             # Direct Anthropic API setup

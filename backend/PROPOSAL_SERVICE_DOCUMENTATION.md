@@ -520,7 +520,7 @@ AWS_REGION=us-east-1
 BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 
 # MongoDB
-QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017
+QB2_MONGODB_URI=mongodb://127.0.0.1:27017
 QB2_MONGODB_DATABASE=qds
 
 # IPFS (Web3.Storage)

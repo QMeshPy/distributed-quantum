@@ -114,7 +114,7 @@ class AgentKitService:
         self._init_encryption_key()
 
         # Initialize MongoDB connection
-        mongodb_uri = os.getenv("QB2_MONGODB_LOCAL_URI", "mongodb://127.0.0.1:27017")
+        mongodb_uri = os.getenv("QB2_MONGODB_URI", "mongodb://127.0.0.1:27017")
         mongodb_database = os.getenv("QB2_MONGODB_DATABASE", "qds")
         self.mongo_client = AsyncIOMotorClient(mongodb_uri)
         self.db = self.mongo_client[mongodb_database]

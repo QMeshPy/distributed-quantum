@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Globe, Plus } from "lucide-react";
-import { Inter, Newsreader } from "next/font/google";
+import localFont from "next/font/local";
 
 import { ArchStack } from "./components/arch-stack";
 import { InfrastructureStrip } from "./components/infrastructure-strip";
@@ -33,13 +33,21 @@ import {
 } from "./landing-content";
 import styles from "./landing.module.css";
 
-const display = Newsreader({
-  subsets: ["latin"],
-  weight: ["300", "400"],
-  style: ["normal", "italic"],
+const display = localFont({
+  src: [
+    { path: "../../assets/fonts/newsreader/Newsreader[opsz,wght].woff2", weight: "300 400", style: "normal" },
+    { path: "../../assets/fonts/newsreader/Newsreader-Italic[opsz,wght].woff2", weight: "300 400", style: "italic" },
+  ],
+  display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--landing-display",
 });
-const text = Inter({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--landing-text" });
+const text = localFont({
+  src: "../../assets/fonts/inter/Inter[opsz,wght].woff2",
+  weight: "300 600",
+  display: "swap",
+  variable: "--landing-text",
+});
 
 function External({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
   return (

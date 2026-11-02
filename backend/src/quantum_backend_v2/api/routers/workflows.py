@@ -172,17 +172,19 @@ def _run_to_response(doc: WorkflowRunDocument) -> WorkflowRunResponse:
         project_id=doc.project_id,
         workflow_type=doc.workflow_type,
         status=doc.status,
-        input_snapshot=doc.input_snapshot,
-        output_snapshot=doc.output_snapshot,
         fragment_count=doc.fragment_count,
         completed_fragments=doc.completed_fragments,
         failed_fragments=doc.failed_fragments,
+        fragment_success_rate=(
+            doc.completed_fragments / finished
+            if (finished := doc.completed_fragments + doc.failed_fragments)
+            else 0.0
+        ),
         artifact_bundle_id=doc.artifact_bundle_id,
         benchmark_run_id=doc.benchmark_run_id,
+        submitted_at=doc.created_at,
         started_at=doc.started_at,
         completed_at=doc.completed_at,
-        created_at=doc.created_at,
-        updated_at=doc.updated_at,
     )
 
 

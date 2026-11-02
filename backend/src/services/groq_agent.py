@@ -17,6 +17,7 @@ from nearai_inference_sdk import (
     ModelVerificationOptions,
     VerificationError,
 )
+from quantum_backend_v2.config import constants as C
 
 AgentLlmProvider = Literal["groq", "openrouter", "near"]
 
@@ -25,7 +26,7 @@ PROVIDERS: dict[str, dict[str, Any]] = {
         "label": "Groq",
         "key_env": "GROQ_API_KEY",
         "model_env": "GROQ_MODEL",
-        "default_model": "openai/gpt-oss-20b",
+        "default_model": C.GROQ_MODEL,
         "endpoint": "https://api.groq.com/openai/v1/chat/completions",
         "token_field": "max_completion_tokens",
     },
@@ -33,7 +34,7 @@ PROVIDERS: dict[str, dict[str, Any]] = {
         "label": "OpenRouter",
         "key_env": "OPENROUTER_API_KEY",
         "model_env": "OPENROUTER_MODEL",
-        "default_model": "nvidia/nemotron-3.5-lightning:free",
+        "default_model": C.OPENROUTER_MODEL,
         "endpoint": "https://openrouter.ai/api/v1/chat/completions",
         "token_field": "max_tokens",
     },

@@ -86,8 +86,7 @@ All config flows through `QB2_*` environment variables → `AppSettings.from_env
 | `QB2_AUTH_REQUIRED` | Auth toggle (false for local dev) |
 | `QB2_POSTGRES_TARGET` | `local` or `neon` |
 | `QB2_POSTGRES_LOCAL_DSN` / `QB2_POSTGRES_NEON_*_DSN` | Postgres connection strings |
-| `QB2_MONGODB_TARGET` | `local` or `remote` |
-| `QB2_MONGODB_*_URI` | MongoDB connection strings |
+| `QB2_MONGODB_URI` | MongoDB connection string (local or Atlas) |
 | `QB2_LIBP2P_ENABLED` | Enable/disable real libp2p |
 | `QB2_LIBP2P_DEV_SERVICE_PEER_COUNT` | Embedded worker peers (default 4) |
 

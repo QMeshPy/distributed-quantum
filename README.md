@@ -128,8 +128,7 @@ that same value on both sides. Generate a separate Better Auth secret.
 Backend configuration (`backend/.env`):
 
 ```dotenv
-QB2_MONGODB_TARGET=local
-QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017
+QB2_MONGODB_URI=mongodb://127.0.0.1:27017
 QB2_MONGODB_DATABASE=qds
 AGENT_AUTH_BRIDGE_SECRET=<same-generated-bridge-secret-as-frontend>
 
@@ -148,8 +147,7 @@ TOJU_NODE_BINARY=node
 ```
 
 `TOJU_NODE_BINARY` must resolve to Node 22; use its absolute path if your shell's
-default differs. The current agent services use `QB2_MONGODB_LOCAL_URI` directly;
-set that URI explicitly even if connecting to a remote MongoDB installation.
+default differs. All backend services read `QB2_MONGODB_URI`; point it at local or remote MongoDB.
 
 For Groq instead, set `AGENT_LLM_PROVIDER=groq`, `GROQ_API_KEY`, and
 `GROQ_MODEL=openai/gpt-oss-20b`. OpenRouter accepts only free model names and sends

@@ -42,9 +42,7 @@ def test_load_settings_reads_environment_overrides() -> None:
             "QB2_POSTGRES_NEON_POOLED_DSN": "postgresql+asyncpg://pool.example/qb2",
             "QB2_POSTGRES_NEON_DIRECT_DSN": "postgresql+asyncpg://direct.example/qb2",
             "QB2_POSTGRES_DATABASE": "qb2_platform",
-            "QB2_MONGODB_TARGET": "remote",
-            "QB2_MONGODB_LOCAL_URI": "mongodb://127.0.0.1:27017",
-            "QB2_MONGODB_REMOTE_URI": "mongodb://mongo.example:27017",
+            "QB2_MONGODB_URI": "mongodb://mongo.example:27017",
             "QB2_MONGODB_DATABASE": "qb2_projections",
             "QB2_PEER_LOG_DIR": "/tmp/qb2-peer-logs",
             "QB2_PEER_ID": "peer-alpha",
@@ -87,12 +85,9 @@ def test_load_settings_reads_environment_overrides() -> None:
         settings.persistence.postgres.effective_migration_dsn
         == "postgresql+asyncpg://direct.example/qb2"
     )
-    assert settings.persistence.mongodb.target.value == "remote"
-    assert settings.persistence.mongodb.local_uri == "mongodb://127.0.0.1:27017"
-    assert settings.persistence.mongodb.remote_uri == "mongodb://mongo.example:27017"
     assert settings.persistence.mongodb.database == "qb2_projections"
     assert settings.persistence.mongodb.configured is True
-    assert settings.persistence.mongodb.effective_uri == "mongodb://mongo.example:27017"
+    assert settings.persistence.mongodb.uri == "mongodb://mongo.example:27017"
     assert str(settings.persistence.peer_log.directory) == "/tmp/qb2-peer-logs"
     assert settings.persistence.peer_log.peer_id == "peer-alpha"
     assert settings.persistence.peer_log.fsync is False
@@ -123,8 +118,7 @@ def test_load_settings_reads_dotenv_file(tmp_path) -> None:
                 "QB2_SERVICE_NAME=qb2-dotenv",
                 "QB2_POSTGRES_TARGET=local",
                 "QB2_POSTGRES_LOCAL_DSN=postgresql+asyncpg://postgres:pw@127.0.0.1:5432/qb2",
-                "QB2_MONGODB_TARGET=local",
-                "QB2_MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017",
+                "QB2_MONGODB_URI=mongodb://127.0.0.1:27017",
                 "QB2_PEER_LOG_DIR=/tmp/qb2-dotenv-logs",
                 "QB2_LIBP2P_LISTEN_MULTIADDRS=/ip4/127.0.0.1/tcp/4011",
                 "QB2_LIBP2P_PEERSTORE_PATH=/tmp/qb2-dotenv-peerstore.sqlite3",
@@ -142,7 +136,7 @@ def test_load_settings_reads_dotenv_file(tmp_path) -> None:
         "postgresql+asyncpg://postgres:pw@127.0.0.1:5432/qb2"
     )
     assert settings.persistence.postgres.resolved_database == "qb2"
-    assert settings.persistence.mongodb.effective_uri == "mongodb://127.0.0.1:27017"
+    assert settings.persistence.mongodb.uri == "mongodb://127.0.0.1:27017"
     assert settings.persistence.peer_log.directory == Path("/tmp/qb2-dotenv-logs")
     assert settings.libp2p.listen_multiaddrs == ("/ip4/127.0.0.1/tcp/4011",)
     assert settings.libp2p.peerstore_path == Path("/tmp/qb2-dotenv-peerstore.sqlite3")
