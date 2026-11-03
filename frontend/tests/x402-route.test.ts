@@ -13,7 +13,7 @@ test("the paid route fails closed until x402 is configured", async () => {
   const response = await postQuantumRun(request, {});
 
   assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { error: "Algorand x402 is not enabled." });
+  assert.deepEqual(await response.json(), { error: "x402 is not enabled." });
 });
 
 for (const service of ["risk", "finance", "pharma"] as const) {

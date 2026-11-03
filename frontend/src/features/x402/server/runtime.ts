@@ -32,45 +32,6 @@ type PaidRouteDefinition = {
 
 const PAID_ROUTES: readonly PaidRouteDefinition[] = [
   {
-    path: API.X402.QUANTUM_RUNS,
-    resource: "circuits",
-    buildRouteConfig: (config) => ({
-      accepts: [
-        {
-          scheme: "exact",
-          price: config.price,
-          network: config.network,
-          payTo: config.payTo,
-          extra: { asset: config.asset, tag: "x402-global-challenge" },
-        },
-      ],
-      description: "Submit an OpenQASM circuit to the distributed quantum mesh",
-      mimeType: "application/json",
-      extensions: declareDiscoveryExtension({
-        bodyType: "json",
-        input: {
-          circuit: "OPENQASM 2.0; include \"qelib1.inc\"; qreg q[1]; h q[0];",
-        },
-        inputSchema: {
-          type: "object",
-          properties: {
-            circuit: {
-              type: "string",
-              description: "Quantum circuit in OpenQASM format",
-            },
-          },
-          required: ["circuit"],
-        },
-        output: {
-          example: {
-            job_id: "job-8d0f5af2-fd36-40be-8d62-a9f48f8d3d6d",
-            status: "queued",
-          },
-        },
-      }),
-    }),
-  },
-  {
     path: API.X402.OPTIONS_RUNS,
     resource: "options",
     buildRouteConfig: (config) => ({

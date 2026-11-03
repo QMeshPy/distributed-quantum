@@ -7,19 +7,16 @@ export async function postQuantumRun(
   environment: Environment = process.env,
 ): Promise<Response> {
   if (environment.X402_ENABLED !== "true") {
-    return Response.json(
-      { error: "Algorand x402 is not enabled." },
-      { status: 503 },
-    );
+    return Response.json({ error: "x402 is not enabled." }, { status: 503 });
   }
 
   try {
-    const { postConfiguredX402Run } = await import("./runtime");
-    return await postConfiguredX402Run(request, environment);
+    const { postCircuitPayment } = await import("./circuit-payments");
+    return await postCircuitPayment(request, environment);
   } catch (error) {
-    console.error("Unable to initialize Algorand x402:", error);
+    console.error("Unable to initialize x402:", error);
     return Response.json(
-      { error: "Algorand x402 configuration is invalid." },
+      { error: "x402 is temporarily unavailable." },
       { status: 503 },
     );
   }
@@ -30,17 +27,21 @@ export async function getQuantumRun(
   environment: Environment = process.env,
 ): Promise<Response> {
   if (environment.X402_ENABLED !== "true") {
-    return Response.json(
-      { error: "Algorand x402 is not enabled." },
-      { status: 503 },
-    );
+    return Response.json({ error: "x402 is not enabled." }, { status: 503 });
   }
 
   try {
-    const { getConfiguredX402Job } = await import("./runtime");
-    return await getConfiguredX402Job("circuits", jobId, environment);
+    const [{ fetchX402Job }, { loadCircuitPaymentConfig }] = await Promise.all([
+      import("./backend"),
+      import("./networks"),
+    ]);
+    return await fetchX402Job(
+      jobId,
+      loadCircuitPaymentConfig(environment),
+      "circuits",
+    );
   } catch (error) {
-    console.error("Unable to read Algorand x402 job:", error);
+    console.error("Unable to read x402 circuit job:", error);
     return Response.json({ error: "Backend unreachable." }, { status: 502 });
   }
 }

@@ -15,13 +15,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 
 from api.v1.agents import router as agents_router
-from api.v1.starknet_sessions import router as starknet_sessions_router
 from api.v1.chat_sessions import router as chat_sessions_router
 from api.v1.ens import router as ens_router
 from api.v1.ens_workers import router as ens_workers_router
 from api.v1.marketplace import router as marketplace_router
 from api.v1.notifications import router as notifications_router
 from api.v1.proposals import router as proposals_router
+from api.v1.starknet_sessions import router as starknet_sessions_router
 
 # AgentKit integration routers (new v1 API routers)
 from api.v1.wallet import router as wallet_router
@@ -46,20 +46,22 @@ from quantum_backend_v2.api.routers.reservations import build_reservations_route
 from quantum_backend_v2.api.routers.risk import build_risk_router
 from quantum_backend_v2.api.routers.services import build_services_router
 from quantum_backend_v2.api.routers.workflows import build_workflows_router
+from quantum_backend_v2.api.routers.x402 import build_x402_router
 from quantum_backend_v2.application.anchoring import ProvenanceAnchorService, anchor_periodically
 from quantum_backend_v2.application.parity import (
     CircuitJobService,
     FinancialJobService,
     RiskJobService,
 )
+from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.application.provenance import MongoProvenanceRepository
+from quantum_backend_v2.application.x402_dispatch import dispatch_paid_jobs
 from quantum_backend_v2.chains.models import ChainRegistry
 from quantum_backend_v2.config import AppSettings
 from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.payments.credits import JobCreditMeter
 from quantum_backend_v2.payments.ledger import LedgerService
-from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.payments.onchain_payouts import wallet_payout_rail
 from quantum_backend_v2.payments.payouts import FragmentPayoutService, PayoutSettler
 from quantum_backend_v2.persistence import PersistenceRuntime
@@ -164,6 +166,15 @@ def create_app(
 
         await discovery_service.start()
         anchor_task = None
+        x402_dispatch_task = None
+        if (
+            ledger_service is not None
+            and circuit_job_service is not None
+            and settings.x402_gateway_secret is not None
+        ):
+            x402_dispatch_task = asyncio.create_task(
+                dispatch_paid_jobs(circuit_job_service, ledger_service)
+            )
         try:
             if anchor_service is not None and persistence_runtime.mongodb is not None:
                 anchor_task = asyncio.create_task(
@@ -171,6 +182,10 @@ def create_app(
                 )
             yield
         finally:
+            if x402_dispatch_task is not None:
+                x402_dispatch_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await x402_dispatch_task
             for task in (reconcile_task, settle_task):
                 if task is not None:
                     task.cancel()
@@ -231,6 +246,13 @@ def create_app(
 
     register_exception_handlers(app)
     app.include_router(build_chains_router(registry=chain_registry))
+    app.include_router(
+        build_x402_router(
+            gateway_secret=settings.x402_gateway_secret,
+            ledger=ledger_service,
+            job_service=circuit_job_service,
+        )
+    )
 
     app.include_router(
         system_router(
