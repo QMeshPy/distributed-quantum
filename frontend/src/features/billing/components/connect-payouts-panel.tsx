@@ -61,7 +61,7 @@ export function ConnectPayoutsCard({
             {showOnboard ? (
               <Button
                 variant="outline"
-                disabled={onboarding || status === BILLING.CONNECT_STATUS_UNAVAILABLE}
+                disabled={onboarding}
                 onClick={onOnboard}
               >
                 {status === BILLING.CONNECT_STATUS_PENDING
