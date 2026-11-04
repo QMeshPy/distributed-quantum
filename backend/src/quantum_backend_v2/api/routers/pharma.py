@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from quantum_backend_v2.api.deps.auth import CurrentUser
 from quantum_backend_v2.api.deps.x402_gateway import X402_OWNER_USER_ID, build_x402_gateway_guard
+from quantum_backend_v2.application.peer_tasks import PeerTaskDispatcher
 from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.persistence.mongodb import PharmaJobDocument
 from quantum_backend_v2.pharma.config import PharmaMode, PharmaWorkflowConfig
@@ -94,6 +95,7 @@ def _make_live_callback(job_id: str, start_time: float) -> Callable[..., None]:
         score: float | None = None,
         admet_pass: bool = False,
         iteration: int | None = None,
+        peer_tasks: list[dict[str, Any]] | None = None,
     ) -> None:
         live = get_live(job_id)
         if live is None:
@@ -103,6 +105,8 @@ def _make_live_callback(job_id: str, start_time: float) -> Callable[..., None]:
             kwargs["current_stage"] = stage
         if iteration is not None:
             kwargs["iteration_count"] = iteration
+        if peer_tasks is not None:
+            kwargs["peer_tasks"] = peer_tasks
         if smiles is not None:
             kwargs["best_smiles"] = smiles
         if score is not None and (live.best_score is None or score < live.best_score):
@@ -123,18 +127,32 @@ def _make_live_callback(job_id: str, start_time: float) -> Callable[..., None]:
 
 
 def _run_pipeline(
-    job_id: str, config: PharmaWorkflowConfig, log_lines: list[dict[str, Any]]
+    job_id: str,
+    config: PharmaWorkflowConfig,
+    log_lines: list[dict[str, Any]],
+    task_dispatcher: PeerTaskDispatcher | None,
 ) -> tuple[str, dict[str, Any]]:
     """Run the pipeline on its own event loop; meant to be called from a worker thread.
 
     It touches no database state, because the MongoDB client belongs to the
     main event loop. The caller persists the outcome.
     """
-    return asyncio.run(_run_pipeline_async(job_id, config, log_lines))
+    # Not asyncio.run(): it waits for the loop's thread pool, which still holds requests to peers that
+    # were abandoned (a straggler or a frozen laptop) and would keep a finished job "running".
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(
+            _run_pipeline_async(job_id, config, log_lines, task_dispatcher)
+        )
+    finally:
+        loop.close()
 
 
 async def _run_pipeline_async(
-    job_id: str, config: PharmaWorkflowConfig, log_lines: list[dict[str, Any]]
+    job_id: str,
+    config: PharmaWorkflowConfig,
+    log_lines: list[dict[str, Any]],
+    task_dispatcher: PeerTaskDispatcher | None,
 ) -> tuple[str, dict[str, Any]]:
     from quantum_backend_v2.pharma.cache import FragmentCache
     from quantum_backend_v2.pharma.orchestrator import PharmaOrchestrator
@@ -155,6 +173,7 @@ async def _run_pipeline_async(
         execution_service=None,
         log_callback=log,
         live_callback=live,
+        task_dispatcher=task_dispatcher,
     )
     try:
         result = await orch.run(job_id=job_id)
@@ -172,14 +191,19 @@ async def _run_pipeline_async(
 
 
 async def _run_pharma_job(
-    pharma_job_service: PharmaJobService, job_id: str, config: PharmaWorkflowConfig
+    pharma_job_service: PharmaJobService,
+    job_id: str,
+    config: PharmaWorkflowConfig,
+    task_dispatcher: PeerTaskDispatcher | None,
 ) -> None:
     """Run one job off the event loop, then record how it ended."""
     if not await pharma_job_service.mark_running(job_id):
         return
     log_lines = _RUNNING_LOGS.setdefault(job_id, [])
     try:
-        state, result = await asyncio.to_thread(_run_pipeline, job_id, config, log_lines)
+        state, result = await asyncio.to_thread(
+            _run_pipeline, job_id, config, log_lines, task_dispatcher
+        )
         await pharma_job_service.complete(
             job_id, state=state, result=result, log_lines=log_lines
         )
@@ -193,6 +217,7 @@ def build_pharma_router(
     *,
     pharma_job_service: PharmaJobService,
     x402_gateway_secret: str | None = None,
+    task_dispatcher: PeerTaskDispatcher | None = None,
 ) -> APIRouter:
     """Build the pharma docking router."""
     router = APIRouter(prefix="/api/v1/pharma", tags=["pharma"])
@@ -214,7 +239,9 @@ def build_pharma_router(
             mode=request.mode.value,
             target_pdb_id=request.target_pdb_id,
         )
-        background_tasks.add_task(_run_pharma_job, pharma_job_service, record.id, config)
+        background_tasks.add_task(
+            _run_pharma_job, pharma_job_service, record.id, config, task_dispatcher
+        )
         return PharmaSubmitResponse(
             job_id=record.id, status=record.status, submitted_at=record.created_at.isoformat()
         )

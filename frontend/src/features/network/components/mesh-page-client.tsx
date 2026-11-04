@@ -166,7 +166,14 @@ export function MeshPageClient() {
                         ? <WifiOff className="h-4 w-4 shrink-0 text-white/20" />
                         : <Wifi className="h-4 w-4 shrink-0 text-emerald-400" />
                       }
-                      <span className="font-mono text-xs text-white/60">{peer.peerId.slice(0, 32)}…</span>
+                      {peer.label ? (
+                        <span className="flex flex-col">
+                          <span className="text-sm font-medium text-white/90">{peer.label}</span>
+                          <span className="font-mono text-[10px] text-white/35">{peer.peerId.slice(0, 32)}…</span>
+                        </span>
+                      ) : (
+                        <span className="font-mono text-xs text-white/60">{peer.peerId.slice(0, 32)}…</span>
+                      )}
                     </div>
                     <div className="relative flex items-center gap-3">
                       <span className="text-xs capitalize text-white/30">{peer.trustTier.replace(/_/g, " ")}</span>
@@ -226,6 +233,7 @@ export function MeshPageClient() {
             <div className="relative flex flex-col gap-4 pt-2">
               {/* Identity Section */}
               <ModalSection title="Identity" icon={Hash}>
+                {peerDetail.label && <DetailField label="Label" value={peerDetail.label} />}
                 <DetailField label="Peer ID" value={peerDetail.peerId} mono />
                 <DetailField label="Trust Tier" value={peerDetail.trustTier.replace(/_/g, " ")} capitalize />
                 <DetailField

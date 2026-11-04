@@ -2,6 +2,7 @@
 
 export interface BackendPeerSummary {
   peer_id: string;
+  label?: string | null;
   trust_tier: string;
   health_status: string;
   network_address_count: number;
@@ -14,6 +15,7 @@ export interface BackendPeerSummary {
 
 export interface BackendPeerDetail {
   peer_id: string;
+  label?: string | null;
   trust_tier: string;
   health_status: string;
   network_addresses: string[];
@@ -38,6 +40,7 @@ export interface BackendPeerListResponse {
 
 export interface BackendTopologyEntry {
   peer_id: string;
+  label?: string | null;
   trust_tier: string;
   health_status: string;
   last_seen_at: string;
@@ -98,6 +101,7 @@ export interface BackendHealthResponse {
 
 export interface PeerSummary {
   peerId: string;
+  label: string | null;
   trustTier: string;
   healthStatus: string;
   networkAddressCount: number;
@@ -110,6 +114,7 @@ export interface PeerSummary {
 
 export interface PeerDetail {
   peerId: string;
+  label: string | null;
   trustTier: string;
   healthStatus: string;
   networkAddresses: string[];
@@ -156,6 +161,7 @@ export interface FidelityMetrics {
 export interface NetworkTopology {
   peers: Array<{
     peerId: string;
+    label: string | null;
     trustTier: string;
     healthStatus: string;
     lastSeenAt: string;

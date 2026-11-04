@@ -23,6 +23,7 @@ class VQEConfig(BaseModel):
     ansatz: AnsatzType = AnsatzType.UCCSD
     embedding: Literal["full", "dmet"] = "dmet"
     basis_set: str = "sto-3g"
+    active_orbitals: int = Field(default=4, ge=2, le=6)  # qubits = 2x this; 4 orbitals = 8 qubits
     shots: int = Field(default=1024, ge=1)
     optimizer: str = "cobyla"
     max_iterations: int = Field(default=200, ge=1)

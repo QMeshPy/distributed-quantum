@@ -36,6 +36,8 @@ class VQEDescriptors(BaseModel):
     vqe_iterations: int = Field(ge=1)
     cached: bool = False
     dmet_impurity_size: int | None = None
+    exact_energy_hartree: float | None = None  # exact ground energy of the same active space
+    vqe_starts: int = Field(default=1, ge=1)  # independent VQE runs; the lowest energy is reported
     computed_at: datetime = Field(default_factory=_utc_now)
 
 

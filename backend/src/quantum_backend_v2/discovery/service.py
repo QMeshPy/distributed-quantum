@@ -105,7 +105,7 @@ class DiscoveryService:
             enforce_enrollment=self.enforce_enrollment,
             trusted_peer_ids=trusted_peer_ids,
         )
-        # Not rehydrated from Mongo: after a restart saved peers can't be verified alive, so they only show up as ghosts.
+        # Not rehydrated from Mongo: after a restart saved peers can't be verified alive (ghosts).
         self._network_thread = build_network_thread(
             settings=self.settings,
             runtime=self.libp2p_runtime,
@@ -228,6 +228,7 @@ class DiscoveryService:
 
         advertisement = PeerAdvertisement(
             peer_id=peer_id,
+            label=self.settings.peer_id,
             trust_tier="platform_managed",
             network_addresses=resolve_advertised_network_addresses(
                 self.libp2p_runtime.host, self.settings
@@ -302,6 +303,7 @@ class DiscoveryService:
                     worker_protocols.reservation_commit: worker.handle_commit,
                     worker_protocols.reservation_cancel: worker.handle_cancel,
                     worker_protocols.fragment_dispatch: worker.handle_dispatch,
+                    worker_protocols.compute_task: worker.handle_task,
                 },
                 heartbeat_provider=worker.heartbeat_snapshot,
                 consume_discovery=False,

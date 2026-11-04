@@ -59,6 +59,7 @@ from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.payments.credits import JobCreditMeter
 from quantum_backend_v2.payments.ledger import LedgerService
+from quantum_backend_v2.application.peer_tasks import PeerTaskDispatcher
 from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.payments.onchain_payouts import wallet_payout_rail
 from quantum_backend_v2.payments.payouts import FragmentPayoutService, PayoutSettler
@@ -303,6 +304,7 @@ def create_app(
             build_pharma_router(
                 pharma_job_service=pharma_job_service,
                 x402_gateway_secret=settings.x402_gateway_secret,
+                task_dispatcher=PeerTaskDispatcher(discovery_service=discovery_service),
             )
         )
     app.include_router(agent_router)

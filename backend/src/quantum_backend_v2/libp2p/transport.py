@@ -44,10 +44,24 @@ _BOOTSTRAP_CONNECT_RETRY_DELAY_SECONDS = 0.5
 _BOOTSTRAP_RECONNECT_INTERVAL_SECONDS = 15.0
 _BOOTSTRAP_RECONNECT_TIMEOUT_SECONDS = 10.0
 _ADVERTISEMENT_REFRESH_EVERY_HEARTBEATS = 5
+# The first advertisement is sent before the gossip mesh forms and is lost, so repeat it early.
+_EARLY_ADVERTISEMENT_HEARTBEATS = 2
 _READY_WAIT_SECONDS = 15.0
 _STREAM_READ_MAX_BYTES = 2**32 - 1
+# Noise rejects a single write over 65535 bytes and is left unusable, so big payloads go in pieces.
+_STREAM_WRITE_CHUNK_BYTES = 32 * 1024
 
 RpcHandler = Callable[[bytes], Awaitable[bytes]]
+
+
+async def _read_all(stream: Any) -> bytes:
+    # read(n) returns what has arrived so far; read() with no n waits for the sender to close.
+    return bytes(await stream.read())
+
+
+async def _write_chunked(stream: Any, data: bytes) -> None:
+    for start in range(0, len(data), _STREAM_WRITE_CHUNK_BYTES):
+        await stream.write(data[start : start + _STREAM_WRITE_CHUNK_BYTES])
 
 
 class LibP2pNetworkThread:
@@ -267,7 +281,10 @@ class LibP2pNetworkThread:
                 logger.exception("failed to publish heartbeat")
 
             heartbeat_count += 1
-            if heartbeat_count % _ADVERTISEMENT_REFRESH_EVERY_HEARTBEATS == 0:
+            if (
+                heartbeat_count <= _EARLY_ADVERTISEMENT_HEARTBEATS
+                or heartbeat_count % _ADVERTISEMENT_REFRESH_EVERY_HEARTBEATS == 0
+            ):
                 await self._publish_advertisement(pubsub, reason="periodic")
             await trio.sleep(settings.heartbeat_interval_seconds)
 
@@ -281,6 +298,7 @@ class LibP2pNetworkThread:
         settings = self._settings
         advertisement = PeerAdvertisement(
             peer_id=str(host.get_id()),
+            label=settings.peer_id,
             trust_tier="platform_managed",
             network_addresses=resolve_advertised_network_addresses(host, settings),
             supported_protocols=(f"/qb2/{settings.rendezvous_namespace}/peer-exchange/1.0.0",),
@@ -377,11 +395,11 @@ class LibP2pNetworkThread:
     def _build_stream_handler(self, handler: RpcHandler) -> Callable[[Any], Awaitable[None]]:
         async def stream_handler(stream: Any) -> None:
             try:
-                payload = await stream.read(_STREAM_READ_MAX_BYTES)
+                payload = await _read_all(stream)
                 if not payload:
                     return
                 response = await handler(bytes(payload))
-                await stream.write(response)
+                await _write_chunked(stream, response)
                 with suppress(Exception):
                     await stream.close_write()
             except Exception:
@@ -411,11 +429,10 @@ class LibP2pNetworkThread:
         stream = await host.new_stream(ID.from_string(peer_id), [protocol_id])
         try:
             with trio.fail_after(timeout_seconds):
-                await stream.write(payload)
+                await _write_chunked(stream, payload)
                 with suppress(Exception):
                     await stream.close_write()
-                response = await stream.read(_STREAM_READ_MAX_BYTES)
-                return bytes(response)
+                return await _read_all(stream)
         except trio.TooSlowError as exc:
             with suppress(Exception):
                 await stream.reset()

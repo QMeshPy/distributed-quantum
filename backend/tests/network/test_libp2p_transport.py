@@ -59,6 +59,18 @@ def test_local_peers_exchange_rpc_and_discovery_then_stop(tmp_path):
             )
             assert response == b"ack:" + payload
 
+        # Far above libp2p's 65535-byte limit for a single stream write (large statevectors).
+        big = bytes(range(256)) * 1200
+        destination = runtimes[1].host
+        response = threads[0].request_bytes(
+            peer_id=str(destination.get_id()),
+            protocol_id=protocol,
+            payload=big,
+            peer_addresses=tuple(str(addr) for addr in destination.get_addrs()),
+            timeout_seconds=20,
+        )
+        assert response == b"ack:" + big
+
         received = [False, False]
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline and not all(received):

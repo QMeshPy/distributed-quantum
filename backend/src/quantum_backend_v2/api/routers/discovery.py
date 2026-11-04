@@ -76,6 +76,7 @@ def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
         topo_entries = tuple(
             TopologyEntry(
                 peer_id=e.peer_id,
+                label=e.label,
                 trust_tier=e.trust_tier,
                 health_status=e.health_status,
                 last_seen_at=e.last_seen_at,
@@ -172,6 +173,7 @@ def _utc_now():
 def _to_summary(entry: PeerRegistryEntry, is_stale: bool) -> PeerSummary:
     return PeerSummary(
         peer_id=entry.peer_id,
+        label=entry.label,
         trust_tier=entry.trust_tier,
         health_status=entry.health_status,
         network_address_count=len(entry.network_addresses),
@@ -186,6 +188,7 @@ def _to_summary(entry: PeerRegistryEntry, is_stale: bool) -> PeerSummary:
 def _to_detail(entry: PeerRegistryEntry, is_stale: bool) -> PeerDetail:
     return PeerDetail(
         peer_id=entry.peer_id,
+        label=entry.label,
         trust_tier=entry.trust_tier,
         health_status=entry.health_status,
         network_addresses=entry.network_addresses,

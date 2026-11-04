@@ -3,6 +3,7 @@
 libp2p==0.6.0
 qiskit
 qiskit-aer
+pennylane  # drug-discovery VQE tasks
 pydantic
 beanie
 python-dotenv

@@ -13,6 +13,7 @@ class Libp2pExecutionProtocolIds:
     reservation_commit: str
     reservation_cancel: str
     fragment_dispatch: str
+    compute_task: str
 
 
 def build_execution_protocol_ids(namespace: str) -> Libp2pExecutionProtocolIds:
@@ -23,4 +24,5 @@ def build_execution_protocol_ids(namespace: str) -> Libp2pExecutionProtocolIds:
         reservation_commit=f"{base}/reservation/commit/1.0.0",
         reservation_cancel=f"{base}/reservation/cancel/1.0.0",
         fragment_dispatch=f"{base}/execution/fragment-dispatch/1.0.0",
+        compute_task=f"{base}/compute/task/1.0.0",
     )
