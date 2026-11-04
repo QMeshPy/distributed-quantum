@@ -61,6 +61,7 @@ class PeerRegistryEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     peer_id: str
+    label: str | None = None
     trust_tier: str = Field(default="unknown")
     health_status: str = Field(default="unknown")
     network_addresses: tuple[str, ...] = Field(default_factory=tuple)
@@ -273,6 +274,7 @@ class PeerRegistry:
         if existing is None:
             entry = PeerRegistryEntry(
                 peer_id=adv.peer_id,
+                label=adv.label,
                 trust_tier=effective_trust_tier or adv.trust_tier,
                 health_status=health_status,
                 network_addresses=adv.network_addresses,
@@ -287,6 +289,7 @@ class PeerRegistry:
         else:
             entry = existing.model_copy(
                 update={
+                    "label": adv.label or existing.label,
                     "trust_tier": effective_trust_tier or adv.trust_tier,
                     "health_status": health_status,
                     "network_addresses": adv.network_addresses,

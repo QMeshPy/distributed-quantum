@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 import numpy as np
 
+from quantum_backend_v2.application.peer_tasks import PeerTaskDispatcher
 from quantum_backend_v2.pharma.cache import FragmentCache
 from quantum_backend_v2.pharma.config import PharmaMode, PharmaWorkflowConfig
 from quantum_backend_v2.pharma.models import (
@@ -23,10 +24,16 @@ from quantum_backend_v2.pharma.stages.stage_1 import LipinskiFilter
 from quantum_backend_v2.pharma.stages.stage_2 import QWGANGenerator
 from quantum_backend_v2.pharma.stages.stage_3 import FragmentDecomposer
 from quantum_backend_v2.pharma.stages.stage_4 import VQEExecutor
-from quantum_backend_v2.pharma.stages.stage_5 import QAOADockingOptimizer
+from quantum_backend_v2.pharma.stages.stage_5 import DockingResult, QAOADockingOptimizer
 from quantum_backend_v2.pharma.stages.stage_6 import ADMETFilter, VQCScoringEngine
 
 logger = logging.getLogger(__name__)
+
+# Stage 5 simulates one qubit per (fragment, site). A pass of 5 fragments x 3 sites is 15 qubits,
+# about 5 s; 6 fragments is 18 qubits, about 16 s. Molecules with more fragments are docked in
+# several passes of at most this many fragments.
+DOCKING_SITES = 3
+MAX_FRAGMENTS_PER_DOCKING_PASS = 5
 
 
 class PharmaState(str, Enum):
@@ -42,6 +49,19 @@ class PharmaState(str, Enum):
     FAILED = "failed"
 
 
+def _merge_docking(results: list[DockingResult]) -> DockingResult:
+    """One result for a molecule docked in several passes: energies add, the rest is averaged."""
+    return DockingResult(
+        placements=[placement for result in results for placement in result.placements],
+        total_energy=sum(result.total_energy for result in results),
+        approximation_ratio=float(np.mean([result.approximation_ratio for result in results])),
+        beta_params=[float(v) for v in np.mean([r.beta_params for r in results], axis=0)],
+        gamma_params=[float(v) for v in np.mean([r.gamma_params for r in results], axis=0)],
+        dc_alpha=results[0].dc_alpha,
+        n_qubits_used=max(result.n_qubits_used for result in results),
+    )
+
+
 class PharmaOrchestrator:
     """Coordinates the 6-stage quantum pharma pipeline with iterative loop."""
 
@@ -52,6 +72,7 @@ class PharmaOrchestrator:
         execution_service: Any | None,
         log_callback: Callable[[str, str, str | None], None] | None = None,
         live_callback: Callable[..., None] | None = None,
+        task_dispatcher: PeerTaskDispatcher | None = None,
     ) -> None:
         self._cfg = config
         self._cache = cache or FragmentCache(mongo_runtime=None)
@@ -69,7 +90,7 @@ class PharmaOrchestrator:
         self._filter = LipinskiFilter()
         self._generator = QWGANGenerator(config.qwgan)
         self._decomposer = FragmentDecomposer()
-        self._vqe_executor = VQEExecutor(config.vqe, self._cache)
+        self._vqe_executor = VQEExecutor(config.vqe, self._cache, task_dispatcher)
         self._docking = QAOADockingOptimizer(config.qaoa)
         self._scorer = VQCScoringEngine(shots=config.vqc_shots)
         self._admet = ADMETFilter()
@@ -127,6 +148,8 @@ class PharmaOrchestrator:
                         prev_gamma=prev_gamma,
                     )
                     self._log("refine", f"Scaffold hopper: evaluating hop from current scaffold", "refining")
+                    if hop.needs_hop and not self._hop_is_valid(hop.replacement_smiles):
+                        hop.needs_hop = False
                     if hop.needs_hop:
                         self._scaffold_history.append(
                             ScaffoldIteration(
@@ -187,24 +210,42 @@ class PharmaOrchestrator:
         self, candidate_smiles: list[str]
     ) -> tuple[list[MolecularFragment], dict[str, VQEDescriptors]]:
         self.state = PharmaState.FRAGMENTING
-        self._log("stage", f"Stage 3 — fragment decomposition: {candidate_smiles[0][:40] if candidate_smiles else 'n/a'}", "fragmenting")
+        self._log("stage", f"Stage 3 — fragment decomposition: {candidate_smiles[0] if candidate_smiles else 'n/a'}", "fragmenting")
         self._live(stage="fragmenting")
         ligand = candidate_smiles[0] if candidate_smiles else "c1ccccc1"
         fragments = self._decomposer.decompose(ligand)
 
         self.state = PharmaState.VQE_COMPUTING
         self._live(stage="vqe_computing")
+        self._log("vqe", f"Stage 4 — VQE for {len(fragments)} fragment(s)", "vqe_computing")
+        runs = await self._vqe_executor.run_many(
+            fragments,
+            on_event=lambda message: self._log("vqe", message, "vqe_computing"),
+            on_progress=lambda records: self._live(peer_tasks=records),
+        )
         descriptors: dict[str, VQEDescriptors] = {}
-        for i, frag in enumerate(fragments):
-            logger.info("[%s] VQE %d/%d: %s", self._job_id, i + 1, len(fragments), frag.fragment_id)
-            self._log("vqe", f"Stage 4 — VQE {i + 1}/{len(fragments)}: computing HOMO-LUMO gap for {frag.fragment_id} ({frag.smiles[:28] if len(frag.smiles) > 28 else frag.smiles})", "vqe_computing")
-            result = await self._vqe_executor.run(frag)
+        for frag in fragments:
+            run = runs[frag.fragment_id]
+            if run.result is None:
+                # A fragment we cannot treat (e.g. an open-shell radical) is reported, never faked.
+                self._fragments_distributed[frag.fragment_id] = "skipped"
+                self._log("warning", f"  {frag.smiles}: skipped - {run.error}", "vqe_computing")
+                continue
+            result = run.result
             descriptors[frag.fragment_id] = result.to_descriptors()
-            self._fragments_distributed[frag.fragment_id] = "local"
-            cache_note = " [cache hit]" if result.cached else f" gap={result.to_descriptors().homo_lumo_gap_ev:.2f} eV, qubits={result.to_descriptors().qubit_count}"
-            self._log("vqe", f"  HOMO-LUMO{cache_note}", "vqe_computing")
-            if not result.cached:
-                await self._cache.put(frag.smiles, result.to_descriptors(), self._job_id)
+            ran_on = ", ".join(sorted({self._vqe_executor.label_of(p) for p in run.executed_by}))
+            self._fragments_distributed[frag.fragment_id] = ran_on
+            if result.cached:
+                self._log("vqe", f"  {frag.smiles}: cache hit", "vqe_computing")
+                continue
+            self._log(
+                "vqe",
+                f"  {frag.smiles}: E={result.ground_state_energy_hartree:.6f} Ha "
+                f"(exact {result.exact_energy_hartree:.6f}), gap={result.homo_lumo_gap_ev:.2f} eV, "
+                f"{result.qubit_count} qubits, computed on {ran_on}",
+                "vqe_computing",
+            )
+            await self._cache.put(frag.smiles, result.to_descriptors(), self._job_id)
 
         return fragments, descriptors
 
@@ -218,17 +259,30 @@ class PharmaOrchestrator:
         self.state = PharmaState.DOCKING
         self._log("stage", f"Stage 5 — QAOA docking: placing {len(fragments)} fragment(s) on binding grid", "docking")
         self._live(stage="docking")
-        n_sites = max(len(fragments), 3)
-        clash = np.zeros((n_sites, n_sites))
-        binding_grid = np.zeros((n_sites, n_sites, 3, 3))
-        return self._docking.dock(
-            fragments=fragments,
-            descriptors=descriptors,
-            binding_site_grid=binding_grid,
-            clash_matrix=clash,
-            warm_start_beta=prev_beta,
-            warm_start_gamma=prev_gamma,
-        )
+        clash = np.zeros((DOCKING_SITES, DOCKING_SITES))
+        binding_grid = np.zeros((DOCKING_SITES, DOCKING_SITES, 3, 3))
+        size = MAX_FRAGMENTS_PER_DOCKING_PASS
+        passes = [fragments[i : i + size] for i in range(0, len(fragments), size)]
+        if len(passes) > 1:
+            self._log(
+                "docking",
+                f"{len(fragments)} fragments docked in {len(passes)} passes of at most {size} "
+                f"({DOCKING_SITES} sites each); interactions between fragments of different passes "
+                "are not modelled",
+                "docking",
+            )
+        results = [
+            self._docking.dock(
+                fragments=chunk,
+                descriptors=descriptors,
+                binding_site_grid=binding_grid,
+                clash_matrix=clash,
+                warm_start_beta=prev_beta,
+                warm_start_gamma=prev_gamma,
+            )
+            for chunk in passes
+        ]
+        return results[0] if len(results) == 1 else _merge_docking(results)
 
     async def _run_stage_6(self, smiles: str, docking_result: Any) -> tuple:
         self.state = PharmaState.SCORING
@@ -255,6 +309,15 @@ class PharmaOrchestrator:
             if admet_result.passes:
                 self._live(admet_pass=True)
         return vqc_score, admet_result
+
+    def _hop_is_valid(self, smiles: str) -> bool:
+        """A scaffold hop must be a molecule we can fragment; otherwise keep the old one."""
+        try:
+            self._decomposer.decompose(smiles)
+        except ValueError:
+            self._log("warning", f"Hop rejected: {smiles} is not a valid molecule", "refining")
+            return False
+        return True
 
     def _check_convergence(self, vqc_score: Any, admet_result: Any) -> bool:
         if vqc_score is None or admet_result is None:

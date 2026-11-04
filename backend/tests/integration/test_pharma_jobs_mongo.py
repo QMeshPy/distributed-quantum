@@ -155,7 +155,7 @@ CONFIG = PharmaWorkflowConfig(mode=PharmaMode.DISCOVERY, target_pdb_id="1IEP")
 
 
 def test_runner_persists_the_pipeline_result_from_the_main_loop(monkeypatch):
-    def pipeline(job_id, config, log_lines):
+    def pipeline(job_id, config, log_lines, task_dispatcher):
         log_lines.append({"level": "info", "message": "ran"})
         return "done", {"candidates": [1, 2]}
 
@@ -165,7 +165,7 @@ def test_runner_persists_the_pipeline_result_from_the_main_loop(monkeypatch):
         jobs = PharmaJobService()
         job = await jobs.submit(owner_user_id="alice", mode="discovery", target_pdb_id="1IEP")
 
-        await pharma_router._run_pharma_job(jobs, job.id, CONFIG)
+        await pharma_router._run_pharma_job(jobs, job.id, CONFIG, None)
 
         stored = await PharmaJobDocument.get(job.id)
         assert stored.status == "completed"
@@ -177,7 +177,7 @@ def test_runner_persists_the_pipeline_result_from_the_main_loop(monkeypatch):
 
 
 def test_runner_records_a_pipeline_failure(monkeypatch):
-    def pipeline(job_id, config, log_lines):
+    def pipeline(job_id, config, log_lines, task_dispatcher):
         raise RuntimeError("docking engine crashed")
 
     monkeypatch.setattr(pharma_router, "_run_pipeline", pipeline)
@@ -186,7 +186,7 @@ def test_runner_records_a_pipeline_failure(monkeypatch):
         jobs = PharmaJobService()
         job = await jobs.submit(owner_user_id="alice", mode="discovery", target_pdb_id="1IEP")
 
-        await pharma_router._run_pharma_job(jobs, job.id, CONFIG)
+        await pharma_router._run_pharma_job(jobs, job.id, CONFIG, None)
 
         stored = await PharmaJobDocument.get(job.id)
         assert stored.status == "failed"
@@ -204,7 +204,7 @@ def test_runner_skips_a_job_cancelled_before_it_started(monkeypatch):
         job = await jobs.submit(owner_user_id="alice", mode="discovery", target_pdb_id="1IEP")
         await jobs.cancel(job.id, current_user=user("alice"))
 
-        await pharma_router._run_pharma_job(jobs, job.id, CONFIG)
+        await pharma_router._run_pharma_job(jobs, job.id, CONFIG, None)
 
         assert calls == []
         assert (await PharmaJobDocument.get(job.id)).status == "cancelled"

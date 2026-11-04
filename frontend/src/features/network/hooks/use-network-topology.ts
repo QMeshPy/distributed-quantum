@@ -13,7 +13,7 @@ export function useNetworkTopology() {
       const data = (await res.json()) as BackendTopologyResponse;
       return transformTopology(data);
     },
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
   });
 }

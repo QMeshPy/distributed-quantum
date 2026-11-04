@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,6 +26,9 @@ class LiveJobState(BaseModel):
     score_history: list[ScorePoint] = []
     admet_passes: int = 0
     elapsed_seconds: float = 0.0
+    # One record per VQE task of the current iteration (see stage_4): who runs it and its state.
+    peer_tasks: list[dict[str, Any]] = []
+    server_time: float = 0.0  # lets the browser compute elapsed time without trusting its own clock
 
 
 def init_live(job_id: str) -> None:
@@ -42,7 +46,7 @@ def get_live(job_id: str) -> LiveJobState | None:
     entry = _LIVE_STORE.get(job_id)
     if entry is None:
         return None
-    return LiveJobState(**entry)
+    return LiveJobState(**entry).model_copy(update={"server_time": time.time()})
 
 
 def clear_live(job_id: str) -> None:

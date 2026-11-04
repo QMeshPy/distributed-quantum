@@ -12,10 +12,16 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import re
 import sys
 import time
 from pathlib import Path
+
+# One VQE task simulates a few qubits, so extra math threads only fight over the cores.
+# Must be set before numpy loads.
+for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_var, "1")
 
 # Lets the script run from a plain checkout without installing the backend package.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -98,6 +104,7 @@ def main() -> None:
             protocols.reservation_commit: _logged("reservation/commit", worker.handle_commit),
             protocols.reservation_cancel: _logged("reservation/cancel", worker.handle_cancel),
             protocols.fragment_dispatch: _logged("fragment/dispatch", worker.handle_dispatch),
+            protocols.compute_task: _logged("compute/task", worker.handle_task),
         },
         heartbeat_provider=worker.heartbeat_snapshot,
         consume_discovery=False,

@@ -16,6 +16,7 @@ import type {
 export function transformPeerSummary(p: BackendPeerSummary): PeerSummary {
   return {
     peerId: p.peer_id,
+    label: p.label ?? null,
     trustTier: p.trust_tier,
     healthStatus: p.health_status,
     networkAddressCount: p.network_address_count,
@@ -30,6 +31,7 @@ export function transformPeerSummary(p: BackendPeerSummary): PeerSummary {
 export function transformPeerDetail(p: BackendPeerDetail): PeerDetail {
   return {
     peerId: p.peer_id,
+    label: p.label ?? null,
     trustTier: p.trust_tier,
     healthStatus: p.health_status,
     networkAddresses: p.network_addresses,
@@ -50,6 +52,7 @@ export function transformPeerDetail(p: BackendPeerDetail): PeerDetail {
 export function transformTopology(t: BackendTopologyResponse): NetworkTopology {
   const peers = (t.peers ?? []).map((p) => ({
     peerId: p.peer_id,
+    label: p.label ?? null,
     trustTier: p.trust_tier,
     healthStatus: p.health_status,
     lastSeenAt: p.last_seen_at,

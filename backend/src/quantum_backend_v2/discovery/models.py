@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -28,12 +29,22 @@ class PeerAdvertisement(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     peer_id: str = Field(min_length=3)
+    # Human-readable name for dashboards, e.g. the worker's --label. Unrelated to routing.
+    label: str | None = Field(default=None, max_length=64)
     trust_tier: str = Field(min_length=3)
     network_addresses: tuple[str, ...] = Field(default_factory=tuple)
     supported_protocols: tuple[str, ...] = Field(default_factory=tuple)
     service_summaries: tuple[ServiceAdvertisementSummary, ...] = Field(default_factory=tuple)
     peer_log_position: int = Field(default=0, ge=0)
     emitted_at: datetime = Field(default_factory=_utc_now)
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def _drop_unsafe_label(cls, value: object) -> str | None:
+        # Peers choose their own label; anything odd is dropped rather than shown or rejected.
+        if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9._-]{1,64}", value):
+            return value
+        return None
 
     @field_validator("emitted_at")
     @classmethod

@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { usePharmaJobLive } from "../hooks/use-pharma-job-live";
 import { LigandViewer } from "./ligand-viewer";
 import { CandidateCard } from "./candidate-card";
+import { PharmaPeersDrawer } from "./pharma-peers-drawer";
 import { LOG_META, STAGE_ICONS } from "../lib/pharma-stage-config";
 import type { PharmaJob, PipelineLogEntry, PipelineLogLevel } from "../types";
 import type { ScorePoint } from "../types-live";
@@ -322,8 +323,11 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
           </span>
         )}
         <span className="font-mono text-[10px] text-white/20">{jobId}</span>
+        <div className="ml-auto">
+          <PharmaPeersDrawer job={job} liveData={liveData} isRunning={isRunning} />
+        </div>
         {isRunning && (
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] tabular-nums text-white/50">
               <span className="relative flex h-1.5 w-1.5 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/30 opacity-60" />

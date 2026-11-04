@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import partial
@@ -10,7 +11,9 @@ from time import perf_counter
 import anyio
 
 from quantum_backend_v2.api.routers.service_quality import ServiceQualityTracker
+from quantum_backend_v2.application.compute_tasks import TASK_KINDS
 from quantum_backend_v2.application.distributed_statevector import apply_fragments_to_state
+from quantum_backend_v2.protocols.compute import ComputeTaskRequest, ComputeTaskResponse
 from quantum_backend_v2.protocols.execution import (
     ExecutionResultPayload,
     ExecutionTransition,
@@ -26,6 +29,8 @@ from quantum_backend_v2.protocols.reservation import (
     ReservationPrepareResponse,
     ReservationTransition,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -58,6 +63,7 @@ class PeerFragmentWorker:
         self._reservations: dict[str, _PreparedReservation] = {}
         self._active_executions: set[str] = set()
         self._execution_results: dict[str, ExecutionResultPayload] = {}
+        self._task_limiter: anyio.CapacityLimiter | None = None
 
     def heartbeat_snapshot(self) -> tuple[int, int]:
         """Return the live reservation and execution counts for heartbeats."""
@@ -184,6 +190,45 @@ class PeerFragmentWorker:
 
         self._execution_results[request.execution_id] = result
         return result.model_dump_json().encode("utf-8")
+
+    async def handle_task(self, payload: bytes) -> bytes:
+        """Run one generic compute task. Failure comes back as ok=False so the caller can reroute."""
+        request = ComputeTaskRequest.model_validate_json(payload)
+        started_at = perf_counter()
+        handler = TASK_KINDS.get(request.kind)
+        if handler is None:
+            return self._task_response(request, error=f"unknown task kind {request.kind!r}")
+        if self._task_limiter is None:  # anyio limiters must be created inside the running loop
+            self._task_limiter = anyio.CapacityLimiter(1)
+        self._active_executions.add(request.task_id)
+        try:
+            # One task at a time: a laptop's cores are the whole budget, and queued tasks wait here.
+            output = await anyio.to_thread.run_sync(
+                partial(handler, request.input), limiter=self._task_limiter
+            )
+        except Exception as exc:
+            logger.exception("compute task %s (%s) failed", request.task_id, request.kind)
+            return self._task_response(request, error=f"{type(exc).__name__}: {exc}")
+        finally:
+            self._active_executions.discard(request.task_id)
+        return self._task_response(request, output=output, started_at=started_at)
+
+    def _task_response(
+        self,
+        request: ComputeTaskRequest,
+        *,
+        output: dict | None = None,
+        error: str | None = None,
+        started_at: float | None = None,
+    ) -> bytes:
+        return ComputeTaskResponse(
+            task_id=request.task_id,
+            executing_peer_id=self._peer_id,
+            ok=error is None,
+            output=output,
+            error=error,
+            latency_ms=None if started_at is None else (perf_counter() - started_at) * 1000.0,
+        ).model_dump_json().encode("utf-8")
 
     def _bundle_fidelity(self, fragments: tuple[object, ...]) -> float:
         service_ids = sorted(

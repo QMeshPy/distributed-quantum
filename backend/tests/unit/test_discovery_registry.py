@@ -99,6 +99,36 @@ class TestPeerRegistryAdvertisement:
         assert entry.peer_log_position == 99
 
 
+def _labelled_adv_event(label: str | None) -> DiscoveryEvent:
+    adv = PeerAdvertisement(peer_id="peer-alpha", label=label, trust_tier="platform_managed")
+    return DiscoveryEvent(
+        kind=DiscoveryEventKind.ADVERTISEMENT,
+        raw_payload=adv.model_dump_json().encode(),
+        received_at=datetime.now(timezone.utc),
+    )
+
+
+class TestPeerLabel:
+    async def test_label_is_stored_and_kept_when_a_later_advertisement_omits_it(
+        self, registry: PeerRegistry
+    ) -> None:
+        await registry.process_event(_labelled_adv_event("alice-1"))
+        assert registry.get_peer("peer-alpha").label == "alice-1"  # type: ignore[union-attr]
+
+        await registry.process_event(_labelled_adv_event(None))
+        assert registry.get_peer("peer-alpha").label == "alice-1"  # type: ignore[union-attr]
+
+    @pytest.mark.parametrize("label", ["<script>alert(1)</script>", "has space", "x" * 65, ""])
+    async def test_unsafe_labels_are_dropped_not_rejected(
+        self, registry: PeerRegistry, label: str
+    ) -> None:
+        await registry.process_event(_labelled_adv_event(label))
+
+        entry = registry.get_peer("peer-alpha")
+        assert entry is not None
+        assert entry.label is None
+
+
 class TestPeerRegistryHeartbeat:
     async def test_heartbeat_registers_unknown_peer(self, registry: PeerRegistry) -> None:
         await registry.process_event(_hb_event("peer-beta"))

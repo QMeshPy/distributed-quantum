@@ -14,6 +14,7 @@ class PeerSummary(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     peer_id: str
+    label: str | None = None
     trust_tier: str
     health_status: str
     network_address_count: int = Field(ge=0)
@@ -30,6 +31,7 @@ class PeerDetail(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     peer_id: str
+    label: str | None = None
     trust_tier: str
     health_status: str
     network_addresses: tuple[str, ...] = Field(default_factory=tuple)
@@ -95,6 +97,7 @@ class TopologyEntry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     peer_id: str
+    label: str | None = None
     trust_tier: str
     health_status: str
     last_seen_at: datetime

@@ -11,6 +11,7 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors, QED, rdMolDescriptors
 
 from quantum_backend_v2.pharma.models import ADMETResult, DockingPose, VQCScore
+from quantum_backend_v2.pharma.qml_lock import QML_LOCK
 
 
 class VQCScoringEngine:
@@ -48,7 +49,8 @@ class VQCScoringEngine:
                 qml.RZ(params[n_qubits + i], wires=i)
             return qml.expval(qml.PauliZ(0))  # type: ignore[return-value]
 
-        expectation = float(circuit())
+        with QML_LOCK:
+            expectation = float(circuit())
         # Scale to plausible binding affinity range: -15 to -3 kcal/mol
         binding_affinity = -3.0 + expectation * (-6.0)
         variance = 4.0 / self._shots

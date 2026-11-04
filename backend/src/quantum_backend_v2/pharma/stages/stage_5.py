@@ -18,6 +18,7 @@ from quantum_backend_v2.pharma.models import (
     QUBOPlacement,
     VQEDescriptors,
 )
+from quantum_backend_v2.pharma.qml_lock import QML_LOCK
 from quantum_backend_v2.pharma.qubo_builder import build_qubo_matrix, qubo_to_ising
 
 
@@ -154,26 +155,25 @@ class QAOADockingOptimizer:
                     qml.RX(2 * beta[layer] * scale, wires=i)
             return qml.probs(wires=list(range(n_qubits)))
 
+        # Energy of every basis state at once: spins s = 2*bit - 1, E = h.s + sum_{i<j} J_ij s_i s_j.
+        # Wire 0 is the most significant bit, matching the order of qml.probs.
+        states = np.arange(2**n_qubits)[:, None]
+        spins = 2.0 * ((states >> (n_qubits - 1 - np.arange(n_qubits))) & 1) - 1.0
+        basis_energy = spins @ h + ((spins @ np.triu(J, 1)) * spins).sum(axis=1)
+
+        def probabilities(params: np.ndarray) -> np.ndarray:
+            with QML_LOCK:
+                return np.asarray(circuit(params))
+
         def cost(params: np.ndarray) -> float:
-            probs = circuit(params)
-            energy = 0.0
-            for idx, p in enumerate(probs):
-                bits = [int(b) for b in format(idx, f"0{n_qubits}b")]
-                e = sum(h[i] * (2 * bits[i] - 1) for i in range(n_qubits))
-                e += sum(
-                    J[i, j] * (2 * bits[i] - 1) * (2 * bits[j] - 1)
-                    for i in range(n_qubits)
-                    for j in range(i + 1, n_qubits)
-                )
-                energy += p * e
-            return float(energy)
+            return float(np.dot(probabilities(params), basis_energy))
 
         params0 = np.array(beta0 + gamma0)
         res = minimize(cost, params0, method="COBYLA",
                        options={"maxiter": self._cfg.max_iterations})
         opt_energy = float(res.fun)
 
-        probs = circuit(res.x)
+        probs = probabilities(res.x)
         best_idx = int(np.argmax(probs))
         bitstring = np.array([int(b) for b in format(best_idx, f"0{n_qubits}b")])
 
