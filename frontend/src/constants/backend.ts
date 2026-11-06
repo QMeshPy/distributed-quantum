@@ -39,6 +39,7 @@ export const BACKEND = {
     LIST: `${BASE_URL}/api/v1/risk`,
     SUBMIT: `${BASE_URL}/api/v1/risk/submit`,
     SUBMIT_CSV: `${BASE_URL}/api/v1/risk/submit-csv`,
+    ANALYZE_WALLET: `${BASE_URL}/api/v1/risk/analyze-wallet`,
     DETAIL: (id: string) => `${BASE_URL}/api/v1/risk/${id}` as const,
   },
   FINANCE: {

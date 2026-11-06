@@ -32,9 +32,18 @@ from quantum_backend_v2.api.models.risk import (
     RiskJobSummary,
     RiskSubmitResponse,
 )
+from quantum_backend_v2.api.models.wallet_portfolio import (
+    WalletPortfolioAnalysisResponse,
+    WalletPortfolioRequest,
+)
 from quantum_backend_v2.application.parity import RiskJobService
+from quantum_backend_v2.application.wallet_portfolio import analyze_wallet_portfolio
 from quantum_backend_v2.chains.adapter import UnsupportedOperationError
-from quantum_backend_v2.chains.models import DisabledNetworkError, UnknownNetworkError
+from quantum_backend_v2.chains.models import (
+    ChainRegistry,
+    DisabledNetworkError,
+    UnknownNetworkError,
+)
 from quantum_backend_v2.chains.prices import PriceRejectedError, PriceUnavailableError
 from quantum_backend_v2.chains.rpc import RpcConfigurationError
 
@@ -68,10 +77,51 @@ def _daily_log_returns(rows: list[dict[str, str]]) -> list[list[float]]:
 def build_risk_router(
     *,
     risk_job_service: RiskJobService,
+    chain_registry: ChainRegistry | None = None,
     x402_gateway_secret: str | None = None,
 ) -> APIRouter:
     """Build the quantum risk engine router."""
     router = APIRouter(prefix="/api/v1/risk", tags=["risk"])
+
+    @router.post(
+        "/analyze-wallet",
+        response_model=WalletPortfolioAnalysisResponse,
+        summary="Analyze on-chain wallet holdings (read-only VaR/CVaR)",
+    )
+    async def analyze_wallet(
+        body: WalletPortfolioRequest,
+        current_user: CurrentUser,
+    ) -> WalletPortfolioAnalysisResponse:
+        """Public-address portfolio risk. No signing, approvals, or transfers."""
+        _ = current_user
+        if chain_registry is None:
+            raise HTTPException(
+                status_code=503, detail="chain registry is not configured"
+            )
+        try:
+            return await analyze_wallet_portfolio(
+                registry=chain_registry,
+                address=body.address,
+                networks=body.networks,
+                lookback_days=body.lookback_days,
+                num_uncertainty_qubits=body.num_uncertainty_qubits,
+                epsilon=body.epsilon,
+                alpha=body.alpha,
+            )
+        except ValueError as exc:
+            # Invalid address checksum / format beyond the request model.
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        except (
+            PriceRejectedError,
+            DisabledNetworkError,
+            UnknownNetworkError,
+            UnsupportedOperationError,
+        ) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        except (PriceUnavailableError, RpcConfigurationError):
+            raise HTTPException(
+                status_code=503, detail="price feed or RPC is unavailable"
+            ) from None
 
     @router.post(
         "/submit",

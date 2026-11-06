@@ -50,6 +50,7 @@ export const API = {
   RISK: {
     LIST: "/api/risk",
     CREATE: "/api/risk",
+    ANALYZE_WALLET: "/api/risk/analyze-wallet",
     JOB: (jobId: string) => `/api/risk/${jobId}` as const,
   },
   FINANCE: {
