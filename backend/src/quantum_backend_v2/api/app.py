@@ -282,6 +282,7 @@ def create_app(
         app.include_router(
             build_risk_router(
                 risk_job_service=risk_job_service,
+                chain_registry=chain_registry,
                 x402_gateway_secret=settings.x402_gateway_secret,
             )
         )
