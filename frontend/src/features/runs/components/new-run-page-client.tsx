@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/arc/button/button";
+import { ChipGroup } from "@/components/arc/chip-group/chip-group";
+
 import { useState, useCallback } from "react";
 import {
   Atom,
@@ -36,46 +39,46 @@ type TemplateMeta = {
 const TEMPLATE_META: Record<string, TemplateMeta> = {
   "bell-state": {
     icon: Atom,
-    accent: "text-sky-300",
-    accentBg: "bg-sky-400/10 ring-sky-400/25",
-    previewBg: "bg-sky-950/30",
-    previewText: "text-sky-300/50 group-hover:text-sky-300/70",
-    tagBg: "bg-sky-400/10",
-    tagText: "text-sky-300/60",
-    borderActive: "border-sky-400/30",
+    accent: "text-info",
+    accentBg: "bg-info/10 ring-info/25",
+    previewBg: "bg-info/30",
+    previewText: "text-info group-hover:text-info",
+    tagBg: "bg-info/10",
+    tagText: "text-info",
+    borderActive: "border-info/30",
     previewLines: 6,
   },
   "ghz-three": {
     icon: GitBranch,
-    accent: "text-emerald-300",
-    accentBg: "bg-emerald-400/10 ring-emerald-400/25",
-    previewBg: "bg-emerald-950/30",
-    previewText: "text-emerald-300/50 group-hover:text-emerald-300/70",
-    tagBg: "bg-emerald-400/10",
-    tagText: "text-emerald-300/60",
-    borderActive: "border-emerald-400/30",
+    accent: "text-success",
+    accentBg: "bg-success/10 ring-success/25",
+    previewBg: "bg-success/30",
+    previewText: "text-success group-hover:text-success",
+    tagBg: "bg-success/10",
+    tagText: "text-success",
+    borderActive: "border-success/30",
     previewLines: 7,
   },
   "phase-kickback": {
     icon: Zap,
-    accent: "text-amber-300",
-    accentBg: "bg-amber-400/10 ring-amber-400/25",
-    previewBg: "bg-amber-950/30",
-    previewText: "text-amber-300/50 group-hover:text-amber-300/70",
-    tagBg: "bg-amber-400/10",
-    tagText: "text-amber-300/60",
-    borderActive: "border-amber-400/30",
+    accent: "text-warning",
+    accentBg: "bg-warning/10 ring-warning/25",
+    previewBg: "bg-warning/30",
+    previewText: "text-warning group-hover:text-warning",
+    tagBg: "bg-warning/10",
+    tagText: "text-warning",
+    borderActive: "border-warning/30",
     previewLines: 8,
   },
   "teleportation-skeleton": {
     icon: Sparkles,
-    accent: "text-rose-300",
-    accentBg: "bg-rose-400/10 ring-rose-400/25",
-    previewBg: "bg-rose-950/30",
-    previewText: "text-rose-300/50 group-hover:text-rose-300/70",
-    tagBg: "bg-rose-400/10",
-    tagText: "text-rose-300/60",
-    borderActive: "border-rose-400/30",
+    accent: "text-danger",
+    accentBg: "bg-danger/10 ring-danger/25",
+    previewBg: "bg-danger/30",
+    previewText: "text-danger group-hover:text-danger",
+    tagBg: "bg-danger/10",
+    tagText: "text-danger",
+    borderActive: "border-danger/30",
     previewLines: 10,
   },
 };
@@ -89,34 +92,34 @@ type SnippetCategoryColor = {
 
 const CATEGORY_COLORS: Record<string, SnippetCategoryColor> = {
   Registers: {
-    text: "text-sky-300",
-    bg: "bg-sky-400/8",
-    ring: "ring-sky-400/25",
-    highlight: "rgba(56,189,248,0.08)",
+    text: "text-info",
+    bg: "bg-info/8",
+    ring: "ring-info/25",
+    highlight: "color-mix(in oklab, var(--info) 8%, transparent)",
   },
   "Single-qubit": {
-    text: "text-violet-300",
-    bg: "bg-violet-400/8",
-    ring: "ring-violet-400/25",
-    highlight: "rgba(167,139,250,0.08)",
+    text: "text-accent",
+    bg: "bg-accent/8",
+    ring: "ring-accent/25",
+    highlight: "color-mix(in oklab, var(--accent) 8%, transparent)",
   },
   Entanglement: {
-    text: "text-emerald-300",
-    bg: "bg-emerald-400/8",
-    ring: "ring-emerald-400/25",
-    highlight: "rgba(52,211,153,0.08)",
+    text: "text-success",
+    bg: "bg-success/8",
+    ring: "ring-success/25",
+    highlight: "color-mix(in oklab, var(--success) 8%, transparent)",
   },
   Readout: {
-    text: "text-amber-300",
-    bg: "bg-amber-400/8",
-    ring: "ring-amber-400/25",
-    highlight: "rgba(251,191,36,0.08)",
+    text: "text-warning",
+    bg: "bg-warning/8",
+    ring: "ring-warning/25",
+    highlight: "color-mix(in oklab, var(--warning) 8%, transparent)",
   },
   Algorithms: {
-    text: "text-rose-300",
-    bg: "bg-rose-400/8",
-    ring: "ring-rose-400/25",
-    highlight: "rgba(251,113,133,0.08)",
+    text: "text-danger",
+    bg: "bg-danger/8",
+    ring: "ring-danger/25",
+    highlight: "color-mix(in oklab, var(--danger) 8%, transparent)",
   },
 };
 
@@ -149,7 +152,7 @@ export function NewRunPageClient() {
   const handleSnippetInsert = useCallback(
     (snippet: string, category: string) => {
       const color =
-        CATEGORY_COLORS[category]?.highlight ?? "rgba(255,255,255,0.06)";
+        CATEGORY_COLORS[category]?.highlight ?? "color-mix(in oklab, var(--foreground) 6%, transparent)";
 
       setSelectedCircuit((prev) => {
         const needsBreak = prev.length > 0 && !prev.endsWith("\n");
@@ -188,34 +191,18 @@ export function NewRunPageClient() {
   return (
     <div className="flex min-h-full flex-col overflow-y-auto">
       {/* ── Marketplace hero ── */}
-      <header className="relative border-b border-white/6 px-6 pb-6 pt-6">
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -left-20 -top-20 h-[300px] w-[400px] rounded-full opacity-[0.07] blur-[100px]"
-            style={{
-              background:
-                "conic-gradient(from 180deg, #60a5fa, #a78bfa, #f472b6, #60a5fa)",
-            }}
-          />
-          <div
-            className="absolute -right-10 -top-10 h-[200px] w-[300px] rounded-full opacity-[0.05] blur-[80px]"
-            style={{
-              background:
-                "radial-gradient(circle, #34d399 0%, transparent 70%)",
-            }}
-          />
-        </div>
+      <header className="relative border-b border-border px-6 pb-6 pt-6">
         <div className="relative">
-          <div className="flex items-center gap-2 text-white/30">
+          <div className="flex items-center gap-2 text-faint">
             <CircuitBoard size={14} />
-            <span className="text-[11px] font-medium uppercase tracking-wider">
+            <span className="text-xs font-medium">
               Quantum Circuit Marketplace
             </span>
           </div>
-          <h1 className="mt-2 text-[28px] font-light tracking-tight text-white/90">
+          <h1 className="mt-2 text-2xl text-foreground">
             Browse &amp; Execute
           </h1>
-          <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-white/35">
+          <p className="mt-1 max-w-lg text-sm leading-relaxed text-faint">
             Pick a circuit from our curated collection or compose your own. One
             click to deploy across the distributed quantum mesh.
           </p>
@@ -225,35 +212,17 @@ export function NewRunPageClient() {
       {/* ── Main content: two-panel marketplace ── */}
       <div className="flex flex-1 flex-col gap-0 lg:flex-row">
         {/* ── Left: Browse panel ── */}
-        <div className="flex flex-1 flex-col border-r border-white/5 lg:max-w-[58%]">
+        <div className="flex flex-1 flex-col border-r border-border lg:max-w-[58%]">
           {/* Filter tags */}
-          <div className="flex items-center gap-2 border-b border-white/5 px-5 py-3">
-            <Tag size={12} className="text-white/25" />
-            <button
-              type="button"
-              onClick={() => setFilterTag(null)}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-                filterTag === null
-                  ? "bg-white/12 text-white/80"
-                  : "text-white/35 hover:text-white/60"
-              }`}
-            >
-              All
-            </button>
-            {ALL_TAGS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setFilterTag(tag === filterTag ? null : tag)}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-                  filterTag === tag
-                    ? "bg-white/12 text-white/80"
-                    : "text-white/35 hover:text-white/60"
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+            <Tag size={12} className="text-faint" aria-hidden="true" />
+            <ChipGroup
+              label="Filter by tag"
+              multiple={false}
+              options={ALL_TAGS.map((tag) => ({ value: tag, label: tag }))}
+              value={filterTag ? [filterTag] : []}
+              onValueChange={(v) => setFilterTag(v[0] ?? null)}
+            />
           </div>
 
           {/* Template grid */}
@@ -284,16 +253,16 @@ export function NewRunPageClient() {
                     <div
                       className={`relative flex min-h-full flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
                         isActive
-                          ? `${meta.borderActive} bg-white/[0.07]`
-                          : "border-white/6 bg-white/[0.025] hover:border-white/12 hover:bg-white/[0.045]"
+                          ?`${meta.borderActive} bg-surface-muted`
+                          : "border-border bg-surface-muted hover:border-border hover:bg-surface-muted"
                       }`}
                     >
-                      {/* Code preview area — colored per template */}
+                      {/* Code preview area, colored per template */}
                       <div
-                        className={`relative border-b border-white/5 px-4 py-3 ${meta.previewBg}`}
+                        className={`relative border-b border-border px-4 py-3 ${meta.previewBg}`}
                       >
                         <pre
-                          className={`overflow-hidden font-mono text-[10px] leading-[1.6] ${meta.previewText}`}
+                          className={`overflow-hidden font-mono text-xs leading-[1.6] ${meta.previewText}`}
                         >
                           {preview.map((line, i) => (
                             <div key={i} className="truncate">
@@ -303,7 +272,7 @@ export function NewRunPageClient() {
                         </pre>
                         {isActive && (
                           <div
-                            className={`absolute right-3 top-3 flex h-5 items-center rounded-full px-2 text-[9px] font-semibold uppercase tracking-wide ${meta.tagBg} ${meta.tagText}`}
+                            className={`absolute right-3 top-3 flex h-5 items-center rounded-full px-2 text-xs font-medium ${meta.tagBg} ${meta.tagText}`}
                           >
                             Selected
                           </div>
@@ -318,11 +287,11 @@ export function NewRunPageClient() {
                           >
                             <Icon size={14} className={meta.accent} />
                           </div>
-                          <h3 className="text-[13px] font-semibold text-white/80 group-hover:text-white/95">
+                          <h3 className="text-sm font-medium text-foreground group-hover:text-foreground">
                             {template.title}
                           </h3>
                         </div>
-                        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-white/30">
+                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-faint">
                           {template.description}
                         </p>
                         {/* Colored tag capsules */}
@@ -330,7 +299,7 @@ export function NewRunPageClient() {
                           {template.tags.map((tag) => (
                             <span
                               key={tag}
-                              className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${meta.tagBg} ${meta.tagText}`}
+                              className={`rounded-md px-1.5 py-0.5 text-xs font-medium ${meta.tagBg} ${meta.tagText}`}
                             >
                               {tag}
                             </span>
@@ -340,7 +309,7 @@ export function NewRunPageClient() {
                           {template.highlights.map((h) => (
                             <div
                               key={h}
-                              className="flex items-center gap-1.5 text-[10px] text-white/25"
+                              className="flex items-center gap-1.5 text-xs text-faint"
                             >
                               <ArrowRight size={8} className={meta.accent + " opacity-40"} />
                               <span>{h}</span>
@@ -355,10 +324,10 @@ export function NewRunPageClient() {
             </div>
 
             {/* ── Snippets shelf ── */}
-            <div className="mt-6 border-t border-white/5 pt-5">
+            <div className="mt-6 border-t border-border pt-5">
               <div className="mb-3 flex items-center gap-2">
-                <Layers size={12} className="text-white/25" />
-                <span className="text-[11px] font-medium uppercase tracking-wider text-white/30">
+                <Layers size={12} className="text-faint" />
+                <span className="text-xs font-medium text-faint">
                   Gate Snippets
                 </span>
               </div>
@@ -369,7 +338,7 @@ export function NewRunPageClient() {
                   return (
                     <div key={category}>
                       <p
-                        className={`mb-1.5 text-[10px] font-medium ${catColor.text} opacity-60`}
+                        className={`mb-1.5 text-xs font-medium ${catColor.text} opacity-60`}
                       >
                         {category}
                       </p>
@@ -377,21 +346,20 @@ export function NewRunPageClient() {
                         {CIRCUIT_SNIPPETS.filter(
                           (s) => s.category === category,
                         ).map((snippet) => (
-                          <button
+                          <Button
                             key={snippet.id}
                             type="button"
-                            onClick={() =>
-                              handleSnippetInsert(snippet.snippet, category)
-                            }
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleSnippetInsert(snippet.snippet, category)}
                             title={snippet.description}
-                            className={`group/s flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] transition-all hover:scale-[1.03] ${catColor.bg} ${catColor.ring} ring-1 ${catColor.text} opacity-70 hover:opacity-100`}
                           >
                             <Code2
                               size={10}
                               className="opacity-50 transition-opacity group-hover/s:opacity-80"
                             />
                             {snippet.label}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
@@ -403,16 +371,16 @@ export function NewRunPageClient() {
         </div>
 
         {/* ── Right: Editor workspace panel ── */}
-        <div className="flex flex-col border-t border-white/5 lg:flex-1 lg:border-t-0">
-          <div className="flex items-center gap-2 border-b border-white/5 px-5 py-3">
-            <Code2 size={12} className="text-white/30" />
-            <span className="text-[11px] font-medium uppercase tracking-wider text-white/35">
+        <div className="flex flex-col border-t border-border lg:flex-1 lg:border-t-0">
+          <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+            <Code2 size={12} className="text-faint" />
+            <span className="text-xs font-medium text-faint">
               Your Circuit
             </span>
             {activeTemplateId && (
-              <span className="ml-auto rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-white/35">
+              <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs text-faint">
                 from{" "}
-                <span className="text-white/55">
+                <span className="text-subtle">
                   {getCircuitTemplateById(activeTemplateId)?.title}
                 </span>
               </span>

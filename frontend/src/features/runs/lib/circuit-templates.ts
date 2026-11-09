@@ -22,7 +22,7 @@ export const CIRCUIT_TEMPLATES: CircuitTemplate[] = [
     id: "bell-state",
     title: "Bell Pair",
     description:
-      "A clean two-qubit entanglement starter — perfect for smoke-testing the full coordinator flow.",
+      "A clean two-qubit entanglement starter, perfect for smoke-testing the full coordinator flow.",
     tags: ["Starter", "2 qubits", "Entanglement"],
     highlights: ["Fast sanity check", "Readable result histogram"],
     circuit: `OPENQASM 2.0;
@@ -166,7 +166,7 @@ export const CIRCUIT_SNIPPETS: CircuitSnippet[] = [
     id: "measure-all",
     label: "Measure all",
     description:
-      "One line per qubit — duplicate the pattern for larger registers.",
+      "One line per qubit, duplicate the pattern for larger registers.",
     category: "Readout",
     snippet: "measure q[0] -> c[0];\nmeasure q[1] -> c[1];",
   },

@@ -1,34 +1,35 @@
 "use client";
 import { useTokenizedAssets } from "../hooks/use-tokenized-assets";
 import { useTokenizedPortfolioForm } from "../hooks/use-tokenized-portfolio-form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Controller } from "react-hook-form";
+import { Checkbox } from "@/components/arc/checkbox/checkbox";
+import { Input } from "@/components/arc/input/input";
+import { Button } from "@/components/arc/button/button";
+import { Panel, PanelContent, PanelHeader } from "@/shared/components/panel/panel";
 import { cn } from "@/lib/utils";
 
 export function TokenizedPortfolioPanel({ className }: { className?: string }) {
   const assets = useTokenizedAssets();
   const catalog = assets.data;
-  const { errors, register, submit, isPending, today } =
+  const { errors, register, control, submit, isPending, today } =
     useTokenizedPortfolioForm(catalog);
 
   return (
-    <Card className={cn("border-hairline bg-surface-soft", className)}>
-      <CardHeader className="pb-2">
+    <Panel className={cn("border-border-subtle bg-surface-muted", className)}>
+      <PanelHeader className="pb-2">
         <h2 className="text-base font-medium text-foreground">
           Robinhood tokenized stocks
         </h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-subtle">
           Optimize a portfolio from on-chain daily token prices. Nothing is
           bought, sold or signed.
         </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </PanelHeader>
+      <PanelContent className="space-y-4">
         {assets.isPending ? (
-          <p className="text-sm text-muted-foreground">Loading assets…</p>
+          <p className="text-sm text-subtle">Loading assets…</p>
         ) : !catalog ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-danger">
             {assets.error?.message ?? "Tokenized assets are unavailable"}
           </p>
         ) : (
@@ -40,26 +41,35 @@ export function TokenizedPortfolioPanel({ className }: { className?: string }) {
             >
               <legend className="text-sm font-medium">Assets</legend>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {catalog.assets.map((asset) => (
-                  <label
-                    key={asset.symbol}
-                    className="flex items-center gap-2 text-sm"
-                    title={asset.name}
-                  >
-                    <input
-                      type="checkbox"
-                      value={asset.symbol}
-                      {...register("symbols")}
-                    />
-                    {asset.symbol}
-                  </label>
-                ))}
+                <Controller
+                  control={control}
+                  name="symbols"
+                  render={({ field }) => (
+                    <>
+                      {catalog.assets.map((asset) => (
+                        <Checkbox
+                          key={asset.symbol}
+                          label={asset.symbol}
+                          title={asset.name}
+                          checked={field.value.includes(asset.symbol)}
+                          onCheckedChange={(on) =>
+                            field.onChange(
+                              on === true
+                                ? [...field.value, asset.symbol]
+                                : field.value.filter((s: string) => s !== asset.symbol),
+                            )
+                          }
+                        />
+                      ))}
+                    </>
+                  )}
+                />
               </div>
               {errors.symbols ? (
                 <p
                   id="tokenized-symbols-error"
                   role="alert"
-                  className="text-sm text-destructive"
+                  className="text-sm text-danger"
                 >
                   {errors.symbols.message}
                 </p>
@@ -67,8 +77,7 @@ export function TokenizedPortfolioPanel({ className }: { className?: string }) {
             </fieldset>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="tokenized-start">Start date</Label>
-                <Input
+                <Input label="Start date"
                   id="tokenized-start"
                   type="date"
                   max={today}
@@ -80,15 +89,14 @@ export function TokenizedPortfolioPanel({ className }: { className?: string }) {
                   <p
                     id="tokenized-start-error"
                     role="alert"
-                    className="text-sm text-destructive"
+                    className="text-sm text-danger"
                   >
                     {errors.startDate.message}
                   </p>
                 ) : null}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="tokenized-end">End date</Label>
-                <Input
+                <Input label="End date"
                   id="tokenized-end"
                   type="date"
                   max={today}
@@ -100,25 +108,25 @@ export function TokenizedPortfolioPanel({ className }: { className?: string }) {
                   <p
                     id="tokenized-end-error"
                     role="alert"
-                    className="text-sm text-destructive"
+                    className="text-sm text-danger"
                   >
                     {errors.endDate.message}
                   </p>
                 ) : null}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-subtle">
               Source: {catalog.data_source}. Daily prices: {catalog.sampling}.
               At least {catalog.min_aligned_days} shared trading days are
               required.
             </p>
-            <p className="text-xs text-muted-foreground">{catalog.disclaimer}</p>
+            <p className="text-xs text-subtle">{catalog.disclaimer}</p>
             <Button onClick={submit} disabled={isPending} className="w-full">
               {isPending ? "Submitting…" : "Analyze tokenized stocks"}
             </Button>
           </>
         )}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   );
 }

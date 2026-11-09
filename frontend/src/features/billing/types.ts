@@ -1,4 +1,4 @@
-/** Worker Connect Express onboarding status (#110). */
+/** Worker Connect Express onboarding status (var(--background)). */
 export type ConnectPayoutStatus =
   | "not_started"
   | "pending"

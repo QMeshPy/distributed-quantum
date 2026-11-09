@@ -8,7 +8,7 @@
 //   );
 
 import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/arc/button/button";
 import { cn } from "@/lib/utils";
 import { GatePalette } from "./gate-palette";
 import { CircuitOutputPanel } from "./circuit-output-panel";
@@ -61,9 +61,9 @@ export function VisualCircuitBuilder({
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Qubits:</span>
+          <span className="text-xs text-subtle">Qubits:</span>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="h-7 w-7 p-0 text-xs"
             onClick={() => setNumQubits(numQubits - 1)}
@@ -75,7 +75,7 @@ export function VisualCircuitBuilder({
             {numQubits}
           </span>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="h-7 w-7 p-0 text-xs"
             onClick={() => setNumQubits(numQubits + 1)}
@@ -83,22 +83,22 @@ export function VisualCircuitBuilder({
           >
             +
           </Button>
-          <span className="ml-2 text-xs text-muted-foreground">
+          <span className="ml-2 text-xs text-subtle">
             Depth: {depth}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => { setShowOutput((v) => !v); }}
           >
             {showOutput ? "Hide" : "Show"} QASM
           </Button>
-          <Button variant="outline" size="sm" onClick={addLayer}>
+          <Button variant="secondary" size="sm" onClick={addLayer}>
             + Layer
           </Button>
-          <Button variant="outline" size="sm" onClick={clearCircuit}>
+          <Button variant="secondary" size="sm" onClick={clearCircuit}>
             Clear
           </Button>
         </div>
@@ -107,7 +107,7 @@ export function VisualCircuitBuilder({
       {/* Gate palette + circuit grid */}
       <div className="flex gap-4">
         {/* Gate palette */}
-        <div className="w-36 shrink-0 rounded-md border border-border bg-card p-3">
+        <div className="w-36 shrink-0 rounded-md border border-border bg-surface p-3">
           <GatePalette
             onSelectGate={setSelectedGate}
             selectedGate={selectedGate}
@@ -115,7 +115,7 @@ export function VisualCircuitBuilder({
         </div>
 
         {/* Circuit grid */}
-        <div className="min-w-0 flex-1 overflow-x-auto rounded-md border border-border bg-card p-3">
+        <div className="min-w-0 flex-1 overflow-x-auto rounded-md border border-border bg-surface p-3">
           <div className="flex flex-col gap-0.5">
             {/* Column headers (layer indices) */}
             <div className="flex">
@@ -125,7 +125,7 @@ export function VisualCircuitBuilder({
                   key={li}
                   className="flex w-12 shrink-0 items-center justify-center"
                 >
-                  <span className="text-[10px] text-muted-foreground">{li + 1}</span>
+                  <span className="text-xs text-subtle">{li + 1}</span>
                 </div>
               ))}
             </div>
@@ -135,7 +135,7 @@ export function VisualCircuitBuilder({
               <div key={qi} className="flex items-center gap-0">
                 {/* Row label */}
                 <div className="flex w-10 shrink-0 items-center justify-end pr-2">
-                  <span className="font-mono text-xs text-muted-foreground">
+                  <span className="font-mono text-xs text-subtle">
                     q{qi}
                   </span>
                 </div>
@@ -159,10 +159,10 @@ export function VisualCircuitBuilder({
                           "relative z-10 mx-auto flex h-9 w-9 items-center justify-center rounded border text-xs font-mono transition-colors",
                           gate
                             ? cn(
-                                "border-transparent text-white shadow-sm",
+                                "border-transparent text-foreground shadow-sm",
                                 display?.color,
                               )
-                            : "border-dashed border-border bg-background text-muted-foreground opacity-0 hover:opacity-100",
+                            : "border-dashed border-border bg-background text-subtle opacity-0 hover:opacity-100",
                         )}
                         onClick={() =>
                           gate

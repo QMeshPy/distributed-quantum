@@ -1,9 +1,9 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { LinkButton } from "@/shared/components/link-button";
 import { Cpu, Zap, BarChart3, ArrowLeft, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  GlassCard,
+  SurfaceCard,
   SectionTitle,
   JobMetaStrip,
 } from "@/shared/components/detail";
@@ -36,64 +36,64 @@ function RunBlochSphere({ qubitKey, bv }: { qubitKey: string; bv: Record<string,
   const beta = Math.sqrt(Math.max(0, prob1));
   const thetaDeg = ((theta * 180) / Math.PI).toFixed(1);
 
-  const dotColor = prob1 >= 0.65 ? "#34d399" : prob1 <= 0.35 ? "#ffffff28" : "#67e8f9";
+  const dotColor = prob1 >= 0.65 ? "var(--success)" : prob1 <= 0.35 ? "color-mix(in oklab, var(--foreground) 15.7%, transparent)" : "var(--info)";
   const labelColor = dotColor;
   const stateLabel = prob1 >= 0.65 ? "|1⟩ dominant" : prob1 <= 0.35 ? "|0⟩ dominant" : "|+⟩ superposition";
 
   return (
-    <div className="flex items-start gap-4 rounded-xl bg-white/[0.025] p-4 ring-1 ring-white/6">
+    <div className="flex items-start gap-4 rounded-xl bg-surface-muted p-4 ring-1 ring-border">
       <div className="shrink-0">
         <svg width="128" height="150" viewBox="0 0 128 150" fill="none">
-          <circle cx={cx} cy={cy} r={R} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="rgba(255,255,255,0.02)" />
-          <ellipse cx={cx} cy={cy} rx={R} ry={R * 0.26} stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="4 3" fill="none" />
-          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy + R + 8} stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-          <line x1={cx - R * 0.7} y1={cy} x2={cx + R * 0.7} y2={cy} stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 2" />
-          <text x={cx} y={cy - R - 12} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.40)">|1⟩</text>
-          <text x={cx} y={cy + R + 20} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.20)">|0⟩</text>
-          <text x={cx + R * 0.7 + 6} y={cy + 4} fontSize="10" fill="rgba(255,255,255,0.18)">X</text>
-          <text x={cx + 4} y={cy - R - 4} fontSize="10" fill="rgba(255,255,255,0.18)">Z</text>
+          <circle cx={cx} cy={cy} r={R} stroke="color-mix(in oklab, var(--foreground) 8%, transparent)" strokeWidth="1.5" fill="color-mix(in oklab, var(--foreground) 2%, transparent)" />
+          <ellipse cx={cx} cy={cy} rx={R} ry={R * 0.26} stroke="color-mix(in oklab, var(--foreground) 7%, transparent)" strokeWidth="1" strokeDasharray="4 3" fill="none" />
+          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy + R + 8} stroke="color-mix(in oklab, var(--foreground) 10%, transparent)" strokeWidth="1" />
+          <line x1={cx - R * 0.7} y1={cy} x2={cx + R * 0.7} y2={cy} stroke="color-mix(in oklab, var(--foreground) 6%, transparent)" strokeWidth="1" strokeDasharray="3 2" />
+          <text x={cx} y={cy - R - 12} textAnchor="middle" fontSize="11" fill="color-mix(in oklab, var(--foreground) 40%, transparent)">|1⟩</text>
+          <text x={cx} y={cy + R + 20} textAnchor="middle" fontSize="11" fill="color-mix(in oklab, var(--foreground) 20%, transparent)">|0⟩</text>
+          <text x={cx + R * 0.7 + 6} y={cy + 4} fontSize="10" fill="color-mix(in oklab, var(--foreground) 18%, transparent)">X</text>
+          <text x={cx + 4} y={cy - R - 4} fontSize="10" fill="color-mix(in oklab, var(--foreground) 18%, transparent)">Z</text>
           <line x1={cx} y1={cy} x2={dotX} y2={dotY} stroke={dotColor} strokeWidth="2" opacity="0.75" />
           <line x1={dotX} y1={dotY} x2={dotX} y2={cy} stroke={dotColor} strokeWidth="1" strokeDasharray="3 2" opacity="0.25" />
           <circle cx={dotX} cy={dotY} r="6" fill={dotColor} opacity="0.95" />
           <circle cx={dotX} cy={dotY} r="3" fill="white" opacity="0.4" />
-          <circle cx={cx} cy={cy} r="2.5" fill="rgba(255,255,255,0.15)" />
+          <circle cx={cx} cy={cy} r="2.5" fill="color-mix(in oklab, var(--foreground) 15%, transparent)" />
         </svg>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 pt-1">
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40">{qubitKey}</span>
-          <span className="text-sm font-semibold" style={{ color: labelColor }}>{stateLabel}</span>
+          <span className="text-xs font-medium text-subtle">{qubitKey}</span>
+          <span className="text-sm font-medium" style={{ color: labelColor }}>{stateLabel}</span>
         </div>
 
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-0.5">
-            <p className="text-[11px] text-white/35">State Vector</p>
-            <p className="font-mono text-sm text-white/75">
-              |ψ⟩ ≈ {alpha.toFixed(3)}<span className="text-white/40">|0⟩</span>
-              <span className="mx-1 text-white/30">+</span>
-              {beta.toFixed(3)}<span className="text-white/40">|1⟩</span>
+            <p className="text-xs text-faint">State Vector</p>
+            <p className="font-mono text-sm text-foreground">
+              |ψ⟩ ≈ {alpha.toFixed(3)}<span className="text-subtle">|0⟩</span>
+              <span className="mx-1 text-faint">+</span>
+              {beta.toFixed(3)}<span className="text-subtle">|1⟩</span>
             </p>
           </div>
           <div className="flex gap-4">
             <div>
-              <p className="text-[10px] text-white/30">θ (polar)</p>
-              <p className="font-mono text-[12px] text-white/60">{thetaDeg}°</p>
+              <p className="text-xs text-faint">θ (polar)</p>
+              <p className="font-mono text-xs text-subtle">{thetaDeg}°</p>
             </div>
             <div>
-              <p className="text-[10px] text-white/30">⟨Z⟩</p>
-              <p className="font-mono text-[12px] text-white/60">{z.toFixed(3)}</p>
+              <p className="text-xs text-faint">⟨Z⟩</p>
+              <p className="font-mono text-xs text-subtle">{z.toFixed(3)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-white/30">⟨X⟩</p>
-              <p className="font-mono text-[12px] text-white/60">{x.toFixed(3)}</p>
+              <p className="text-xs text-faint">⟨X⟩</p>
+              <p className="font-mono text-xs text-subtle">{x.toFixed(3)}</p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-lg bg-white/[0.03] px-2.5 py-1.5 ring-1 ring-white/6">
+        <div className="flex items-center gap-1.5 rounded-lg bg-surface-muted px-2.5 py-1.5 ring-1 ring-border">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />
-          <span className="text-[11px] text-white/50">
+          <span className="text-xs text-subtle">
             P(|1⟩) = {(prob1 * 100).toFixed(1)}% · P(|0⟩) = {(prob0 * 100).toFixed(1)}%
           </span>
         </div>
@@ -112,12 +112,12 @@ function ObservableChart({ expectations }: { expectations: Record<string, number
       {entries.map(([op, val]) => {
         const barWidth = Math.abs(val / maxAbs) * 100;
         const isPos = val >= 0;
-        const color = isPos ? "rgba(167,139,250,0.50)" : "rgba(251,113,133,0.50)";
+        const color = isPos ? "color-mix(in oklab, var(--accent) 50%, transparent)" : "color-mix(in oklab, var(--danger) 50%, transparent)";
         return (
           <div key={op} className="flex items-center gap-3">
-            <span className="w-24 shrink-0 font-mono text-[11px] text-white/50">{op}</span>
-            <div className="relative flex-1 h-4 overflow-hidden rounded bg-white/[0.03]">
-              <div className="absolute inset-y-0 left-1/2 w-px bg-white/10" />
+            <span className="w-24 shrink-0 font-mono text-xs text-subtle">{op}</span>
+            <div className="relative flex-1 h-4 overflow-hidden rounded bg-surface-muted">
+              <div className="absolute inset-y-0 left-1/2 w-px bg-surface-raised" />
               {barWidth > 0.5 && (
                 <div
                   className="absolute h-full rounded"
@@ -129,7 +129,7 @@ function ObservableChart({ expectations }: { expectations: Record<string, number
                 />
               )}
             </div>
-            <span className={cn("w-14 shrink-0 text-right font-mono text-[11px] tabular-nums", Math.abs(val) > 0.01 ? "text-white/70" : "text-white/30")}>
+            <span className={cn("w-14 shrink-0 text-right font-mono text-xs tabular-nums", Math.abs(val) > 0.01 ? "text-foreground" : "text-faint")}>
               {val.toFixed(3)}
             </span>
           </div>
@@ -141,14 +141,13 @@ function ObservableChart({ expectations }: { expectations: Record<string, number
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function RunQuantumSummary({ run, className }: RunQuantumSummaryProps) {
-  const router = useRouter();
   const qr = run.result?.quantumResult;
   const blochVectors = qr?.blochVectors ?? {};
   const fragmentResults = run.result?.fragmentResults ?? [];
 
   const { data: plan } = useRunPlan(run.planId);
 
-  // ── Top basis states — backend uses "basis_state" key ─────────────────────
+  // ── Top basis states, backend uses "basis_state" key ─────────────────────
   const topStateRows = (() => {
     // Prefer top_basis_states with the correct key
     const raw = qr?.topBasisStates ?? [];
@@ -216,29 +215,22 @@ export function RunQuantumSummary({ run, className }: RunQuantumSummaryProps) {
         status={run.status}
         createdAt={run.createdAt}
         extraBadges={[
-          ...(run.planId ? [{ label: "Distributed", className: "border-violet-500/30 bg-violet-500/10 text-violet-400" }] : []),
-          { label: "Quantum Circuit", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" },
+          ...(run.planId ? [{ label: "Distributed", className: "border-accent/30 bg-accent/10 text-accent" }] : []),
+          { label: "Quantum Circuit", className: "border-info/30 bg-info/10 text-info" },
         ]}
         rightContent={
-          <button
-            onClick={() => router.push(ROUTES.runDetail(run.jobId))}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5",
-              "px-3 py-1.5 text-[12px] font-medium text-white/55 transition-colors",
-              "hover:border-white/20 hover:text-white/75",
-            )}
-          >
+          <LinkButton href={ROUTES.runDetail(run.jobId)} size="sm" variant="secondary">
             <ArrowLeft className="h-3 w-3 shrink-0" />
             <span>Back to Run</span>
-          </button>
+          </LinkButton>
         }
       />
 
       {/* Bloch Spheres */}
       {Object.keys(blochVectors).length > 0 ? (
-        <GlassCard>
-          <SectionTitle icon={Cpu} title="Qubit States (Bloch Spheres)" accentColor="violet" tooltip="Bloch vectors reconstructed from measurement outcomes or simulation. Each sphere shows the exact quantum state of one qubit after circuit execution — north pole |1⟩, south pole |0⟩, equator = superposition." />
-          <p className="mb-4 text-[12px] text-white/40">
+        <SurfaceCard>
+          <SectionTitle icon={Cpu} title="Qubit States (Bloch Spheres)" accentColor="violet" tooltip="Bloch vectors reconstructed from measurement outcomes or simulation. Each sphere shows the exact quantum state of one qubit after circuit execution, north pole |1⟩, south pole |0⟩, equator = superposition." />
+          <p className="mb-4 text-xs text-subtle">
             Bloch vectors from full-state simulation. Each sphere shows the complete quantum state
             of one qubit after circuit execution. Equatorial position (z=0) means maximally mixed / entangled.
           </p>
@@ -249,46 +241,46 @@ export function RunQuantumSummary({ run, className }: RunQuantumSummaryProps) {
           </div>
 
           {/* Legend */}
-          <div className="mt-5 rounded-xl border-l-2 border-violet-500/40 bg-violet-500/[0.04] px-4 py-3 ring-1 ring-violet-500/10">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-violet-400/70">
+          <div className="mt-5 rounded-xl border-l-2 border-accent/40 bg-accent/4 px-4 py-3 ring-1 ring-accent/10">
+            <p className="mb-2 text-xs font-medium text-accent">
               Reading the Spheres
             </p>
             <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3">
               {[
-                { dot: "#34d399", label: "|1⟩ dominant (θ→0°)", desc: "Qubit collapsed to |1⟩ — north pole" },
-                { dot: "#67e8f9", label: "Superposition (θ=90°)", desc: "Equal mixture — qubit is entangled or in superposition" },
-                { dot: "#ffffff28", label: "|0⟩ dominant (θ→180°)", desc: "Qubit collapsed to |0⟩ — south pole" },
+                { dot: "var(--success)", label: "|1⟩ dominant (θ→0°)", desc: "Qubit collapsed to |1⟩, north pole" },
+                { dot: "var(--info)", label: "Superposition (θ=90°)", desc: "Equal mixture, qubit is entangled or in superposition" },
+                { dot: "color-mix(in oklab, var(--foreground) 15.7%, transparent)", label: "|0⟩ dominant (θ→180°)", desc: "Qubit collapsed to |0⟩, south pole" },
               ].map(({ dot, label, desc }) => (
                 <div key={label} className="flex items-start gap-2">
-                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot, boxShadow: `0 0 6px ${dot}` }} />
+                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot }} />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[11px] font-semibold text-white/70">{label}</span>
-                    <span className="text-[11px] text-white/40">{desc}</span>
+                    <span className="text-xs font-medium text-foreground">{label}</span>
+                    <span className="text-xs text-subtle">{desc}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </GlassCard>
+        </SurfaceCard>
       ) : (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle icon={Cpu} title="Qubit States (Bloch Spheres)" accentColor="violet" />
-          <p className="py-4 text-center text-[12px] text-white/40">
+          <p className="py-4 text-center text-xs text-subtle">
             No Bloch vector data for this run.
           </p>
-        </GlassCard>
+        </SurfaceCard>
       )}
 
       {/* Measurement Outcomes */}
       {topStateRows.length > 0 && (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle
             icon={Activity}
             title="Measurement Outcomes"
             accentColor="violet"
             badge={
               qr?.shots ? (
-                <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] text-white/40 ring-1 ring-white/8">
+                <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs text-subtle ring-1 ring-border">
                   {qr.shots.toLocaleString()} shots
                 </span>
               ) : undefined
@@ -299,23 +291,23 @@ export function RunQuantumSummary({ run, className }: RunQuantumSummaryProps) {
               const pct = row.probability * 100;
               return (
                 <div key={row.state} className="flex items-center gap-3">
-                  <span className="w-14 shrink-0 font-mono text-sm font-medium text-white/75">|{row.state}⟩</span>
-                  <div className="flex-1 overflow-hidden rounded-full bg-white/[0.06]" style={{ height: "6px" }}>
+                  <span className="w-14 shrink-0 font-mono text-sm font-medium text-foreground">|{row.state}⟩</span>
+                  <div className="flex-1 overflow-hidden rounded-full bg-surface-muted" style={{ height: "6px" }}>
                     <div
-                      className="h-full rounded-full bg-violet-400/65"
+                      className="h-full rounded-full bg-accent/65"
                       style={{ width: `${Math.min(100, pct)}%` }}
                     />
                   </div>
-                  <span className="w-14 shrink-0 text-right font-mono text-[12px] tabular-nums text-violet-300">
+                  <span className="w-14 shrink-0 text-right font-mono text-xs tabular-nums text-accent">
                     {pct.toFixed(2)}%
                   </span>
                   {row.count !== null && (
-                    <span className="w-12 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/30">
+                    <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-faint">
                       {row.count.toLocaleString()}
                     </span>
                   )}
                   {row.amplitude !== null && (
-                    <span className="w-20 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/30">
+                    <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-faint">
                       a={Number(row.amplitude).toFixed(3)}
                     </span>
                   )}
@@ -323,25 +315,25 @@ export function RunQuantumSummary({ run, className }: RunQuantumSummaryProps) {
               );
             })}
           </div>
-        </GlassCard>
+        </SurfaceCard>
       )}
 
       {/* Observable Expectations */}
       {qr?.observableExpectations && Object.keys(qr.observableExpectations).length > 0 && (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle icon={BarChart3} title="Observable Expectations ⟨O⟩" accentColor="violet" tooltip="Expectation values of Pauli observables measured on the final state. ⟨Z⟩ = +1 means the qubit is in |0⟩; ⟨Z⟩ = −1 means |1⟩. ⟨X⟩ and ⟨Y⟩ measure off-diagonal coherences." />
-          <p className="mb-3 text-[12px] text-white/40">
+          <p className="mb-3 text-xs text-subtle">
             Expectation values of Pauli operators. +1 = fully |0⟩; −1 = fully |1⟩; 0 = superposition or entangled.
           </p>
           <ObservableChart expectations={qr.observableExpectations} />
-        </GlassCard>
+        </SurfaceCard>
       )}
 
       {/* Entanglement entropy */}
       {qr?.entanglementEntropy && Object.keys(qr.entanglementEntropy).length > 0 && (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle icon={Activity} title="Entanglement Entropy" accentColor="violet" tooltip="Von Neumann entropy S(ρ) = −Tr(ρ log ρ) for each subsystem partition. S=0 means the subsystem is in a pure product state; S=log(2) ≈ 0.693 is maximally entangled with one other qubit." />
-          <p className="mb-3 text-[12px] text-white/40">
+          <p className="mb-3 text-xs text-subtle">
             Von Neumann entropy S(ρ) per qubit subsystem. S=1 bit = maximum entanglement (Bell state); S=0 = separable.
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -349,24 +341,24 @@ export function RunQuantumSummary({ run, className }: RunQuantumSummaryProps) {
               const s = typeof val === "number" ? val : 0;
               const isMax = s >= 0.95;
               return (
-                <div key={key} className="flex flex-col gap-1 rounded-lg bg-white/[0.025] px-3 py-2.5 ring-1 ring-white/6">
-                  <p className="text-[11px] text-white/35">{key}</p>
-                  <p className={cn("font-mono text-sm font-semibold tabular-nums", isMax ? "text-violet-300" : "text-white/60")}>
+                <div key={key} className="flex flex-col gap-1 rounded-lg bg-surface-muted px-3 py-2.5 ring-1 ring-border">
+                  <p className="text-xs text-faint">{key}</p>
+                  <p className={cn("font-mono text-sm font-medium tabular-nums", isMax ? "text-accent" : "text-subtle")}>
                     {s.toFixed(4)}
                   </p>
-                  {isMax && <p className="text-[10px] text-violet-400/60">max entangled</p>}
+                  {isMax && <p className="text-xs text-accent">max entangled</p>}
                 </div>
               );
             })}
           </div>
-        </GlassCard>
+        </SurfaceCard>
       )}
 
       {/* Circuit Fragment Flow */}
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={Zap} title="Circuit Fragment Execution" accentColor="violet" tooltip="Each circuit fragment executed on a quantum node in the distributed network. Results from all nodes are classically aggregated to reconstruct the full quantum state of the original circuit." />
         <CircuitFragmentFlow plan={plan ?? null} fragmentResults={adaptedFragments} />
-      </GlassCard>
+      </SurfaceCard>
     </div>
   );
 }

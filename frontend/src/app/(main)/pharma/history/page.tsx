@@ -9,14 +9,12 @@ export default function PharmaHistoryPage() {
     <div className="flex min-h-full flex-col">
       <PageHeader
         icon={FlaskConical}
-        label="Pharma"
         title="Job History"
         description="All submitted quantum docking pipelines"
-        glow="emerald"
       >
         <Link
           href={ROUTES.PHARMA_SUBMIT}
-          className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.05] px-4 py-2 text-sm text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white/80 shrink-0"
+          className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-4 py-2 text-sm text-subtle transition-colors hover:bg-surface-muted hover:text-foreground shrink-0"
         >
           + New Pipeline
         </Link>

@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/arc/button/button";
+
 import dynamic from "next/dynamic";
 import { Share2 } from "lucide-react";
 
@@ -18,14 +20,13 @@ const ShareCircuitToVaultButtonInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <button
+      <Button variant="secondary" size="sm"
         type="button"
         disabled
-        className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-cyan-500/25 bg-cyan-500/8 px-3 py-2.5 text-[13px] font-semibold text-cyan-300/70"
-      >
+        className="w-full justify-center">
         <Share2 className="size-3.5 shrink-0 animate-pulse" />
         <span>Publish circuit to VAULT</span>
-      </button>
+      </Button>
     ),
   },
 );

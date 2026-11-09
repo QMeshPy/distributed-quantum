@@ -7,12 +7,12 @@ import { ChevronRight, Plus, Circle } from "lucide-react";
 import type { NavToolConfig } from "@/constants";
 import { ROUTES } from "@/constants";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/arc/button/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/shared/components/collapsible";
 import { useRecentRuns } from "./use-recent-runs";
 import { useOptionsList } from "@/features/options/hooks/use-options-list";
 import { useRiskList } from "@/features/risk/hooks/use-risk-list";
@@ -26,14 +26,14 @@ interface LabToolGroupProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  completed: "text-emerald-400",
-  executing: "text-amber-400",
-  running: "text-sky-400",
-  failed: "text-red-400",
-  queued: "text-white/30",
-  cancelled: "text-white/25",
-  compiling: "text-sky-400",
-  reserving: "text-violet-400",
+  completed: "text-success",
+  executing: "text-warning",
+  running: "text-info",
+  failed: "text-danger",
+  queued: "text-faint",
+  cancelled: "text-faint",
+  compiling: "text-info",
+  reserving: "text-accent",
 };
 
 type RecentItem = { jobId: string; label: string; status: string; createdAt: string; href: string };
@@ -151,7 +151,7 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
   const items = useRecentItems(tool);
   const pathname = usePathname();
 
-  // Plain nav link — no history or new-item concept
+  // Plain nav link, no history or new-item concept
   if (!tool.newLabel) {
     const isActive = pathname === tool.href;
     return (
@@ -160,8 +160,8 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
         className={cn(
           "flex h-8 items-center rounded-lg px-3 text-sm transition-all duration-150 mx-2",
           isActive
-            ? "bg-indigo-500/15 font-medium text-indigo-300 ring-1 ring-indigo-500/25"
-            : "text-white/40 hover:bg-white/6 hover:text-white/80",
+            ? "bg-accent/15 font-medium text-accent ring-1 ring-accent/25"
+            : "text-subtle hover:bg-surface-muted hover:text-foreground",
         )}
       >
         {tool.group}
@@ -175,7 +175,7 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
         <CollapsibleTrigger className="flex flex-1 items-center gap-1.5 text-sm font-medium">
           <ChevronRight
             className={cn(
-              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              "size-3.5 shrink-0 text-subtle transition-transform duration-200",
               "group-data-[state=open]/collapsible:rotate-90",
             )}
           />
@@ -184,7 +184,7 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
 {tool.newLabel && (
           <Button
             variant="ghost"
-            size="icon-xs"
+           
             onClick={() => {
               const href = tool.newHref.includes("?")
                 ? `${tool.newHref}&new=${Date.now()}`
@@ -205,32 +205,32 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
                 <Link
                   key={item.jobId}
                   href={item.href}
-                  className="group/item flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-white/5"
+                  className="group/item flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-surface-muted"
                 >
                   <Circle
                     size={6}
                     className={cn(
                       "shrink-0 fill-current",
-                      STATUS_COLORS[item.status.toLowerCase()] ?? "text-white/25",
+                      STATUS_COLORS[item.status.toLowerCase()] ?? "text-faint",
                     )}
                   />
-                  <span className="flex-1 truncate text-[11px] text-muted-foreground transition-colors group-hover/item:text-foreground">
+                  <span className="flex-1 truncate text-xs text-subtle transition-colors group-hover/item:text-foreground">
                     {item.label}
                   </span>
-                  <span className="text-[10px] text-white/20">
+                  <span className="text-xs text-faint">
                     {formatTimeAgo(item.createdAt)}
                   </span>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="px-2 py-3 text-xs text-muted-foreground">
+            <p className="px-2 py-3 text-xs text-subtle">
               No recent items
             </p>
           )}
           <Link
             href={tool.historyHref}
-            className="mt-1 block px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-1 block px-2 text-xs text-subtle transition-colors hover:text-foreground"
           >
             View all &rarr;
           </Link>

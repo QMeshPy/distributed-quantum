@@ -1,13 +1,8 @@
 "use client";
 
 import { Pin } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Badge } from "@/components/arc/badge/badge";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { usePinMetadata } from "../hooks/use-pin-metadata";
 import { SERVICE_LABELS } from "../services";
 
@@ -25,8 +20,8 @@ export function PinStatusBadge({ cid, variant = "default" }: PinStatusBadgeProps
 
   const badge = (
     <Badge
-      variant="outline"
-      className="cursor-default border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+      outline
+      className="cursor-default border-success/30 bg-success/10 text-success"
     >
       <Pin data-icon="inline-start" />
       {variant === "compact" ? "Pinned" : displayName}
@@ -34,10 +29,9 @@ export function PinStatusBadge({ cid, variant = "default" }: PinStatusBadgeProps
   );
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>{badge}</TooltipTrigger>
-        <TooltipContent>
+    <Tooltip
+      content={
+        <>
           <p className="text-xs">
             Pinned on{" "}
             {pinMeta.pinnedAt.toLocaleDateString(undefined, {
@@ -47,12 +41,14 @@ export function PinStatusBadge({ cid, variant = "default" }: PinStatusBadgeProps
             })}
           </p>
           {pinMeta.size > 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-subtle">
               Size: {(pinMeta.size / 1024).toFixed(1)} KB
             </p>
           )}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        </>
+      }
+    >
+      {badge}
+    </Tooltip>
   );
 }

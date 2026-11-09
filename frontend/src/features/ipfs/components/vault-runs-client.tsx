@@ -1,17 +1,12 @@
 "use client";
 
+import { Button } from "@/components/arc/button/button";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HardDrive, Calendar, Hash } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import { HardDrive } from "lucide-react";
+import { SortableDataTable } from "@/components/arc/sortable-data-table/sortable-data-table";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { RunStatusBadge } from "@/features/runs/components/run-status-badge";
 import { useLocalVaultIndex } from "../hooks/use-local-vault-index";
@@ -81,75 +76,35 @@ export function VaultRunsClient() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={HardDrive}
-        label="Vault"
         title="Shared Runs"
         description="Browse quantum workflow runs shared via IPFS"
-        glow="orange"
       >
         <QuotaDisplay service="nft.storage" variant="header" />
       </PageHeader>
 
       {runs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <HardDrive className="mb-3 size-10 text-muted-foreground/50" />
+          <HardDrive className="mb-3 size-10 text-subtle/50" />
           <h3 className="text-sm font-medium">No shared runs</h3>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+          <p className="mt-1 max-w-sm text-xs text-subtle">
             Share a completed run to make it available here.
           </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-white/6 hover:bg-transparent">
-                <TableHead className="text-[11px] font-medium text-white/35">
-                  <span className="flex items-center gap-1.5">
-                    <HardDrive size={11} />
-                    Name
-                  </span>
-                </TableHead>
-                <TableHead className="text-[11px] font-medium text-white/35">Status</TableHead>
-                <TableHead className="text-[11px] font-medium text-white/35">
-                  <span className="flex items-center gap-1.5">
-                    <Hash size={11} />
-                    CID
-                  </span>
-                </TableHead>
-                <TableHead className="text-right text-[11px] font-medium text-white/35">
-                  <span className="flex items-center justify-end gap-1.5">
-                    <Calendar size={11} />
-                    Shared
-                  </span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {enriched.map(({ item, record }) => (
-                <TableRow
-                  key={item.cid}
-                  className="cursor-pointer border-white/4 transition-colors hover:bg-orange-500/5 last:border-0"
-                  onClick={() => router.push(ROUTES.vaultRunDetail(item.cid))}
-                >
-                  <TableCell className="font-medium text-white/80">
-                    {record?.name ?? item.name}
-                  </TableCell>
-                  <TableCell>
-                    {record?.status ? (
-                      <RunStatusBadge status={record.status} />
-                    ) : (
-                      <Skeleton className="h-5 w-20" />
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white/40">
-                    {truncateCid(item.cid)}
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-white/35">
-                    {formatRelative(item.addedAt)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableDataTable
+            caption="Shared runs"
+            rowKey="cid"
+            rows={enriched.map(({ item, record }) => ({ cid: item.cid, name: record?.name ?? item.name, status: record?.status ?? "", addedAt: item.addedAt }))}
+            columns={[
+              { key: "name", label: "Name", sortable: true, render: (v, row) => (
+                <Button variant="ghost" size="sm" type="button"  onClick={() => router.push(ROUTES.vaultRunDetail(row.cid as string))}>{v as string}</Button>
+              ) },
+              { key: "status", label: "Status", sortable: true, render: (v) => v ? <RunStatusBadge status={v as Parameters<typeof RunStatusBadge>[0]["status"]} /> : <Skeleton lines={1} className="h-5 w-20" /> },
+              { key: "cid", label: "CID", render: (v) => <span className="font-mono text-xs">{truncateCid(v as string)}</span> },
+              { key: "addedAt", label: "Shared", sortable: true, render: (v) => formatRelative(v as Parameters<typeof formatRelative>[0]) },
+            ]}
+          />
         </div>
       )}
     </div>
@@ -159,8 +114,8 @@ export function VaultRunsClient() {
 export function VaultRunsSkeleton() {
   return (
     <div className="flex flex-col gap-6">
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-64 w-full rounded-lg" />
+      <Skeleton lines={4} className="h-24 w-full" />
+      <Skeleton lines={6} className="h-64 w-full" />
     </div>
   );
 }

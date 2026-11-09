@@ -2,10 +2,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const STATUS_DOT_COLOR: Record<LabHistoryItemProps["status"], string> = {
-  completed: "bg-green-500",
-  running: "bg-blue-500",
-  failed: "bg-red-500",
-  pending: "bg-muted-foreground/50",
+  completed: "bg-success",
+  running: "bg-accent",
+  failed: "bg-danger",
+  pending: "bg-subtle/50",
 };
 
 interface LabHistoryItemProps {
@@ -31,7 +31,7 @@ export function LabHistoryItem({
         aria-label={status}
       />
       <span className="flex-1 truncate">{label}</span>
-      <span className="shrink-0 text-xs text-muted-foreground">{time}</span>
+      <span className="shrink-0 text-xs text-subtle">{time}</span>
     </Link>
   );
 }

@@ -1,0 +1,35 @@
+.group { --tg-h: 36px; --tg-gap: 2px; --tg-pad: 3px; --tg-radius: calc(var(--radius-control) - var(--tg-pad)); --tg-fill: color-mix(in oklab, var(--control-on) 11%, var(--surface)); isolation: isolate; display: inline-flex; max-width: 100%; align-items: center; gap: var(--tg-gap); padding: var(--tg-pad); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); }
+.sm { --tg-h: 28px; }
+.md { --tg-h: 36px; }
+.group[aria-disabled="true"] { opacity: .52; }
+:global(:root[data-theme="dark"]) .group { --tg-fill: color-mix(in oklab, var(--control-on) 14%, var(--surface)); }
+
+.item { position: relative; display: inline-flex; min-width: var(--tg-h); height: var(--tg-h); flex: 0 0 auto; align-items: center; justify-content: center; border: 0; border-radius: var(--tg-radius); padding: 0 10px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-sm); font-weight: 500; line-height: 1; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+.sm .item { padding: 0 8px; font-size: var(--text-xs); }
+.item:disabled { cursor: not-allowed; opacity: .45; }
+@media (hover: hover) and (pointer: fine) {
+  .item:hover:not(:disabled) { color: var(--foreground); }
+  .item[data-state="off"]:hover:not(:disabled) { background: var(--surface-muted); }
+}
+.item[data-state="on"] { color: var(--foreground); }
+.item:focus-visible { color: var(--foreground); background: var(--surface-muted); }
+.item[data-state="on"]:focus-visible { background: transparent; }
+
+/* Label and icon give a small press; the item box itself never scales, so neighbours stay put. */
+.content { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; transition: transform 320ms var(--ease-spring); }
+.content svg { flex: none; width: 16px; height: 16px; stroke-width: 1.75; }
+.sm .content svg { width: 14px; height: 14px; }
+.item:active:not(:disabled) .content { transform: scale(.92); transition-duration: 90ms; transition-timing-function: var(--ease-standard); }
+
+/* Single: Motion moves one fill between options. Multiple: every option owns a fill that fades and settles in place. */
+.fill { position: absolute; z-index: 0; inset: 0; border-radius: var(--tg-radius); background: var(--tg-fill); pointer-events: none; }
+.group[data-type="multiple"] .fill { opacity: 0; transform: scale(.86); transition: opacity var(--duration-fast) var(--ease-standard), transform 360ms var(--ease-spring), right var(--duration-standard) var(--ease-standard), left var(--duration-standard) var(--ease-standard), border-radius var(--duration-standard) var(--ease-standard); }
+.group[data-type="multiple"] .item[data-state="on"] .fill { opacity: 1; transform: none; }
+/* Neighbours that are both on join into one shape across the gap. */
+.group[data-type="multiple"] .item[data-state="on"]:has(+ .item[data-state="on"]) .fill { right: calc(var(--tg-gap) * -1); border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.group[data-type="multiple"] .item[data-state="on"] + .item[data-state="on"] .fill { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .item, .content, .group[data-type="multiple"] .fill { transition: opacity var(--duration-instant) var(--ease-standard), color var(--duration-instant) var(--ease-standard), background-color var(--duration-instant) var(--ease-standard); }
+  .group[data-type="multiple"] .fill, .item:active:not(:disabled) .content { transform: none; }
+}

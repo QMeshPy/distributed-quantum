@@ -1,5 +1,5 @@
 "use client";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { useRiskList } from "@/features/risk/hooks/use-risk-list";
 import { RiskHistoryTable } from "@/features/risk/components/risk-history-table";
 
@@ -14,7 +14,7 @@ export default function RiskHistoryPage() {
       {isPending ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+            <Skeleton lines={2} key={i} className="h-10 w-full" />
           ))}
         </div>
       ) : (

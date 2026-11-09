@@ -10,12 +10,13 @@ import {
   EnsAddress,
 } from "@/features/agentkit";
 import { ChainSelect, findChain, useChains } from "@/features/chains";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { Progress } from "@/components/arc/progress/progress";
+import { Input } from "@/components/arc/input/input";
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { SortableDataTable } from "@/components/arc/sortable-data-table/sortable-data-table";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
   FileText, Plus, User, Calendar, DollarSign,
@@ -25,21 +26,12 @@ import type { Proposal, ProposalFragment } from "@/features/agentkit";
 
 /* ─── helpers ─── */
 
-const STATUS_COLORS: Partial<Record<Proposal["status"], string>> & Record<string, string> = {
-  draft:       "border-white/10       bg-white/5        text-white/30",
-  active:      "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  funded:      "border-violet-500/30  bg-violet-500/10  text-violet-400",
-  in_progress: "border-amber-500/30   bg-amber-500/10   text-amber-400",
-  completed:   "border-sky-500/30     bg-sky-500/10     text-sky-400",
-  expired:     "border-white/10       bg-white/5        text-white/30",
-  cancelled:   "border-rose-500/30    bg-rose-500/10    text-rose-400",
-};
 
 const FRAG_STATUS_COLORS: Partial<Record<ProposalFragment["status"], string>> & Record<string, string> = {
-  available: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  unclaimed: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  claimed:   "border-amber-500/30   bg-amber-500/10   text-amber-400",
-  completed: "border-sky-500/30     bg-sky-500/10     text-sky-400",
+  available: "border-success/30 bg-success/10 text-success",
+  unclaimed: "border-success/30 bg-success/10 text-success",
+  claimed:   "border-warning/30   bg-warning/10   text-warning",
+  completed: "border-info/30     bg-info/10     text-info",
 };
 
 function pct(p: Proposal) {
@@ -60,10 +52,10 @@ function ModalSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl bg-white/[0.02] p-3.5 ring-1 ring-white/6">
-      <div className="flex items-center gap-2 text-white/40">
+    <div className="flex flex-col gap-2.5 rounded-xl bg-surface-muted p-3.5 ring-1 ring-border">
+      <div className="flex items-center gap-2 text-subtle">
         <Icon className="h-3.5 w-3.5" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest">{title}</span>
+        <span className="text-xs font-medium">{title}</span>
       </div>
       <div className="flex flex-col gap-2">{children}</div>
     </div>
@@ -82,20 +74,20 @@ function DetailField({
   badge?: "emerald" | "violet" | "sky" | "amber";
 }) {
   const badgeClasses: Record<string, string> = {
-    emerald: "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20",
-    violet:  "bg-violet-500/10  text-violet-400  ring-1 ring-violet-500/20",
-    sky:     "bg-sky-500/10     text-sky-400     ring-1 ring-sky-500/20",
-    amber:   "bg-amber-500/10   text-amber-400   ring-1 ring-amber-500/20",
+    emerald: "bg-success/10 text-success ring-1 ring-success/20",
+    violet:  "bg-accent/10  text-accent  ring-1 ring-accent/20",
+    sky:     "bg-info/10     text-info     ring-1 ring-info/20",
+    amber:   "bg-warning/10   text-warning   ring-1 ring-warning/20",
   };
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <span className="shrink-0 text-[11px] text-white/30">{label}</span>
+      <span className="shrink-0 text-xs text-faint">{label}</span>
       {badge ? (
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${badgeClasses[badge]}`}>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${badgeClasses[badge]}`}>
           {value}
         </span>
       ) : (
-        <span className={`text-right text-sm text-white/75 ${mono ? "break-all font-mono text-[11px]" : ""}`}>
+        <span className={`text-right text-sm text-foreground ${mono ?"break-all font-mono text-xs" : ""}`}>
           {value}
         </span>
       )}
@@ -105,9 +97,9 @@ function DetailField({
 
 function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-lg bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/6">
-      <span className="text-lg font-semibold tabular-nums text-white">{value}</span>
-      <span className="text-center text-[10px] text-white/30">{label}</span>
+    <div className="flex flex-col items-center gap-1 rounded-lg bg-surface-muted px-3 py-2.5 ring-1 ring-border">
+      <span className="text-lg font-medium tabular-nums text-foreground">{value}</span>
+      <span className="text-center text-xs text-faint">{label}</span>
     </div>
   );
 }
@@ -137,73 +129,50 @@ export default function ProposalsPage() {
   return (
     <div className="relative flex flex-col">
 
-      {/* Ambient glows */}
       <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "300px" }}>
-        <div className="absolute h-[280px] w-[280px] rounded-full opacity-20 blur-[80px]" style={{ left: "0%",  top: "-50px", background: "radial-gradient(circle, rgba(167,139,250,0.65) 0%, transparent 70%)" }} />
-        <div className="absolute h-[220px] w-[220px] rounded-full opacity-15 blur-[70px]" style={{ right: "5%", top: "-30px", background: "radial-gradient(circle, rgba(139,92,246,0.6)  0%, transparent 70%)" }} />
+        
+        
       </div>
 
       <PageHeader
         icon={FileText}
-        label="AgentKit"
         title="Proposals"
         description="Fund and manage quantum research proposals."
-        glow="violet"
       >
-        <Button className="bg-violet-600 hover:bg-violet-700 text-sm" onClick={() => setCreateOpen(true)}>
+        <Button className="bg-accent hover:bg-accent text-sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> New Proposal
         </Button>
       </PageHeader>
 
       <div className="relative z-10 flex flex-col gap-6 p-6">
         <div
-          className="overflow-hidden rounded-2xl ring-1 ring-white/8"
-          style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+          className="overflow-hidden rounded-2xl ring-1 ring-border"
+          style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
         >
-          <Table>
-            <TableHeader>
-              <TableRow className="border-white/8 hover:bg-transparent">
-                {["Title", "Status", "Funding", "Deadline", ""].map((h) => (
-                  <TableHead key={h} className="text-[11px] font-semibold uppercase tracking-wider text-white/30">{h}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-sm text-white/30">Loading…</TableCell>
-                </TableRow>
-              ) : proposals.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-sm text-white/30">No proposals yet — create the first one</TableCell>
-                </TableRow>
-              ) : proposals.map((p) => (
-                <TableRow key={p.proposal_id} className="border-white/8 transition-colors hover:bg-white/[0.03]">
-                  <TableCell className="text-sm text-white/80">{p.title}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[p.status]}`}>{p.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={pct(p)} className="h-1.5 w-20" />
-                      <span className="text-xs text-white/30">{pct(p)}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs text-white/30">{p.deadline}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedId(p.proposal_id)}
-                      className="h-7 px-3 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
-                    >
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {isLoading ? (
+            <Skeleton lines={4} className="h-32 w-full" />
+          ) : (
+            <SortableDataTable
+              caption="Proposals"
+              rowKey="proposal_id"
+              emptyMessage="No proposals yet. Create the first one."
+              rows={proposals.map((p) => ({ ...p, funding: pct(p) }))}
+              columns={[
+                { key: "title", label: "Title", sortable: true },
+                { key: "status", label: "Status", sortable: true, render: (v) => <Badge outline>{v as string}</Badge> },
+                { key: "funding", label: "Funding", sortable: true, render: (v) => (
+                  <div className="flex items-center gap-2">
+                    <Progress value={v as number} />
+                    <span className="text-xs">{v as number}%</span>
+                  </div>
+                ) },
+                { key: "deadline", label: "Deadline", sortable: true },
+                { key: "proposal_id", label: "Actions", render: (v) => (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedId(v as string)}>View</Button>
+                ) },
+              ]}
+            />
+          )}
         </div>
       </div>
 
@@ -211,20 +180,16 @@ export default function ProposalsPage() {
 
       {/* ═══ Proposal Detail Modal ═══ */}
       <Dialog open={!!selectedId} onOpenChange={(open) => { if (!open) { setSelectedId(null); setFundAmount(""); } }}>
-        <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-lg border-white/10 bg-[#0f1218] ring-1 ring-white/8">
-          <DialogTitle className="sr-only">Proposal Detail</DialogTitle>
-
-          <PageHeader
+        <DialogContent title="Proposal Detail">
+<PageHeader
             icon={FileText}
-            label="AgentKit"
             title="Proposal Detail"
             description="Complete proposal intelligence and funding controls."
-            glow="violet"
           />
 
           <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: "calc(85vh - 140px)" }}>
             {detailLoading ? (
-              <div className="flex items-center justify-center py-12 text-sm text-white/30">Loading…</div>
+              <div className="flex items-center justify-center py-12 text-sm text-faint">Loading…</div>
             ) : selected ? (
               <div className="relative flex flex-col gap-4 pt-2">
 
@@ -235,12 +200,12 @@ export default function ProposalsPage() {
                   <DetailField label="Researcher"  value={selected.researcher_id} mono />
                   {selected.researcher_wallet ? (
                     <div className="flex items-start justify-between gap-3 py-1.5">
-                      <span className="text-[11px] uppercase tracking-wider text-white/35 shrink-0">
+                      <span className="text-xs text-faint shrink-0">
                         Researcher wallet
                       </span>
                       <EnsAddress
                         address={selected.researcher_wallet}
-                        className="text-sm text-white/80 text-right"
+                        className="text-sm text-foreground text-right"
                       />
                     </div>
                   ) : null}
@@ -253,14 +218,14 @@ export default function ProposalsPage() {
                       {selected.funders!.map((funder, idx) => (
                         <div
                           key={funder.funder_id ?? `${funder.wallet_address}-${idx}`}
-                          className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 ring-1 ring-white/6"
+                          className="flex items-center justify-between gap-3 rounded-lg bg-surface-muted px-3 py-2 ring-1 ring-border"
                         >
                           <EnsAddress
                             address={funder.wallet_address}
-                            className="text-sm text-white/80"
+                            className="text-sm text-foreground"
                           />
                           {funder.amount ? (
-                            <span className="text-xs text-emerald-400/90 shrink-0">
+                            <span className="text-xs text-success shrink-0">
                               {funder.amount} USDC
                             </span>
                           ) : null}
@@ -272,7 +237,7 @@ export default function ProposalsPage() {
 
                 {/* Proposal Draft */}
                 <ModalSection title="Proposal Draft" icon={FileText}>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                     {selected.description}
                   </p>
                 </ModalSection>
@@ -285,7 +250,7 @@ export default function ProposalsPage() {
                     <MiniStat label="Threshold" value={`${selected.funding_threshold}`} />
                   </div>
                   <Progress value={pct(selected)} className="h-2 mt-1" />
-                  <p className="text-right text-[11px] text-white/30">{pct(selected)}% funded</p>
+                  <p className="text-right text-xs text-faint">{pct(selected)}% funded</p>
                 </ModalSection>
 
                 {/* Timeline */}
@@ -298,7 +263,7 @@ export default function ProposalsPage() {
                   <ModalSection title="Tags" icon={Tag}>
                     <div className="flex flex-wrap gap-1.5">
                       {selected.tags.map((tag) => (
-                        <span key={tag} className="rounded-md bg-violet-500/10 px-2.5 py-1 text-[11px] text-violet-300 ring-1 ring-violet-500/20">
+                        <span key={tag} className="rounded-md bg-accent/10 px-2.5 py-1 text-xs text-accent ring-1 ring-accent/20">
                           {tag}
                         </span>
                       ))}
@@ -311,19 +276,19 @@ export default function ProposalsPage() {
                   <ModalSection title={`Fragments (${selected.fragments!.length})`} icon={Layers}>
                     <div className="flex flex-col gap-1.5">
                       {selected.fragments!.map((f) => (
-                        <div key={f.fragment_id} className="rounded-lg bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/6">
+                        <div key={f.fragment_id} className="rounded-lg bg-surface-muted px-3 py-2.5 ring-1 ring-border">
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-white/80">{f.title}</span>
-                            <Badge variant="outline" className={`shrink-0 text-[10px] ${FRAG_STATUS_COLORS[f.status]}`}>
+                            <span className="text-sm text-foreground">{f.title}</span>
+                            <Badge outline className={`shrink-0 text-xs ${FRAG_STATUS_COLORS[f.status]}`}>
                               {f.status}
                             </Badge>
                           </div>
                           <div className="mt-1 flex items-center gap-3">
-                            <span className="font-mono text-[11px] text-white/30">{f.fragment_id}</span>
-                            <span className="text-[11px] text-white/40">{f.budget_allocated ?? (f.budget != null ? String(f.budget) : "—")} USDC</span>
+                            <span className="font-mono text-xs text-faint">{f.fragment_id}</span>
+                            <span className="text-xs text-subtle">{f.budget_allocated ?? (f.budget != null ? String(f.budget) : "-")} USDC</span>
                           </div>
                           {f.claimed_by && (
-                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/30">
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-faint">
                               <User className="h-3 w-3" />
                               <span className="font-mono">{f.claimed_by}</span>
                             </div>
@@ -344,15 +309,15 @@ export default function ProposalsPage() {
                   />
                   <div className="flex gap-2 pt-0.5">
                     <Input
-                      placeholder="Amount (USDC)"
+                      label="Amount (USDC)" placeholder="Amount (USDC)"
                       value={fundAmount}
                       onChange={(e) => setFundAmount(e.target.value)}
-                      className="border-white/10 bg-white/[0.025] text-white placeholder:text-white/30"
+                      className="border-border bg-surface-muted text-foreground placeholder:text-faint"
                     />
                     <Button
                       onClick={handleFund}
                       disabled={fund.isPending || !fundAmount}
-                      className="shrink-0 bg-violet-600 hover:bg-violet-700"
+                      className="shrink-0 bg-accent hover:bg-accent"
                     >
                       {fund.isPending ? <Clock className="h-4 w-4 animate-spin" /> : "Fund"}
                     </Button>

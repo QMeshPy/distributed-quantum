@@ -8,7 +8,7 @@ export function useWallet() {
     queryKey: QUERY_KEYS_AGENTKIT.wallet(),
     queryFn: async () => {
       const res = await fetch(API_AGENTKIT.WALLET);
-      // 400/404 means no wallet yet — return null instead of throwing
+      // 400/404 means no wallet yet, return null instead of throwing
       if (res.status === 400 || res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch wallet");
       return res.json();

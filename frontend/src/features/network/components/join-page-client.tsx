@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Network, Copy, Check, ChevronDown, ChevronRight, Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/shared/components/panel/panel";
+import { Button } from "@/components/arc/button/button";
+import { Input } from "@/components/arc/input/input";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/shared/components/collapsible";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { NodeAppearanceDetector } from "./node-appearance-detector";
 import { useRegisterNode } from "../hooks/use-my-nodes";
@@ -28,28 +27,27 @@ function CopyButton({ text }: { text: string }) {
   }
 
   return (
-    <button
+    <Button variant="ghost" size="sm"
       type="button"
       onClick={handleCopy}
-      className="rounded-md p-1.5 text-white/30 transition-colors hover:text-white/70"
-      aria-label="Copy to clipboard"
-    >
+      
+      aria-label="Copy to clipboard">
       {copied ? (
-        <Check className="h-3.5 w-3.5 text-emerald-400" />
+        <Check className="h-3.5 w-3.5 text-success" />
       ) : (
         <Copy className="h-3.5 w-3.5" />
       )}
-    </button>
+    </Button>
   );
 }
 
 function CodeBlock({ code, className }: { code: string; className?: string }) {
   return (
-    <div className={`relative rounded-xl bg-black/40 ring-1 ring-white/10 ${className ?? ""}`}>
+    <div className={`relative rounded-xl bg-background/40 ring-1 ring-border ${className ??""}`}>
       <div className="absolute right-2 top-2">
         <CopyButton text={code} />
       </div>
-      <pre className="overflow-x-auto px-4 py-3 pr-10 font-mono text-[12px] leading-relaxed text-white/75">
+      <pre className="overflow-x-auto px-4 py-3 pr-10 font-mono text-xs leading-relaxed text-foreground">
         <code>{code}</code>
       </pre>
     </div>
@@ -59,10 +57,10 @@ function CodeBlock({ code, className }: { code: string; className?: string }) {
 function StepLabel({ n, title }: { n: number; title: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 font-mono text-[11px] font-semibold text-indigo-300 ring-1 ring-indigo-500/30">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/20 font-mono text-xs font-medium text-accent ring-1 ring-accent/30">
         {n}
       </span>
-      <span className="text-sm font-medium text-white/80">{title}</span>
+      <span className="text-sm font-medium text-foreground">{title}</span>
     </div>
   );
 }
@@ -90,17 +88,17 @@ function ScriptViewer() {
   return (
     <div className="flex flex-col gap-2">
       {loading && (
-        <p className="text-xs text-white/40">Loading script…</p>
+        <p className="text-xs text-subtle">Loading script…</p>
       )}
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-danger">{error}</p>
       )}
       {script !== null ? (
-        <pre className="max-h-96 overflow-auto rounded-xl bg-black/40 px-4 py-3 font-mono text-[11px] leading-relaxed text-white/60 ring-1 ring-white/10">
+        <pre className="max-h-96 overflow-auto rounded-xl bg-background/40 px-4 py-3 font-mono text-xs leading-relaxed text-subtle ring-1 ring-border">
           <code>{script}</code>
         </pre>
       ) : !loading && (
-        <Button variant="outline" size="sm" onClick={load} className="self-start">
+        <Button variant="secondary" size="sm" onClick={load} className="self-start">
           Load script
         </Button>
       )}
@@ -142,30 +140,27 @@ function ManualRegistrationForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="peerId" className="text-xs text-white/50">Peer ID *</Label>
-          <Input
+          <Input label="Peer ID *"
             id="peerId"
             required
             value={form.peerId}
             onChange={(e) => handleChange("peerId", e.target.value)}
             placeholder="12D3Koo..."
-            className="bg-white/5 border-white/10 font-mono text-xs"
+            className="bg-surface-muted border-border font-mono text-xs"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="host" className="text-xs text-white/50">Host / IP *</Label>
-          <Input
+          <Input label="Host / IP *"
             id="host"
             required
             value={form.host}
             onChange={(e) => handleChange("host", e.target.value)}
             placeholder="0.0.0.0"
-            className="bg-white/5 border-white/10 font-mono text-xs"
+            className="bg-surface-muted border-border font-mono text-xs"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="port" className="text-xs text-white/50">Port *</Label>
-          <Input
+          <Input label="Port *"
             id="port"
             type="number"
             required
@@ -174,17 +169,16 @@ function ManualRegistrationForm() {
             value={form.port}
             onChange={(e) => handleChange("port", e.target.value)}
             placeholder="9000"
-            className="bg-white/5 border-white/10 font-mono text-xs"
+            className="bg-surface-muted border-border font-mono text-xs"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="label" className="text-xs text-white/50">Label</Label>
-          <Input
+          <Input label="Label"
             id="label"
             value={form.label}
             onChange={(e) => handleChange("label", e.target.value)}
             placeholder="my-node"
-            className="bg-white/5 border-white/10 text-xs"
+            className="bg-surface-muted border-border text-xs"
           />
         </div>
       </div>
@@ -194,13 +188,13 @@ function ManualRegistrationForm() {
           {isPending ? "Registering…" : "Register Node"}
         </Button>
         {isSuccess && (
-          <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <span className="flex items-center gap-1.5 text-xs text-success">
             <Check className="h-3.5 w-3.5" />
             Node registered successfully
           </span>
         )}
         {error && (
-          <span className="text-xs text-red-400">{error.message}</span>
+          <span className="text-xs text-danger">{error.message}</span>
         )}
       </div>
     </form>
@@ -229,38 +223,36 @@ export function JoinPageClient() {
     <div className="flex min-h-full flex-col">
       <PageHeader
         icon={Network}
-        label="Network"
         title="Join the Network"
         description="Run a node and contribute compute to the quantum network."
-        glow="indigo"
       />
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
 
           {/* Prerequisites */}
-          <Card className="border-white/8 bg-white/[0.03]">
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle className="text-sm font-medium text-white/70">Prerequisites</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 pb-4 text-[13px] text-white/55">
+          <Panel className="border-border bg-surface-muted">
+            <PanelHeader className="pb-3 pt-4">
+              <PanelTitle className="text-sm font-medium text-foreground">Prerequisites</PanelTitle>
+            </PanelHeader>
+            <PanelContent className="flex flex-col gap-2 pb-4 text-sm text-subtle">
               <p>• Python 3.10+</p>
               <p>
                 • Install dependencies:{" "}
-                <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[11px] text-indigo-300">
+                <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-accent">
                   {PIP_INSTALL}
                 </code>
               </p>
-              <p className="text-white/35">~400 MB download. A virtual environment is recommended.</p>
-            </CardContent>
-          </Card>
+              <p className="text-faint">~400 MB download. A virtual environment is recommended.</p>
+            </PanelContent>
+          </Panel>
 
           {/* Step-by-step guide */}
-          <Card className="border-white/8 bg-white/[0.03]">
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle className="text-sm font-medium text-white/70">Step-by-Step Guide</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-5 pb-5">
+          <Panel className="border-border bg-surface-muted">
+            <PanelHeader className="pb-3 pt-4">
+              <PanelTitle className="text-sm font-medium text-foreground">Step-by-Step Guide</PanelTitle>
+            </PanelHeader>
+            <PanelContent className="flex flex-col gap-5 pb-5">
 
               {/* Step 1 */}
               <div className="flex flex-col gap-2.5">
@@ -273,21 +265,17 @@ export function JoinPageClient() {
                 <StepLabel n={2} title="Download the node script" />
                 <div className="ml-9 flex flex-wrap items-center gap-2">
                   <Button
-                    asChild
                     size="sm"
+                    onClick={() => { window.location.href = API.NETWORK.NODE_SCRIPT; }}
                   >
-                    <a href={API.NETWORK.NODE_SCRIPT} download>
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
-                      Download node-starter-template.py
-                    </a>
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download node-starter-template.py
                   </Button>
-                  <button
+                  <Button variant="ghost" size="sm"
                     type="button"
-                    onClick={() => setScriptViewerOpen((v) => !v)}
-                    className="text-xs text-indigo-400 underline-offset-2 hover:underline"
-                  >
+                    onClick={() => setScriptViewerOpen((v) => !v)}>
                     or view inline
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -298,14 +286,14 @@ export function JoinPageClient() {
                   {runCmd ? (
                     <CodeBlock code={runCmd} />
                   ) : (
-                    <div className="flex items-center gap-2 rounded-xl bg-black/40 px-4 py-3 ring-1 ring-white/10">
-                      <span className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
-                      <span className="font-mono text-[12px] text-white/30">Fetching coordinator address…</span>
+                    <div className="flex items-center gap-2 rounded-xl bg-background/40 px-4 py-3 ring-1 ring-border">
+                      <span className="h-3 w-3 animate-spin rounded-full border border-border-strong border-t-border-strong" />
+                      <span className="font-mono text-xs text-faint">Fetching coordinator address…</span>
                     </div>
                   )}
-                  <p className="text-[11px] text-white/35">
-                    The coordinator address is fetched live from the network — just copy and run.
-                    Change <code className="font-mono text-white/50">--label my-node</code> to your preferred node name.
+                  <p className="text-xs text-faint">
+                    The coordinator address is fetched live from the network, just copy and run.
+                    Change <code className="font-mono text-subtle">--label my-node</code> to your preferred node name.
                   </p>
                 </div>
               </div>
@@ -318,22 +306,22 @@ export function JoinPageClient() {
                 </div>
               </div>
 
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
 
           {/* Script Viewer (collapsible) */}
           <Collapsible open={scriptViewerOpen} onOpenChange={setScriptViewerOpen}>
-            <Card className="border-white/8 bg-white/[0.03]">
+            <Panel className="border-border bg-surface-muted">
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
                   className="flex w-full items-center justify-between px-5 py-4 text-left"
                 >
-                  <span className="text-sm font-medium text-white/70">Script Viewer</span>
+                  <span className="text-sm font-medium text-foreground">Script Viewer</span>
                   {scriptViewerOpen ? (
-                    <ChevronDown className="h-4 w-4 text-white/30" />
+                    <ChevronDown className="h-4 w-4 text-faint" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-white/30" />
+                    <ChevronRight className="h-4 w-4 text-faint" />
                   )}
                 </button>
               </CollapsibleTrigger>
@@ -342,27 +330,27 @@ export function JoinPageClient() {
                   <ScriptViewer />
                 </div>
               </CollapsibleContent>
-            </Card>
+            </Panel>
           </Collapsible>
 
           {/* Manual Registration (collapsible) */}
           <Collapsible open={manualOpen} onOpenChange={setManualOpen}>
-            <Card className="border-white/8 bg-white/[0.03]">
+            <Panel className="border-border bg-surface-muted">
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
                   className="flex w-full items-center justify-between px-5 py-4 text-left"
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-white/70">Manual Registration</span>
-                    <span className="text-[11px] text-white/30">
+                    <span className="text-sm font-medium text-foreground">Manual Registration</span>
+                    <span className="text-xs text-faint">
                       Didn&apos;t auto-detect? Register your node manually.
                     </span>
                   </div>
                   {manualOpen ? (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-white/30" />
+                    <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0 text-white/30" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
                   )}
                 </button>
               </CollapsibleTrigger>
@@ -371,7 +359,7 @@ export function JoinPageClient() {
                   <ManualRegistrationForm />
                 </div>
               </CollapsibleContent>
-            </Card>
+            </Panel>
           </Collapsible>
 
         </div>

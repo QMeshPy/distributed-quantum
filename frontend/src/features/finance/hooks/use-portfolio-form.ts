@@ -8,7 +8,7 @@ import { ROUTES } from "@/constants";
 import { usePortfolioUpload } from "./use-portfolio-upload";
 
 export function usePortfolioForm() {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<File | null>(null);
   const router = useRouter();
   const {
     register,
@@ -28,7 +28,7 @@ export function usePortfolioForm() {
   const { mutate, isPending } = usePortfolioUpload();
   const submit = (event?: BaseSyntheticEvent) =>
     handleSubmit((values) => {
-      const file = fileRef.current?.files?.[0];
+      const file = fileRef.current;
       if (!file) {
         setError("root", { message: "Choose a CSV file first." });
         return;
@@ -38,5 +38,5 @@ export function usePortfolioForm() {
         { onSuccess: (data) => router.push(ROUTES.financeDetail(data.job_id)) },
       );
     })(event);
-  return { errors, fileRef, register, useChainlink, submit, isPending };
+  return { errors, fileRef, register, control, useChainlink, submit, isPending };
 }

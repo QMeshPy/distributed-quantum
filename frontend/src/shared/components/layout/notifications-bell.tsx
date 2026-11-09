@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Bell, DollarSign, FileText, Users, Zap, CheckCheck, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/arc/button/button";
+import { Badge } from "@/components/arc/badge/badge";
+import { ScrollArea } from "@/components/arc/scroll-area/scroll-area";
+import { Drawer, DrawerContent } from "@/components/arc/drawer/drawer";
 import { useNotifications, useMarkNotificationRead } from "@/features/agentkit/hooks/use-notifications";
 import type { Notification } from "@/features/agentkit/types";
 
@@ -26,24 +26,24 @@ const TYPE_LABEL: Record<Notification["type"], string> = {
 };
 
 const TYPE_ACCENT: Record<Notification["type"], string> = {
-  proposal_funded:  "bg-emerald-400",
-  fragment_claimed: "bg-amber-400",
-  payment_received: "bg-emerald-400",
-  new_proposal:     "bg-violet-400",
+  proposal_funded:  "bg-success",
+  fragment_claimed: "bg-warning",
+  payment_received: "bg-success",
+  new_proposal:     "bg-accent",
 };
 
 const TYPE_ICON_COLOR: Record<Notification["type"], string> = {
-  proposal_funded:  "text-emerald-400",
-  fragment_claimed: "text-amber-400",
-  payment_received: "text-emerald-400",
-  new_proposal:     "text-violet-400",
+  proposal_funded:  "text-success",
+  fragment_claimed: "text-warning",
+  payment_received: "text-success",
+  new_proposal:     "text-accent",
 };
 
 const TYPE_LABEL_COLOR: Record<Notification["type"], string> = {
-  proposal_funded:  "text-emerald-400 bg-emerald-400/10 ring-emerald-400/25",
-  fragment_claimed: "text-amber-400  bg-amber-400/10  ring-amber-400/25",
-  payment_received: "text-emerald-400 bg-emerald-400/10 ring-emerald-400/25",
-  new_proposal:     "text-violet-400  bg-violet-400/10  ring-violet-400/25",
+  proposal_funded:  "text-success bg-success/10 ring-success/25",
+  fragment_claimed: "text-warning  bg-warning/10  ring-warning/25",
+  payment_received: "text-success bg-success/10 ring-success/25",
+  new_proposal:     "text-accent  bg-accent/10  ring-accent/25",
 };
 
 function relativeTime(dateStr: string): string {
@@ -66,17 +66,17 @@ function NotifCard({
   onMarkRead: (id: string) => void;
 }) {
   const Icon       = NOTIF_ICONS[notif.type]    ?? Bell;
-  const accent     = TYPE_ACCENT[notif.type]    ?? "bg-sky-400";
-  const iconColor  = TYPE_ICON_COLOR[notif.type] ?? "text-sky-400";
-  const labelStyle = TYPE_LABEL_COLOR[notif.type] ?? "text-sky-400 bg-sky-400/10 ring-sky-400/25";
+  const accent     = TYPE_ACCENT[notif.type]    ?? "bg-info";
+  const iconColor  = TYPE_ICON_COLOR[notif.type] ?? "text-info";
+  const labelStyle = TYPE_LABEL_COLOR[notif.type] ?? "text-info bg-info/10 ring-info/25";
   const label      = TYPE_LABEL[notif.type]     ?? "System";
 
   return (
     <button
       className={`group relative flex w-full cursor-pointer overflow-hidden rounded-2xl ring-1 text-left transition-all duration-150 ${
         notif.read
-          ? "bg-white/[0.02] ring-white/6 hover:ring-white/12"
-          : "bg-white/[0.05] ring-white/10 hover:ring-white/20"
+          ?"bg-surface-muted ring-border hover:ring-border"
+          : "bg-surface-muted ring-border hover:ring-border-strong"
       }`}
       onClick={() => { if (!notif.read) onMarkRead(notif.notification_id); }}
     >
@@ -86,7 +86,7 @@ function NotifCard({
       <div className="flex flex-1 gap-3 px-4 py-3.5">
         {/* Icon */}
         <div className="mt-0.5 shrink-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] ring-1 ring-white/8">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-muted ring-1 ring-border">
             <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
           </div>
         </div>
@@ -96,21 +96,21 @@ function NotifCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <p className={`text-sm font-semibold leading-snug truncate ${notif.read ? "text-white/45" : "text-white/90"}`}>
+                <p className={`text-sm font-medium leading-snug truncate ${notif.read ?"text-subtle" : "text-foreground"}`}>
                   {notif.title}
                 </p>
-                {!notif.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />}
+                {!notif.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />}
               </div>
-              <p className={`mt-0.5 text-xs leading-relaxed line-clamp-2 ${notif.read ? "text-white/25" : "text-white/50"}`}>
+              <p className={`mt-0.5 text-xs leading-relaxed line-clamp-2 ${notif.read ?"text-faint" : "text-subtle"}`}>
                 {notif.message}
               </p>
             </div>
             {/* Type badge */}
-            <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ring-1 ${labelStyle}`}>
+            <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ${labelStyle}`}>
               {label}
             </span>
           </div>
-          <p className="mt-1.5 text-[10px] text-white/25">{relativeTime(notif.created_at)}</p>
+          <p className="mt-1.5 text-xs text-faint">{relativeTime(notif.created_at)}</p>
         </div>
       </div>
     </button>
@@ -137,42 +137,36 @@ export function NotificationsBell() {
       {/* Bell trigger */}
       <Button
         variant="ghost"
-        size="icon"
-        className="relative h-8 w-8 text-white/60 hover:text-white"
+       
+        className="relative h-8 w-8 text-subtle hover:text-foreground"
         onClick={() => setOpen(true)}
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <Badge className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 p-0 text-[10px] font-bold text-black">
+          <Badge className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-warning p-0 text-xs font-medium text-accent-foreground">
             {unreadCount > 9 ? "9+" : unreadCount}
           </Badge>
         )}
       </Button>
 
       {/* Sidebar sheet */}
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="right"
-          showCloseButton={false}
-          className="flex w-[400px] flex-col gap-0 border-l border-white/8 bg-[#0b0c0f] p-0 shadow-2xl sm:w-[420px]"
-        >
-          <SheetTitle className="sr-only">Notifications</SheetTitle>
-
-          {/* Header */}
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerContent title="Notifications" side="right">
+{/* Header */}
           <div
-            className="flex shrink-0 items-center justify-between border-b border-white/8 px-5 py-4"
-            style={{ background: "linear-gradient(to bottom, rgba(251,191,36,0.04) 0%, transparent 100%)" }}
+            className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4"
+            style={{ background: "var(--surface-muted)" }}
           >
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/10 ring-1 ring-amber-400/25">
-                <Zap className="h-3.5 w-3.5 text-amber-400" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10 ring-1 ring-warning/25">
+                <Zap className="h-3.5 w-3.5 text-warning" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white/90">Notifications</p>
+                <p className="text-sm font-medium text-foreground">Notifications</p>
                 {unreadCount > 0 ? (
-                  <p className="text-[11px] text-amber-400/70">{unreadCount} unread</p>
+                  <p className="text-xs text-warning">{unreadCount} unread</p>
                 ) : (
-                  <p className="text-[11px] text-white/30">All caught up</p>
+                  <p className="text-xs text-faint">All caught up</p>
                 )}
               </div>
             </div>
@@ -183,7 +177,7 @@ export function NotificationsBell() {
                   variant="ghost"
                   size="sm"
                   onClick={handleMarkAllRead}
-                  className="h-7 gap-1.5 px-2 text-[11px] text-white/40 hover:text-white/80"
+                  className="h-7 gap-1.5 px-2 text-xs text-subtle hover:text-foreground"
                 >
                   <CheckCheck className="h-3 w-3" />
                   Mark all read
@@ -191,9 +185,9 @@ export function NotificationsBell() {
               )}
               <Button
                 variant="ghost"
-                size="icon"
+               
                 onClick={() => setOpen(false)}
-                className="h-7 w-7 text-white/30 hover:text-white/70"
+                className="h-7 w-7 text-faint hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -203,13 +197,13 @@ export function NotificationsBell() {
           {/* List */}
           <ScrollArea className="flex-1 min-h-0">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-20 text-white/30">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-white/8">
-                  <Bell className="h-6 w-6 text-white/20" />
+              <div className="flex flex-col items-center justify-center gap-3 py-20 text-faint">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-muted ring-1 ring-border">
+                  <Bell className="h-6 w-6 text-faint" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-white/40">All caught up</p>
-                  <p className="mt-0.5 text-xs text-white/20">No notifications yet</p>
+                  <p className="text-sm font-medium text-subtle">All caught up</p>
+                  <p className="mt-0.5 text-xs text-faint">No notifications yet</p>
                 </div>
               </div>
             ) : (
@@ -226,13 +220,13 @@ export function NotificationsBell() {
           </ScrollArea>
 
           {/* Footer */}
-          <div className="shrink-0 border-t border-white/8 px-5 py-3">
-            <p className="text-center text-[11px] text-white/20">
+          <div className="shrink-0 border-t border-border px-5 py-3">
+            <p className="text-center text-xs text-faint">
               {notifications.length} notification{notifications.length !== 1 ? "s" : ""} total
             </p>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }
