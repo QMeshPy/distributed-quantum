@@ -26,7 +26,7 @@ export function usePin() {
     try {
       // Upload first so a failed upload is never recorded as pinned.
       // Pinata/Lighthouse re-encode JSON and return a gateway-reachable CID
-      // that may differ from the local Helia CID — that gateway CID is what
+      // that may differ from the local Helia CID, that gateway CID is what
       // another browser must open on /vault/cid/[cid].
       const { getProvider } = await import("../services");
       const result = await getProvider(service).pin(cid, metadata);

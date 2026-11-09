@@ -1,4 +1,5 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/arc/badge/badge";
+import { legacyBadge } from "@/lib/legacy-badge";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
 
@@ -26,14 +27,14 @@ interface JobMetaStripProps {
 export function JobMetaStrip({ jobId, status, createdAt, extraBadges, rightContent }: JobMetaStripProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="font-mono text-[11px] text-white/30">{jobId}</span>
-      <Badge variant={statusVariant(status)}>{status}</Badge>
+      <span className="font-mono text-xs text-faint">{jobId}</span>
+      <Badge {...legacyBadge(statusVariant(status))}>{status}</Badge>
       {extraBadges?.map((b) => (
-        <Badge key={b.label} variant="outline" className={b.className}>
+        <Badge key={b.label} outline className={b.className}>
           {b.label}
         </Badge>
       ))}
-      <span className="ml-auto text-[11px] text-white/20">{new Date(createdAt).toLocaleString()}</span>
+      <span className="ml-auto text-xs text-faint">{new Date(createdAt).toLocaleString()}</span>
       {rightContent}
     </div>
   );

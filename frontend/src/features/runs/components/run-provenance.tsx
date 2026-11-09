@@ -1,8 +1,9 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/arc/badge/badge";
+import { legacyBadge } from "@/lib/legacy-badge";
+import { Button } from "@/components/arc/button/button";
+import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/shared/components/panel/panel";
 import { UI } from "@/constants";
 import { useRunProvenance } from "../hooks/use-run-provenance";
 import { safeEvidenceUrl, type VerificationReport } from "../lib/provenance";
@@ -30,21 +31,21 @@ export function ProvenanceDetails({ report, recorded, loading, error, onRefresh 
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
-        <CardTitle className="text-base font-medium">{UI.PROVENANCE.TITLE}</CardTitle>
-        <Badge variant={status === "verified" ? "default" : status === "partially_verified" ? "secondary" : "outline"} role="status">
+    <Panel>
+      <PanelHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+        <PanelTitle className="text-base font-medium">{UI.PROVENANCE.TITLE}</PanelTitle>
+        <Badge {...legacyBadge(status === "verified" ? "default" : status === "partially_verified" ? "secondary" : "outline")} role="status">
           {label}
         </Badge>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <p className="text-muted-foreground">{UI.PROVENANCE.CAVEAT}</p>
+      </PanelHeader>
+      <PanelContent className="space-y-3 text-sm">
+        <p className="text-subtle">{UI.PROVENANCE.CAVEAT}</p>
         {!recorded ? <p>{UI.PROVENANCE.EMPTY}</p> : null}
         {error ? <p role="alert">{UI.PROVENANCE.ERROR}</p> : null}
         {report && !error && !loading ? (
           <>
             {status === "partially_verified" ? (
-              <p className="text-muted-foreground">{UI.PROVENANCE.LOCAL_ONLY}</p>
+              <p className="text-subtle">{UI.PROVENANCE.LOCAL_ONLY}</p>
             ) : null}
             <ul className="divide-y divide-border">
               {report.checks.map((check, index) => {
@@ -53,11 +54,11 @@ export function ProvenanceDetails({ report, recorded, loading, error, onRefresh 
                   <li key={`${check.kind}-${check.name}-${index}`} className="space-y-1 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-medium">{kinds[check.kind]} · {checkNames.get(check.name) ?? UI.PROVENANCE.OTHER_CHECK}</span>
-                      <Badge variant={check.status === "failed" ? "destructive" : "outline"}>
+                      <Badge {...legacyBadge(check.status === "failed" ? "destructive" : "outline")}>
                         {statuses[check.status]}
                       </Badge>
                     </div>
-                    <p className="text-muted-foreground">{check.message}</p>
+                    <p className="text-subtle">{check.message}</p>
                     {check.reference ? <p className="break-all font-mono text-xs">{check.reference}</p> : null}
                     {href ? (
                       <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
@@ -71,12 +72,12 @@ export function ProvenanceDetails({ report, recorded, loading, error, onRefresh 
           </>
         ) : null}
         {recorded && onRefresh ? (
-          <Button variant="outline" size="sm" disabled={loading} onClick={onRefresh}>
+          <Button variant="secondary" size="sm" disabled={loading} onClick={onRefresh}>
             {UI.PROVENANCE.REFRESH}
           </Button>
         ) : null}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   );
 }
 

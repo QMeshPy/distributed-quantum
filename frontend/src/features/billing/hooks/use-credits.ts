@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { API, BILLING, CONFIG, QUERY_KEYS, UI } from "@/constants";
 import type { CreditPaymentMethod } from "../lib/credit-packs";
 import type { CreditsOverview } from "../types";

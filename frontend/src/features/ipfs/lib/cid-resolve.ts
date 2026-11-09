@@ -52,7 +52,7 @@ export async function parseCidString(input: string): Promise<CID> {
 }
 
 async function decodeVaultPayload(helia: Helia, cid: CID): Promise<unknown> {
-  // Linked runs (#58) — @helia/dag-json with CID links
+  // Linked runs (#58), @helia/dag-json with CID links
   try {
     const { dagJson } = await import("@helia/dag-json");
     // Helia vs @helia/dag-json pull divergent multiformats/blockstore types.

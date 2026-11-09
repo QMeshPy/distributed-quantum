@@ -1,36 +1,36 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { SortableDataTable } from "@/components/arc/sortable-data-table/sortable-data-table";
 import { usePharmaJobs } from "@/features/pharma/hooks/use-pharma-jobs";
 import { ROUTES } from "@/constants";
 import type { PharmaJobStatus } from "@/features/pharma/types";
 
 const STATUS_STYLES: Record<PharmaJobStatus, { dot: string; text: string }> = {
-  queued:    { dot: "bg-amber-400",                  text: "text-amber-300" },
-  running:   { dot: "bg-sky-400 animate-pulse",      text: "text-sky-300" },
-  completed: { dot: "bg-emerald-400",                text: "text-emerald-400" },
-  failed:    { dot: "bg-red-400",                    text: "text-red-400" },
-  cancelled: { dot: "bg-white/20",                   text: "text-white/30" },
+  queued:    { dot: "bg-warning",                  text: "text-warning" },
+  running:   { dot: "bg-info animate-pulse",      text: "text-info" },
+  completed: { dot: "bg-success",                text: "text-success" },
+  failed:    { dot: "bg-danger",                    text: "text-danger" },
+  cancelled: { dot: "bg-surface-raised",                   text: "text-faint" },
 };
 
 export function PharmaHistoryTable() {
-  const router = useRouter();
   const { data: jobs, isLoading } = usePharmaJobs();
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-32">
-        <Loader2 size={20} className="animate-spin text-white/20" />
+        <Loader2 size={20} className="animate-spin text-faint" />
       </div>
     );
   }
 
   if (!jobs || jobs.length === 0) {
     return (
-      <div className="text-center py-16 text-white/25 text-sm">
+      <div className="text-center py-16 text-faint text-sm">
         No pharma jobs yet.{" "}
-        <a href={ROUTES.PHARMA_SUBMIT} className="text-indigo-400 hover:text-indigo-300 transition-colors hover:underline">
+        <a href={ROUTES.PHARMA_SUBMIT} className="text-accent hover:text-accent transition-colors hover:underline">
           Submit your first pipeline
         </a>
       </div>
@@ -42,56 +42,35 @@ export function PharmaHistoryTable() {
   );
 
   return (
-    <div className="rounded-xl border border-white/6 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-white/6 bg-white/[0.025]">
-            {["Status", "Target", "Mode", "Candidates", "Runtime", "Submitted"].map((h) => (
-              <th
-                key={h}
-                className="px-5 py-3.5 text-left text-[10px] text-white/30 uppercase tracking-wider font-semibold"
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((job, idx) => {
-            const style = STATUS_STYLES[job.status] ?? STATUS_STYLES.cancelled;
+    <SortableDataTable
+      caption="Pharma jobs"
+      rowKey="job_id"
+      rows={sorted.map((job) => ({
+        ...job,
+        candidates: job.result ? job.result.candidates.length : null,
+        runtime: job.result ? job.result.total_runtime_seconds : null,
+      }))}
+      columns={[
+        {
+          key: "status",
+          label: "Status",
+          sortable: true,
+          render: (v, row) => {
+            const style = STATUS_STYLES[v as PharmaJobStatus] ?? STATUS_STYLES.cancelled;
             return (
-              <tr
-                key={job.job_id}
-                onClick={() => router.push(ROUTES.pharmaJob(job.job_id))}
-                className={[
-                  "group relative cursor-pointer border-b border-white/5 transition-colors hover:bg-emerald-400/[0.04]",
-                  idx === sorted.length - 1 ? "border-b-0" : "",
-                ].join(" ")}
-              >
-                <td className="px-5 py-4">
-                  <span className="flex items-center gap-2">
-                    <span className={["w-1.5 h-1.5 rounded-full shrink-0", style.dot].join(" ")} />
-                    <span className={["text-[13px] capitalize font-medium", style.text].join(" ")}>
-                      {job.status}
-                    </span>
-                  </span>
-                </td>
-                <td className="px-5 py-4 font-mono text-[13px] text-white/70">{job.target_pdb_id}</td>
-                <td className="px-5 py-4 capitalize text-[13px] text-white/45">{job.mode}</td>
-                <td className="px-5 py-4 text-[13px] text-white/60">
-                  {job.result ? job.result.candidates.length : <span className="text-white/20">—</span>}
-                </td>
-                <td className="px-5 py-4 text-[13px] text-white/60">
-                  {job.result ? `${job.result.total_runtime_seconds.toFixed(1)}s` : <span className="text-white/20">—</span>}
-                </td>
-                <td className="px-5 py-4 text-[11px] text-white/25">
-                  {new Date(job.submitted_at).toLocaleString()}
-                </td>
-              </tr>
+              <Link href={ROUTES.pharmaJob(row.job_id as string)} className="flex items-center gap-2 hover:underline">
+                <span className={["h-1.5 w-1.5 shrink-0 rounded-full", style.dot].join(" ")} />
+                <span className={["text-sm capitalize font-medium", style.text].join(" ")}>{v as string}</span>
+              </Link>
             );
-          })}
-        </tbody>
-      </table>
-    </div>
+          },
+        },
+        { key: "target_pdb_id", label: "Target", sortable: true, render: (v) => <span className="font-mono">{v as string}</span> },
+        { key: "mode", label: "Mode", sortable: true, render: (v) => <span className="capitalize">{v as string}</span> },
+        { key: "candidates", label: "Candidates", sortable: true, numeric: true, render: (v) => (v === null ? "-" : String(v)) },
+        { key: "runtime", label: "Runtime", sortable: true, numeric: true, render: (v) => (v === null ? "-" : `${(v as number).toFixed(1)}s`) },
+        { key: "submitted_at", label: "Submitted", sortable: true, render: (v) => new Date(v as string).toLocaleString() },
+      ]}
+    />
   );
 }

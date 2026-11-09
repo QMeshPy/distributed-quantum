@@ -1,8 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/arc/button/button";
+import { ScrollArea } from "@/components/arc/scroll-area/scroll-area";
 import { Plus } from "lucide-react";
 import { useAgentSessions } from "../hooks/use-agent-sessions";
 import { useCreateSession } from "../hooks/use-create-session";
@@ -24,12 +23,12 @@ export function SessionSidebar() {
   };
 
   return (
-    <div className="w-60 border-r border-white/10 bg-background flex flex-col">
+    <div className="w-60 border-r border-border bg-background flex flex-col">
       {/* New Session Button */}
       <div className="p-3">
         <Button
           className="w-full"
-          variant="default"
+          variant="primary"
           onClick={handleNewSession}
           disabled={createSession.isPending}
         >
@@ -38,23 +37,23 @@ export function SessionSidebar() {
         </Button>
       </div>
 
-      <Separator />
+      <hr className="border-border" />
 
       {/* Budget Indicator */}
       <BudgetIndicator />
 
-      <Separator />
+      <hr className="border-border" />
 
       {/* Session List */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
           {isLoading && (
-            <div className="text-sm text-white/40 text-center py-8">
+            <div className="text-sm text-subtle text-center py-8">
               Loading sessions...
             </div>
           )}
           {sessions && sessions.length === 0 && (
-            <div className="text-sm text-white/40 text-center py-8">
+            <div className="text-sm text-subtle text-center py-8">
               No sessions yet. Create one to start!
             </div>
           )}

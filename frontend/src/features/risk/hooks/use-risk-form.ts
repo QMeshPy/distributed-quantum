@@ -10,7 +10,7 @@ import type { RiskModel } from "../types";
 
 export function useRiskForm() {
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<File | null>(null);
   const { mutate, isPending } = useRiskUpload();
   const {
     register,
@@ -32,7 +32,7 @@ export function useRiskForm() {
   const useChainlink = useWatch({ control, name: "useChainlink" });
   const submit = (event?: BaseSyntheticEvent) =>
     handleSubmit((values) => {
-      const file = fileRef.current?.files?.[0];
+      const file = fileRef.current;
       if (!file) {
         setError("root", { message: "Choose a CSV file first." });
         return;
@@ -51,6 +51,7 @@ export function useRiskForm() {
   return {
     errors,
     fileRef,
+    control,
     riskModel,
     setRiskModel: (model: RiskModel) => {
       setValue("riskModel", model);

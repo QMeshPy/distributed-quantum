@@ -1,8 +1,8 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { Panel, PanelContent, PanelDescription, PanelHeader, PanelTitle } from "@/shared/components/panel/panel";
 import { UI } from "@/constants";
 import { useBuyCredits, useCredits, useCreditsReturn } from "../hooks/use-credits";
 
@@ -15,14 +15,14 @@ export function CreditsPanel() {
   const stablecoinOffers = data?.offers.filter((offer) => offer.stablecoin) ?? [];
 
   return (
-    <Card className="border-hairline">
-      <CardHeader>
-        <CardTitle className="text-base font-medium">{UI.CREDITS.TITLE}</CardTitle>
-        <CardDescription>{UI.CREDITS.DESCRIPTION}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <Panel className="border-border-subtle">
+      <PanelHeader>
+        <PanelTitle className="text-base font-medium">{UI.CREDITS.TITLE}</PanelTitle>
+        <PanelDescription>{UI.CREDITS.DESCRIPTION}</PanelDescription>
+      </PanelHeader>
+      <PanelContent className="flex flex-col gap-4">
         {isError ? (
-          <p className="text-xs text-muted-foreground">{UI.CREDITS.ERROR}</p>
+          <p className="text-xs text-subtle">{UI.CREDITS.ERROR}</p>
         ) : (
           <>
             <div className="flex items-center justify-between gap-4">
@@ -30,13 +30,13 @@ export function CreditsPanel() {
                 <span className="text-base font-medium">
                   {isPending ? UI.CREDITS.BALANCE_LOADING : data.available}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-subtle">
                   {UI.CREDITS.BALANCE_LABEL}
                   {data && Number(data.held) > 0 ? ` · ${data.held} ${UI.CREDITS.HELD_LABEL}` : ""}
                 </span>
               </div>
               {data ? (
-                <Badge variant="secondary">
+                <Badge >
                   {data.circuitJobCost === NO_COST
                     ? UI.CREDITS.JOB_COST_FREE
                     : UI.CREDITS.JOB_COST(data.circuitJobCost)}
@@ -49,7 +49,7 @@ export function CreditsPanel() {
                   {data.offers.map((offer) => (
                     <Button
                       key={offer.priceId}
-                      variant="outline"
+                      variant="secondary"
                       disabled={buy.isPending}
                       onClick={() => buy.mutate({ priceId: offer.priceId, method: "card" })}
                     >
@@ -63,7 +63,7 @@ export function CreditsPanel() {
                       {stablecoinOffers.map((offer) => (
                         <Button
                           key={offer.priceId}
-                          variant="outline"
+                          variant="secondary"
                           disabled={buy.isPending}
                           onClick={() => buy.mutate({ priceId: offer.priceId, method: "crypto" })}
                         >
@@ -71,16 +71,16 @@ export function CreditsPanel() {
                         </Button>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground">{UI.CREDITS.STABLECOIN_NOTE}</p>
+                    <p className="text-xs text-subtle">{UI.CREDITS.STABLECOIN_NOTE}</p>
                   </div>
                 ) : null}
               </>
             ) : data ? (
-              <p className="text-xs text-muted-foreground">{UI.CREDITS.UNAVAILABLE}</p>
+              <p className="text-xs text-subtle">{UI.CREDITS.UNAVAILABLE}</p>
             ) : null}
           </>
         )}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   );
 }

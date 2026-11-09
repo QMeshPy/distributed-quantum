@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/arc/input/input";
 import { useEnsResolve } from "../hooks/use-ens";
 import { isHexAddress, looksLikeEnsName, truncateAddress } from "../lib/ens";
 
@@ -87,6 +87,7 @@ export function AddressOrEnsInput({
   return (
     <div className="space-y-2">
       <Input
+        label="Address or ENS name"
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -97,16 +98,16 @@ export function AddressOrEnsInput({
         spellCheck={false}
       />
       {isEns && resolve.isFetching ? (
-        <p className="text-xs text-white/40">Resolving ENS name…</p>
+        <p className="text-xs text-subtle">Resolving ENS name…</p>
       ) : null}
       {isEns && previewAddress && !localError ? (
-        <p className="text-xs text-emerald-400/90">
+        <p className="text-xs text-success">
           Resolves to{" "}
           <span className="font-mono">{truncateAddress(previewAddress)}</span>
-          <span className="ml-1 text-white/30">(confirm before sending)</span>
+          <span className="ml-1 text-faint">(confirm before sending)</span>
         </p>
       ) : null}
-      {localError ? <p className="text-xs text-red-400">{localError}</p> : null}
+      {localError ? <p className="text-xs text-danger">{localError}</p> : null}
     </div>
   );
 }

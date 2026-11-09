@@ -1,4 +1,4 @@
-// Pinata IPFS pinning — pins an existing CID by hash.
+// Pinata IPFS pinning, pins an existing CID by hash.
 // Get JWT at: https://app.pinata.cloud → API Keys → New Key
 // Set NEXT_PUBLIC_PINATA_JWT in .env
 

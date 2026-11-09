@@ -76,7 +76,7 @@ export function NodeAppearanceDetector({ knownPeerIds }: NodeAppearanceDetectorP
             }
           }
         } catch {
-          // silent — keep polling
+          // silent, keep polling
         }
       }, POLL_INTERVAL_MS);
     }
@@ -92,17 +92,17 @@ export function NodeAppearanceDetector({ knownPeerIds }: NodeAppearanceDetectorP
 
   if (state === "found") {
     return (
-      <div className="rounded-xl p-4 ring-1 ring-emerald-500/30 bg-emerald-500/10">
+      <div className="rounded-xl p-4 ring-1 ring-success/30 bg-success/10">
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-emerald-300">Node detected!</p>
-            <p className="break-all font-mono text-xs text-emerald-200/70">
+            <p className="text-sm font-medium text-success">Node detected!</p>
+            <p className="break-all font-mono text-xs text-success">
               Peer ID: {foundPeerId}
             </p>
             <Link
               href="/network/nodes"
-              className="mt-1 text-xs text-emerald-400 underline-offset-2 hover:underline"
+              className="mt-1 text-xs text-success underline-offset-2 hover:underline"
             >
               View in nodes table
             </Link>
@@ -114,10 +114,10 @@ export function NodeAppearanceDetector({ knownPeerIds }: NodeAppearanceDetectorP
 
   if (state === "timeout") {
     return (
-      <div className="rounded-xl p-4 ring-1 ring-yellow-500/30 bg-yellow-500/10">
+      <div className="rounded-xl p-4 ring-1 ring-warning/30 bg-warning/10">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-400" />
-          <p className="text-sm text-yellow-200/80">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <p className="text-sm text-warning">
             Node not detected after 10 minutes. You can register it manually below.
           </p>
         </div>
@@ -126,10 +126,10 @@ export function NodeAppearanceDetector({ knownPeerIds }: NodeAppearanceDetectorP
   }
 
   return (
-    <div className="rounded-xl p-4 ring-1 ring-white/10 bg-white/[0.03]">
+    <div className="rounded-xl p-4 ring-1 ring-border bg-surface-muted">
       <div className="flex items-center gap-3">
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-white/40" />
-        <p className="text-sm text-white/50">
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-subtle" />
+        <p className="text-sm text-subtle">
           Waiting for your node to appear on the network…
         </p>
       </div>

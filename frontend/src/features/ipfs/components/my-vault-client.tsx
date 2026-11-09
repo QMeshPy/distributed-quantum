@@ -1,7 +1,7 @@
 "use client";
 
 import { HardDrive } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { DataTable, type DataTableColumn } from "@/shared/components/detail/data-table";
 import { PinStatusBadge } from "@/features/vault-pinning/components/pin-status-badge";
@@ -42,19 +42,17 @@ export function MyVaultClient({ type }: MyVaultClientProps) {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={HardDrive}
-        label="Vault"
         title={title}
         description={`Manage your published ${emptyLabel}`}
-        glow="orange"
       >
         <QuotaDisplay service="nft.storage" variant="header" />
       </PageHeader>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <HardDrive className="mb-3 size-10 text-muted-foreground/50" />
+          <HardDrive className="mb-3 size-10 text-subtle/50" />
           <h3 className="text-sm font-medium">No {emptyLabel} yet</h3>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+          <p className="mt-1 max-w-sm text-xs text-subtle">
             Publish {emptyLabel} from the lab to see them here.
           </p>
         </div>
@@ -72,8 +70,8 @@ export function MyVaultClient({ type }: MyVaultClientProps) {
 export function MyVaultSkeleton() {
   return (
     <div className="flex flex-col gap-6">
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-64 w-full rounded-lg" />
+      <Skeleton lines={4} className="h-24 w-full" />
+      <Skeleton lines={6} className="h-64 w-full" />
     </div>
   );
 }

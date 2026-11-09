@@ -9,8 +9,7 @@ export function OptionsPageClient() {
     <div className="flex min-h-full flex-col">
       <PageHeader
         icon={TrendingUp}
-        label="Options Pricing"
-        title="Price Options" glow="orange"
+        title="Price Options"
         description="Submit a quantum options pricing job. IQAE for quadratic speedup over classical Monte Carlo."
       />
       <div className="flex-1 overflow-y-auto p-6">

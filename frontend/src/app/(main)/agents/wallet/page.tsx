@@ -7,23 +7,23 @@ import { AddressOrEnsInput } from "@/features/agentkit/components/address-or-ens
 import { EnsAddress } from "@/features/agentkit/components/ens-address";
 import { isHexAddress, looksLikeEnsName, truncateAddress } from "@/features/agentkit/lib/ens";
 import { ChainSelect, explorerUrl, findChain, useChains } from "@/features/chains";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/arc/tabs/tabs";
+import { Input } from "@/components/arc/input/input";
+import { Button } from "@/components/arc/button/button";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Badge } from "@/components/arc/badge/badge";
+import { SortableDataTable } from "@/components/arc/sortable-data-table/sortable-data-table";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Copy, ExternalLink, Wallet } from "lucide-react";
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div
-      className="relative overflow-hidden rounded-2xl p-4 ring-1 ring-white/8"
-      style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+      className="relative overflow-hidden rounded-2xl p-4 ring-1 ring-border"
+      style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/30 mb-2">{label}</p>
-      <p className={`text-2xl font-light tracking-tight ${accent ?? "text-white/90"}`}>{value}</p>
+      <p className="text-xs font-medium text-faint mb-2">{label}</p>
+      <p className={`text-2xl ${accent ??"text-foreground"}`}>{value}</p>
     </div>
   );
 }
@@ -117,10 +117,10 @@ export default function WalletPage() {
   if (isLoading) {
     return (
       <div className="relative flex flex-col">
-        <PageHeader icon={Wallet} label="AgentKit" title="Wallet" description="Your testnet wallet." glow="emerald" />
+        <PageHeader icon={Wallet} title="Wallet" description="Your testnet wallet." />
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl bg-white/[0.04]" />)}
+            {[1, 2, 3].map((i) => <Skeleton lines={4} key={i} className="h-24" />)}
           </div>
         </div>
       </div>
@@ -131,25 +131,25 @@ export default function WalletPage() {
     return (
       <div className="relative flex flex-col">
         <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "300px" }}>
-          <div className="absolute h-[260px] w-[260px] rounded-full opacity-20 blur-[80px]" style={{ left: "10%", top: "-40px", background: "radial-gradient(circle, rgba(52,211,153,0.65) 0%, transparent 70%)" }} />
+          
         </div>
-        <PageHeader icon={Wallet} label="AgentKit" title="Wallet" description="Your testnet wallet." glow="emerald" />
+        <PageHeader icon={Wallet} title="Wallet" description="Your testnet wallet." />
         <div className="relative z-10 flex flex-col items-center gap-6 p-12">
           <div
-            className="w-full max-w-sm rounded-2xl p-8 ring-1 ring-white/8 flex flex-col items-center gap-4 text-center"
-            style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+            className="w-full max-w-sm rounded-2xl p-8 ring-1 ring-border flex flex-col items-center gap-4 text-center"
+            style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
           >
-            <Wallet className="h-10 w-10 text-emerald-400/60" />
-            <p className="text-sm text-white/50">No wallet yet. Create one to get started.</p>
+            <Wallet className="h-10 w-10 text-success" />
+            <p className="text-sm text-subtle">No wallet yet. Create one to get started.</p>
             <Button
               onClick={() => createWallet.mutate()}
               disabled={createWallet.isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 w-full"
+              className="bg-success hover:bg-success w-full"
             >
               {createWallet.isPending ? "Creating…" : "Create Wallet"}
             </Button>
             {createWallet.isError && (
-              <p className="text-xs text-red-400">{createWallet.error?.message}</p>
+              <p className="text-xs text-danger">{createWallet.error?.message}</p>
             )}
           </div>
         </div>
@@ -160,32 +160,29 @@ export default function WalletPage() {
   return (
     <div className="relative flex flex-col">
 
-      {/* Ambient glows */}
       <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "300px" }}>
-        <div className="absolute h-[280px] w-[280px] rounded-full opacity-20 blur-[80px]" style={{ left: "0%", top: "-50px", background: "radial-gradient(circle, rgba(52,211,153,0.65) 0%, transparent 70%)" }} />
-        <div className="absolute h-[220px] w-[220px] rounded-full opacity-15 blur-[70px]" style={{ right: "5%", top: "-30px", background: "radial-gradient(circle, rgba(16,185,129,0.6) 0%, transparent 70%)" }} />
+        
+        
       </div>
 
       <PageHeader
         icon={Wallet}
-        label="AgentKit"
         title="Wallet"
-        description={`Your ${networkName} wallet — balances and transfers.`}
-        glow="emerald"
+        description={`Your ${networkName} wallet, balances and transfers.`}
       />
 
       <div className="relative z-10 flex flex-col gap-6 p-6">
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <StatCard label="USDC Balance" value={wallet.usdc ?? (wallet as Record<string, string>).usdc ?? "0.00"} accent="text-emerald-400" />
+          <StatCard label="USDC Balance" value={wallet.usdc ?? (wallet as Record<string, string>).usdc ?? "0.00"} accent="text-success" />
           <StatCard label="ETH Balance" value={wallet.eth ?? (wallet as Record<string, string>).eth ?? "0.000"} />
           <StatCard label="Network" value={networkName} />
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="border border-white/10 bg-white/[0.025]">
+          <TabsList className="border border-border bg-surface-muted">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="transactions">Transactions ({transactions.length})</TabsTrigger>
             <TabsTrigger value="transfer">Transfer</TabsTrigger>
@@ -193,43 +190,43 @@ export default function WalletPage() {
 
           <TabsContent value="overview" className="mt-4">
             <div
-              className="rounded-2xl p-4 ring-1 ring-white/8 space-y-4"
-              style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+              className="rounded-2xl p-4 ring-1 ring-border space-y-4"
+              style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-white/40 uppercase tracking-wider shrink-0">Address</span>
+                <span className="text-xs text-subtle shrink-0">Address</span>
                 <div className="flex items-center gap-2 min-w-0">
                   <EnsAddress
                     address={wallet.address}
                     fullFallback
-                    className="text-sm text-white/80 truncate"
+                    className="text-sm text-foreground truncate"
                   />
-                  <Button variant="ghost" size="icon" onClick={copyAddress} className="h-6 w-6 text-white/40 hover:text-white shrink-0">
+                  <Button variant="ghost" onClick={copyAddress} className="h-6 w-6 text-subtle hover:text-foreground shrink-0">
                     <Copy className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-white/40 uppercase tracking-wider">Network</span>
-                <span className="text-sm text-white/80">{networkName}</span>
+                <span className="text-xs text-subtle">Network</span>
+                <span className="text-sm text-foreground">{networkName}</span>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-4">
             <div
-              className="overflow-hidden rounded-2xl ring-1 ring-white/8"
-              style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+              className="overflow-hidden rounded-2xl ring-1 ring-border"
+              style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
             >
               {transactions.length === 0 ? (
                 <div className="py-12 flex flex-col items-center gap-3 text-center">
-                  <p className="text-sm text-white/30">No platform transactions yet</p>
+                  <p className="text-sm text-faint">No platform transactions yet</p>
                   {wallet?.address && chain && (
                     <a
                       href={explorerUrl(chain, "address", wallet.address)}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300"
+                      className="flex items-center gap-1.5 text-xs text-info hover:text-info"
                     >
                       <ExternalLink className="h-3 w-3" />
                       View full on-chain history on the explorer
@@ -237,55 +234,37 @@ export default function WalletPage() {
                   )}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/8 hover:bg-transparent">
-                      <TableHead className="text-[11px] uppercase tracking-wider text-white/30">Type</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-white/30">Amount</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-white/30">Status</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-white/30">Date</TableHead>
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((tx: { transaction_hash: string; currency: string; amount: string; status: string; timestamp: string; basescan_url: string }) => (
-                      <TableRow key={tx.transaction_hash} className="border-white/8 hover:bg-white/[0.03]">
-                        <TableCell className="text-sm text-white/80">{tx.currency}</TableCell>
-                        <TableCell className="text-sm text-white/80">{tx.amount}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={tx.status === "completed" ? "text-emerald-400 border-emerald-400/30 text-[10px]" : "text-amber-400 border-amber-400/30 text-[10px]"}>
-                            {tx.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-white/30">{new Date(tx.timestamp).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          {tx.basescan_url && (
-                            <a href={tx.basescan_url} target="_blank" rel="noreferrer">
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-white">
-                                <ExternalLink className="h-3 w-3" />
-                              </Button>
-                            </a>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <SortableDataTable
+                  caption="Transactions"
+                  rowKey="transaction_hash"
+                  rows={transactions.map((tx: { transaction_hash: string; currency: string; amount: string; status: string; timestamp: string; basescan_url: string }) => ({ ...tx }))}
+                  columns={[
+                    { key: "currency", label: "Type", sortable: true },
+                    { key: "amount", label: "Amount", sortable: true },
+                    { key: "status", label: "Status", sortable: true, render: (v) => <Badge outline tone={v === "completed" ? "success" : "warning"}>{v as string}</Badge> },
+                    { key: "timestamp", label: "Date", sortable: true, render: (v) => new Date(v as string).toLocaleDateString() },
+                    { key: "basescan_url", label: "Explorer", render: (v) => v ? (
+                      <a href={v as string} target="_blank" rel="noreferrer" aria-label="Open in explorer">
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : null },
+                  ]}
+                />
               )}
             </div>
           </TabsContent>
 
           <TabsContent value="transfer" className="mt-4">
             <div
-              className="rounded-2xl p-5 ring-1 ring-white/8 space-y-4"
-              style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+              className="rounded-2xl p-5 ring-1 ring-border space-y-4"
+              style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
             >
               <div className="space-y-2">
-                <label htmlFor="transfer-network" className="text-xs uppercase tracking-wider text-white/40">Network</label>
+                <label htmlFor="transfer-network" className="text-xs text-subtle">Network</label>
                 <ChainSelect id="transfer-network" registry={chains} active={chain} capability="transfer_stablecoin" className="w-full" />
               </div>
               <div className="space-y-2">
-                <label className="text-xs uppercase tracking-wider text-white/40">To address or ENS name</label>
+                <label className="text-xs text-subtle">To address or ENS name</label>
                 <AddressOrEnsInput
                   value={toAddress}
                   onChange={(v) => {
@@ -293,19 +272,19 @@ export default function WalletPage() {
                     resetConfirm();
                   }}
                   onResolvedAddressChange={onResolvedAddressChange}
-                  className="border-white/10 bg-white/[0.025] text-white placeholder:text-white/20"
+                  className="border-border bg-surface-muted text-foreground placeholder:text-faint"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs uppercase tracking-wider text-white/40">Amount (USDC)</label>
+                <label className="text-xs text-subtle">Amount (USDC)</label>
                 <Input
-                  placeholder="0.00"
+                  label="0.00" placeholder="0.00"
                   value={amount}
                   onChange={(e) => {
                     setAmount(e.target.value);
                     resetConfirm();
                   }}
-                  className="border-white/10 bg-white/[0.025] text-white placeholder:text-white/20"
+                  className="border-border bg-surface-muted text-foreground placeholder:text-faint"
                 />
               </div>
 
@@ -319,13 +298,13 @@ export default function WalletPage() {
                     !amount.trim() ||
                     (looksLikeEnsName(toAddress.trim()) && !previewResolved && !isHexAddress(toAddress.trim()))
                   }
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  className="w-full bg-success hover:bg-success"
                 >
                   {resolvingFresh ? "Resolving…" : "Review transfer"}
                 </Button>
               ) : (
-                <div className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                  <p className="text-sm text-amber-100/90">
+                <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+                  <p className="text-sm text-warning">
                     Send <span className="font-medium">{amount}</span> USDC to
                     {confirmName ? (
                       <>
@@ -339,7 +318,7 @@ export default function WalletPage() {
                     <span className="font-mono text-xs break-all">{confirmAddress}</span>
                     ?
                   </p>
-                  <p className="text-[11px] text-white/40">
+                  <p className="text-xs text-subtle">
                     Confirm the checksummed address before sending. Payment records store the address, not the name.
                     {confirmName ? ` (${truncateAddress(confirmAddress)})` : null}
                   </p>
@@ -348,14 +327,14 @@ export default function WalletPage() {
                       variant="ghost"
                       onClick={resetConfirm}
                       disabled={transfer.isPending}
-                      className="flex-1 text-white/70"
+                      className="flex-1 text-foreground"
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleConfirmTransfer}
                       disabled={transfer.isPending}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                      className="flex-1 bg-success hover:bg-success"
                     >
                       {transfer.isPending ? "Sending…" : "Confirm & send"}
                     </Button>
@@ -364,7 +343,7 @@ export default function WalletPage() {
               )}
 
               {txResult && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">
+                <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-sm text-success">
                   Transfer submitted!{" "}
                   <a href={txResult.basescan_url} target="_blank" rel="noreferrer" className="underline">
                     View on explorer
@@ -372,7 +351,7 @@ export default function WalletPage() {
                 </div>
               )}
               {txError && (
-                <p className="text-sm text-red-400">{txError}</p>
+                <p className="text-sm text-danger">{txError}</p>
               )}
             </div>
           </TabsContent>

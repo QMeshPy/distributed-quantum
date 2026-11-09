@@ -12,14 +12,14 @@ export function BudgetIndicator() {
   const monthlyPercent = (budget.monthly_spent / budget.monthly_limit) * 100;
 
   const getColorClass = (percent: number) => {
-    if (percent > 90) return "bg-red-500";
-    if (percent > 70) return "bg-yellow-500";
-    return "bg-indigo-500";
+    if (percent > 90) return "bg-danger";
+    if (percent > 70) return "bg-warning";
+    return "bg-accent";
   };
 
   return (
-    <div className="p-3 border-b border-white/10">
-      <div className="text-xs text-white/40 mb-2">Budget Status</div>
+    <div className="p-3 border-b border-border">
+      <div className="text-xs text-subtle mb-2">Budget Status</div>
 
       <div className="space-y-2">
         <div>
@@ -27,7 +27,7 @@ export function BudgetIndicator() {
             <span>Daily</span>
             <span>${budget.daily_spent.toFixed(2)} / ${budget.daily_limit}</span>
           </div>
-          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
             <div
               className={cn(
                 "h-full transition-all",
@@ -43,7 +43,7 @@ export function BudgetIndicator() {
             <span>Monthly</span>
             <span>${budget.monthly_spent.toFixed(2)} / ${budget.monthly_limit}</span>
           </div>
-          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
             <div
               className={cn(
                 "h-full transition-all",

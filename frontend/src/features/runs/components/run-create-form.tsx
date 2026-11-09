@@ -5,10 +5,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { Play, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/arc/button/button";
 import { useCreateRun } from "../hooks/use-create-run";
 import { ShareCircuitToVaultButton } from "@/features/ipfs/components/share-circuit-to-vault-button";
 import { ROUTES } from "@/constants";
@@ -104,23 +103,19 @@ export function RunCreateForm({
       className="flex h-full flex-col gap-4"
     >
       {/* Stats bar */}
-      <div className="flex items-center gap-3 rounded-lg bg-white/[0.04] px-3 py-2 ring-1 ring-white/8">
-        <div className="flex items-center gap-4 text-[11px] tabular-nums text-white/40">
+      <div className="flex items-center gap-3 rounded-lg bg-surface-muted px-3 py-2 ring-1 ring-border">
+        <div className="flex items-center gap-4 text-xs tabular-nums text-subtle">
           <span>
-            <span className="font-semibold text-white/70">{lineCount}</span> lines
+            <span className="font-medium text-foreground">{lineCount}</span> lines
           </span>
           <span>
-            <span className="font-semibold text-white/70">{gateCount}</span> gates
+            <span className="font-medium text-foreground">{gateCount}</span> gates
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="ml-auto flex items-center gap-1.5 rounded-md bg-red-500/8 px-2.5 py-1 text-[11px] font-medium text-red-400/70 ring-1 ring-red-400/20 transition-all hover:bg-red-500/15 hover:text-red-300"
-        >
-          <Trash2 size={10} />
+        <Button type="button" size="sm" variant="danger" onClick={handleReset} className="ml-auto">
+          <Trash2 size={12} />
           Clear
-        </button>
+        </Button>
       </div>
 
       {/* Highlighted code editor */}
@@ -142,7 +137,7 @@ export function RunCreateForm({
                     height: "calc(11px * 1.7)",
                     background: bgColor ?? "transparent",
                     borderLeft: bgColor
-                      ? `2px solid ${bgColor.replace("0.08", "0.4")}`
+                      ? `2px solid ${bgColor.replace("8%", "40%")}`
                       : "2px solid transparent",
                     marginLeft: "-2px",
                     borderRadius: "2px",
@@ -160,7 +155,7 @@ export function RunCreateForm({
             rhfRef(el);
             textareaRef.current = el;
           }}
-          className="relative z-10 h-full min-h-[320px] w-full resize-none rounded-lg border border-white/6 bg-black/30 px-3 py-2 font-mono text-[11px] leading-[1.7] text-white/75 placeholder:text-white/15 focus:border-white/12 focus:outline-none focus:ring-1 focus:ring-white/8 lg:min-h-[420px]"
+          className="relative z-10 h-full min-h-[320px] w-full resize-none rounded-lg border border-border bg-background/30 px-3 py-2 font-mono text-xs leading-[1.7] text-foreground placeholder:text-faint lg:min-h-[420px]"
           placeholder="OPENQASM 2.0; ..."
           onScroll={handleScroll}
           onChange={(e) => {
@@ -170,7 +165,7 @@ export function RunCreateForm({
           {...registerRest}
         />
         {errors.circuit && (
-          <p className="mt-1.5 text-[11px] text-red-400/70">
+          <p className="mt-1.5 text-xs text-danger">
             {errors.circuit.message}
           </p>
         )}
@@ -183,13 +178,10 @@ export function RunCreateForm({
       <Button
         type="submit"
         disabled={isPending}
-        className="w-full gap-2 rounded-lg bg-indigo-500 py-2.5 text-[13px] font-semibold text-white transition-all hover:bg-indigo-400 disabled:opacity-40"
+        loading={isPending}
+        className="w-full gap-2 rounded-lg bg-accent py-2.5 text-sm font-medium text-accent-foreground transition-all hover:bg-accent disabled:opacity-40"
       >
-        {isPending ? (
-          <Spinner className="size-4" />
-        ) : (
-          <Play size={13} className="fill-current" />
-        )}
+        {isPending ? null : <Play size={13} className="fill-current" />}
         {isPending ? "Submitting…" : "Execute on Mesh"}
       </Button>
     </form>
