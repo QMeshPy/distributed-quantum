@@ -22,19 +22,19 @@ export function RailItem({ icon: Icon, label, href, isActive }: RailItemProps) {
         className={cn(
           "relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
           isActive
-            ? "bg-accent/20 text-accent ring-1 ring-accent/40 "
-            : "text-faint hover:bg-surface-muted hover:text-foreground"
+            ? "bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40 shadow-[0_0_12px_2px_rgba(99,102,241,0.3)]"
+            : "text-white/30 hover:bg-white/8 hover:text-white/70"
         )}
       >
         {isActive && (
-          <span className="absolute inset-0 rounded-xl bg-accent/10" />
+          <span className="absolute inset-0 rounded-xl bg-indigo-500/10 animate-glow" />
         )}
         <Icon size={18} strokeWidth={isActive ? 2 : 1.5} className="relative z-10" />
       </span>
       <span
         className={cn(
-          "text-xs leading-tight transition-colors",
-          isActive ? "font-medium text-accent" : "font-medium text-faint group-hover:text-subtle"
+          "text-[9px] leading-tight transition-colors",
+          isActive ? "font-semibold text-indigo-400" : "font-medium text-white/25 group-hover:text-white/50"
         )}
       >
         {label}

@@ -17,7 +17,7 @@ export async function POST() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
-    // 409 = wallet already exists, treat as success and return current balance
+    // 409 = wallet already exists — treat as success and return current balance
     if (res.status === 409) {
       const balRes = await fetch(BACKEND_AGENTKIT.WALLET_BALANCE, { cache: "no-store" });
       const balData = await balRes.json();

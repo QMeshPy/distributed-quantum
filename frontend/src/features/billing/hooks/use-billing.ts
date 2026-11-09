@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "@/shared/lib/toast";
+import { toast } from "sonner";
 import { BILLING, ROUTES, UI } from "@/constants";
 import { authClient, useAuth } from "@/features/auth";
 

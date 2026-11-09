@@ -1,11 +1,7 @@
 "use client";
 
-import { Button } from "@/components/arc/button/button";
-
 import { useEffect, useRef, useState } from "react";
-import { Loader2, RotateCcw, Layers } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/arc/toggle-group/toggle-group";
-import { resolveColor } from "@/shared/lib/css-color";
+import { Loader2, RotateCcw, Maximize2, Layers } from "lucide-react";
 
 type RepStyle = "cartoon" | "surface" | "ball+stick";
 
@@ -47,7 +43,7 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
       }
 
       const stage = new NGL.Stage(containerRef.current, {
-        backgroundColor: resolveColor("--background"),
+        backgroundColor: "#080b12",
         quality: "medium",
         impostor: true,
         tooltip: false,
@@ -144,40 +140,43 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-background">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-white/6 bg-[#080b12]">
       {/* Header bar */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Layers size={12} className="text-info" />
-        <span className="text-xs font-medium text-faint">
+      <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
+        <Layers size={12} className="text-sky-400/60" />
+        <span className="text-[11px] font-medium uppercase tracking-wider text-white/25">
           3D Protein Structure
         </span>
-        <code className="ml-1 rounded bg-info/10 px-1.5 py-0.5 font-mono text-xs text-info">
+        <code className="ml-1 rounded bg-sky-400/10 px-1.5 py-0.5 font-mono text-[10px] text-sky-300/70">
           {pdbId.toUpperCase()}
         </code>
 
         {/* Rep toggles */}
         <div className="ml-auto flex items-center gap-1">
-          <ToggleGroup
-            label="Representation"
-            size="sm"
-            value={repStyle}
-            disabled={loading}
-            onValueChange={(v) => applyRep(v as typeof repStyle)}
-          >
-            {REP_LABELS.map(({ key, label }) => (
-              <ToggleGroupItem key={key} value={key}>
-                {label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <Button variant="ghost" size="sm"
+          {REP_LABELS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => applyRep(key)}
+              disabled={loading}
+              className={`rounded px-2 py-0.5 text-[10px] font-medium transition-all disabled:opacity-30 ${
+                repStyle === key
+                  ? "bg-sky-400/15 text-sky-300"
+                  : "text-white/25 hover:text-white/50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <button
             type="button"
             onClick={resetView}
             disabled={loading}
             title="Reset view"
-            className="ml-1">
+            className="ml-1 rounded p-1 text-white/20 transition-all hover:text-white/50 disabled:opacity-30"
+          >
             <RotateCcw size={11} />
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -186,9 +185,9 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
         <div ref={containerRef} className="h-full w-full" />
 
         {loading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80">
-            <Loader2 size={20} className="animate-spin text-info" />
-            <p className="text-xs text-faint">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#080b12]/80">
+            <Loader2 size={20} className="animate-spin text-sky-400/50" />
+            <p className="text-[11px] text-white/25">
               Loading {pdbId.toUpperCase()} from RCSB…
             </p>
           </div>
@@ -196,15 +195,15 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
 
         {error && (
           <div className="absolute inset-0 flex items-center justify-center px-6">
-            <p className="text-center text-xs text-danger">{error}</p>
+            <p className="text-center text-[11px] text-red-400/70">{error}</p>
           </div>
         )}
       </div>
 
       {/* Footer hint */}
       {!loading && !error && (
-        <div className="border-t border-border px-3 py-1.5">
-          <p className="text-xs text-faint">
+        <div className="border-t border-white/5 px-3 py-1.5">
+          <p className="text-[10px] text-white/15">
             Drag to rotate · Scroll to zoom · Right-drag to translate ·
             Ligand shown as ball+stick · Binding pocket surface (electrostatic)
           </p>

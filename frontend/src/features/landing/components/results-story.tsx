@@ -141,6 +141,15 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
         const r = 0.35 + s0.depth * 0.9;
         ctx.fillRect(x * W - r, y * H - r, r * 2, r * 2);
       }
+      // A soft milky band across the stage.
+      const band = ctx.createLinearGradient(0, H * 0.2, W, H * 0.85);
+      band.addColorStop(0, "transparent");
+      band.addColorStop(0.5, "rgba(170, 185, 220, 0.045)");
+      band.addColorStop(1, "transparent");
+      ctx.globalAlpha = sky;
+      ctx.fillStyle = band;
+      ctx.fillRect(0, 0, W, H);
+
       // Titles: each fades in, then out once its act gets going (DOM, driven from here).
       const tOp = [
         window4(f, -1, 0, K.meshTitle[1], K.meshTitle[1] + 0.04),
@@ -190,7 +199,18 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
             const dx = point[0] - p0[0];
             const p1: Pt = [p0[0] + dx * 0.5, mix(p0[1], groupMid, 0.35)];
             const p2: Pt = [p0[0] + dx * 0.58, point[1]];
-            ctx.strokeStyle = tinted ? accents[4] : muted;
+            const grad = ctx.createLinearGradient(p0[0], 0, point[0], 0);
+            if (tinted) {
+              grad.addColorStop(0, faint);
+              grad.addColorStop(0.45, accents[1]);
+              grad.addColorStop(0.78, accents[4]);
+              grad.addColorStop(1, ink);
+            } else {
+              grad.addColorStop(0, faint);
+              grad.addColorStop(0.55, muted);
+              grad.addColorStop(1, ink);
+            }
+            ctx.strokeStyle = grad;
             ctx.lineWidth = 0.7;
             ctx.globalAlpha = strandsAlpha * 0.6;
             ctx.beginPath();
@@ -211,9 +231,12 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
               const [gx, gy] = bezier(p0, p1, p2, point, u);
               // Only some strands carry a glint at any moment, as in the reference.
               if (hash(g * 13 + k, Math.floor(t * 0.4)) < 0.55) continue;
+              const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, 6);
+              glow.addColorStop(0, ink);
+              glow.addColorStop(1, "transparent");
               ctx.globalAlpha = strandsAlpha * 0.6 * Math.sin(u * Math.PI);
-              ctx.fillStyle = ink;
-              ctx.fillRect(gx - 1.5, gy - 1.5, 3, 3);
+              ctx.fillStyle = glow;
+              ctx.fillRect(gx - 6, gy - 6, 12, 12);
             }
           }
           // Source label above its column.
@@ -284,6 +307,14 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
           let a = field * (0.35 + 0.65 * twinkle);
           if (rows > 0.5) a = gap ? 0 : 0.8 * (1 - collapse);
           if (a < 0.02) continue;
+          if (bright) {
+            const glow = ctx.createRadialGradient(x, y, 0, x, y, 7);
+            glow.addColorStop(0, accents[p.c]);
+            glow.addColorStop(1, "transparent");
+            ctx.globalAlpha = a * 0.5;
+            ctx.fillStyle = glow;
+            ctx.fillRect(x - 7, y - 7, 14, 14);
+          }
           ctx.globalAlpha = a;
           ctx.fillStyle = bright ? ink : accents[p.c];
           const size = rows > 0.5 ? (narrow ? 1.6 : 2) : bright ? 2.4 : 1 + p.h3 * 1.2;
@@ -335,9 +366,23 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
           const end = 20 + 40 * curve;
           const gx = ax(end);
           const gy = ay(speedup(end));
+          // Soft glow around the climb.
+          const halo = ctx.createRadialGradient(gx, gy, 0, gx, gy, W * 0.22);
+          halo.addColorStop(0, "rgba(160, 190, 230, 0.10)");
+          halo.addColorStop(1, "transparent");
+          ctx.globalAlpha = chartAlpha * curve;
+          ctx.fillStyle = halo;
+          ctx.fillRect(gx - W * 0.22, gy - W * 0.22, W * 0.44, W * 0.44);
+          // The curve: rose → ice → white, glowing.
+          const grad = ctx.createLinearGradient(ax(20), 0, ax(60), 0);
+          grad.addColorStop(0, accents[3]);
+          grad.addColorStop(0.55, accents[4]);
+          grad.addColorStop(1, ink);
           ctx.globalAlpha = chartAlpha;
-          ctx.strokeStyle = accents[4];
+          ctx.strokeStyle = grad;
           ctx.lineWidth = 2;
+          ctx.shadowColor = accents[4];
+          ctx.shadowBlur = 12;
           ctx.beginPath();
           for (let a = 20; a <= end; a += 0.4) {
             const x = ax(a);
@@ -346,6 +391,7 @@ export function ResultsStory({ story, paperHref }: { story: Story; paperHref: st
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
+          ctx.shadowBlur = 0;
           ctx.fillStyle = ink;
           ctx.beginPath();
           ctx.roundRect(gx - 3.5, gy - 3.5, 7, 7, 1.5);

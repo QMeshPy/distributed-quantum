@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/arc/button/button";
-import { Share2, XCircle } from "lucide-react";
-import { toast } from "@/shared/lib/toast";
-import { Tooltip } from "@/components/arc/tooltip/tooltip";
+import { Share2, Loader2, XCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useIpfsUpload } from "../hooks/use-ipfs-upload";
 import { getLocalItems } from "../lib/local-index";
 import { PinButton } from "@/features/vault-pinning/components/pin-button";
@@ -53,24 +58,45 @@ export function ShareToVaultButtonInner({ data, name, type }: ShareToVaultButton
   const isNotReady = !ready && !uploading;
 
   const btn = (
-    <Button
-      size="sm"
-      variant={isNotReady ? "danger" : "secondary"}
+    <button
       onClick={handleShare}
       disabled={uploading}
-      loading={uploading}
+      className={cn(
+        "group relative inline-flex cursor-pointer items-center self-center gap-1.5 overflow-hidden rounded-md",
+        "border px-3 py-1.5",
+        "text-[12px] font-medium transition-all duration-200",
+        isNotReady
+          ? "border-rose-500/25 bg-rose-500/8 text-rose-400 hover:border-rose-500/50 hover:bg-rose-500/15 hover:text-rose-300"
+          : "border-cyan-500/25 bg-cyan-500/8 text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/15 hover:text-cyan-300",
+        uploading && "cursor-not-allowed opacity-60",
+      )}
     >
-      {uploading ? null : <Share2 className="h-3 w-3 shrink-0" />}
+      <span
+        className={cn(
+          "pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent to-transparent transition-transform duration-700 group-hover:translate-x-full",
+          isNotReady ? "via-rose-400/12" : "via-cyan-400/12",
+        )}
+      />
+      {uploading ? (
+        <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+      ) : (
+        <Share2 className="h-3 w-3 shrink-0 animate-pulse" />
+      )}
       <span>{uploading ? "Sharing..." : "Share to VAULT"}</span>
       {isNotReady && <XCircle className="h-3 w-3 shrink-0" />}
-    </Button>
+    </button>
   );
 
   if (isNotReady) {
     return (
-      <Tooltip side="top" content={heliaStatus}>
-        {btn}
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>{btn}</TooltipTrigger>
+          <TooltipContent side="top" className="max-w-56 text-center text-xs">
+            {heliaStatus}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 

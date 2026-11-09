@@ -1,8 +1,15 @@
 "use client";
-import { SortableDataTable } from "@/components/arc/sortable-data-table/sortable-data-table";
-import Link from "next/link";
-import { Badge } from "@/components/arc/badge/badge";
-import { legacyBadge } from "@/lib/legacy-badge";
+import { useRouter } from "next/navigation";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { ROUTES } from "@/constants";
 import type { RiskJobSummary } from "../types";
 
@@ -21,47 +28,51 @@ function statusVariant(
 }
 
 export function RiskHistoryTable({ jobs, className }: RiskHistoryTableProps) {
+  const router = useRouter();
+
   if (jobs.length === 0) {
     return (
-      <p className="text-sm text-subtle py-6 text-center">
+      <p className="text-sm text-muted-foreground py-6 text-center">
         No risk jobs yet.
       </p>
     );
   }
 
   return (
-    <div className={className}>
-      <SortableDataTable
-        caption="Job history"
-        rows={jobs.map((job) => ({ ...job }))}
-        rowKey="jobId"
-        columns={[
-          {
-            key: "jobId",
-            label: "Job ID",
-            sortable: true,
-            render: (_, job) => (
-              <Link href={ROUTES.riskDetail(job.jobId as string)} className="font-mono text-xs hover:underline">
-                {job.jobId as string}
-              </Link>
-            ),
-          },
-          { key: "riskModel", label: "Model", sortable: true },
-          { key: "portfolioSize", label: "Portfolio Size", sortable: true, numeric: true },
-          {
-            key: "status",
-            label: "Status",
-            sortable: true,
-            render: (_, job) => <Badge {...legacyBadge(statusVariant(job.status as string))}>{job.status as string}</Badge>,
-          },
-          {
-            key: "createdAt",
-            label: "Created",
-            sortable: true,
-            render: (_, job) => new Date(job.createdAt as string).toLocaleString(),
-          },
-        ]}
-      />
+    <div className="relative w-full overflow-x-auto">
+      <Table className={cn(className)}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Job ID</TableHead>
+            <TableHead>Model</TableHead>
+            <TableHead>Portfolio Size</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {jobs.map((job) => (
+            <TableRow
+              key={job.jobId}
+              onClick={() => router.push(ROUTES.riskDetail(job.jobId))}
+              className="group relative cursor-pointer"
+            >
+              <TableCell className="font-mono text-xs">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-rose-500/10 via-rose-600/5 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                {job.jobId}
+              </TableCell>
+              <TableCell>{job.riskModel}</TableCell>
+              <TableCell className="tabular-nums">{job.portfolioSize}</TableCell>
+              <TableCell>
+                <Badge variant={statusVariant(job.status)}>{job.status}</Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {new Date(job.createdAt).toLocaleString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -17,10 +17,10 @@ export function FieldList({ fields, className }: FieldListProps) {
       {fields.map(({ key, label, value }) => (
         <div
           key={key}
-          className="flex items-start justify-between gap-4 border-b border-border py-2.5 last:border-0 last:pb-0"
+          className="flex items-start justify-between gap-4 border-b border-white/4 py-2.5 last:border-0 last:pb-0"
         >
-          <span className="shrink-0 text-xs capitalize text-faint">{label}</span>
-          <span className="text-right text-sm tabular-nums text-foreground break-all">{value}</span>
+          <span className="shrink-0 text-[11px] capitalize text-white/35">{label}</span>
+          <span className="text-right text-sm tabular-nums text-white/70 break-all">{value}</span>
         </div>
       ))}
     </div>

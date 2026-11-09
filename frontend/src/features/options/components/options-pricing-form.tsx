@@ -1,9 +1,15 @@
 "use client";
-import { Button } from "@/components/arc/button/button";
-import { Input } from "@/components/arc/input/input";
-import { Checkbox } from "@/components/arc/checkbox/checkbox";
-import { Select } from "@/components/arc/select/select";
-import { Panel, PanelContent, PanelHeader } from "@/shared/components/panel/panel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useOptionsPricingForm } from "../hooks/use-options-pricing-form";
 import type { OptionType } from "../types";
@@ -36,26 +42,35 @@ export function OptionsPricingForm({ className }: OptionsPricingFormProps) {
   } = useOptionsPricingForm();
 
   return (
-    <Panel className={cn("border-border-subtle bg-surface-muted", className)}>
-      <PanelHeader className="pb-4">
+    <Card className={cn("border-hairline bg-surface-soft", className)}>
+      <CardHeader className="pb-4">
         <h2 className="text-base font-medium text-foreground">
           Pricing Parameters
         </h2>
-        <p className="text-sm text-subtle">
+        <p className="text-sm text-muted-foreground">
           Configure the option pricing model parameters.
         </p>
-      </PanelHeader>
-      <PanelContent>
+      </CardHeader>
+      <CardContent>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
+            <Label htmlFor="option_type">Option Type</Label>
             <Select
-              label="Option Type"
-              placeholder="Select option type"
-              options={(Object.keys(OPTION_TYPE_LABELS) as OptionType[]).map((t) => ({ value: t, label: OPTION_TYPE_LABELS[t] }))}
               onValueChange={(value) => selectOption(value as OptionType)}
-            />
+            >
+              <SelectTrigger id="option_type">
+                <SelectValue placeholder="Select option type" />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(OPTION_TYPE_LABELS) as OptionType[]).map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {OPTION_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.option_type && (
-              <p className="text-xs text-danger">
+              <p className="text-xs text-destructive">
                 {errors.option_type.message}
               </p>
             )}
@@ -63,13 +78,16 @@ export function OptionsPricingForm({ className }: OptionsPricingFormProps) {
 
           {supportsFeed ? (
             <div className="space-y-1.5">
-              <Checkbox
-                label="Use live ETH/USD feed (Sepolia)"
-                checked={liveFeed}
-                onCheckedChange={(v) => setLiveFeed(v === true)}
-              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={liveFeed}
+                  onChange={(event) => setLiveFeed(event.target.checked)}
+                />
+                Use live ETH/USD feed (Sepolia)
+              </label>
               {liveFeed ? (
-                <p className="text-xs text-subtle">
+                <p className="text-xs text-muted-foreground">
                   Enter the expected USD price below. The run rejects stale
                   prices and deviations above 20%.
                 </p>
@@ -109,7 +127,8 @@ export function OptionsPricingForm({ className }: OptionsPricingFormProps) {
               ] as const
             ).map(({ name, label, placeholder }) => (
               <div key={name} className="space-y-1.5">
-                <Input label={label}
+                <Label htmlFor={name}>{label}</Label>
+                <Input
                   id={name}
                   type="number"
                   step="any"
@@ -117,7 +136,7 @@ export function OptionsPricingForm({ className }: OptionsPricingFormProps) {
                   {...register(name, { valueAsNumber: true })}
                 />
                 {errors[name] && (
-                  <p className="text-xs text-danger">
+                  <p className="text-xs text-destructive">
                     {errors[name]?.message}
                   </p>
                 )}
@@ -129,7 +148,7 @@ export function OptionsPricingForm({ className }: OptionsPricingFormProps) {
             {isSubmitting ? "Submitting…" : "Price Option"}
           </Button>
         </form>
-      </PanelContent>
-    </Panel>
+      </CardContent>
+    </Card>
   );
 }

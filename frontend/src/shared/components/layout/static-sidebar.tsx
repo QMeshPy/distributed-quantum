@@ -4,6 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavGroupConfig } from "@/constants";
 import { cn } from "@/lib/utils";
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 import { NavUser } from "./nav-user";
 
 interface StaticSidebarProps {
@@ -16,35 +23,35 @@ export function StaticSidebar({ groups }: StaticSidebarProps) {
   return (
     <>
       {groups.map((group) => (
-        <div key={group.heading} className="flex w-full min-w-0 flex-col p-2">
-          <div className="px-3 py-1.5 text-xs text-faint">
+        <SidebarGroup key={group.heading}>
+          <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-widest">
             {group.heading}
-          </div>
-          <div>
-            <ul className="flex flex-col">
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
               {group.links.map((link) => {
                 const isActive = pathname === link.href;
                 return (
-                  <li key={link.href}>
+                  <SidebarMenuItem key={link.href}>
                     <Link
                       href={link.href}
                       className={cn(
                         "flex h-8 items-center rounded-lg px-3 text-sm transition-all duration-150",
                         isActive
-                          ? "bg-accent-subtle font-medium text-foreground"
-                          : "text-subtle hover:bg-surface-muted hover:text-foreground"
+                          ? "bg-indigo-500/15 font-medium text-indigo-300 ring-1 ring-indigo-500/25"
+                          : "text-white/40 hover:bg-white/6 hover:text-white/80"
                       )}
                     >
                       {link.label}
                     </Link>
-                  </li>
+                  </SidebarMenuItem>
                 );
               })}
-            </ul>
-          </div>
-        </div>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       ))}
-      <div className="mt-auto p-3" style={{ borderTop: "1px solid color-mix(in oklab, var(--foreground) 6%, transparent)" }}>
+      <div className="mt-auto p-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <NavUser />
       </div>
     </>

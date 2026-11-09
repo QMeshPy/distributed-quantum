@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "@/shared/lib/toast";
+import { toast } from "sonner";
 import {
   FlaskConical,
   Dna,
@@ -21,11 +21,7 @@ import {
   Activity,
   SlidersHorizontal,
 } from "lucide-react";
-import { RadioCards } from "@/components/arc/radio-cards/radio-cards";
-import { Input } from "@/components/arc/input/input";
-import { Textarea } from "@/components/arc/textarea/textarea";
-import { ChipGroup } from "@/components/arc/chip-group/chip-group";
-import { Button } from "@/components/arc/button/button";
+import { Button } from "@/components/ui/button";
 import { useSubmitPharma } from "@/features/pharma";
 import { ROUTES } from "@/constants";
 import type { PharmaMode } from "@/features/pharma";
@@ -52,63 +48,63 @@ type TemplateMeta = {
 const TEMPLATE_META: Record<string, TemplateMeta> = {
   "covid-main-protease": {
     icon: Zap,
-    accent: "text-info",
-    accentBg: "bg-info/10 ring-info/25",
-    previewBg: "bg-info/30",
-    previewText: "text-info group-hover:text-info",
-    tagBg: "bg-info/10",
-    tagText: "text-info",
-    borderActive: "border-info/30",
+    accent: "text-sky-300",
+    accentBg: "bg-sky-400/10 ring-sky-400/25",
+    previewBg: "bg-sky-950/30",
+    previewText: "text-sky-300/60 group-hover:text-sky-300/80",
+    tagBg: "bg-sky-400/10",
+    tagText: "text-sky-300/60",
+    borderActive: "border-sky-400/30",
   },
   "egfr-inhibitor": {
     icon: Activity,
-    accent: "text-accent",
-    accentBg: "bg-accent/10 ring-accent/25",
-    previewBg: "bg-accent/30",
-    previewText: "text-accent group-hover:text-accent",
-    tagBg: "bg-accent/10",
-    tagText: "text-accent",
-    borderActive: "border-accent/30",
+    accent: "text-violet-300",
+    accentBg: "bg-violet-400/10 ring-violet-400/25",
+    previewBg: "bg-violet-950/30",
+    previewText: "text-violet-300/60 group-hover:text-violet-300/80",
+    tagBg: "bg-violet-400/10",
+    tagText: "text-violet-300/60",
+    borderActive: "border-violet-400/30",
   },
   "hsp90-discovery": {
     icon: Atom,
-    accent: "text-success",
-    accentBg: "bg-success/10 ring-success/25",
-    previewBg: "bg-success/30",
-    previewText: "text-success group-hover:text-success",
-    tagBg: "bg-success/10",
-    tagText: "text-success",
-    borderActive: "border-success/30",
+    accent: "text-emerald-300",
+    accentBg: "bg-emerald-400/10 ring-emerald-400/25",
+    previewBg: "bg-emerald-950/30",
+    previewText: "text-emerald-300/60 group-hover:text-emerald-300/80",
+    tagBg: "bg-emerald-400/10",
+    tagText: "text-emerald-300/60",
+    borderActive: "border-emerald-400/30",
   },
   "ache-alzheimer": {
     icon: Brain,
-    accent: "text-warning",
-    accentBg: "bg-warning/10 ring-warning/25",
-    previewBg: "bg-warning/30",
-    previewText: "text-warning group-hover:text-warning",
-    tagBg: "bg-warning/10",
-    tagText: "text-warning",
-    borderActive: "border-warning/30",
+    accent: "text-amber-300",
+    accentBg: "bg-amber-400/10 ring-amber-400/25",
+    previewBg: "bg-amber-950/30",
+    previewText: "text-amber-300/60 group-hover:text-amber-300/80",
+    tagBg: "bg-amber-400/10",
+    tagText: "text-amber-300/60",
+    borderActive: "border-amber-400/30",
   },
   "tnf-alpha-discovery": {
     icon: Shield,
-    accent: "text-danger",
-    accentBg: "bg-danger/10 ring-danger/25",
-    previewBg: "bg-danger/30",
-    previewText: "text-danger group-hover:text-danger",
-    tagBg: "bg-danger/10",
-    tagText: "text-danger",
-    borderActive: "border-danger/30",
+    accent: "text-rose-300",
+    accentBg: "bg-rose-400/10 ring-rose-400/25",
+    previewBg: "bg-rose-950/30",
+    previewText: "text-rose-300/60 group-hover:text-rose-300/80",
+    tagBg: "bg-rose-400/10",
+    tagText: "text-rose-300/60",
+    borderActive: "border-rose-400/30",
   },
   "jak2-hematology": {
     icon: Dna,
-    accent: "text-accent",
-    accentBg: "bg-accent/10 ring-accent/25",
-    previewBg: "bg-accent/30",
-    previewText: "text-accent group-hover:text-accent",
-    tagBg: "bg-accent/10",
-    tagText: "text-accent",
-    borderActive: "border-accent/30",
+    accent: "text-fuchsia-300",
+    accentBg: "bg-fuchsia-400/10 ring-fuchsia-400/25",
+    previewBg: "bg-fuchsia-950/30",
+    previewText: "text-fuchsia-300/60 group-hover:text-fuchsia-300/80",
+    tagBg: "bg-fuchsia-400/10",
+    tagText: "text-fuchsia-300/60",
+    borderActive: "border-fuchsia-400/30",
   },
 };
 
@@ -127,7 +123,7 @@ const schema = z
       .string()
       .min(3, "PDB ID must be at least 3 characters")
       .max(10, "PDB ID too long")
-      .regex(/^[A-Z0-9]+$/, "PDB ID must be alphanumeric"),
+      .regex(/^[A-Z0-9]+$/, "PDB ID must be uppercase alphanumeric"),
     initial_ligand_smiles: z.string().optional(),
     max_iterations: z.number().int().min(1).max(20),
     candidate_count: z.number().int().min(10).max(500),
@@ -217,18 +213,33 @@ export function PharmaSubmitForm() {
   return (
     <div className="flex min-h-full flex-col overflow-y-auto">
       {/* ── Marketplace hero ──────────────────────────────────────────────── */}
-      <header className="relative border-b border-border px-6 pb-6 pt-6">
+      <header className="relative border-b border-white/6 px-6 pb-6 pt-6">
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute -left-20 -top-20 h-[300px] w-[400px] rounded-full opacity-[0.07] blur-[100px]"
+            style={{
+              background:
+                "conic-gradient(from 180deg, #34d399, #6ee7b7, #a7f3d0, #34d399)",
+            }}
+          />
+          <div
+            className="absolute -right-10 -top-10 h-[200px] w-[300px] rounded-full opacity-[0.05] blur-[80px]"
+            style={{
+              background: "radial-gradient(circle, #60a5fa 0%, transparent 70%)",
+            }}
+          />
+        </div>
         <div className="relative">
-          <div className="flex items-center gap-2 text-faint">
+          <div className="flex items-center gap-2 text-white/30">
             <Microscope size={14} />
-            <span className="text-xs font-medium">
+            <span className="text-[11px] font-medium uppercase tracking-wider">
               Quantum Drug Discovery Marketplace
             </span>
           </div>
-          <h1 className="mt-2 text-2xl text-foreground">
+          <h1 className="mt-2 text-[28px] font-light tracking-tight text-white/90">
             Browse &amp; Submit
           </h1>
-          <p className="mt-1 max-w-lg text-sm leading-relaxed text-faint">
+          <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-white/35">
             Pick a curated target–ligand system or configure your own. One click
             to deploy across the distributed quantum-accelerated docking mesh.
           </p>
@@ -238,17 +249,35 @@ export function PharmaSubmitForm() {
       {/* ── Two-panel layout ──────────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col gap-0 lg:flex-row">
         {/* ── Left: Browse panel ─────────────────────────────────────────── */}
-        <div className="flex flex-1 flex-col border-r border-border lg:max-w-[58%]">
+        <div className="flex flex-1 flex-col border-r border-white/5 lg:max-w-[58%]">
           {/* Filter tags */}
-          <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-            <Tag size={12} className="text-faint" aria-hidden="true" />
-            <ChipGroup
-              label="Filter by tag"
-              multiple={false}
-              options={ALL_TAGS.map((tag) => ({ value: tag, label: tag }))}
-              value={filterTag ? [filterTag] : []}
-              onValueChange={(v) => setFilterTag(v[0] ?? null)}
-            />
+          <div className="flex items-center gap-2 border-b border-white/5 px-5 py-3">
+            <Tag size={12} className="text-white/25" />
+            <button
+              type="button"
+              onClick={() => setFilterTag(null)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
+                filterTag === null
+                  ? "bg-white/12 text-white/80"
+                  : "text-white/35 hover:text-white/60"
+              }`}
+            >
+              All
+            </button>
+            {ALL_TAGS.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setFilterTag(tag === filterTag ? null : tag)}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
+                  filterTag === tag
+                    ? "bg-white/12 text-white/80"
+                    : "text-white/35 hover:text-white/60"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
           </div>
 
           {/* Template grid */}
@@ -269,24 +298,24 @@ export function PharmaSubmitForm() {
                     <div
                       className={`relative flex min-h-full flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
                         isActive
-                          ?`${meta.borderActive} bg-surface-muted`
-                          : "border-border bg-surface-muted hover:border-border hover:bg-surface-muted"
+                          ? `${meta.borderActive} bg-white/[0.07]`
+                          : "border-white/6 bg-white/[0.025] hover:border-white/12 hover:bg-white/[0.045]"
                       }`}
                     >
                       {/* Coloured preview band */}
                       <div
-                        className={`relative flex flex-col gap-1 border-b border-border px-4 py-3 ${meta.previewBg}`}
+                        className={`relative flex flex-col gap-1 border-b border-white/5 px-4 py-3 ${meta.previewBg}`}
                       >
-                        <div className={`font-mono text-xs leading-relaxed ${meta.previewText}`}>
+                        <div className={`font-mono text-[10px] leading-relaxed ${meta.previewText}`}>
                           <span className="opacity-50">TARGET</span>{" "}
-                          <span className="font-medium">{template.target_pdb_id}</span>
+                          <span className="font-semibold">{template.target_pdb_id}</span>
                         </div>
-                        <div className={`font-mono text-xs leading-relaxed ${meta.previewText} opacity-70`}>
+                        <div className={`font-mono text-[9px] leading-relaxed ${meta.previewText} opacity-70`}>
                           {template.target_name}
                         </div>
                         {template.initial_ligand_smiles && (
                           <div
-                            className={`mt-1 truncate font-mono text-xs ${meta.previewText} opacity-50`}
+                            className={`mt-1 truncate font-mono text-[9px] ${meta.previewText} opacity-50`}
                             title={template.initial_ligand_smiles}
                           >
                             {template.initial_ligand_smiles.slice(0, 44)}
@@ -295,7 +324,7 @@ export function PharmaSubmitForm() {
                         )}
                         {isActive && (
                           <div
-                            className={`absolute right-3 top-3 flex h-5 items-center rounded-full px-2 text-xs font-medium ${meta.tagBg} ${meta.tagText}`}
+                            className={`absolute right-3 top-3 flex h-5 items-center rounded-full px-2 text-[9px] font-semibold uppercase tracking-wide ${meta.tagBg} ${meta.tagText}`}
                           >
                             Selected
                           </div>
@@ -311,22 +340,22 @@ export function PharmaSubmitForm() {
                             <Icon size={14} className={meta.accent} />
                           </div>
                           <div>
-                            <h3 className="text-sm font-medium text-foreground group-hover:text-foreground">
+                            <h3 className="text-[13px] font-semibold text-white/80 group-hover:text-white/95">
                               {template.title}
                             </h3>
-                            <p className={`text-xs ${meta.accent} opacity-70`}>
+                            <p className={`text-[10px] ${meta.accent} opacity-70`}>
                               {template.indication}
                             </p>
                           </div>
                         </div>
-                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-faint">
+                        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-white/30">
                           {template.description}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {template.tags.map((tag) => (
                             <span
                               key={tag}
-                              className={`rounded-md px-1.5 py-0.5 text-xs font-medium ${meta.tagBg} ${meta.tagText}`}
+                              className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${meta.tagBg} ${meta.tagText}`}
                             >
                               {tag}
                             </span>
@@ -336,7 +365,7 @@ export function PharmaSubmitForm() {
                           {template.highlights.map((h) => (
                             <div
                               key={h}
-                              className="flex items-center gap-1.5 text-xs text-faint"
+                              className="flex items-center gap-1.5 text-[10px] text-white/25"
                             >
                               <ArrowRight
                                 size={8}
@@ -356,16 +385,16 @@ export function PharmaSubmitForm() {
         </div>
 
         {/* ── Right: Config panel ─────────────────────────────────────────── */}
-        <div className="flex flex-col border-t border-border lg:flex-1 lg:border-t-0">
-          <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-            <SlidersHorizontal size={12} className="text-faint" />
-            <span className="text-xs font-medium text-faint">
+        <div className="flex flex-col border-t border-white/5 lg:flex-1 lg:border-t-0">
+          <div className="flex items-center gap-2 border-b border-white/5 px-5 py-3">
+            <SlidersHorizontal size={12} className="text-white/30" />
+            <span className="text-[11px] font-medium uppercase tracking-wider text-white/35">
               Pipeline Configuration
             </span>
             {activeTemplateId && (
-              <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs text-faint">
+              <span className="ml-auto rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-white/35">
                 from{" "}
-                <span className="text-subtle">
+                <span className="text-white/55">
                   {getPharmaTemplateById(activeTemplateId)?.title}
                 </span>
               </span>
@@ -376,24 +405,48 @@ export function PharmaSubmitForm() {
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
               {/* Mode selector */}
               <div>
-                <p className="mb-2 text-xs font-medium text-faint">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-white/30">
                   Pipeline Mode
                 </p>
-                <RadioCards
-                  aria-label="Pipeline mode"
-                  value={mode}
-                  onValueChange={(m) => setValue("mode", m as "optimization" | "discovery")}
-                  options={[
-                    { value: "optimization", label: "Optimization", description: "Refine a known ligand", icon: <Dna size={16} /> },
-                    { value: "discovery", label: "Discovery", description: "Generate novel candidates", icon: <Search size={16} /> },
-                  ]}
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  {(["optimization", "discovery"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setValue("mode", m)}
+                      className={[
+                        "flex items-center gap-3 rounded-xl border p-4 text-left transition-all",
+                        mode === m
+                          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                          : "border-white/6 bg-white/[0.025] text-white/40 hover:border-white/12 hover:bg-white/[0.045]",
+                      ].join(" ")}
+                    >
+                      {m === "optimization" ? (
+                        <Dna size={16} />
+                      ) : (
+                        <Search size={16} />
+                      )}
+                      <div>
+                        <p className="text-[13px] font-medium capitalize">
+                          {m}
+                        </p>
+                        <p className="mt-0.5 text-[11px] opacity-60">
+                          {m === "optimization"
+                            ? "Refine a known ligand"
+                            : "Generate novel candidates"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* PDB ID */}
               <div>
-                <Input
-                  label="Target PDB ID"
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/30">
+                  Target PDB ID
+                </label>
+                <input
                   {...register("target_pdb_id")}
                   onChange={(e) =>
                     setValue("target_pdb_id", e.target.value.toUpperCase(), {
@@ -401,9 +454,10 @@ export function PharmaSubmitForm() {
                     })
                   }
                   placeholder="e.g. 6LU7"
+                  className="w-full rounded-lg border border-white/6 bg-white/[0.04] px-4 py-2.5 text-sm text-white/80 placeholder:text-white/20 focus:border-emerald-500/50 focus:outline-none transition-colors"
                 />
                 {errors.target_pdb_id && (
-                  <p className="mt-1 text-xs text-danger">
+                  <p className="mt-1 text-xs text-red-400">
                     {errors.target_pdb_id.message}
                   </p>
                 )}
@@ -412,14 +466,18 @@ export function PharmaSubmitForm() {
               {/* Seed SMILES (optimization only) */}
               {mode === "optimization" && (
                 <div>
-                  <Textarea
-                    label="Seed Ligand SMILES (optional)"
+                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/30">
+                    Seed Ligand SMILES{" "}
+                    <span className="normal-case opacity-50">(optional)</span>
+                  </label>
+                  <textarea
                     {...register("initial_ligand_smiles")}
                     rows={3}
                     placeholder="CC(C)Cc1ccc(cc1)C(C)C(O)=O"
+                    className="w-full resize-none rounded-lg border border-white/6 bg-white/[0.04] px-4 py-2.5 font-mono text-[12px] text-white/80 placeholder:text-white/20 focus:border-emerald-500/50 focus:outline-none transition-colors"
                   />
                   {errors.initial_ligand_smiles && (
-                    <p className="mt-1 text-xs text-danger">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.initial_ligand_smiles.message}
                     </p>
                   )}
@@ -428,34 +486,40 @@ export function PharmaSubmitForm() {
 
               {/* Advanced parameters */}
               <div>
-                <p className="mb-2 text-xs font-medium text-faint">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-white/30">
                   Advanced Parameters
                 </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Input
-                      label="Max Iterations"
+                    <label className="mb-1.5 block text-[11px] text-white/25">
+                      Max Iterations
+                    </label>
+                    <input
                       type="number"
                       {...register("max_iterations", { valueAsNumber: true })}
                       min={1}
                       max={20}
+                      className="w-full rounded-lg border border-white/6 bg-white/[0.04] px-4 py-2.5 text-sm text-white/80 focus:border-emerald-500/50 focus:outline-none transition-colors"
                     />
                     {errors.max_iterations && (
-                      <p className="mt-1 text-xs text-danger">
+                      <p className="mt-1 text-xs text-red-400">
                         {errors.max_iterations.message}
                       </p>
                     )}
                   </div>
                   <div>
-                    <Input
-                      label="Candidate Count"
+                    <label className="mb-1.5 block text-[11px] text-white/25">
+                      Candidate Count
+                    </label>
+                    <input
                       type="number"
                       {...register("candidate_count", { valueAsNumber: true })}
                       min={10}
                       max={500}
+                      className="w-full rounded-lg border border-white/6 bg-white/[0.04] px-4 py-2.5 text-sm text-white/80 focus:border-emerald-500/50 focus:outline-none transition-colors"
                     />
                     {errors.candidate_count && (
-                      <p className="mt-1 text-xs text-danger">
+                      <p className="mt-1 text-xs text-red-400">
                         {errors.candidate_count.message}
                       </p>
                     )}
@@ -467,7 +531,7 @@ export function PharmaSubmitForm() {
               <Button
                 type="submit"
                 disabled={isPending}
-                className="mt-2 w-full bg-success text-accent-foreground hover:bg-success disabled:opacity-50"
+                className="mt-2 w-full bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
               >
                 {isPending ? (
                   <>

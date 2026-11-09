@@ -1,7 +1,7 @@
 "use client";
 
-import { Textarea } from "@/components/arc/textarea/textarea";
-import { Button } from "@/components/arc/button/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { useState } from "react";
 import { useSendMessage } from "../hooks/use-send-message";
@@ -36,10 +36,10 @@ export function ChatInput({ sessionId }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-border p-4">
+    <div className="border-t border-white/10 p-4">
       <div className="max-w-3xl mx-auto flex gap-2">
         <Textarea
-          label="Describe your experiment goal" placeholder="Describe your experiment goal..."
+          placeholder="Describe your experiment goal..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -51,13 +51,13 @@ export function ChatInput({ sessionId }: ChatInputProps) {
         <Button
           onClick={handleSend}
           disabled={!input.trim() || !sessionId || sendMessage.isPending}
-         
+          size="icon"
         >
           <Send className="h-4 w-4" />
         </Button>
       </div>
       {input.length > AGENT_LIMITS.MAX_MESSAGE_LENGTH * 0.9 && (
-        <div className="text-xs text-subtle text-center mt-2">
+        <div className="text-xs text-white/40 text-center mt-2">
           {input.length} / {AGENT_LIMITS.MAX_MESSAGE_LENGTH} characters
         </div>
       )}

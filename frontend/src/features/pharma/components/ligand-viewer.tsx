@@ -15,10 +15,10 @@ interface Props {
 const DARK_THEME_STYLE = `
   <style>
     rect, polygon { fill: transparent !important; }
-    path, line { stroke: color-mix(in oklab, var(--foreground) 80%, transparent) !important; fill: none !important; }
-    path[fill]:not([fill="none"]) { fill: color-mix(in oklab, var(--foreground) 80%, transparent) !important; }
-    ellipse, circle { stroke: color-mix(in oklab, var(--foreground) 80%, transparent) !important; }
-    text, tspan { fill: color-mix(in oklab, var(--foreground) 80%, transparent) !important; stroke: none !important; }
+    path, line { stroke: rgba(255,255,255,0.80) !important; fill: none !important; }
+    path[fill]:not([fill="none"]) { fill: rgba(255,255,255,0.80) !important; }
+    ellipse, circle { stroke: rgba(255,255,255,0.80) !important; }
+    text, tspan { fill: rgba(255,255,255,0.80) !important; stroke: none !important; }
   </style>
 `;
 
@@ -70,14 +70,14 @@ export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props
   }, [smiles, width, height]);
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-background">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Hexagon size={12} className="text-success" />
-        <span className="text-xs font-medium text-faint">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-white/6 bg-[#080b12]">
+      <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
+        <Hexagon size={12} className="text-emerald-400/60" />
+        <span className="text-[11px] font-medium uppercase tracking-wider text-white/25">
           Ligand Structure
         </span>
         {label && (
-          <span className="ml-1 rounded bg-success/10 px-1.5 py-0.5 text-xs text-success">
+          <span className="ml-1 rounded bg-emerald-400/10 px-1.5 py-0.5 text-[10px] text-emerald-300/60">
             {label}
           </span>
         )}
@@ -89,19 +89,19 @@ export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props
       >
         {loading && (
           <div className="flex flex-col items-center gap-2">
-            <Loader2 size={16} className="animate-spin text-success" />
-            <p className="text-xs text-faint">Rendering…</p>
+            <Loader2 size={16} className="animate-spin text-emerald-400/40" />
+            <p className="text-[10px] text-white/20">Rendering…</p>
           </div>
         )}
         {error && (
-          <p className="text-center text-xs text-danger">{error}</p>
+          <p className="text-center text-[11px] text-red-400/60">{error}</p>
         )}
         <div ref={containerRef} className={loading || error ? "hidden" : "block"} />
       </div>
 
       {!loading && !error && (
-        <div className="border-t border-border px-3 py-1.5">
-          <p className="truncate font-mono text-xs text-faint" title={smiles}>
+        <div className="border-t border-white/5 px-3 py-1.5">
+          <p className="truncate font-mono text-[9px] text-white/15" title={smiles}>
             {smiles}
           </p>
         </div>

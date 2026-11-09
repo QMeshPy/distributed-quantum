@@ -1,4 +1,3 @@
-import { DataTable } from "@/shared/components/detail/data-table";
 import type { FinanceResult } from "../types";
 
 function percent(weight: number) {
@@ -19,7 +18,7 @@ export function TokenizedMarketData({ result }: { result: FinanceResult }) {
   const weights = result.allocation_weights;
   const provenance = result.provenance;
   return (
-    <section className="space-y-3 rounded border border-border-subtle p-4">
+    <section className="space-y-3 rounded border border-hairline p-4">
       <h3 className="text-base font-medium">Tokenized-stock data</h3>
       {result.disclaimer ? (
         <p role="note" className="text-sm font-medium text-foreground">
@@ -27,19 +26,19 @@ export function TokenizedMarketData({ result }: { result: FinanceResult }) {
         </p>
       ) : null}
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-subtle">Source</dt>
+        <dt className="text-muted-foreground">Source</dt>
         <dd>{data.source}</dd>
-        <dt className="text-subtle">Read at</dt>
+        <dt className="text-muted-foreground">Read at</dt>
         <dd>
           {data.block_timestamp} (block {data.block_number})
         </dd>
-        <dt className="text-subtle">Prices</dt>
+        <dt className="text-muted-foreground">Prices</dt>
         <dd>
           {data.aligned_days} daily token prices, {data.first_date} to{" "}
           {data.last_date} (requested {data.requested_start} to{" "}
           {data.requested_end})
         </dd>
-        <dt className="text-subtle">Sampling</dt>
+        <dt className="text-muted-foreground">Sampling</dt>
         <dd>{data.sampling}</dd>
       </dl>
       {weights ? (
@@ -49,31 +48,56 @@ export function TokenizedMarketData({ result }: { result: FinanceResult }) {
               <h4 className="text-sm font-medium capitalize">
                 {method} allocation
               </h4>
-              <DataTable
-                rows={weights[method]}
-                getRowKey={(row) => row.symbol}
-                columns={[
-                  { key: "symbol", header: "Asset" },
-                  { key: "weight", header: "Weight", align: "right", render: (row) => percent(row.weight) },
-                ]}
-              />
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Weight</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weights[method].map((row) => (
+                    <tr key={row.symbol}>
+                      <td>{row.symbol}</td>
+                      <td>{percent(row.weight)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ))}
         </div>
       ) : null}
-      <DataTable
-        rows={data.assets}
-        getRowKey={(asset) => asset.symbol}
-        columns={[
-          { key: "symbol", header: "Asset" },
-          { key: "token_address", header: "Token", render: (asset) => <Address value={asset.token_address} /> },
-          { key: "feed_address", header: "Chainlink feed", render: (asset) => <Address value={asset.feed_address} /> },
-          { key: "rounds_read", header: "Rounds read", align: "right" },
-          { key: "rounds", header: "Round IDs", render: (asset) => <span className="break-all font-mono">{asset.first_round_id} to {asset.last_round_id}</span> },
-        ]}
-      />
+      <table className="w-full border-separate border-spacing-x-3 text-left text-xs">
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Token</th>
+            <th>Chainlink feed</th>
+            <th>Rounds read</th>
+            <th>Round IDs</th>
+          </tr>
+        </thead>
+        <tbody className="text-muted-foreground">
+          {data.assets.map((asset) => (
+            <tr key={asset.symbol}>
+              <td className="text-foreground">{asset.symbol}</td>
+              <td>
+                <Address value={asset.token_address} />
+              </td>
+              <td>
+                <Address value={asset.feed_address} />
+              </td>
+              <td>{asset.rounds_read}</td>
+              <td className="break-all font-mono">
+                {asset.first_round_id} to {asset.last_round_id}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {provenance ? (
-        <div className="space-y-1 text-xs text-subtle">
+        <div className="space-y-1 text-xs text-muted-foreground">
           <p>
             Every daily price is recorded with its Chainlink round (
             {provenance.bundle.oracle_refs.length} observations).

@@ -45,12 +45,12 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-3 rounded-lg border border-border bg-surface p-4",
+        "flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-4",
         className,
       )}
     >
-      <p className="text-xs font-medium text-subtle">
-        Qubit {qubitState?.qubitIndex ?? 0}, Bloch Sphere
+      <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+        Qubit {qubitState?.qubitIndex ?? 0} — Bloch Sphere
       </p>
 
       <svg
@@ -66,7 +66,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           cy={CY}
           r={SPHERE_R}
           fill="none"
-          stroke="var(--border)"
+          stroke="hsl(var(--border))"
           strokeWidth="1.5"
         />
         {/* Equator ellipse */}
@@ -76,7 +76,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           rx={SPHERE_R}
           ry={SPHERE_R * 0.25}
           fill="none"
-          stroke="var(--text-secondary)"
+          stroke="hsl(var(--muted-foreground))"
           strokeWidth="1"
           strokeDasharray="4 3"
           opacity={0.5}
@@ -88,7 +88,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y1={CY - AXIS_LEN - 10}
           x2={CX}
           y2={CY + AXIS_LEN + 10}
-          stroke="var(--text-secondary)"
+          stroke="hsl(var(--muted-foreground))"
           strokeWidth="1"
           strokeDasharray="3 3"
           opacity={0.6}
@@ -99,7 +99,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y1={CY}
           x2={CX + AXIS_LEN + 10}
           y2={CY}
-          stroke="var(--text-secondary)"
+          stroke="hsl(var(--muted-foreground))"
           strokeWidth="1"
           strokeDasharray="3 3"
           opacity={0.6}
@@ -111,7 +111,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y={CY - AXIS_LEN - 14}
           textAnchor="middle"
           fontSize="11"
-          fill="var(--text-secondary)"
+          fill="hsl(var(--muted-foreground))"
         >
           |0⟩
         </text>
@@ -120,7 +120,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y={CY + AXIS_LEN + 22}
           textAnchor="middle"
           fontSize="11"
-          fill="var(--text-secondary)"
+          fill="hsl(var(--muted-foreground))"
         >
           |1⟩
         </text>
@@ -129,7 +129,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y={CY + 4}
           textAnchor="start"
           fontSize="11"
-          fill="var(--text-secondary)"
+          fill="hsl(var(--muted-foreground))"
         >
           X
         </text>
@@ -138,7 +138,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y={CY + 4}
           textAnchor="end"
           fontSize="11"
-          fill="var(--text-secondary)"
+          fill="hsl(var(--muted-foreground))"
         >
           Y
         </text>
@@ -149,7 +149,7 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           y1={CY}
           x2={vx}
           y2={vy}
-          stroke="var(--accent)"
+          stroke="hsl(var(--primary))"
           strokeWidth="2.5"
           strokeLinecap="round"
         />
@@ -158,29 +158,29 @@ export function BlochSphere({ qubitState, className }: BlochSphereProps) {
           cx={vx}
           cy={vy}
           r="5"
-          fill="var(--accent)"
+          fill="hsl(var(--primary))"
         />
       </svg>
 
       {/* Probability readout */}
       <div className="w-full space-y-1.5">
-        <div className="flex items-center justify-between text-xs text-subtle">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>|0⟩</span>
           <span>{(pZero * 100).toFixed(1)}%</span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-surface-muted overflow-hidden">
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-accent transition-all duration-300"
+            className="h-full rounded-full bg-primary transition-all duration-300"
             style={{ width: `${pZero * 100}%` }}
           />
         </div>
-        <div className="flex items-center justify-between text-xs text-subtle">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>|1⟩</span>
           <span>{(pOne * 100).toFixed(1)}%</span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-surface-muted overflow-hidden">
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-series-2 transition-all duration-300"
+            className="h-full rounded-full bg-[hsl(var(--chart-2))] transition-all duration-300"
             style={{ width: `${pOne * 100}%` }}
           />
         </div>

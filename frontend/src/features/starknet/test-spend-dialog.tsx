@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
-import { Input } from "@/components/arc/input/input";
-import { toast } from "@/shared/lib/toast";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { useStarknetWallet } from "./use-starknet-wallet";
 import { useNoteStarknetTx, useSpendStarknetSession, type StarknetSessionStatus } from "@/features/agentkit/hooks/use-agents";
 import { formatStrk } from "@/features/starknet/format-strk";
@@ -108,11 +115,18 @@ export function TestSpendDialog({
 
   return (
     <Dialog open={open && !walletPicker} onOpenChange={onOpenChange}>
-      <DialogContent title="Get STRK" description="Pulls STRK from the policy contract into your connected Ready wallet, up to this agent&apos;s per-call and daily budget.">
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Get STRK</DialogTitle>
+          <DialogDescription>
+            Pulls STRK from the policy contract into your connected Ready wallet, up to this agent&apos;s per-call and daily budget.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Input label="Amount (STRK)"
+            <Label htmlFor="amount">Amount (STRK)</Label>
+            <Input
               id="amount"
               type="number"
               value={amount}
@@ -125,7 +139,7 @@ export function TestSpendDialog({
           </div>
 
           {dailyCapHit && (
-            <div className="rounded-xl bg-warning/10 px-3.5 py-2.5 text-xs leading-relaxed text-warning ring-1 ring-warning/25">
+            <div className="rounded-xl bg-amber-500/10 px-3.5 py-2.5 text-xs leading-relaxed text-amber-200/90 ring-1 ring-amber-400/25">
               <p>
                 Daily budget reached{remainingLabel ? ` (${remainingLabel} remaining today)` : ""}.
               </p>
@@ -133,7 +147,7 @@ export function TestSpendDialog({
                 href={STARKNET_FAUCET_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1 inline-block font-medium text-warning underline underline-offset-2 hover:text-foreground"
+                className="mt-1 inline-block font-medium text-amber-100 underline underline-offset-2 hover:text-white"
               >
                 Open Starknet Sepolia Faucet
               </a>

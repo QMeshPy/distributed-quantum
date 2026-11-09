@@ -49,16 +49,16 @@ export function AutoBreadcrumbs() {
         return (
           <React.Fragment key={crumb.href}>
             {index > 0 && (
-              <ChevronRight className="h-3 w-3 text-faint" />
+              <ChevronRight className="h-3 w-3 text-white/20" />
             )}
             {isLast ? (
-              <span className={`text-sm font-medium text-foreground ${crumb.isMono ?"font-mono text-xs" : ""}`}>
+              <span className={`text-sm font-medium text-white/70 ${crumb.isMono ? "font-mono text-xs" : ""}`}>
                 {crumb.label}
               </span>
             ) : (
               <Link
                 href={crumb.href}
-                className={`text-sm text-faint transition-colors hover:text-subtle ${crumb.isMono ?"font-mono text-xs" : ""}`}
+                className={`text-sm text-white/30 transition-colors hover:text-white/60 ${crumb.isMono ? "font-mono text-xs" : ""}`}
               >
                 {crumb.label}
               </Link>

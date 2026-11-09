@@ -1,4 +1,4 @@
-// Lighthouse Storage, direct file upload, returns IPFS CID.
+// Lighthouse Storage — direct file upload, returns IPFS CID.
 // Unlike Pinata's pinByHash, Lighthouse uploads the content itself;
 // no separate pin step is needed.
 //

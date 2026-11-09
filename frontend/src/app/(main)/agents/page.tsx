@@ -4,11 +4,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bot, Star, DollarSign, MessageSquare, Settings, ArrowUpRight, Plus } from "lucide-react";
-import { Badge } from "@/components/arc/badge/badge";
-import { Button } from "@/components/arc/button/button";
-import { LinkButton } from "@/shared/components/link-button";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/arc/tabs/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { useAgents, useCreateAgent, type AgentItem } from "@/features/agentkit";
 import { OpenSessionDialog } from "@/features/starknet/open-session-dialog";
@@ -18,7 +17,7 @@ import { collapseDuplicatePersonalAgents, humanSpan, humanWhen, shortAddress } f
 import { WalletAddressCopy } from "@/features/agentkit/components/wallet-address-copy";
 import { useChatSessions, type ChatSession } from "@/features/agentkit/hooks/use-chat-sessions";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring, animate } from "motion/react";
-import { toast } from "@/shared/lib/toast";
+import { toast } from "sonner";
 import { AgentLlmProviderSelect } from "@/features/agentkit/components/agent-llm-provider-select";
 
 function asDecimal(value: unknown): string | null {
@@ -47,7 +46,7 @@ function readConfig(config: Record<string, unknown>) {
 }
 
 function usdc(value: string | null | undefined) {
-  return value ? `${value} USDC` : "-";
+  return value ? `${value} USDC` : "—";
 }
 
 function sessionsFor(agentId: string, sessions: ChatSession[], soleAgent: boolean) {
@@ -94,14 +93,14 @@ function StatCard({ label, value, decimals, prefix, suffix, icon, accentClass, d
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay, ease: "easeOut" }}
-      className="relative overflow-hidden rounded-2xl p-5 ring-1 ring-border"
-      style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+      className="relative overflow-hidden rounded-2xl p-5 ring-1 ring-white/10"
+      style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
     >
-      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-surface-muted ${accentClass}`}>
+      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/6 ${accentClass}`}>
         {icon}
       </div>
-      <p className="text-xs font-medium text-faint">{label}</p>
-      <p className="mt-1 text-2xl font-medium text-foreground">
+      <p className="text-[11px] font-medium uppercase tracking-widest text-white/30">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-white/90">
         <AnimatedCounter target={value} decimals={decimals} prefix={prefix} suffix={suffix} />
       </p>
     </motion.div>
@@ -128,6 +127,8 @@ function AgentCard({
   onTestSpend: (agentId: string) => void;
 }) {
   const config = readConfig(agent.config);
+  const created = humanWhen(agent.created_at);
+  const updated = humanWhen(agent.updated_at);
 
   return (
     <motion.div
@@ -137,32 +138,32 @@ function AgentCard({
       transition={{ duration: 0.4, delay: 0.05 * index, ease: "easeOut" }}
       whileHover={{ scale: 1.015 }}
       onClick={() => onSelect(agent.agent_id)}
-      className={`group relative cursor-pointer overflow-hidden rounded-2xl p-5 ring-1 transition-shadow duration-300 ${selected ?"ring-warning/40" : "ring-border"}`}
-      style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+      className={`group relative cursor-pointer overflow-hidden rounded-2xl p-5 ring-1 transition-shadow duration-300 hover:shadow-[0_0_32px_rgba(99,102,241,0.15)] ${selected ? "ring-amber-400/40" : "ring-white/10"}`}
+      style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-emerald-500/25 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-border">
-            <Bot size={20} className="text-foreground" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/25 to-transparent ring-1 ring-white/10">
+            <Bot size={20} className="text-white/80" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium leading-tight text-foreground">{agent.agent_name}</p>
-            <p className="mt-1 truncate text-xs text-subtle">
-              <span className="text-faint">Wallet:</span>{" "}
-              <span className="font-mono">{shortAddress(agent.wallet_address) || "-"}</span>
+            <p className="truncate text-sm font-semibold leading-tight text-white/90">{agent.agent_name}</p>
+            <p className="mt-1 truncate text-[11px] text-white/50">
+              <span className="text-white/35">Wallet:</span>{" "}
+              <span className="font-mono">{shortAddress(agent.wallet_address) || "—"}</span>
             </p>
-            <p className="mt-0.5 truncate text-xs text-faint">
-              <span className="text-faint">ID:</span>{" "}
+            <p className="mt-0.5 truncate text-[10px] text-white/35">
+              <span className="text-white/25">ID:</span>{" "}
               <span className="font-mono" title={agent.agent_id}>
                 {agent.agent_id.slice(0, 8)}...{agent.agent_id.slice(-4)}
               </span>
             </p>
           </div>
         </div>
-        <Badge outline className="shrink-0 border-success/30 text-xs text-success">
-          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-success" />
+        <Badge variant="outline" className="shrink-0 border-emerald-400/30 text-[10px] text-emerald-400">
+          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
           Active
         </Badge>
       </div>
@@ -172,7 +173,7 @@ function AgentCard({
           {config.interests.slice(0, 3).map((interest) => (
             <span
               key={interest}
-              className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-subtle ring-1 ring-border"
+              className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium text-white/50 ring-1 ring-white/8"
             >
               {interest}
             </span>
@@ -182,29 +183,34 @@ function AgentCard({
 
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
         <div>
-          <p className="text-xs text-faint">Sessions</p>
-          <p className="text-sm font-medium text-foreground">{sessionCount ?? "-"}</p>
+          <p className="text-[11px] text-white/30">Sessions</p>
+          <p className="text-sm font-semibold text-white/80">{sessionCount ?? "—"}</p>
         </div>
         <div>
-          <p className="text-xs text-faint">Messages</p>
-          <p className="text-sm font-medium text-foreground">{messageCount ?? "-"}</p>
+          <p className="text-[11px] text-white/30">Messages</p>
+          <p className="text-sm font-semibold text-white/80">{messageCount ?? "—"}</p>
         </div>
         <div>
-          <p className="text-xs text-faint">Spent</p>
-          <p className="text-sm font-medium text-foreground">{usdc(agent.total_spent)}</p>
+          <p className="text-[11px] text-white/30">Spent</p>
+          <p className="text-sm font-semibold text-white/80">{usdc(agent.total_spent)}</p>
         </div>
       </div>
 
       <div className="mt-4 flex gap-2">
-        <LinkButton href={`/agents/chat?agentId=${encodeURIComponent(agent.agent_id)}`} size="sm"
-          className="h-8 flex-1 bg-warning/15 text-warning ring-1 ring-warning/25 hover:bg-warning/25 hover:text-warning">
+        <Button
+          asChild
+          size="sm"
+          className="h-8 flex-1 bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/25 hover:text-amber-200"
+        >
+          <Link href={`/agents/chat?agentId=${encodeURIComponent(agent.agent_id)}`}>
             <MessageSquare size={13} className="mr-1.5" />
             Chat
-          </LinkButton>
+          </Link>
+        </Button>
         <Button
           size="sm"
           variant="ghost"
-          className="h-8 flex-1 text-subtle ring-1 ring-border hover:bg-surface-muted hover:text-foreground"
+          className="h-8 flex-1 text-white/40 ring-1 ring-white/10 hover:bg-white/6 hover:text-white/70"
           onClick={(event) => {
             event.stopPropagation();
             toast.info("Coming soon", { description: "Agent configuration is on the way." });
@@ -218,7 +224,7 @@ function AgentCard({
         <Button
           size="sm"
           variant="ghost"
-          className="mt-2 h-8 w-full text-accent ring-1 ring-accent/20 hover:bg-accent/10 hover:text-accent"
+          className="mt-2 h-8 w-full text-purple-200/70 ring-1 ring-purple-500/20 hover:bg-purple-500/10 hover:text-purple-200"
           onClick={(event) => {
             event.stopPropagation();
             onOpenSession(agent.agent_id);
@@ -243,29 +249,29 @@ function AgentCard({
 function SkeletonCard() {
   return (
     <div
-      className="rounded-2xl p-5 ring-1 ring-border"
-      style={{ background: "color-mix(in oklab, var(--foreground) 3%, transparent)" }}
+      className="rounded-2xl p-5 ring-1 ring-white/8"
+      style={{ background: "rgba(255,255,255,0.03)" }}
     >
       <div className="flex items-start gap-3">
-        <Skeleton lines={2} className="h-10 w-10" />
+        <Skeleton className="h-10 w-10 rounded-xl bg-white/6" />
         <div className="flex-1 space-y-1.5">
-          <Skeleton lines={1} className="h-3.5 w-3/4" />
-          <Skeleton lines={1} className="h-2.5 w-1/2" />
+          <Skeleton className="h-3.5 w-3/4 rounded bg-white/6" />
+          <Skeleton className="h-2.5 w-1/2 rounded bg-white/4" />
         </div>
       </div>
       <div className="mt-3 flex gap-1.5">
         {[1, 2].map((i) => (
-          <Skeleton lines={1} key={i} className="h-5 w-16" />
+          <Skeleton key={i} className="h-5 w-16 rounded-full bg-white/5" />
         ))}
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2">
         {[1, 2, 3].map((i) => (
-          <Skeleton lines={2} key={i} className="h-10" />
+          <Skeleton key={i} className="h-10 rounded-lg bg-white/5" />
         ))}
       </div>
       <div className="mt-4 flex gap-2">
-        <Skeleton lines={1} className="h-8 flex-1" />
-        <Skeleton lines={1} className="h-8 flex-1" />
+        <Skeleton className="h-8 flex-1 rounded-lg bg-white/5" />
+        <Skeleton className="h-8 flex-1 rounded-lg bg-white/5" />
       </div>
     </div>
   );
@@ -280,22 +286,27 @@ function EmptyState() {
       className="flex flex-col items-center justify-center gap-4 py-20 text-center"
     >
       <div className="relative">
-        
+        <div className="absolute inset-0 rounded-full bg-amber-500/20 blur-2xl" />
         <div
-          className="relative flex h-20 w-20 items-center justify-center rounded-full ring-1 ring-border"
-          style={{ background: "color-mix(in oklab, var(--foreground) 5%, transparent)" }}
+          className="relative flex h-20 w-20 items-center justify-center rounded-full ring-1 ring-white/10"
+          style={{ background: "rgba(255,255,255,0.05)" }}
         >
-          <Bot size={36} className="text-warning" />
+          <Bot size={36} className="text-amber-400/70" />
         </div>
       </div>
       <div>
-        <h3 className="text-lg font-medium text-foreground">No agents yet</h3>
-        <p className="mt-1 text-sm text-faint">Your personal agent is being set up…</p>
+        <h3 className="text-lg font-semibold text-white/80">No agents yet</h3>
+        <p className="mt-1 text-sm text-white/35">Your personal agent is being set up…</p>
       </div>
-      <LinkButton href="/agents/chat" className="bg-warning/15 text-warning ring-1 ring-warning/25 hover:bg-warning/25 hover:text-warning">
+      <Button
+        asChild
+        className="bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/25 hover:text-amber-200"
+      >
+        <Link href="/agents/chat">
           <ArrowUpRight size={15} className="mr-1.5" />
           Go to Chat
-        </LinkButton>
+        </Link>
+      </Button>
     </motion.div>
   );
 }
@@ -303,8 +314,8 @@ function EmptyState() {
 function ErrorState() {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
-      <h3 className="text-lg font-medium text-foreground">Could not load agents</h3>
-      <p className="text-sm text-faint">The agent list did not respond. Refresh to try again.</p>
+      <h3 className="text-lg font-semibold text-white/80">Could not load agents</h3>
+      <p className="text-sm text-white/35">The agent list did not respond. Refresh to try again.</p>
     </div>
   );
 }
@@ -312,15 +323,15 @@ function ErrorState() {
 function DetailRow({ label, value, title, mono }: { label: string; value: ReactNode; title?: string; mono?: boolean }) {
   return (
     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-      <span className="shrink-0 text-xs text-subtle">{label}</span>
-      <span title={title} className={`text-sm text-foreground sm:text-right ${mono ?"font-mono " : "break-all"}`}>{value}</span>
+      <span className="shrink-0 text-xs uppercase tracking-wider text-white/40">{label}</span>
+      <span title={title} className={`text-sm text-white/80 sm:text-right ${mono ? "font-mono tracking-wide" : "break-all"}`}>{value}</span>
     </div>
   );
 }
 
 function whenLabel(value: string | undefined) {
   const when = humanWhen(value);
-  if (!when) return { text: "-", title: undefined };
+  if (!when) return { text: "—", title: undefined };
   return { text: `${when.relative} · ${when.exact}`, title: when.exact };
 }
 
@@ -330,8 +341,8 @@ function AgentDetails({ agent }: { agent: AgentItem }) {
   const updated = whenLabel(agent.updated_at);
   return (
     <div
-      className="space-y-4 rounded-2xl p-4 ring-1 ring-border"
-      style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+      className="space-y-4 rounded-2xl p-4 ring-1 ring-white/8"
+      style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
     >
       <DetailRow label="Name" value={agent.agent_name} />
       <DetailRow label="Status" value="Active" />
@@ -341,21 +352,21 @@ function AgentDetails({ agent }: { agent: AgentItem }) {
       <DetailRow label="Created" value={created.text} title={created.title} />
       <DetailRow label="Updated" value={updated.text} title={updated.title} />
       <DetailRow label="Total spent" value={usdc(agent.total_spent)} />
-      <DetailRow label="Auto-fund" value={config.autoFund === null ? "-" : config.autoFund ? "On" : "Off"} />
+      <DetailRow label="Auto-fund" value={config.autoFund === null ? "—" : config.autoFund ? "On" : "Off"} />
       <DetailRow label="Max per proposal" value={usdc(config.maxPerProposal)} />
       <DetailRow label="Daily budget" value={usdc(config.dailyBudget)} />
       <DetailRow
         label="Min. reputation threshold"
-        value={config.minReputationThreshold === null ? "-" : String(config.minReputationThreshold)}
+        value={config.minReputationThreshold === null ? "—" : String(config.minReputationThreshold)}
       />
       {config.interests.length > 0 && (
         <div>
-          <p className="text-xs text-subtle">Research interests</p>
+          <p className="text-xs uppercase tracking-wider text-white/40">Research interests</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {config.interests.map((interest) => (
               <span
                 key={interest}
-                className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-subtle ring-1 ring-border"
+                className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium text-white/50 ring-1 ring-white/8"
               >
                 {interest}
               </span>
@@ -378,7 +389,7 @@ function SessionList({
     return (
       <div className="space-y-2">
         {[1, 2].map((i) => (
-          <Skeleton lines={3} key={i} className="h-16 w-full" />
+          <Skeleton key={i} className="h-16 w-full rounded-xl bg-white/5" />
         ))}
       </div>
     );
@@ -386,10 +397,10 @@ function SessionList({
   if (sessions.length === 0) {
     return (
       <div
-        className="rounded-2xl px-4 py-12 text-center ring-1 ring-border"
-        style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+        className="rounded-2xl px-4 py-12 text-center ring-1 ring-white/8"
+        style={{ background: "rgba(255,255,255,0.04)" }}
       >
-        <p className="text-sm text-faint">No chat sessions stored for this agent.</p>
+        <p className="text-sm text-white/35">No chat sessions stored for this agent.</p>
       </div>
     );
   }
@@ -401,17 +412,17 @@ function SessionList({
         <Link
           key={session.id}
           href={`/agents/chat?sessionId=${encodeURIComponent(session.id)}`}
-          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-1 ring-border transition-colors hover:bg-surface-muted"
-          style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-1 ring-white/8 transition-colors hover:bg-white/5"
+          style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
         >
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">{session.title || "Untitled session"}</p>
-            <p className="mt-0.5 truncate font-mono text-xs text-faint">{session.id}</p>
+            <p className="truncate text-sm font-medium text-white/85">{session.title || "Untitled session"}</p>
+            <p className="mt-0.5 truncate font-mono text-[11px] text-white/35">{session.id}</p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-xs text-subtle">{session.messages.length} messages</p>
+            <p className="text-xs text-white/50">{session.messages.length} messages</p>
             {span && (
-              <p className="text-xs text-faint" title={span.title}>
+              <p className="text-[11px] text-white/30" title={span.title}>
                 {span.text}
               </p>
             )}
@@ -444,14 +455,22 @@ export default function AgentsOverviewPage() {
   return (
     <div className="relative flex flex-col">
       <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "420px" }}>
-        
-        
+        <div
+          className="absolute h-[320px] w-[300px] rounded-full opacity-20 blur-[100px]"
+          style={{ left: "-40px", top: "-60px", background: "radial-gradient(circle, rgba(245,158,11,0.6) 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute h-[280px] w-[280px] rounded-full opacity-15 blur-[90px]"
+          style={{ right: "-30px", top: "-50px", background: "radial-gradient(circle, rgba(139,92,246,0.6) 0%, transparent 70%)" }}
+        />
       </div>
 
       <PageHeader
         icon={Bot}
+        label="AgentKit"
         title="My Agents"
         description="Your agents, their configuration, and stored chat sessions."
+        glow="amber"
       >
         <div className="flex items-center gap-2">
           <AgentLlmProviderSelect variant="header" />
@@ -459,7 +478,7 @@ export default function AgentsOverviewPage() {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-8 text-foreground ring-1 ring-border hover:bg-surface-muted hover:text-foreground"
+            className="h-8 text-white/75 ring-1 ring-white/10 hover:bg-white/6 hover:text-white"
             disabled={createAgent.isPending}
             onClick={() => {
               const taken = new Set(agents.map((agent) => agent.agent_name));
@@ -492,7 +511,7 @@ export default function AgentsOverviewPage() {
           <Button
             type="button"
             size="sm"
-            className="h-8 bg-warning/15 text-warning ring-1 ring-warning/25 hover:bg-warning/25 hover:text-warning"
+            className="h-8 bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/25 hover:bg-amber-500/25 hover:text-amber-100"
             onClick={() => {
               const params = new URLSearchParams({ new: String(Date.now()) });
               if (selected?.agent_id) params.set("agentId", selected.agent_id);
@@ -511,14 +530,14 @@ export default function AgentsOverviewPage() {
             label="Active Agents"
             value={agents.length}
             icon={<Bot size={17} />}
-            accentClass="text-warning"
+            accentClass="text-amber-400"
             delay={0}
           />
           <StatCard
             label="Chat Sessions"
             value={sessionsReady ? sessionTotal : 0}
             icon={<MessageSquare size={17} />}
-            accentClass="text-info"
+            accentClass="text-cyan-400"
             delay={0.06}
           />
           <StatCard
@@ -527,7 +546,7 @@ export default function AgentsOverviewPage() {
             decimals={1}
             suffix="/100"
             icon={<Star size={17} />}
-            accentClass="text-accent"
+            accentClass="text-violet-400"
             delay={0.12}
           />
           <StatCard
@@ -536,7 +555,7 @@ export default function AgentsOverviewPage() {
             decimals={2}
             prefix="$"
             icon={<DollarSign size={17} />}
-            accentClass="text-success"
+            accentClass="text-emerald-400"
             delay={0.18}
           />
         </div>
@@ -576,11 +595,11 @@ export default function AgentsOverviewPage() {
 
             {selected && (
               <Tabs defaultValue="details" className="w-full">
-                <TabsList className="h-8 bg-surface-muted ring-1 ring-border">
-                  <TabsTrigger value="details" className="h-6 px-3 text-xs data-[state=active]:bg-surface-raised data-[state=active]:text-foreground">
+                <TabsList className="h-8 bg-white/[0.04] ring-1 ring-white/8">
+                  <TabsTrigger value="details" className="h-6 px-3 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white">
                     Details
                   </TabsTrigger>
-                  <TabsTrigger value="sessions" className="h-6 px-3 text-xs data-[state=active]:bg-surface-raised data-[state=active]:text-foreground">
+                  <TabsTrigger value="sessions" className="h-6 px-3 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white">
                     Sessions{sessionsReady ? ` (${agentSessions.length})` : ""}
                   </TabsTrigger>
                 </TabsList>

@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 import { useCreateProposal } from "../hooks/use-proposals";
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
-import { Button } from "@/components/arc/button/button";
-import { Input } from "@/components/arc/input/input";
-import { Textarea } from "@/components/arc/textarea/textarea";
-import { Switch } from "@/components/arc/switch/switch";
-import { Badge } from "@/components/arc/badge/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 
 type Props = {
@@ -87,52 +93,53 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent title="New Proposal">
-        <div>
-<div className="flex gap-1 pt-2">
+      <DialogContent className="border-white/10 bg-background sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-white">New Proposal</DialogTitle>
+          <div className="flex gap-1 pt-2">
             {STEPS.map((s, i) => (
               <div
                 key={s}
                 className={`h-1 flex-1 rounded-full transition-colors ${
-                  i <= step ?"bg-accent" : "bg-surface-raised"
+                  i <= step ? "bg-violet-500" : "bg-white/10"
                 }`}
               />
             ))}
           </div>
-          <p className="text-sm text-subtle">
+          <p className="text-sm text-white/60">
             Step {step + 1} of {STEPS.length}: {STEPS[step]}
           </p>
-        </div>
+        </DialogHeader>
 
         <div className="space-y-4 py-2">
           {step === 0 && (
             <>
               <div className="space-y-2">
-                <label className="text-sm text-subtle">Title</label>
+                <label className="text-sm text-white/60">Title</label>
                 <Input
-                  label="Research proposal title" placeholder="Research proposal title"
+                  placeholder="Research proposal title"
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
-                  className="border-border bg-surface-muted text-foreground"
+                  className="border-white/10 bg-white/[0.025] text-white"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-subtle">Description</label>
+                <label className="text-sm text-white/60">Description</label>
                 <Textarea
-                  label="What is this research about?" placeholder="What is this research about?"
+                  placeholder="What is this research about?"
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
-                  className="border-border bg-surface-muted text-foreground"
+                  className="border-white/10 bg-white/[0.025] text-white"
                   rows={3}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-subtle">Methodology</label>
+                <label className="text-sm text-white/60">Methodology</label>
                 <Textarea
-                  label="Describe the approach" placeholder="Describe the approach"
+                  placeholder="Describe the approach"
                   value={form.methodology}
                   onChange={(e) => set("methodology", e.target.value)}
-                  className="border-border bg-surface-muted text-foreground"
+                  className="border-white/10 bg-white/[0.025] text-white"
                   rows={2}
                 />
               </div>
@@ -142,35 +149,35 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
           {step === 1 && (
             <>
               <div className="space-y-2">
-                <label className="text-sm text-subtle">Budget Required (USDC)</label>
+                <label className="text-sm text-white/60">Budget Required (USDC)</label>
                 <Input
-                  label="500.00" placeholder="500.00"
+                  placeholder="500.00"
                   value={form.budget_required}
                   onChange={(e) => set("budget_required", e.target.value)}
-                  className="border-border bg-surface-muted text-foreground"
+                  className="border-white/10 bg-white/[0.025] text-white"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-subtle">Tags</label>
+                <label className="text-sm text-white/60">Tags</label>
                 <div className="flex gap-2">
                   <Input
-                    label="Add tag" placeholder="Add tag"
+                    placeholder="Add tag"
                     value={form.tagInput}
                     onChange={(e) => set("tagInput", e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                    className="border-border bg-surface-muted text-foreground"
+                    className="border-white/10 bg-white/[0.025] text-white"
                   />
-                  <Button type="button" variant="secondary" onClick={addTag} className="border-border">
+                  <Button type="button" variant="outline" onClick={addTag} className="border-white/10">
                     Add
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {form.tags.map((tag) => (
-                    <Badge key={tag}  className="bg-accent/10 text-accent">
+                    <Badge key={tag} variant="secondary" className="bg-violet-500/10 text-violet-400">
                       {tag}
-                      <Button variant="ghost" size="sm" onClick={() => removeTag(tag)} className="ml-1">
+                      <button onClick={() => removeTag(tag)} className="ml-1">
                         <X className="h-2.5 w-2.5" />
-                      </Button>
+                      </button>
                     </Badge>
                   ))}
                 </div>
@@ -180,10 +187,10 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
 
           {step === 2 && (
             <>
-              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div className="flex items-center justify-between rounded-lg border border-white/10 p-3">
                 <div>
-                  <p className="text-sm text-foreground">Auto-fragment</p>
-                  <p className="text-xs text-subtle">
+                  <p className="text-sm text-white">Auto-fragment</p>
+                  <p className="text-xs text-white/40">
                     Automatically split budget into claimable fragments
                   </p>
                 </div>
@@ -193,40 +200,40 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
                 />
               </div>
               <div className="space-y-2">
+                <label className="text-sm text-white/60">Deadline (days)</label>
                 <Input
-                  label="Deadline (days)"
                   type="number"
                   min={1}
                   max={365}
                   value={form.deadline_days}
                   onChange={(e) => set("deadline_days", parseInt(e.target.value) || 30)}
-                  className="border-border bg-surface-muted text-foreground"
+                  className="border-white/10 bg-white/[0.025] text-white"
                 />
               </div>
             </>
           )}
 
           {step === 3 && (
-            <div className="space-y-3 rounded-lg border border-border p-4">
+            <div className="space-y-3 rounded-lg border border-white/10 p-4">
               <div className="flex justify-between text-sm">
-                <span className="text-subtle">Title</span>
-                <span className="text-foreground">{form.title}</span>
+                <span className="text-white/60">Title</span>
+                <span className="text-white">{form.title}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-subtle">Budget</span>
-                <span className="text-foreground">{form.budget_required} USDC</span>
+                <span className="text-white/60">Budget</span>
+                <span className="text-white">{form.budget_required} USDC</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-subtle">Deadline</span>
-                <span className="text-foreground">{form.deadline_days} days</span>
+                <span className="text-white/60">Deadline</span>
+                <span className="text-white">{form.deadline_days} days</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-subtle">Auto-fragment</span>
-                <span className="text-foreground">{form.auto_fragment ? "Yes" : "No"}</span>
+                <span className="text-white/60">Auto-fragment</span>
+                <span className="text-white">{form.auto_fragment ? "Yes" : "No"}</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {form.tags.map((tag) => (
-                  <Badge key={tag}  className="bg-accent/10 text-accent">
+                  <Badge key={tag} variant="secondary" className="bg-violet-500/10 text-violet-400">
                     {tag}
                   </Badge>
                 ))}
@@ -235,12 +242,12 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
           )}
         </div>
 
-        <div className="flex justify-end gap-2">
+        <DialogFooter className="flex justify-between">
           <Button
             variant="ghost"
             onClick={() => setStep((s) => s - 1)}
             disabled={step === 0}
-            className="text-subtle"
+            className="text-white/60"
           >
             Back
           </Button>
@@ -248,7 +255,7 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
             <Button
               onClick={() => setStep((s) => s + 1)}
               disabled={step === 0 && !form.title.trim()}
-              className="bg-accent hover:bg-accent"
+              className="bg-violet-600 hover:bg-violet-700"
             >
               Next
             </Button>
@@ -256,12 +263,12 @@ export function ProposalCreateDialog({ open, onOpenChange }: Props) {
             <Button
               onClick={handleSubmit}
               disabled={create.isPending}
-              className="bg-accent hover:bg-accent"
+              className="bg-violet-600 hover:bg-violet-700"
             >
               {create.isPending ? "Creating…" : "Create Proposal"}
             </Button>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

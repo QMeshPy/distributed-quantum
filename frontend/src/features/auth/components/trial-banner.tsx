@@ -1,7 +1,8 @@
 "use client";
 import { Clock } from "lucide-react";
-import { Badge } from "@/components/arc/badge/badge";
-import { LinkButton } from "@/shared/components/link-button";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useTrial } from "@/features/auth/hooks/use-trial";
 
 function formatTimeLeft(msLeft: number): string {
@@ -26,22 +27,24 @@ export function TrialBanner() {
   const isExpiringSoon = msLeft < 6 * 60 * 60 * 1000;
 
   return (
-    <div className="border-b border-border bg-surface">
+    <div className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2">
         <div className="flex items-center gap-3">
           <Clock
             className={
               isExpiringSoon
-                ? "text-danger size-4"
-                : "text-subtle size-4"
+                ? "text-destructive size-4"
+                : "text-muted-foreground size-4"
             }
           />
-          <Badge  className="text-xs">
+          <Badge variant="secondary" className="text-xs">
             1-Hour Trial
           </Badge>
-          <p className="text-sm text-subtle">{label}</p>
+          <p className="text-sm text-muted-foreground">{label}</p>
         </div>
-        <LinkButton href="/settings" size="sm" variant="secondary">Upgrade</LinkButton>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/settings">Upgrade</Link>
+        </Button>
       </div>
     </div>
   );

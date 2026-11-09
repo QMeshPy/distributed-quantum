@@ -1,5 +1,5 @@
 "use client";
-import { Select } from "@/components/arc/select/select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { supports } from "../lib/chains";
 import type { Chain, ChainCapability, ChainsResponse } from "../types";
 
@@ -23,19 +23,17 @@ export function ChainSelect({
 }) {
   if (!registry) return null;
   return (
-    <Select
-      label="Network"
-      id={id}
-      className={className}
-      value={active?.chain_id ?? ""}
-      onValueChange={() => {}}
-      options={[
-        ...(active ? [] : [{ value: "", label: "Unknown network" }]),
-        ...registry.chains.map((chain) => {
-          const usable = chain.chain_id === active?.chain_id && supports(chain, capability);
-          return { value: chain.chain_id, label: `${chain.display_name}${usable ? "" : " (not available)"}`, disabled: !usable };
-        }),
-      ]}
-    />
+    <NativeSelect id={id} className={className} value={active?.chain_id ?? ""} onChange={() => {}}>
+      {!active && <NativeSelectOption value="">Unknown network</NativeSelectOption>}
+      {registry.chains.map((chain) => {
+        const usable = chain.chain_id === active?.chain_id && supports(chain, capability);
+        return (
+          <NativeSelectOption key={chain.chain_id} value={chain.chain_id} disabled={!usable}>
+            {chain.display_name}
+            {usable ? "" : " (not available)"}
+          </NativeSelectOption>
+        );
+      })}
+    </NativeSelect>
   );
 }

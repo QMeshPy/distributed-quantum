@@ -1,8 +1,8 @@
 "use client";
 
 import { Pin } from "lucide-react";
-import { Progress } from "@/components/arc/progress/progress";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuota } from "../hooks/use-quota";
 import { SERVICE_LABELS } from "../services";
 import type { PinningService } from "../types";
@@ -23,8 +23,8 @@ export function QuotaDisplay({ service, variant }: QuotaDisplayProps) {
   const { data, isLoading } = useQuota(service);
 
   if (isLoading) {
-    if (variant === "header") return <Skeleton lines={1} className="h-5 w-24" />;
-    return <Skeleton lines={3} className="h-16 w-full" />;
+    if (variant === "header") return <Skeleton className="h-5 w-24 rounded-full" />;
+    return <Skeleton className="h-16 w-full rounded-lg" />;
   }
 
   if (!data) return null;
@@ -34,7 +34,7 @@ export function QuotaDisplay({ service, variant }: QuotaDisplayProps) {
 
   if (variant === "header") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted/50 px-2.5 py-1 text-xs text-subtle">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground">
         <Pin className="size-3" />
         {usedStr} / {data.total ? formatBytes(data.total) : "∞"}
       </span>
@@ -45,10 +45,10 @@ export function QuotaDisplay({ service, variant }: QuotaDisplayProps) {
     return (
       <div className="space-y-1 text-xs">
         <p className="font-medium">{displayName} (free)</p>
-        <p className="text-subtle">
+        <p className="text-muted-foreground">
           {usedStr} used · {data.itemCount} items
         </p>
-        <p className="text-subtle">
+        <p className="text-muted-foreground">
           {data.total ? formatBytes(data.total) : "Unlimited quota"}
         </p>
       </div>
@@ -58,14 +58,14 @@ export function QuotaDisplay({ service, variant }: QuotaDisplayProps) {
   const pct = data.total ? Math.round((data.used / data.total) * 100) : 0;
 
   return (
-    <div className="space-y-2 rounded-lg border border-border bg-surface-muted/30 p-4">
+    <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{displayName}</span>
       </div>
       {data.total && (
         <Progress value={pct} className="h-2" />
       )}
-      <p className="text-xs text-subtle">
+      <p className="text-xs text-muted-foreground">
         {usedStr} used · {data.itemCount} {data.itemCount === 1 ? "item" : "items"} pinned
       </p>
     </div>

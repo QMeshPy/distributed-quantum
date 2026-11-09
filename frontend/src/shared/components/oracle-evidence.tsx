@@ -14,12 +14,12 @@ export function OracleEvidence({
   const path = workflowPaths[provenance.bundle.workflow_definition_id];
   const jobId = encodeURIComponent(provenance.bundle.workflow_run_id);
   return (
-    <section className="space-y-2 rounded border border-border-subtle p-4">
+    <section className="space-y-2 rounded border border-hairline p-4">
       <h3 className="text-sm font-medium">Recorded price evidence</h3>
       {provenance.bundle.oracle_refs.map((reference) => (
         <dl
           key={`${reference.feed}:${reference.round_id}`}
-          className="break-all text-xs text-subtle"
+          className="break-all text-xs text-muted-foreground"
         >
           <dt>Feed</dt>
           <dd>{reference.feed}</dd>
@@ -38,7 +38,7 @@ export function OracleEvidence({
       >
         Download recorded inputs and provenance
       </a>
-      <p className="break-all text-xs text-subtle">
+      <p className="break-all text-xs text-muted-foreground">
         Provenance hash: {provenance.bundle_hash}
       </p>
     </section>

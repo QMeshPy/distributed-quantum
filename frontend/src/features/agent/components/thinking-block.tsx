@@ -1,8 +1,8 @@
 "use client";
 
-import { Panel, PanelContent } from "@/shared/components/panel/panel";
-import { Button } from "@/components/arc/button/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/collapsible";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -26,11 +26,11 @@ export function ThinkingBlock({ thinking }: ThinkingBlockProps) {
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <Panel className="mt-2 bg-surface-muted">
-          <PanelContent className="p-3 text-xs text-subtle whitespace-pre-wrap">
+        <Card className="mt-2 bg-white/5">
+          <CardContent className="p-3 text-xs text-white/60 whitespace-pre-wrap">
             {thinking}
-          </PanelContent>
-        </Panel>
+          </CardContent>
+        </Card>
       </CollapsibleContent>
     </Collapsible>
   );

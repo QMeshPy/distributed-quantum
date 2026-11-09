@@ -1,14 +1,14 @@
 import { BILLING } from "@/constants";
 import type { ConnectPayoutStatus } from "../types";
 
-/** Connect Express is opt-in and test-mode oriented (var(--background)). */
+/** Connect Express is opt-in and test-mode oriented (#110). */
 export function connectEnabled(
   secretKey: string | undefined,
   flag: string | undefined = process.env.STRIPE_CONNECT_ENABLED,
 ): boolean {
   if (!secretKey?.trim()) return false;
   if ((flag ?? "").trim().toLowerCase() !== "true") return false;
-  // Prefer test keys; live keys are out of scope for var(--background).
+  // Prefer test keys; live keys are out of scope for #110.
   return secretKey.startsWith("sk_test_");
 }
 

@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
-import { Button } from "@/components/arc/button/button";
-import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { SERVICE_LABELS } from "../services";
 import type { PinningService } from "../types";
 
@@ -37,24 +45,47 @@ export function UnpinModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={`Unpin from ${displayName}?`} description="Choose how to handle the pinned content.">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Unpin from {displayName}?</DialogTitle>
+          <DialogDescription>
+            Choose how to handle the pinned content.
+          </DialogDescription>
+        </DialogHeader>
         <RadioGroup
-          label="Unpin behavior"
           value={choice}
           onValueChange={(v) => setChoice(v as "soft" | "hard")}
-          options={[
-            { value: "soft", label: "Remove from tracking only", description: "Content stays pinned, hidden from your vault" },
-            { value: "hard", label: `Delete from ${displayName} and free quota`, description: "Permanently removes content from pinning service" },
-          ]}
-        />
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+          className="flex flex-col gap-3 py-4"
+        >
+          <div className="flex items-start gap-3">
+            <RadioGroupItem value="soft" id="soft" className="mt-0.5" />
+            <Label htmlFor="soft" className="cursor-pointer">
+              <span className="font-medium">Remove from tracking only</span>
+              <span className="block text-xs text-muted-foreground">
+                Content stays pinned, hidden from your vault
+              </span>
+            </Label>
+          </div>
+          <div className="flex items-start gap-3">
+            <RadioGroupItem value="hard" id="hard" className="mt-0.5" />
+            <Label htmlFor="hard" className="cursor-pointer">
+              <span className="font-medium">
+                Delete from {displayName} and free quota
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Permanently removes content from pinning service
+              </span>
+            </Label>
+          </div>
+        </RadioGroup>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={confirming}>
             {confirming ? "Confirming..." : "Confirm"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

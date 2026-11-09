@@ -73,7 +73,7 @@ export async function fetchTrustlessBlock(
         const buf = new Uint8Array(await res.arrayBuffer());
         if (!(await blockMatchesCid(buf, cid))) {
           // Deserialized file bodies (common without ?format=raw) must not
-          // be treated as verified blocks, try the next candidate.
+          // be treated as verified blocks — try the next candidate.
           errors.push(new Error(`${url} → body does not match CID`));
           continue;
         }

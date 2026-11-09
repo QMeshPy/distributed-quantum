@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Globe, Wifi, WifiOff, Server, CheckCircle2, AlertCircle, Clock, Cpu, Layers, Zap, Network, Shield, Radio, Hash, CalendarClock, MapPin, Link2 } from "lucide-react";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
-import { Badge } from "@/components/arc/badge/badge";
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
+import {
+  Activity, Globe, Wifi, WifiOff, Server,
+  CheckCircle2, AlertCircle, Clock, Cpu, Layers, Zap, Network,
+  Shield, Radio, Hash, CalendarClock, RotateCcw, MapPin, Link2,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogTitle,
+} from "@/components/ui/dialog";
 import { QUERY_KEYS } from "@/constants";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { useNetworkTopology } from "../hooks/use-network-topology";
@@ -13,7 +19,7 @@ import { useNetworkStats } from "../hooks/use-network-stats";
 import { useNetworkServices } from "../hooks/use-network-fidelity";
 import { Network3dGraph } from "./network-3d-graph";
 import { transformPeerDetail } from "../lib/network-transformers";
-import type { BackendPeerDetail, PeerDetail, ServiceNode } from "../types";
+import type { BackendPeerDetail, NetworkTopology, PeerDetail, ServiceNode } from "../types";
 
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -24,7 +30,7 @@ function formatRelativeTime(iso: string): string {
 }
 
 function formatTimestamp(iso: string | null): string {
-  if (!iso) return "-";
+  if (!iso) return "—";
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -58,39 +64,45 @@ export function MeshPageClient() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <PageHeader icon={Globe} title="Topology" description="Live network peer topology and connectivity." />
+      <PageHeader icon={Globe} label="Network" title="Topology" description="Live network peer topology and connectivity." glow="cyan" />
 
       <div className="relative flex-1 overflow-y-auto p-6">
         <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden" style={{ height: "350px" }}>
-          
-          
+          <div
+            className="absolute h-[280px] w-[250px] rounded-full opacity-15 blur-[80px]"
+            style={{ left: "0%", top: "-40px", background: "radial-gradient(circle, rgba(34,211,238,0.6) 0%, transparent 70%)" }}
+          />
+          <div
+            className="absolute h-[250px] w-[230px] rounded-full opacity-12 blur-[75px]"
+            style={{ right: "10%", top: "-30px", background: "radial-gradient(circle, rgba(52,211,153,0.55) 0%, transparent 70%)" }}
+          />
         </div>
 
         <div className="relative z-10 flex flex-col gap-6">
           {/* Peer KPI strip */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
-              { key: "active",   label: "Active Peers",   value: topology?.activePeers, icon: Activity, iconClass: "text-success" },
-              { key: "total",    label: "Total Peers",    value: topology?.totalPeers,  icon: Server,   iconClass: "text-accent"  },
-              { key: "stale",    label: "Stale Peers",    value: topology?.stalePeers,  icon: WifiOff,  iconClass: "text-faint"    },
-              { key: "services", label: "Total Services", value: stats?.totalServices,  icon: Layers,   iconClass: "text-info"    },
+              { key: "active",   label: "Active Peers",   value: topology?.activePeers, icon: Activity, iconClass: "text-emerald-400" },
+              { key: "total",    label: "Total Peers",    value: topology?.totalPeers,  icon: Server,   iconClass: "text-indigo-400"  },
+              { key: "stale",    label: "Stale Peers",    value: topology?.stalePeers,  icon: WifiOff,  iconClass: "text-white/30"    },
+              { key: "services", label: "Total Services", value: stats?.totalServices,  icon: Layers,   iconClass: "text-cyan-400"    },
             ].map((card) => {
               const Icon = card.icon;
               return (
                 <div
                   key={card.key}
-                  className="relative overflow-hidden rounded-2xl p-5 ring-1 ring-border transition-all duration-200 hover:ring-border-strong"
-                  style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+                  className="relative overflow-hidden rounded-2xl p-5 ring-1 ring-white/8 transition-all duration-200 hover:ring-white/15"
+                  style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
                 >
-                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/6">
                     <Icon className={`h-4 w-4 ${card.iconClass}`} />
                   </div>
                   {(topoLoading || statsLoading) ? (
-                    <Skeleton lines={2} className="h-9 w-20" />
+                    <Skeleton className="h-9 w-20 bg-white/10" />
                   ) : (
-                    <p className="text-3xl font-medium tabular-nums text-foreground">{card.value ?? 0}</p>
+                    <p className="text-3xl font-semibold tabular-nums text-white">{card.value ?? 0}</p>
                   )}
-                  <p className="mt-1 text-sm text-subtle">{card.label}</p>
+                  <p className="mt-1 text-sm text-white/40">{card.label}</p>
                 </div>
               );
             })}
@@ -99,29 +111,29 @@ export function MeshPageClient() {
           {/* Secondary metrics row */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { key: "types", label: "Service Types",   value: stats?.uniqueServiceTypes, icon: Cpu,     iconClass: "text-info",    fmt: (v: number) => String(v) },
-              { key: "fid",   label: "Avg Fidelity",    value: stats?.avgFidelity,        icon: Zap,     iconClass: "text-accent", fmt: (v: number) => `${(v * 100).toFixed(1)}%` },
-              { key: "spp",   label: "Services / Peer", value: stats?.avgServicesPerPeer,  icon: Network, iconClass: "text-success",   fmt: (v: number) => v.toFixed(1) },
+              { key: "types", label: "Service Types",   value: stats?.uniqueServiceTypes, icon: Cpu,     iconClass: "text-sky-400",    fmt: (v: number) => String(v) },
+              { key: "fid",   label: "Avg Fidelity",    value: stats?.avgFidelity,        icon: Zap,     iconClass: "text-violet-400", fmt: (v: number) => `${(v * 100).toFixed(1)}%` },
+              { key: "spp",   label: "Services / Peer", value: stats?.avgServicesPerPeer,  icon: Network, iconClass: "text-teal-400",   fmt: (v: number) => v.toFixed(1) },
             ].map((card) => {
               const Icon = card.icon;
               return (
                 <div
                   key={card.key}
-                  className="flex items-center gap-4 rounded-2xl p-4 ring-1 ring-border transition-all duration-200 hover:ring-border-strong"
-                  style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+                  className="flex items-center gap-4 rounded-2xl p-4 ring-1 ring-white/8 transition-all duration-200 hover:ring-white/15"
+                  style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-muted">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/6">
                     <Icon className={`h-4 w-4 ${card.iconClass}`} />
                   </div>
                   <div>
                     {statsLoading ? (
-                      <Skeleton lines={1} className="h-7 w-14" />
+                      <Skeleton className="h-7 w-14 bg-white/10" />
                     ) : (
-                      <p className="text-xl font-medium tabular-nums text-foreground">
-                        {card.value != null ? card.fmt(card.value) : "-"}
+                      <p className="text-xl font-semibold tabular-nums text-white">
+                        {card.value != null ? card.fmt(card.value) : "—"}
                       </p>
                     )}
-                    <p className="text-xs text-subtle">{card.label}</p>
+                    <p className="text-xs text-white/40">{card.label}</p>
                   </div>
                 </div>
               );
@@ -130,7 +142,7 @@ export function MeshPageClient() {
 
           {/* Graph */}
           {topoLoading ? (
-            <Skeleton lines={6} className="h-48 w-full" />
+            <Skeleton className="h-48 w-full rounded-2xl bg-white/5" />
           ) : (
             <Network3dGraph topology={topology ?? null} />
           )}
@@ -138,39 +150,39 @@ export function MeshPageClient() {
           {/* Peer list */}
           {!topoLoading && topology && topology.peers.length > 0 && (
             <section className="flex flex-col gap-3">
-              <p className="text-xs font-medium text-faint">Connected Peers</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">Connected Peers</p>
               <div className="flex flex-col gap-1.5">
                 {topology.peers.map((peer) => (
                   <button
                     type="button"
                     key={peer.peerId}
                     onClick={() => setSelectedPeerId(peer.peerId)}
-                    className="group relative flex w-full cursor-pointer items-center justify-between overflow-hidden rounded-2xl px-5 py-3.5 text-left ring-1 ring-border transition-all duration-200 hover:ring-border-strong hover:scale-[1.005]"
-                    style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+                    className="group relative flex w-full cursor-pointer items-center justify-between overflow-hidden rounded-2xl px-5 py-3.5 text-left ring-1 ring-white/8 transition-all duration-200 hover:ring-white/20 hover:scale-[1.005]"
+                    style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
                   >
-                    <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-cyan-600/8 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                     <div className="relative flex items-center gap-3">
                       {peer.isStale
-                        ? <WifiOff className="h-4 w-4 shrink-0 text-faint" />
-                        : <Wifi className="h-4 w-4 shrink-0 text-success" />
+                        ? <WifiOff className="h-4 w-4 shrink-0 text-white/20" />
+                        : <Wifi className="h-4 w-4 shrink-0 text-emerald-400" />
                       }
                       {peer.label ? (
                         <span className="flex flex-col">
-                          <span className="text-sm font-medium text-foreground">{peer.label}</span>
-                          <span className="font-mono text-xs text-faint">{peer.peerId.slice(0, 32)}…</span>
+                          <span className="text-sm font-medium text-white/90">{peer.label}</span>
+                          <span className="font-mono text-[10px] text-white/35">{peer.peerId.slice(0, 32)}…</span>
                         </span>
                       ) : (
-                        <span className="font-mono text-xs text-subtle">{peer.peerId.slice(0, 32)}…</span>
+                        <span className="font-mono text-xs text-white/60">{peer.peerId.slice(0, 32)}…</span>
                       )}
                     </div>
                     <div className="relative flex items-center gap-3">
-                      <span className="text-xs capitalize text-faint">{peer.trustTier.replace(/_/g, " ")}</span>
+                      <span className="text-xs capitalize text-white/30">{peer.trustTier.replace(/_/g, " ")}</span>
                       <Badge
-                        outline
+                        variant="outline"
                         className={
                           peer.healthStatus === "healthy"
-                            ? "border-success/30 bg-success/10 text-success"
-                            : "border-danger/30 bg-danger/10 text-danger"
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                            : "border-red-500/30 bg-red-500/10 text-red-400"
                         }
                       >
                         {peer.healthStatus === "healthy"
@@ -179,7 +191,7 @@ export function MeshPageClient() {
                         }
                         {peer.healthStatus}
                       </Badge>
-                      <span className="flex items-center gap-1 text-xs text-faint">
+                      <span className="flex items-center gap-1 text-xs text-white/30">
                         <Clock className="h-3 w-3" />
                         {formatRelativeTime(peer.lastSeenAt)}
                       </span>
@@ -199,17 +211,20 @@ export function MeshPageClient() {
 
       {/* ═══ Peer Detail Modal ═══ */}
       <Dialog open={selectedPeerId !== null} onOpenChange={(open) => { if (!open) setSelectedPeerId(null); }}>
-        <DialogContent title="Peer Dossier">
-<PageHeader
+        <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-lg border-white/10 bg-[#0f1218] ring-1 ring-white/8">
+          <DialogTitle className="sr-only">Peer Dossier</DialogTitle>
+          <PageHeader
             icon={Server}
+            label="Peer Intelligence"
             title="Peer Dossier"
             description="Complete network intelligence for this peer node."
+            glow="cyan"
           />
           <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: "calc(85vh - 140px)" }}>
             {peerDetailLoading && (
               <div className="flex flex-col gap-3 pt-2">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton lines={2} key={i} className="h-10 w-full" />
+                  <Skeleton key={i} className="h-10 w-full rounded-lg bg-white/5" />
                 ))}
               </div>
             )}
@@ -226,7 +241,7 @@ export function MeshPageClient() {
                   value={peerDetail.healthStatus}
                   badge={peerDetail.healthStatus === "healthy" ? "emerald" : "red"}
                 />
-                <DetailField label="Rejoined" value={peerDetail.rejoined ? "Yes, this peer reconnected" : "No"} />
+                <DetailField label="Rejoined" value={peerDetail.rejoined ? "Yes — this peer reconnected" : "No"} />
                 <DetailField label="Log Position" value={String(peerDetail.peerLogPosition)} />
               </ModalSection>
 
@@ -236,7 +251,7 @@ export function MeshPageClient() {
                   <MiniStat label="Active Reservations" value={peerDetail.activeReservations} />
                   <MiniStat label="Active Executions" value={peerDetail.activeExecutions} />
                 </div>
-                <DetailField label="Stale" value={peerDetail.isStale ? "Yes, not responding" : "No, active"} />
+                <DetailField label="Stale" value={peerDetail.isStale ? "Yes — not responding" : "No — active"} />
               </ModalSection>
 
               {/* Timing Section */}
@@ -252,8 +267,8 @@ export function MeshPageClient() {
                 <ModalSection title="Network Addresses" icon={MapPin}>
                   <div className="flex flex-col gap-1.5">
                     {peerDetail.networkAddresses.map((addr) => (
-                      <div key={addr} className="rounded-lg bg-surface-muted px-3 py-2 ring-1 ring-border">
-                        <span className="break-all font-mono text-xs text-subtle">{addr}</span>
+                      <div key={addr} className="rounded-lg bg-white/[0.03] px-3 py-2 ring-1 ring-white/6">
+                        <span className="break-all font-mono text-[11px] text-white/60">{addr}</span>
                       </div>
                     ))}
                   </div>
@@ -265,7 +280,7 @@ export function MeshPageClient() {
                 <ModalSection title="Supported Protocols" icon={Radio}>
                   <div className="flex flex-wrap gap-1.5">
                     {peerDetail.supportedProtocols.map((proto) => (
-                      <span key={proto} className="rounded-md bg-accent/10 px-2 py-1 font-mono text-xs text-accent ring-1 ring-accent/20">
+                      <span key={proto} className="rounded-md bg-indigo-500/10 px-2 py-1 font-mono text-[10px] text-indigo-300 ring-1 ring-indigo-500/20">
                         {proto}
                       </span>
                     ))}
@@ -278,8 +293,8 @@ export function MeshPageClient() {
                 <ModalSection title="Registered Services" icon={Link2}>
                   <div className="flex flex-col gap-1.5">
                     {peerDetail.serviceIds.map((sid) => (
-                      <div key={sid} className="rounded-lg bg-surface-muted px-3 py-2 ring-1 ring-border">
-                        <span className="break-all font-mono text-xs text-subtle">{sid}</span>
+                      <div key={sid} className="rounded-lg bg-white/[0.03] px-3 py-2 ring-1 ring-white/6">
+                        <span className="break-all font-mono text-[11px] text-white/60">{sid}</span>
                       </div>
                     ))}
                   </div>
@@ -293,11 +308,14 @@ export function MeshPageClient() {
 
       {/* ═══ Service Detail Modal ═══ */}
       <Dialog open={selectedService !== null} onOpenChange={(open) => { if (!open) setSelectedService(null); }}>
-        <DialogContent title="Service Specification">
-<PageHeader
+        <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-lg border-white/10 bg-[#0f1218] ring-1 ring-white/8">
+          <DialogTitle className="sr-only">Service Specification</DialogTitle>
+          <PageHeader
             icon={Zap}
+            label="Quantum Service"
             title="Service Specification"
             description="Full quantum service capabilities and configuration."
+            glow="violet"
           />
           <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: "calc(85vh - 140px)" }}>
 
@@ -327,7 +345,7 @@ export function MeshPageClient() {
                 <ModalSection title="Gate Set" icon={Shield}>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedService.gateSet.map((g) => (
-                      <span key={g} className="rounded-md bg-accent/10 px-2.5 py-1 font-mono text-xs text-accent ring-1 ring-accent/20">
+                      <span key={g} className="rounded-md bg-violet-500/10 px-2.5 py-1 font-mono text-[11px] text-violet-300 ring-1 ring-violet-500/20">
                         {g}
                       </span>
                     ))}
@@ -339,8 +357,8 @@ export function MeshPageClient() {
                 <ModalSection title="Listen Addresses" icon={MapPin}>
                   <div className="flex flex-col gap-1.5">
                     {selectedService.listenAddrs.map((addr) => (
-                      <div key={addr} className="rounded-lg bg-surface-muted px-3 py-2 ring-1 ring-border">
-                        <span className="break-all font-mono text-xs text-subtle">{addr}</span>
+                      <div key={addr} className="rounded-lg bg-white/[0.03] px-3 py-2 ring-1 ring-white/6">
+                        <span className="break-all font-mono text-[11px] text-white/60">{addr}</span>
                       </div>
                     ))}
                   </div>
@@ -368,7 +386,7 @@ function ServiceCapabilities({ services, onSelect }: { services: ServiceNode[]; 
 
   return (
     <section className="flex flex-col gap-3">
-      <p className="text-xs font-medium text-faint">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
         Service Capabilities
       </p>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
@@ -377,21 +395,21 @@ function ServiceCapabilities({ services, onSelect }: { services: ServiceNode[]; 
             type="button"
             key={svc.serviceType}
             onClick={() => onSelect(svc)}
-            className="group relative flex cursor-pointer flex-col gap-2.5 overflow-hidden rounded-2xl p-4 text-left ring-1 ring-border transition-all duration-200 hover:ring-border-strong hover:scale-[1.01]"
-            style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
+            className="group relative flex cursor-pointer flex-col gap-2.5 overflow-hidden rounded-2xl p-4 text-left ring-1 ring-white/8 transition-all duration-200 hover:ring-white/20 hover:scale-[1.01]"
+            style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
           >
-            <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 via-violet-600/8 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             <div className="relative flex items-center justify-between">
-              <span className="text-sm font-medium capitalize text-foreground">
+              <span className="text-sm font-medium capitalize text-white/80">
                 {svc.serviceType.replace(/_/g, " ")}
               </span>
-              <span className="tabular-nums text-sm font-medium text-accent">
+              <span className="tabular-nums text-sm font-semibold text-violet-400">
                 {(svc.fidelity * 100).toFixed(1)}%
               </span>
             </div>
-            <div className="relative flex items-center gap-2 text-xs text-faint">
+            <div className="relative flex items-center gap-2 text-[11px] text-white/30">
               <span>{svc.qubitMin}–{svc.qubitMax} qubits</span>
-              <span className="text-faint">·</span>
+              <span className="text-white/10">·</span>
               <span className="capitalize">{svc.connectivity}</span>
             </div>
             {svc.gateSet.length > 0 && (
@@ -399,7 +417,7 @@ function ServiceCapabilities({ services, onSelect }: { services: ServiceNode[]; 
                 {svc.gateSet.map((g) => (
                   <span
                     key={g}
-                    className="rounded-md bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-subtle"
+                    className="rounded-md bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-white/50"
                   >
                     {g}
                   </span>
@@ -415,10 +433,10 @@ function ServiceCapabilities({ services, onSelect }: { services: ServiceNode[]; 
 
 function ModalSection({ title, icon: Icon, children }: { title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl bg-surface-muted p-3.5 ring-1 ring-border">
-      <div className="flex items-center gap-2 text-subtle">
+    <div className="flex flex-col gap-2.5 rounded-xl bg-white/[0.02] p-3.5 ring-1 ring-white/6">
+      <div className="flex items-center gap-2 text-white/40">
         <Icon className="h-3.5 w-3.5" />
-        <span className="text-xs font-medium">{title}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest">{title}</span>
       </div>
       <div className="flex flex-col gap-2">{children}</div>
     </div>
@@ -434,17 +452,17 @@ function DetailField({ label, value, mono, capitalize: cap, badge }: {
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <span className="shrink-0 text-xs text-faint">{label}</span>
+      <span className="shrink-0 text-[11px] text-white/30">{label}</span>
       {badge ? (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-          badge ==="emerald"
-            ? "bg-success/10 text-success ring-1 ring-success/20"
-            : "bg-danger/10 text-danger ring-1 ring-danger/20"
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+          badge === "emerald"
+            ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
+            : "bg-red-500/10 text-red-400 ring-1 ring-red-500/20"
         }`}>
           {cap ? value.charAt(0).toUpperCase() + value.slice(1) : value}
         </span>
       ) : (
-        <span className={`text-right text-sm text-foreground ${mono ?"break-all font-mono text-xs" : ""} ${cap ? "capitalize" : ""}`}>
+        <span className={`text-right text-sm text-white/75 ${mono ? "break-all font-mono text-[11px]" : ""} ${cap ? "capitalize" : ""}`}>
           {value}
         </span>
       )}
@@ -454,9 +472,9 @@ function DetailField({ label, value, mono, capitalize: cap, badge }: {
 
 function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-lg bg-surface-muted px-3 py-2.5 ring-1 ring-border">
-      <span className="text-lg font-medium tabular-nums text-foreground">{value}</span>
-      <span className="text-center text-xs text-faint">{label}</span>
+    <div className="flex flex-col items-center gap-1 rounded-lg bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/6">
+      <span className="text-lg font-semibold tabular-nums text-white">{value}</span>
+      <span className="text-center text-[10px] text-white/30">{label}</span>
     </div>
   );
 }

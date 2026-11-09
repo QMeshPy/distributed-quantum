@@ -20,10 +20,10 @@ export function CircuitOutputPanel({ qasmCode, result }: CircuitOutputPanelProps
     <div className="flex flex-col gap-4">
       {/* QASM Output */}
       <div>
-        <p className="mb-1.5 text-xs font-medium text-subtle">
+        <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           QASM Output
         </p>
-        <pre className="w-full overflow-x-auto rounded-md border border-border bg-surface-muted/40 p-3 font-mono text-xs leading-relaxed text-foreground">
+        <pre className="w-full overflow-x-auto rounded-md border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed text-foreground">
           {qasmCode || "// No circuit defined"}
         </pre>
       </div>
@@ -31,11 +31,11 @@ export function CircuitOutputPanel({ qasmCode, result }: CircuitOutputPanelProps
       {/* Measurement Results */}
       {result && (
         <div>
-          <p className="mb-1.5 text-xs font-medium text-subtle">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Measurement Results ({totalShots.toLocaleString()} shots)
           </p>
           {sortedEntries.length === 0 ? (
-            <p className="text-xs text-subtle">No measurements yet.</p>
+            <p className="text-xs text-muted-foreground">No measurements yet.</p>
           ) : (
             <div className="space-y-2">
               {sortedEntries.map(([bitstring, count]) => {
@@ -46,13 +46,13 @@ export function CircuitOutputPanel({ qasmCode, result }: CircuitOutputPanelProps
                     <span className="w-16 shrink-0 font-mono text-xs text-foreground">
                       {bitstring}
                     </span>
-                    <div className="flex-1 h-4 rounded-sm bg-surface-muted overflow-hidden">
+                    <div className="flex-1 h-4 rounded-sm bg-muted overflow-hidden">
                       <div
-                        className="h-full rounded-sm bg-accent transition-all duration-300"
+                        className="h-full rounded-sm bg-primary transition-all duration-300"
                         style={{ width: `${barWidth}%` }}
                       />
                     </div>
-                    <span className="w-20 shrink-0 text-right text-xs text-subtle">
+                    <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
                       {count.toLocaleString()} ({pct.toFixed(1)}%)
                     </span>
                   </div>

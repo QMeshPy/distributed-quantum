@@ -5,9 +5,9 @@ import { useDashboardStats } from "../hooks/use-dashboard-data";
 import { getHealthStatus, formatUptime } from "../lib/dashboard-transformers";
 
 const HEALTH_CFG = {
-  healthy:  { icon: CheckCircle2, label: "Healthy",  className: "text-success bg-success/10 ring-success/20", dot: "bg-success" },
-  degraded: { icon: AlertTriangle, label: "Degraded", className: "text-warning   bg-warning/10   ring-warning/20",   dot: "bg-warning"   },
-  critical: { icon: XCircle,       label: "Critical", className: "text-danger     bg-danger/10     ring-danger/20",     dot: "bg-danger"     },
+  healthy:  { icon: CheckCircle2, label: "Healthy",  className: "text-emerald-400 bg-emerald-500/10 ring-emerald-500/20", dot: "bg-emerald-400" },
+  degraded: { icon: AlertTriangle, label: "Degraded", className: "text-amber-400   bg-amber-500/10   ring-amber-500/20",   dot: "bg-amber-400"   },
+  critical: { icon: XCircle,       label: "Critical", className: "text-red-400     bg-red-500/10     ring-red-500/20",     dot: "bg-red-400"     },
 } as const;
 
 export function DashboardStatusBar() {
@@ -23,12 +23,12 @@ export function DashboardStatusBar() {
   return (
     <div className="flex items-center gap-2">
       {/* Live ping */}
-      <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 ring-1 ring-success/20 bg-success/8">
+      <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 ring-1 ring-emerald-500/20 bg-emerald-500/8">
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
         </span>
-        <span className="text-xs font-medium text-success">Live</span>
+        <span className="text-xs font-medium text-emerald-400">Live</span>
       </div>
 
       {/* Health status */}
@@ -38,7 +38,7 @@ export function DashboardStatusBar() {
       </div>
 
       {/* Env + uptime */}
-      <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs text-subtle ring-1 ring-border bg-surface-muted">
+      <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs text-white/40 ring-1 ring-white/8 bg-white/4">
         <Clock className="h-3 w-3" />
         {env}{uptime ? ` · ${uptime}` : ""}
       </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { Panel, PanelContent, PanelHeader, PanelTitle, PanelFooter } from "@/shared/components/panel/panel";
-import { Button } from "@/components/arc/button/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/collapsible";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlertCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -19,28 +19,28 @@ export function ApprovalCard({ approval, sessionId }: ApprovalCardProps) {
   const [showTechnical, setShowTechnical] = useState(false);
 
   return (
-    <Panel className="border-warning/30 bg-warning/5">
-      <PanelHeader>
-        <PanelTitle className="text-base flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-warning" />
+    <Card className="border-yellow-500/30 bg-yellow-500/5">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <AlertCircle className="h-5 w-5 text-yellow-500" />
           Approval Required
-        </PanelTitle>
-      </PanelHeader>
+        </CardTitle>
+      </CardHeader>
 
-      <PanelContent className="space-y-4">
+      <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <div className="text-subtle text-xs mb-1">Duration</div>
+            <div className="text-white/40 text-xs mb-1">Duration</div>
             <div className="font-medium">{approval.time_minutes} minutes</div>
           </div>
           <div>
-            <div className="text-subtle text-xs mb-1">Estimated Cost</div>
+            <div className="text-white/40 text-xs mb-1">Estimated Cost</div>
             <div className="font-medium">${approval.cost.toFixed(2)}</div>
           </div>
         </div>
 
         {approval.description && (
-          <p className="text-sm text-subtle">{approval.description}</p>
+          <p className="text-sm text-white/60">{approval.description}</p>
         )}
 
         {/* Technical Details (collapsible) */}
@@ -56,7 +56,7 @@ export function ApprovalCard({ approval, sessionId }: ApprovalCardProps) {
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3">
-              <div className="space-y-2 text-xs text-subtle">
+              <div className="space-y-2 text-xs text-white/60">
                 {approval.technical.nodes && (
                   <div>Nodes: {approval.technical.nodes.join(", ")}</div>
                 )}
@@ -70,11 +70,11 @@ export function ApprovalCard({ approval, sessionId }: ApprovalCardProps) {
             </CollapsibleContent>
           </Collapsible>
         )}
-      </PanelContent>
+      </CardContent>
 
-      <PanelFooter className="gap-2">
+      <CardFooter className="gap-2">
         <Button
-          variant="primary"
+          variant="default"
           className="flex-1"
           onClick={() => approveAction.mutate(true)}
           disabled={approveAction.isPending}
@@ -82,13 +82,13 @@ export function ApprovalCard({ approval, sessionId }: ApprovalCardProps) {
           Approve & Run
         </Button>
         <Button
-          variant="secondary"
+          variant="outline"
           onClick={() => approveAction.mutate(false)}
           disabled={approveAction.isPending}
         >
           Reject
         </Button>
-      </PanelFooter>
-    </Panel>
+      </CardFooter>
+    </Card>
   );
 }

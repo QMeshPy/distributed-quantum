@@ -20,7 +20,7 @@ export function NodesPageClient() {
         <div className="flex justify-end mb-4">
           <Link
             href="/network/nodes/join"
-            className="text-xs text-subtle hover:text-foreground transition-colors"
+            className="text-xs text-white/40 hover:text-white/70 transition-colors"
           >
             Join the network →
           </Link>
@@ -38,7 +38,7 @@ export function NodesPageClient() {
           <div className="flex justify-end mt-2">
             <Link
               href="/network/nodes/join"
-              className="text-xs text-subtle hover:text-foreground transition-colors"
+              className="text-xs text-white/40 hover:text-white/70 transition-colors"
             >
               Add more nodes →
             </Link>

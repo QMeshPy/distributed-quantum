@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/arc/button/button";
+import { Button } from "@/components/ui/button";
 import { UI } from "@/constants";
 import { useUpgrade } from "../hooks/use-billing";
 

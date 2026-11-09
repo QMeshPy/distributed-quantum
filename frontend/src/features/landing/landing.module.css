@@ -1,51 +1,56 @@
-/* QMesh landing on Arc tokens: every color, font and surface below resolves to foundation.css. */
+/* QMesh landing, in Griffin's visual world: warm near-black, off-white ink,
+   hairline rails, light serif headings, mono uppercase labels, pill buttons.
+   QMesh violet takes the accent role Griffin gives to green. */
 
 .page {
-  --ground: var(--background);
-  --ground-raised: var(--surface-raised);
-  --ground-sunk: var(--surface-muted);
-  --ink: var(--foreground);
-  --ink-muted: var(--text-secondary);
-  --ink-faint: var(--text-muted);
-  --hairline: var(--border-strong);
-  --hairline-soft: var(--border-subtle);
-  --pill: var(--foreground);
-  --pill-ink: var(--background);
-  --black: var(--background);
-  --bar: var(--text-muted);
+  --ground: oklch(0.155 0.002 100);
+  --ground-raised: oklch(0.205 0.003 60);
+  --ground-sunk: oklch(0.125 0.002 100);
+  --ink: oklch(0.97 0.009 80);
+  --ink-muted: oklch(0.69 0.012 75);
+  --ink-faint: oklch(0.6 0.01 70);
+  --hairline: oklch(0.33 0.004 80);
+  --hairline-soft: oklch(1 0 0 / 0.08);
+  --pill: oklch(0.91 0.012 80);
+  --pill-ink: oklch(0.155 0.002 100);
+  --black: oklch(0 0 0);
+  --bar: oklch(0.6 0.009 75);
 
-  /* One signal color per architecture layer, from Arc's categorical tones. */
-  --accent-1: var(--tone-teal);
-  --accent-2: var(--tone-amber);
-  --accent-3: var(--tone-green);
-  --accent-4: var(--tone-rose);
-  --accent-5: var(--tone-sky);
+  /* Griffin's step accents; one per architecture layer, used only as signals. */
+  --accent-1: rgb(0 215 202);
+  --accent-2: rgb(245 190 14);
+  --accent-3: rgb(133 237 165);
+  --accent-4: rgb(243 92 149);
+  --accent-5: rgb(120 170 255);
+  --accent: var(--accent-1);
 
+  /* Older names still read by the isometric scenes, mapped to neutrals. */
   --quantum: var(--ink-muted);
   --classical: var(--accent);
   --sea-core: var(--ink);
   --sea-ink: var(--ink);
-  --glyph-dim: var(--border);
-  --glyph-mid: var(--border-strong);
-  --glyph-hi: var(--text-secondary);
+  --glyph-dim: oklch(0.27 0.004 80);
+  --glyph-mid: oklch(0.42 0.006 80);
+  --glyph-hi: oklch(0.66 0.01 80);
   --glyph-accent: var(--ink);
 
   /* Isometric device line art. */
-  --iso-top: var(--surface-raised);
-  --iso-side: var(--background);
-  --iso-front: var(--surface);
-  --iso-lid: var(--surface-raised);
-  --iso-line: color-mix(in oklab, var(--text-secondary) 65%, transparent);
-  --iso-screen: var(--surface-muted);
-  --iso-pcb: var(--surface-raised);
+  --iso-top: oklch(0.23 0.003 80);
+  --iso-side: oklch(0.15 0.002 80);
+  --iso-front: oklch(0.19 0.003 80);
+  --iso-lid: oklch(0.2 0.003 80);
+  --iso-line: oklch(0.68 0.01 80 / 0.65);
+  --iso-screen: oklch(0.14 0.004 80);
+  --iso-pcb: oklch(0.24 0.004 80);
 
-  --dots: none;
+  --dots: radial-gradient(circle, var(--hairline) 1px, transparent 1px) 0 0 / 16px 16px;
 
-  --font-text: var(--font-body);
+  --font-display: var(--landing-display), Georgia, serif;
+  --font-text: var(--landing-text), system-ui, sans-serif;
   --font-data: var(--font-geist-mono), ui-monospace, monospace;
 
   /* Type scale. */
-  --text-label: 0.75rem; /* mono labels, buttons, nav */
+  --text-label: 0.75rem; /* mono uppercase labels, buttons, nav */
   --text-sm: 0.875rem;
   --text-ui: 0.9375rem;
   --text-body: 1rem;
@@ -125,7 +130,7 @@
 .h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 300;
   text-wrap: balance;
 }
 
@@ -143,13 +148,13 @@
 
 .h1 em,
 .h2 em {
-  font-style: normal;
+  font-style: italic;
 }
 
 .h2Sans {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -158,11 +163,11 @@
   max-width: 34rem;
   color: var(--ink-muted);
   font-size: var(--text-body);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1.5;
 }
 
-/* ── Buttons: pills in mono ── */
+/* ── Buttons: pills in mono uppercase ── */
 
 .pill,
 .pillGhost,
@@ -175,7 +180,9 @@
   border-radius: 9999px;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
   line-height: 1;
+  text-transform: uppercase;
   white-space: nowrap;
   transition:
     background 200ms var(--ease-out),
@@ -237,6 +244,7 @@
   height: 4rem;
   padding-inline: var(--pad-x);
   background: color-mix(in oklch, var(--ground) 88%, transparent);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--hairline-soft);
 }
 
@@ -246,7 +254,7 @@
   gap: 0.55rem;
   justify-self: start;
   font-size: 1.125rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -276,6 +284,8 @@
   border-radius: 9999px;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   transition: background 200ms var(--ease-out);
 }
 
@@ -331,7 +341,7 @@
   border-bottom: 1px solid var(--hairline-soft);
   font-family: var(--font-display);
   font-size: 1.75rem;
-  font-weight: 400;
+  font-weight: 300;
   letter-spacing: -0.02em;
 }
 
@@ -374,11 +384,12 @@
 
 .hero::before {
   background: var(--dots);
+  mask-image: radial-gradient(ellipse 55% 70% at 72% 52%, black 15%, transparent 72%);
   animation: dotDrift 18s linear infinite;
 }
 
 .hero::after {
-  background: none;
+  background: radial-gradient(ellipse 38% 40% at 70% 55%, oklch(1 0 0 / 0.05), transparent 70%);
   animation: glowBreathe 9s ease-in-out infinite;
 }
 
@@ -408,7 +419,7 @@
   margin: 0;
   max-width: 30rem;
   font-size: var(--text-lead);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1.4;
   text-wrap: balance;
 }
@@ -443,6 +454,8 @@
   gap: 0.5rem;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-muted);
   transition: color 200ms var(--ease-out);
 }
@@ -499,6 +512,7 @@
 
 .logoRow {
   overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
 }
 
 .logoTrack {
@@ -550,6 +564,8 @@
   font-family: var(--font-data);
   font-size: var(--text-label);
   font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-faint);
 }
 
@@ -625,7 +641,7 @@
 }
 
 .archRailLit {
-  background: var(--step-accent);
+  background: linear-gradient(to bottom, transparent, var(--step-accent));
   transition:
     top 450ms var(--ease-out),
     height 450ms var(--ease-out),
@@ -657,10 +673,10 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--border-strong);
+  background: oklch(0.42 0.007 60);
   box-shadow:
     0 0 0 3px var(--ground),
-    0 0 0 4px color-mix(in oklab, var(--border-strong) 60%, transparent);
+    0 0 0 4px oklch(0.42 0.007 60 / 0.6);
   transition:
     background 400ms var(--ease-out),
     box-shadow 400ms var(--ease-out);
@@ -682,6 +698,7 @@
   font-family: var(--font-data);
   font-size: var(--text-sm);
   line-height: 14px;
+  letter-spacing: 0.06em;
   color: var(--ink-faint);
   transition: color 400ms var(--ease-out);
 }
@@ -717,7 +734,7 @@
   margin: 0;
   max-width: 26rem;
   font-size: var(--text-lead);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1.4;
 }
 
@@ -735,7 +752,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 3.4vw, 3rem);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1;
   letter-spacing: -0.03em;
 }
@@ -758,37 +775,38 @@
 /* Plates: black tops, hairline edges. The active plate brightens its strokes. */
 .plateTop {
   fill: var(--black);
-  stroke: var(--border-strong);
+  stroke: oklch(0.36 0.004 80);
   stroke-width: 1;
 }
 
 .plateSide {
   fill: var(--black);
-  stroke: var(--border-strong);
+  stroke: oklch(0.36 0.004 80);
   stroke-width: 1;
 }
 
 .plateInk {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.32 0.004 80);
   stroke-width: 1;
 }
 
 .platePanel {
   fill: var(--black);
-  stroke: var(--border-strong);
+  stroke: oklch(0.32 0.004 80);
   stroke-width: 1;
 }
 
 .plateBar {
-  fill: var(--border-strong);
+  fill: oklch(0.3 0.004 80);
 }
 
 .plateText,
 .plateCross {
   font-family: var(--font-data);
   font-size: 4px;
-  fill: var(--border-strong);
+  letter-spacing: 0.08em;
+  fill: oklch(0.36 0.004 80);
 }
 
 .plateCross {
@@ -805,12 +823,12 @@
 
 .plate[data-lit="true"] .plateTop,
 .plate[data-lit="true"] .plateSide {
-  stroke: var(--text-secondary);
+  stroke: oklch(0.78 0.008 80);
 }
 
 .plate[data-lit="true"] .plateInk,
 .plate[data-lit="true"] .platePanel {
-  stroke: var(--text-secondary);
+  stroke: oklch(0.72 0.008 80);
 }
 
 .plate[data-lit="true"] .plateBar {
@@ -830,31 +848,32 @@
 
 /* Raised objects on the plates: contact shadow, bevelled top, front detail. */
 .blockShadow {
-  fill: color-mix(in oklab, var(--background) 55%, transparent);
+  fill: oklch(0 0 0 / 0.55);
+  filter: blur(3px);
 }
 
 .blockBevel {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.3 0.004 80);
   stroke-width: 0.8;
 }
 
 .blockDetail {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.34 0.004 80);
   stroke-width: 1;
 }
 
 .blockLed {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.4 0.004 80);
   stroke-width: 2;
   stroke-linecap: round;
 }
 
 .plate[data-lit="true"] .blockBevel,
 .plate[data-lit="true"] .blockDetail {
-  stroke: var(--text-muted);
+  stroke: oklch(0.55 0.006 80);
 }
 
 .plate[data-lit="true"] .blockLed {
@@ -871,7 +890,7 @@
 .trace,
 .traceLive {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.34 0.004 80);
   stroke-width: 1.2;
   stroke-linejoin: round;
 }
@@ -881,7 +900,7 @@
 }
 
 .plate[data-lit="true"] .trace {
-  stroke: var(--text-secondary);
+  stroke: oklch(0.62 0.006 80);
 }
 
 .plate[data-lit="true"] .traceLive {
@@ -891,12 +910,12 @@
 
 .coinRidge {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.3 0.004 80);
   stroke-width: 0.8;
 }
 
 .plate[data-lit="true"] .coinRidge {
-  stroke: var(--text-muted);
+  stroke: oklch(0.55 0.006 80);
 }
 
 .calloutAnchor {
@@ -907,13 +926,13 @@
 .blockTop,
 .blockSide,
 .blockFront {
-  stroke: var(--border-strong);
+  stroke: oklch(0.34 0.004 80);
   stroke-width: 1;
   stroke-linejoin: round;
 }
 
 .blockTop {
-  fill: var(--background);
+  fill: oklch(0.13 0.002 80);
 }
 
 .blockSide {
@@ -921,17 +940,17 @@
 }
 
 .blockFront {
-  fill: var(--background);
+  fill: oklch(0.07 0.002 80);
 }
 
 .block[data-tone="light"] .blockTop {
-  fill: var(--surface-raised);
+  fill: oklch(0.24 0.004 80);
 }
 
 .plate[data-lit="true"] .blockTop,
 .plate[data-lit="true"] .blockSide,
 .plate[data-lit="true"] .blockFront {
-  stroke: var(--text-secondary);
+  stroke: oklch(0.74 0.008 80);
 }
 
 .plate[data-lit="true"] .block[data-tone="light"] .blockTop {
@@ -946,17 +965,17 @@
 
 .coinTop,
 .coinSide {
-  stroke: var(--border-strong);
+  stroke: oklch(0.34 0.004 80);
   stroke-width: 1;
 }
 
 .coinTop {
-  fill: var(--background);
+  fill: oklch(0.14 0.002 80);
 }
 
 .plate[data-lit="true"] .coinTop,
 .plate[data-lit="true"] .coinSide {
-  stroke: var(--text-secondary);
+  stroke: oklch(0.74 0.008 80);
 }
 
 .plate[data-lit="true"] .coins:nth-of-type(2) .coinTop {
@@ -966,7 +985,7 @@
 .wire,
 .wireLive {
   fill: none;
-  stroke: var(--border-strong);
+  stroke: oklch(0.34 0.004 80);
   stroke-width: 1;
 }
 
@@ -976,7 +995,7 @@
 
 .plate[data-lit="true"] .wire,
 .plate[data-lit="true"] .wireLive {
-  stroke: var(--text-secondary);
+  stroke: oklch(0.74 0.008 80);
 }
 
 /* Live wires carry traffic on the lit plate. */
@@ -1003,6 +1022,7 @@
 .calloutText {
   font-family: var(--font-data);
   font-size: 15px;
+  letter-spacing: 0.06em;
   fill: var(--ink);
 }
 
@@ -1078,6 +1098,8 @@
   gap: 0.45rem;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
@@ -1159,6 +1181,7 @@
 
 .wlLabel {
   font-size: 9px;
+  letter-spacing: 0.1em;
   fill: var(--ink-faint);
 }
 
@@ -1365,7 +1388,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.75rem;
-  font-weight: 400;
+  font-weight: 300;
   letter-spacing: -0.03em;
 }
 
@@ -1381,7 +1404,7 @@
   border-block: 1px solid var(--hairline-soft);
   font-family: var(--font-display);
   font-size: 1.25rem !important;
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1.25;
   letter-spacing: -0.02em;
   color: var(--ink) !important;
@@ -1459,6 +1482,7 @@
   color: var(--ink-muted);
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
   cursor: pointer;
 }
 
@@ -1540,7 +1564,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: 2rem;
-  font-weight: 400;
+  font-weight: 300;
   letter-spacing: -0.03em;
 }
 
@@ -1554,10 +1578,12 @@
 .bvStep {
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
   color: var(--ink-faint);
 }
 
 .bvGroup {
+  text-transform: uppercase;
 }
 
 .bvPath {
@@ -1684,6 +1710,7 @@
 .bvNode .bvNodeGroup {
   font-family: var(--font-data);
   font-size: 9px;
+  letter-spacing: 0.1em;
   fill: var(--ink-faint);
 }
 
@@ -1718,7 +1745,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: 2rem;
-  font-weight: 400;
+  font-weight: 300;
   letter-spacing: -0.03em;
 }
 
@@ -1734,6 +1761,8 @@
   gap: 0.35rem;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
@@ -1751,6 +1780,8 @@
   margin: 1rem 0 0;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-faint);
 }
 
@@ -1773,7 +1804,7 @@
   color: var(--ink-faint);
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 300;
   letter-spacing: -0.02em;
   cursor: pointer;
   box-shadow: inset 0 -1px 0 transparent;
@@ -1825,6 +1856,7 @@
   color: var(--ink-faint);
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.04em;
   text-align: left;
   cursor: pointer;
   transition: color 250ms var(--ease-out), border-color 250ms var(--ease-out);
@@ -1946,7 +1978,7 @@
   min-height: 560px;
   overflow: hidden;
   border-inline: 1px solid var(--hairline-soft);
-  background: none;
+  background: radial-gradient(ellipse 80% 70% at 50% 55%, oklch(0.14 0.01 270), var(--ground) 75%);
 }
 
 .storyCanvas {
@@ -1981,7 +2013,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(3rem, 6vw, 5.5rem);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1;
   letter-spacing: -0.03em;
 }
@@ -1991,7 +2023,7 @@
   max-width: 26rem;
   color: var(--ink-muted);
   font-size: var(--text-body);
-  font-weight: 400;
+  font-weight: 300;
 }
 
 .storyTabs {
@@ -2006,7 +2038,8 @@
   translate: -50% 0;
   border: 1px solid var(--hairline);
   border-radius: 9999px;
-  background: color-mix(in oklab, var(--background) 85%, transparent);
+  background: oklch(0.13 0.002 100 / 0.85);
+  backdrop-filter: blur(10px);
 }
 
 .storyTabs button,
@@ -2023,6 +2056,7 @@
   color: var(--ink-faint);
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition:
     background 250ms var(--ease-out),
@@ -2081,7 +2115,7 @@
 }
 
 .statValue {
-  font-weight: 400;
+  font-weight: 300;
 }
 
 .stat dd {
@@ -2108,7 +2142,7 @@
   display: inline-flex;
   font-family: var(--font-display);
   font-size: var(--text-stat);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1;
   letter-spacing: -0.03em;
 }
@@ -2185,7 +2219,7 @@
   display: inline-flex;
   font-family: var(--font-display);
   font-size: clamp(7rem, 14vw, 12rem);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1;
   letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums;
@@ -2215,6 +2249,7 @@
   gap: 0.75rem;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.08em;
   color: var(--ink-muted);
 }
 
@@ -2230,9 +2265,12 @@
   position: relative;
   padding: 1.25rem 1.5rem 1.5rem;
   border-block: 1px dashed var(--hairline);
-  border-inline: 1px dashed var(--hairline);
+  background:
+    repeating-linear-gradient(to bottom, var(--hairline) 0 0.7rem, transparent 0.7rem 1.1rem) left / 1px 100% no-repeat,
+    repeating-linear-gradient(to bottom, var(--hairline) 0 0.7rem, transparent 0.7rem 1.1rem) right / 1px 100% no-repeat;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.04em;
 }
 
 .receipt::before,
@@ -2417,8 +2455,8 @@
   padding: 1.25rem 1.4rem;
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
-  background: color-mix(in oklab, var(--background) 92%, transparent);
-  box-shadow: var(--shadow-floating);
+  background: oklch(0.13 0.002 100 / 0.92);
+  box-shadow: 0 20px 50px oklch(0 0 0 / 0.45);
 }
 
 .codeLabel {
@@ -2426,6 +2464,8 @@
   margin-top: 1rem;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
@@ -2586,7 +2626,7 @@
 .memberName {
   font-family: var(--font-display);
   font-size: var(--text-title);
-  font-weight: 400;
+  font-weight: 300;
   letter-spacing: -0.02em;
 }
 
@@ -2594,10 +2634,12 @@
 .memberLink {
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
   color: var(--ink-muted);
 }
 
 .memberRole {
+  text-transform: uppercase;
 }
 
 .memberLink {
@@ -2695,6 +2737,8 @@
   font-family: var(--font-data);
   font-size: var(--text-label);
   font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
@@ -2755,7 +2799,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(2.25rem, 3.3vw, 3.5rem);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1;
   letter-spacing: -0.04em;
   text-wrap: balance;
@@ -2810,6 +2854,8 @@
   border-top: 1px solid var(--hairline-soft);
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
@@ -2872,7 +2918,7 @@
 
 .isoKey {
   fill: none;
-  stroke: color-mix(in oklab, var(--accent) 32%, transparent);
+  stroke: oklch(0.66 0.05 310 / 0.32);
   stroke-width: 0.75;
 }
 
@@ -2883,23 +2929,23 @@
 
 .isoCrack {
   fill: none;
-  stroke: color-mix(in oklab, var(--foreground) 55%, transparent);
+  stroke: oklch(0.9 0.02 320 / 0.55);
   stroke-width: 0.8;
 }
 
 .isoScan {
-  stroke: color-mix(in oklab, var(--accent) 18%, transparent);
+  stroke: oklch(0.66 0.05 310 / 0.18);
   stroke-width: 0.6;
 }
 
 .isoScreen {
   fill: var(--iso-screen);
-  stroke: color-mix(in oklab, var(--text-muted) 60%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.6);
   stroke-width: 1;
 }
 
 .isoCell {
-  fill: color-mix(in oklab, var(--text-muted) 55%, transparent);
+  fill: oklch(0.58 0.004 80 / 0.55);
 }
 
 .isoCellHot {
@@ -2915,7 +2961,7 @@
 
 .isoArc {
   fill: none;
-  stroke: color-mix(in oklab, var(--text-secondary) 50%, transparent);
+  stroke: oklch(0.78 0.004 80 / 0.5);
   stroke-width: 1;
   stroke-dasharray: 1 5;
   stroke-linecap: round;
@@ -2923,18 +2969,19 @@
 
 
 .isoShadow {
-  fill: color-mix(in oklab, var(--background) 90%, transparent);
+  fill: oklch(0.05 0.004 80 / 0.9);
+  filter: blur(7px);
 }
 
 .isoChord {
   fill: none;
-  stroke: color-mix(in oklab, var(--text-muted) 22%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.22);
   stroke-width: 1;
   stroke-dasharray: 1 6;
 }
 
 .mapTop {
-  fill: var(--background);
+  fill: oklch(0.11 0.002 100);
   stroke: var(--hairline);
   stroke-width: 1;
 }
@@ -2946,7 +2993,7 @@
 }
 
 .mapDot {
-  fill: var(--text-muted);
+  fill: oklch(0.5 0.006 80);
 }
 
 .mapGrid {
@@ -2968,12 +3015,14 @@
 .slabLabel {
   font-family: var(--font-data);
   font-size: 1.15px;
+  letter-spacing: 0.12em;
   fill: var(--ink-muted);
 }
 
 .slabBits {
   font-family: var(--font-data);
   font-size: 3px;
+  letter-spacing: 0.08em;
   fill: var(--ink);
 }
 
@@ -3001,15 +3050,15 @@
 }
 
 .isoPacketGlow {
-  fill: color-mix(in oklab, var(--text-secondary) 22%, transparent);
+  fill: oklch(0.78 0.004 80 / 0.22);
 }
 
 .isoPacketGlowBack {
-  fill: color-mix(in oklab, var(--text-secondary) 25%, transparent);
+  fill: oklch(0.68 0.004 80 / 0.25);
 }
 
 .isoLed {
-  fill: var(--border-strong);
+  fill: oklch(0.35 0.02 310);
 }
 
 .isoLedOn {
@@ -3070,25 +3119,25 @@
 }
 
 .isoTether {
-  stroke: color-mix(in oklab, var(--text-secondary) 35%, transparent);
+  stroke: oklch(0.78 0.004 80 / 0.35);
   stroke-width: 1;
   stroke-dasharray: 2 3;
 }
 
 .isoBadgeRing {
   fill: var(--ground);
-  stroke: color-mix(in oklab, var(--text-muted) 80%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.8);
   stroke-width: 1;
 }
 
 .isoBadgeEq {
   fill: none;
-  stroke: color-mix(in oklab, var(--text-muted) 50%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.5);
   stroke-width: 0.8;
 }
 
 .isoBadgeFlash {
-  fill: color-mix(in oklab, var(--text-secondary) 35%, transparent);
+  fill: oklch(0.78 0.004 80 / 0.35);
 }
 
 .isoBadgeBit {
@@ -3110,32 +3159,32 @@
 
 
 .isoSphere {
-  fill: color-mix(in oklab, var(--background) 85%, transparent);
+  fill: oklch(0.155 0.004 80 / 0.85);
   stroke: var(--quantum);
   stroke-width: 1.2;
 }
 
 .isoSphereHalo {
   fill: none;
-  stroke: color-mix(in oklab, var(--text-muted) 35%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.35);
   stroke-width: 1;
   stroke-dasharray: 1 4;
 }
 
 .isoSphereLine {
   fill: none;
-  stroke: color-mix(in oklab, var(--text-muted) 65%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.65);
   stroke-width: 1;
 }
 
 .isoSphereFaint {
   fill: none;
-  stroke: color-mix(in oklab, var(--text-muted) 25%, transparent);
+  stroke: oklch(0.58 0.004 80 / 0.25);
   stroke-width: 1;
 }
 
 .isoNode {
-  fill: var(--border-strong);
+  fill: oklch(0.35 0.004 80);
 }
 
 .isoNodeOn {
@@ -3145,12 +3194,15 @@
 .isoResultLabel {
   font-family: var(--font-data);
   font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   fill: var(--ink-faint);
 }
 
 .isoResultBits {
   font-family: var(--font-data);
   font-size: 17px;
+  letter-spacing: 0.06em;
   fill: var(--ink);
 }
 
@@ -3185,6 +3237,7 @@
   margin-top: 0.25rem;
   font-family: var(--font-data);
   font-size: var(--text-label);
+  letter-spacing: 0.06em;
   color: var(--ink-muted);
   text-align: left;
 }
@@ -3427,6 +3480,7 @@
 
   .receipt {
     padding-inline: 0.75rem;
+    letter-spacing: 0.02em;
   }
 
   .receiptGroupHead,
@@ -3456,6 +3510,7 @@
   .storyTabs button,
   .storyTabLink {
     padding: 0 0.5rem;
+    letter-spacing: 0.02em;
   }
 
   .storyTabDot {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollArea } from "@/components/arc/scroll-area/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAgentSession } from "../hooks/use-agent-session";
 import { useAgentStream } from "../hooks/use-agent-stream";
 import { useAgentStore } from "../stores/agent-store";
@@ -32,8 +32,8 @@ export function ConversationPanel({ sessionId }: ConversationPanelProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-2">
-          <h3 className="text-lg font-medium">No Session Selected</h3>
-          <p className="text-sm text-subtle">
+          <h3 className="text-lg font-semibold">No Session Selected</h3>
+          <p className="text-sm text-white/60">
             Create a new session or select an existing one to start
           </p>
         </div>
@@ -48,10 +48,10 @@ export function ConversationPanel({ sessionId }: ConversationPanelProps) {
         <div className="space-y-6 max-w-3xl mx-auto">
           {session?.messages.length === 0 && (
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium mb-2">
+              <h3 className="text-lg font-semibold mb-2">
                 Welcome to Agent Mode
               </h3>
-              <p className="text-sm text-subtle max-w-md mx-auto">
+              <p className="text-sm text-white/60 max-w-md mx-auto">
                 Describe your experiment goals in natural language. The agent will
                 understand your intent and orchestrate the necessary tools automatically.
               </p>

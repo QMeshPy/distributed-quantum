@@ -6,24 +6,24 @@ interface GateDisplay {
 }
 
 const GATE_DISPLAY: Record<GateType, GateDisplay> = {
-  H: { label: "H", color: "bg-series-1" },
-  X: { label: "X", color: "bg-series-2" },
-  Y: { label: "Y", color: "bg-series-3" },
-  Z: { label: "Z", color: "bg-series-4" },
-  T: { label: "T", color: "bg-series-4" },
-  S: { label: "S", color: "bg-series-1" },
-  CNOT: { label: "CX", color: "bg-series-2" },
-  RX: { label: "RX", color: "bg-series-3" },
-  RY: { label: "RY", color: "bg-series-3" },
-  RZ: { label: "RZ", color: "bg-series-4" },
-  Toffoli: { label: "CCX", color: "bg-series-4" },
+  H: { label: "H", color: "bg-[hsl(var(--chart-1))]" },
+  X: { label: "X", color: "bg-[hsl(var(--chart-2))]" },
+  Y: { label: "Y", color: "bg-[hsl(var(--chart-3))]" },
+  Z: { label: "Z", color: "bg-[hsl(var(--chart-4))]" },
+  T: { label: "T", color: "bg-[hsl(var(--chart-5))]" },
+  S: { label: "S", color: "bg-[hsl(var(--chart-1))]" },
+  CNOT: { label: "CX", color: "bg-[hsl(var(--chart-2))]" },
+  RX: { label: "RX", color: "bg-[hsl(var(--chart-3))]" },
+  RY: { label: "RY", color: "bg-[hsl(var(--chart-3))]" },
+  RZ: { label: "RZ", color: "bg-[hsl(var(--chart-4))]" },
+  Toffoli: { label: "CCX", color: "bg-[hsl(var(--chart-5))]" },
 };
 
 /**
  * Returns display properties (label and color class) for a gate.
  */
 export function getGateDisplay(gate: Gate): GateDisplay {
-  return GATE_DISPLAY[gate.type] ?? { label: gate.type, color: "bg-surface-muted" };
+  return GATE_DISPLAY[gate.type] ?? { label: gate.type, color: "bg-muted" };
 }
 
 /**

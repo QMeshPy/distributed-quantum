@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/arc/button/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { GateType } from "../types";
 
@@ -39,19 +39,19 @@ export function GatePalette({ onSelectGate, selectedGate }: GatePaletteProps) {
     <div className="flex flex-col gap-3">
       {GATE_CATEGORIES.map((category) => (
         <div key={category.label}>
-          <p className="mb-1.5 text-xs font-medium text-subtle">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {category.label}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {category.gates.map((gateType) => (
               <Button
                 key={gateType}
-                variant={selectedGate === gateType ? "primary" : "secondary"}
+                variant={selectedGate === gateType ? "default" : "outline"}
                 size="sm"
                 className={cn(
                   "h-8 w-12 p-0 text-xs font-mono",
                   selectedGate === gateType &&
-                    "bg-accent text-accent-foreground",
+                    "bg-primary text-primary-foreground",
                 )}
                 onClick={() => onSelectGate(gateType)}
               >

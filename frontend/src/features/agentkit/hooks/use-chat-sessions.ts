@@ -147,7 +147,7 @@ export function useChatSessions() {
           }),
         });
       } catch {
-        // Silently ignore, message is already in local state
+        // Silently ignore — message is already in local state
       }
     },
     []

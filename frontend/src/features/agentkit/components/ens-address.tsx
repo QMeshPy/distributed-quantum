@@ -1,6 +1,6 @@
 "use client";
 
-import { Tooltip } from "@/components/arc/tooltip/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEnsReverse } from "../hooks/use-ens";
 import { isHexAddress, truncateAddress } from "../lib/ens";
 
@@ -14,7 +14,7 @@ type EnsAddressProps = {
 
 /**
  * Display a primary ENS name when set, otherwise the (truncated) address.
- * Reverse lookup failures fall back to the address, never invent a name.
+ * Reverse lookup failures fall back to the address — never invent a name.
  */
 export function EnsAddress({
   address,
@@ -26,28 +26,32 @@ export function EnsAddress({
   const { data } = useEnsReverse(isHexAddress(trimmed) ? trimmed : null);
   const primary = data?.name?.trim() || null;
   const fallback = fullFallback ? trimmed : truncateAddress(trimmed);
-  const label = primary ?? (fallback || "-");
+  const label = primary ?? (fallback || "—");
 
   if (!trimmed) {
-    return <span className={className}>-</span>;
+    return <span className={className}>—</span>;
   }
 
   return (
-    <Tooltip
-      content={
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={[
+            className,
+            primary ? undefined : monoClassName,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
         <div className="space-y-0.5">
           {primary ? <p className="text-xs">{primary}</p> : null}
-          <p className="font-mono text-xs">{trimmed}</p>
+          <p className="font-mono text-[11px]">{trimmed}</p>
         </div>
-      }
-    >
-      <span
-        className={[className, primary ? undefined : monoClassName]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {label}
-      </span>
+      </TooltipContent>
     </Tooltip>
   );
 }

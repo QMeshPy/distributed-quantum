@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/shared/lib/toast";
+import { toast } from "sonner";
 import { API, BILLING, CONFIG, QUERY_KEYS, UI } from "@/constants";
 import { authClient } from "@/features/auth/hooks/use-auth";
 import type { ConnectOverview } from "../types";

@@ -1,6 +1,4 @@
 "use client";
-
-import { Button } from "@/components/arc/button/button";
 import { useRouter } from "next/navigation";
 import {
   Cpu, Zap, BarChart3, Settings2, ArrowLeft, CheckCircle2, XCircle,
@@ -8,7 +6,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  SurfaceCard,
+  GlassCard,
   SectionTitle,
   JobMetaStrip,
   MetricGrid,
@@ -28,7 +26,7 @@ interface FinanceQuantumSummaryProps {
 
 // ── Bloch Sphere SVG ─────────────────────────────────────────────────────────
 // From measurement-only data: P(|1⟩)=selection_probability → Bloch z-component r_z=2p-1.
-// X/Y components (coherences) require full state tomography, unknown from counts alone.
+// X/Y components (coherences) require full state tomography — unknown from counts alone.
 function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number | null; selected: boolean }) {
   const R = 52;
   const cx = 64;
@@ -41,11 +39,11 @@ function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number 
   const arcEndX = cx + arcR * Math.sin(theta) * 0.55;
   const arcEndY = cy - arcR * Math.cos(theta);
 
-  const dotColor = prob === null ? "color-mix(in oklab, var(--foreground) 20%, transparent)"
-    : prob >= 0.65 ? "var(--success)"
-    : prob <= 0.35 ? "color-mix(in oklab, var(--foreground) 15.7%, transparent)"
-    : "var(--info)";
-  const ringColor = selected ? "var(--success)" : "transparent";
+  const dotColor = prob === null ? "#ffffff33"
+    : prob >= 0.65 ? "#34d399"
+    : prob <= 0.35 ? "#ffffff28"
+    : "#67e8f9";
+  const ringColor = selected ? "#34d399" : "transparent";
   const alpha = prob !== null ? Math.sqrt(Math.max(0, 1 - prob)) : null;
   const beta  = prob !== null ? Math.sqrt(Math.max(0, prob)) : null;
   const thetaDeg = (theta * 180 / Math.PI).toFixed(1);
@@ -54,37 +52,37 @@ function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number 
     : prob >= 0.65 ? "|1⟩ selected"
     : prob <= 0.35 ? "|0⟩ not selected"
     : "|+⟩ superposition";
-  const stateLabelColor = prob === null ? "color-mix(in oklab, var(--foreground) 25.1%, transparent)"
-    : prob >= 0.65 ? "var(--success)"
-    : prob <= 0.35 ? "color-mix(in oklab, var(--foreground) 20.8%, transparent)"
-    : "var(--info)";
+  const stateLabelColor = prob === null ? "#ffffff40"
+    : prob >= 0.65 ? "#34d399"
+    : prob <= 0.35 ? "#ffffff35"
+    : "#67e8f9";
 
   return (
-    <div className="flex items-start gap-5 rounded-xl bg-surface-muted p-4 ring-1 ring-border">
+    <div className="flex items-start gap-5 rounded-xl bg-white/[0.025] p-4 ring-1 ring-white/6">
       {/* SVG sphere */}
       <div className="shrink-0">
         <svg width="128" height="150" viewBox="0 0 128 150" fill="none">
           {/* Sphere */}
-          <circle cx={cx} cy={cy} r={R} stroke="color-mix(in oklab, var(--foreground) 8%, transparent)" strokeWidth="1.5" fill="color-mix(in oklab, var(--foreground) 2%, transparent)" />
+          <circle cx={cx} cy={cy} r={R} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="rgba(255,255,255,0.02)" />
           {/* Selection ring */}
           <circle cx={cx} cy={cy} r={R + 4} stroke={ringColor} strokeWidth="1.5" fill="none" opacity="0.3" />
           {/* Equatorial ellipse */}
-          <ellipse cx={cx} cy={cy} rx={R} ry={R * 0.26} stroke="color-mix(in oklab, var(--foreground) 7%, transparent)" strokeWidth="1" strokeDasharray="4 3" fill="none" />
+          <ellipse cx={cx} cy={cy} rx={R} ry={R * 0.26} stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="4 3" fill="none" />
           {/* Z axis */}
-          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy + R + 8} stroke="color-mix(in oklab, var(--foreground) 10%, transparent)" strokeWidth="1" />
+          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy + R + 8} stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
           {/* X axis */}
-          <line x1={cx - R * 0.7} y1={cy} x2={cx + R * 0.7} y2={cy} stroke="color-mix(in oklab, var(--foreground) 6%, transparent)" strokeWidth="1" strokeDasharray="3 2" />
+          <line x1={cx - R * 0.7} y1={cy} x2={cx + R * 0.7} y2={cy} stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 2" />
           {/* Axis labels */}
-          <text x={cx} y={cy - R - 12} textAnchor="middle" fontSize="11" fill="color-mix(in oklab, var(--foreground) 40%, transparent)">|1⟩</text>
-          <text x={cx} y={cy + R + 20} textAnchor="middle" fontSize="11" fill="color-mix(in oklab, var(--foreground) 20%, transparent)">|0⟩</text>
-          <text x={cx + R * 0.7 + 6} y={cy + 4} fontSize="10" fill="color-mix(in oklab, var(--foreground) 18%, transparent)">X</text>
-          <text x={cx + 4} y={cy - R - 4} fontSize="10" fill="color-mix(in oklab, var(--foreground) 18%, transparent)">Z</text>
+          <text x={cx} y={cy - R - 12} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.40)">|1⟩</text>
+          <text x={cx} y={cy + R + 20} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.20)">|0⟩</text>
+          <text x={cx + R * 0.7 + 6} y={cy + 4} fontSize="10" fill="rgba(255,255,255,0.18)">X</text>
+          <text x={cx + 4} y={cy - R - 4} fontSize="10" fill="rgba(255,255,255,0.18)">Z</text>
           {/* θ arc */}
           {prob !== null && theta > 0.08 && theta < Math.PI - 0.08 && (
             <>
               <path d={`M ${cx} ${cy - arcR} Q ${cx + arcR * 0.35} ${cy - arcR * 0.85} ${arcEndX} ${arcEndY}`}
-                stroke="color-mix(in oklab, var(--foreground) 22%, transparent)" strokeWidth="1.2" fill="none" />
-              <text x={cx + 8} y={cy - arcR + 14} fontSize="10" fontStyle="italic" fill="color-mix(in oklab, var(--foreground) 35%, transparent)">θ</text>
+                stroke="rgba(255,255,255,0.22)" strokeWidth="1.2" fill="none" />
+              <text x={cx + 8} y={cy - arcR + 14} fontSize="10" fontStyle="italic" fill="rgba(255,255,255,0.35)">θ</text>
             </>
           )}
           {/* State vector */}
@@ -97,7 +95,7 @@ function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number 
           <circle cx={dotX} cy={dotY} r="6" fill={dotColor} opacity="0.95" />
           <circle cx={dotX} cy={dotY} r="3" fill="white" opacity="0.4" />
           {/* Center */}
-          <circle cx={cx} cy={cy} r="2.5" fill="color-mix(in oklab, var(--foreground) 15%, transparent)" />
+          <circle cx={cx} cy={cy} r="2.5" fill="rgba(255,255,255,0.15)" />
         </svg>
       </div>
 
@@ -105,44 +103,44 @@ function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number 
       <div className="flex flex-1 flex-col gap-3 pt-1">
         {/* Ticker + state label */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-subtle">{ticker}</span>
-          <span className="text-sm font-medium" style={{ color: stateLabelColor }}>{stateLabel}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40">{ticker}</span>
+          <span className="text-sm font-semibold" style={{ color: stateLabelColor }}>{stateLabel}</span>
         </div>
 
         {/* State vector */}
         {alpha !== null && beta !== null && (
           <div className="flex flex-col gap-2.5">
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-faint">State Vector</p>
-              <p className="font-mono text-sm text-foreground">
-                |ψ⟩ ≈ {alpha.toFixed(3)}<span className="text-subtle">|0⟩</span>
-                <span className="mx-1 text-faint">+</span>
-                {beta.toFixed(3)}<span className="text-subtle">|1⟩</span>
+              <p className="text-[11px] text-white/35">State Vector</p>
+              <p className="font-mono text-sm text-white/75">
+                |ψ⟩ ≈ {alpha.toFixed(3)}<span className="text-white/40">|0⟩</span>
+                <span className="mx-1 text-white/30">+</span>
+                {beta.toFixed(3)}<span className="text-white/40">|1⟩</span>
               </p>
             </div>
 
             {/* θ and ⟨Z⟩ */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-0.5">
-                <p className="text-xs text-faint">Polar angle θ</p>
-                <p className="font-mono text-sm text-foreground tabular-nums">{thetaDeg}°</p>
+                <p className="text-[11px] text-white/35">Polar angle θ</p>
+                <p className="font-mono text-sm text-white/70 tabular-nums">{thetaDeg}°</p>
               </div>
               <div className="flex flex-col gap-0.5">
-                <p className="text-xs text-faint">⟨Z⟩ component</p>
-                <p className="font-mono text-sm text-foreground tabular-nums">{rz.toFixed(4)}</p>
+                <p className="text-[11px] text-white/35">⟨Z⟩ component</p>
+                <p className="font-mono text-sm text-white/70 tabular-nums">{rz.toFixed(4)}</p>
               </div>
             </div>
 
             {/* Density matrix diagonal */}
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-faint">Density matrix (diagonal)</p>
+              <p className="text-[11px] text-white/35">Density matrix (diagonal)</p>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-surface-muted px-3 py-1.5 text-center ring-1 ring-border">
-                  <p className="text-xs text-faint">ρ₀₀</p>
-                  <p className="font-mono text-sm text-subtle tabular-nums">{(1 - prob!).toFixed(4)}</p>
+                <div className="rounded-lg bg-white/[0.03] px-3 py-1.5 text-center ring-1 ring-white/6">
+                  <p className="text-[10px] text-white/30">ρ₀₀</p>
+                  <p className="font-mono text-sm text-white/65 tabular-nums">{(1 - prob!).toFixed(4)}</p>
                 </div>
-                <div className="rounded-lg px-3 py-1.5 text-center ring-1" style={{ background: `color-mix(in oklab, ${dotColor} 7%, transparent)`, borderColor: `color-mix(in oklab, ${dotColor} 19%, transparent)` }}>
-                  <p className="text-xs" style={{ color: `color-mix(in oklab, ${dotColor} 50%, transparent)` }}>ρ₁₁</p>
+                <div className="rounded-lg px-3 py-1.5 text-center ring-1" style={{ background: `${dotColor}12`, borderColor: `${dotColor}30` }}>
+                  <p className="text-[10px]" style={{ color: `${dotColor}80` }}>ρ₁₁</p>
                   <p className="font-mono text-sm tabular-nums" style={{ color: dotColor }}>{prob!.toFixed(4)}</p>
                 </div>
               </div>
@@ -157,24 +155,24 @@ function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number 
 // ── Top states table ─────────────────────────────────────────────────────────
 type TopStateRow = { rank: number; bitstring: string; assets: string; prob: string; ret: string; feasible: boolean };
 const topStateCols: DataTableColumn<TopStateRow>[] = [
-  { key: "rank", header: "#", align: "left", render: (r) => <span className="text-xs text-faint tabular-nums">{r.rank}</span> },
-  { key: "bitstring", header: "Bitstring", align: "left", render: (r) => <span className="font-mono text-xs text-subtle">{r.bitstring}</span> },
-  { key: "assets", header: "Assets", align: "left", render: (r) => <span className="text-xs text-subtle">{r.assets || "-"}</span> },
-  { key: "prob", header: "Probability", align: "right" },
+  { key: "rank", header: "#", align: "left", render: (r) => <span className="text-[11px] text-white/30 tabular-nums">{r.rank}</span> },
+  { key: "bitstring", header: "Bitstring", align: "left", render: (r) => <span className="font-mono text-[11px] text-white/40">{r.bitstring}</span> },
+  { key: "assets", header: "Assets", align: "left", render: (r) => <span className="text-xs text-white/60">{r.assets || "—"}</span> },
+  { key: "prob", header: "Probability", align: "right", accent: true, accentClass: "text-emerald-300" },
   { key: "ret", header: "Return", align: "right" },
   {
     key: "feasible", header: "Valid", align: "right",
     render: (r) => r.feasible
-      ? <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success" />
-      : <XCircle className="ml-auto h-3.5 w-3.5 text-faint" />,
+      ? <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-emerald-400" />
+      : <XCircle className="ml-auto h-3.5 w-3.5 text-white/20" />,
   },
 ];
 
 // ── Gate counts table ─────────────────────────────────────────────────────────
 type GateRow = { gate: string; count: string };
 const gateCols: DataTableColumn<GateRow>[] = [
-  { key: "gate", header: "Gate", align: "left", render: (r) => <span className="font-mono text-sm text-foreground">{r.gate}</span> },
-  { key: "count", header: "Count", align: "right" },
+  { key: "gate", header: "Gate", align: "left", render: (r) => <span className="font-mono text-sm text-white/70">{r.gate}</span> },
+  { key: "count", header: "Count", align: "right", accent: true, accentClass: "text-emerald-300" },
 ];
 
 // ── Execution pipeline timeline ───────────────────────────────────────────────
@@ -197,26 +195,26 @@ function ExecutionPipeline({ steps }: { steps: PipelineStep[] }) {
               <div className={cn(
                 "flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1",
                 step.status === "done"
-                  ? "bg-success/20 ring-success/40"
-                  : "bg-surface-muted ring-border",
+                  ? "bg-emerald-500/20 ring-emerald-500/40"
+                  : "bg-white/4 ring-white/10",
               )}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", step.status === "done" ? "bg-success" : "bg-surface-raised")} />
+                <span className={cn("h-1.5 w-1.5 rounded-full", step.status === "done" ? "bg-emerald-400" : "bg-white/20")} />
               </div>
-              {i < steps.length - 1 && <div className="mt-0.5 w-px flex-1 bg-surface-muted" />}
+              {i < steps.length - 1 && <div className="mt-0.5 w-px flex-1 bg-white/6" />}
             </div>
             {/* Content */}
             <div className={cn("flex-1 pb-4", i === steps.length - 1 && "pb-0")}>
               <div className="flex items-baseline justify-between gap-2">
-                <span className={cn("text-sm font-medium", step.status === "done" ? "text-foreground" : "text-faint")}>{step.label}</span>
+                <span className={cn("text-sm font-medium", step.status === "done" ? "text-white/80" : "text-white/30")}>{step.label}</span>
                 {step.durationMs !== null && (
-                  <span className="shrink-0 font-mono text-xs text-faint">{step.durationMs}ms</span>
+                  <span className="shrink-0 font-mono text-[11px] text-white/35">{step.durationMs}ms</span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-faint">{step.sublabel}</p>
+              <p className="mt-0.5 text-[11px] text-white/30">{step.sublabel}</p>
               {step.durationMs !== null && widthPct > 0 && (
-                <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-muted">
+                <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/4">
                   <div
-                    className="h-full rounded-full bg-success/40"
+                    className="h-full rounded-full bg-emerald-500/40"
                     style={{ width: `${Math.max(widthPct, 2)}%` }}
                   />
                 </div>
@@ -252,29 +250,29 @@ function HamiltonianGrid({
   const maxAbs = Math.max(...allVals, 1e-9);
 
   function cellColor(val: number | null, isDiag: boolean): string {
-    if (val === null) return "color-mix(in oklab, var(--foreground) 2%, transparent)";
+    if (val === null) return "rgba(255,255,255,0.02)";
     const intensity = Math.abs(val) / maxAbs;
-    if (isDiag) return `color-mix(in oklab, var(--success) ${(0.08 + intensity * 0.35) * 100}%, transparent)`;
+    if (isDiag) return `rgba(52,211,153,${0.08 + intensity * 0.35})`;
     return val > 0
-      ? `color-mix(in oklab, var(--warning) ${(0.06 + intensity * 0.30) * 100}%, transparent)`
-      : `color-mix(in oklab, var(--danger) ${(0.06 + intensity * 0.30) * 100}%, transparent)`;
+      ? `rgba(251,191,36,${0.06 + intensity * 0.30})`
+      : `rgba(239,68,68,${0.06 + intensity * 0.30})`;
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-separate border-spacing-0.5 text-xs">
+      <table className="w-full border-separate border-spacing-0.5 text-[10px]">
         <thead>
           <tr>
-            <th className="w-16 text-right text-xs text-faint pr-2" />
+            <th className="w-16 text-right text-[10px] text-white/20 pr-2" />
             {tickers.map((t) => (
-              <th key={t} className="text-center text-xs text-faint pb-1 font-medium">{t}</th>
+              <th key={t} className="text-center text-[10px] text-white/30 pb-1 font-medium">{t}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {tickers.map((rowTicker, ri) => (
             <tr key={rowTicker}>
-              <td className="text-right text-xs text-faint pr-2 font-medium">{rowTicker}</td>
+              <td className="text-right text-[10px] text-white/30 pr-2 font-medium">{rowTicker}</td>
               {tickers.map((_, ci) => {
                 const val = matrix[ri][ci];
                 const isDiag = ri === ci;
@@ -286,7 +284,7 @@ function HamiltonianGrid({
                     title={val !== null ? `${rowTicker}↔${tickers[ci]}: ${val.toFixed(6)}` : "no interaction"}
                   >
                     {val !== null && (
-                      <span className="text-xs text-subtle">{val > 0 ? "+" : ""}{val.toFixed(3)}</span>
+                      <span className="text-[9px] text-white/50">{val > 0 ? "+" : ""}{val.toFixed(3)}</span>
                     )}
                   </td>
                 );
@@ -295,10 +293,10 @@ function HamiltonianGrid({
           ))}
         </tbody>
       </table>
-      <div className="mt-2 flex items-center gap-4 text-xs text-faint">
-        <span><span className="mr-1 inline-block h-2 w-4 rounded bg-success/30" />Linear field (diagonal)</span>
-        <span><span className="mr-1 inline-block h-2 w-4 rounded bg-warning/30" />+ZZ coupling</span>
-        <span><span className="mr-1 inline-block h-2 w-4 rounded bg-danger/30" />−ZZ coupling</span>
+      <div className="mt-2 flex items-center gap-4 text-[10px] text-white/25">
+        <span><span className="mr-1 inline-block h-2 w-4 rounded bg-emerald-400/30" />Linear field (diagonal)</span>
+        <span><span className="mr-1 inline-block h-2 w-4 rounded bg-amber-400/30" />+ZZ coupling</span>
+        <span><span className="mr-1 inline-block h-2 w-4 rounded bg-red-400/30" />−ZZ coupling</span>
       </div>
     </div>
   );
@@ -307,9 +305,9 @@ function HamiltonianGrid({
 // ── Superscript math helper ───────────────────────────────────────────────────
 function PowerOf2({ n, result }: { n: number; result: number }) {
   return (
-    <span className="tabular-nums text-foreground">
-      2<sup className="text-xs">{n}</sup>
-      <span className="mx-1 text-faint">=</span>
+    <span className="tabular-nums text-white/70">
+      2<sup className="text-[0.65em]">{n}</sup>
+      <span className="mx-1 text-white/30">=</span>
       {result.toLocaleString()}
     </span>
   );
@@ -329,24 +327,26 @@ export function FinanceQuantumSummary({ job, className }: FinanceQuantumSummaryP
         createdAt={job.createdAt}
         extraBadges={
           problemType
-            ? [{ label: problemType, className: "border-success/30 bg-success/10 text-success" }]
+            ? [{ label: problemType, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" }]
             : []
         }
         rightContent={
-          <Button variant="secondary" size="sm"
-            onClick={() => router.push(ROUTES.financeDetail(job.jobId))}>
+          <button
+            onClick={() => router.push(ROUTES.financeDetail(job.jobId))}
+            className="flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-3 py-1.5 text-xs text-white/40 ring-1 ring-white/8 transition-colors hover:text-white/70 hover:bg-white/[0.07]"
+          >
             <ArrowLeft className="h-3 w-3" />
             Back to Finance
-          </Button>
+          </button>
         }
       />
 
       {hasResult ? (
         <QuantumDetails result={job.result!} />
       ) : (
-        <SurfaceCard>
-          <p className="text-sm text-faint">No quantum execution data available yet.</p>
-        </SurfaceCard>
+        <GlassCard>
+          <p className="text-sm text-white/35">No quantum execution data available yet.</p>
+        </GlassCard>
       )}
     </div>
   );
@@ -384,18 +384,18 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
 
   // QAOA metrics
   const qaoaMetrics: MetricItem[] = [
-    { label: "QAOA Reps (p)", value: num(qaoa.reps) ?? "-", accent: true },
-    { label: "β (beta)", value: num(qaoa.beta) !== null ? fmt(num(qaoa.beta)!, 6) : "-" },
-    { label: "γ (gamma)", value: num(qaoa.gamma) !== null ? fmt(num(qaoa.gamma)!, 6) : "-" },
-    { label: "Search Steps", value: num(qaoa.parameter_search_steps) ?? "-" },
+    { label: "QAOA Reps (p)", value: num(qaoa.reps) ?? "—", accent: true },
+    { label: "β (beta)", value: num(qaoa.beta) !== null ? fmt(num(qaoa.beta)!, 6) : "—" },
+    { label: "γ (gamma)", value: num(qaoa.gamma) !== null ? fmt(num(qaoa.gamma)!, 6) : "—" },
+    { label: "Search Steps", value: num(qaoa.parameter_search_steps) ?? "—" },
   ];
 
   // Circuit metrics
   const circuitMetrics: MetricItem[] = [
-    { label: "Qubits", value: num(circuitSummary.qubit_count) ?? "-", accent: true },
-    { label: "Depth", value: num(circuitSummary.depth) ?? "-" },
-    { label: "Gates (size)", value: num(circuitSummary.size) ?? "-" },
-    { label: "Parameters", value: num(circuitSummary.parameter_count) ?? "-" },
+    { label: "Qubits", value: num(circuitSummary.qubit_count) ?? "—", accent: true },
+    { label: "Depth", value: num(circuitSummary.depth) ?? "—" },
+    { label: "Gates (size)", value: num(circuitSummary.size) ?? "—" },
+    { label: "Parameters", value: num(circuitSummary.parameter_count) ?? "—" },
   ];
 
   // Gate breakdown table
@@ -411,8 +411,8 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
       rank: num(state.rank) ?? 0,
       bitstring: str(state.bitstring),
       assets: arr(state.selected_assets).map(str).join(", "),
-      prob: num(state.probability) !== null ? pct(num(state.probability)!) : "-",
-      ret: num(state.expected_return) !== null ? pct(num(state.expected_return)!) : "-",
+      prob: num(state.probability) !== null ? pct(num(state.probability)!) : "—",
+      ret: num(state.expected_return) !== null ? pct(num(state.expected_return)!) : "—",
       feasible: bool(state.feasible),
     };
   });
@@ -447,7 +447,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
     { label: "Circuit Compilation", sublabel: `${num(circuitSummary.qubit_count) ?? "?"}-qubit QAOA · depth ${num(circuitSummary.depth) ?? "?"} · ${num(circuitSummary.size) ?? "?"} gates`, durationMs: circuitCompile, status: "done" },
     { label: "Solution Extraction", sublabel: `Top ${topStates.length} measurement states ranked by probability`, durationMs: solutionExtract, status: "done" },
     { label: "Classical Benchmarking", sublabel: `${str(cSolver.strategy).replace(/_/g, " ")} · ${num(cSolver.evaluated_portfolios) ?? "?"} portfolios evaluated`, durationMs: classicalSolve, status: "done" },
-    { label: "Distributed Execution", sublabel: "Distributed fragment execution not yet active, running local simulation", durationMs: 0, status: "pending" },
+    { label: "Distributed Execution", sublabel: "Distributed fragment execution not yet active — running local simulation", durationMs: 0, status: "pending" },
   ];
 
   const totalBinaryStates = num(solverDiag.total_binary_states);
@@ -458,13 +458,13 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
     <>
       {/* ── Bloch Spheres ─────────────────────────────────────────────────── */}
       {encodedAssets.length > 0 && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle
             icon={Activity}
             title="Qubit States (Bloch Spheres)"
             accentColor="emerald"
             tooltip="Bloch spheres visualize each qubit's quantum state. North pole = |1⟩ (asset selected), south pole = |0⟩ (not selected), equator = superposition (uncertain). The state vector arrow shows where the qubit collapsed after measurement."
-            badge={<span className="text-xs text-faint">selection probability → state vector</span>}
+            badge={<span className="text-[11px] text-white/30">selection probability → state vector</span>}
           />
           <div className="grid grid-cols-1 gap-3 pt-3 lg:grid-cols-2">
             {encodedAssets.map((ticker) => (
@@ -478,128 +478,128 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
           </div>
 
           {/* Legend callout */}
-          <div className="mt-6 rounded-xl border-l-2 border-success/40 bg-success/4 px-5 py-4 ring-1 ring-success/10">
-            <p className="mb-3 text-sm font-medium text-success">How to read the Bloch Sphere</p>
+          <div className="mt-6 rounded-xl border-l-2 border-emerald-500/40 bg-emerald-500/[0.04] px-5 py-4 ring-1 ring-emerald-500/10">
+            <p className="mb-3 text-sm font-semibold text-emerald-400/90">How to read the Bloch Sphere</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
                 {
-                  dot: "var(--success)",
+                  dot: "#34d399",
                   label: "North pole  |1⟩",
                   desc: "State vector points upward. The asset was selected by QAOA with high confidence (measurement probability ≥ 0.65).",
                 },
                 {
-                  dot: "var(--info)",
+                  dot: "#67e8f9",
                   label: "Equator  |+⟩",
-                  desc: "State vector lies on the equatorial plane, the qubit is in superposition. Selection is uncertain; the algorithm gave no strong preference.",
+                  desc: "State vector lies on the equatorial plane — the qubit is in superposition. Selection is uncertain; the algorithm gave no strong preference.",
                 },
                 {
-                  dot: "color-mix(in oklab, var(--foreground) 15.7%, transparent)",
+                  dot: "#ffffff28",
                   label: "South pole  |0⟩",
                   desc: "State vector points downward. The asset was not selected by QAOA (measurement probability ≤ 0.35).",
                 },
               ].map(({ dot, label, desc }) => (
                 <div key={label} className="flex items-start gap-3">
-                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full ring-1 ring-border" style={{ background: dot }} />
+                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full ring-1 ring-white/10" style={{ background: dot }} />
                   <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-foreground">{label}</span>
-                    <span className="text-xs leading-relaxed text-subtle">{desc}</span>
+                    <span className="text-sm font-medium text-white/80">{label}</span>
+                    <span className="text-xs leading-relaxed text-white/45">{desc}</span>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-2 border-t border-border pt-4 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-2 border-t border-white/6 pt-4 sm:grid-cols-2">
               <div>
-                <p className="mb-1 text-xs font-medium text-subtle">State vector formula</p>
-                <p className="text-sm text-foreground">
+                <p className="mb-1 text-xs font-medium text-white/55">State vector formula</p>
+                <p className="text-sm text-white/70">
                   <span className="font-mono">|ψ⟩ ≈ α|0⟩ + β|1⟩</span>
-                  <span className="ml-2 text-xs text-faint">where α² = P(|0⟩) and β² = P(|1⟩)</span>
+                  <span className="ml-2 text-xs text-white/35">where α² = P(|0⟩) and β² = P(|1⟩)</span>
                 </p>
               </div>
               <div>
-                <p className="mb-1 text-xs font-medium text-subtle">Derived quantities</p>
-                <p className="text-xs leading-relaxed text-subtle">
-                  <span className="font-mono text-subtle">⟨Z⟩ = 2p − 1</span> is the Bloch z-component.{" "}
-                  <span className="font-mono text-subtle">θ = 2 · arccos(√p)</span> is the polar angle from the north pole.{" "}
-                  <span className="font-mono text-subtle">ρ₀₀ = 1 − p</span>, <span className="font-mono text-subtle">ρ₁₁ = p</span> are density matrix diagonals.{" "}
-                  ⟨X⟩ and ⟨Y⟩ coherences are unavailable from measurement counts alone, full state tomography required.
+                <p className="mb-1 text-xs font-medium text-white/55">Derived quantities</p>
+                <p className="text-xs leading-relaxed text-white/40">
+                  <span className="font-mono text-white/55">⟨Z⟩ = 2p − 1</span> is the Bloch z-component.{" "}
+                  <span className="font-mono text-white/55">θ = 2 · arccos(√p)</span> is the polar angle from the north pole.{" "}
+                  <span className="font-mono text-white/55">ρ₀₀ = 1 − p</span>, <span className="font-mono text-white/55">ρ₁₁ = p</span> are density matrix diagonals.{" "}
+                  ⟨X⟩ and ⟨Y⟩ coherences are unavailable from measurement counts alone — full state tomography required.
                 </p>
               </div>
             </div>
           </div>
-        </SurfaceCard>
+        </GlassCard>
       )}
 
       {/* ── Circuit Fragment Flow ────────────────────────────────────────── */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle
           icon={GitBranch}
           title="Circuit Fragment Execution Flow"
           accentColor="emerald"
           tooltip="The QAOA circuit split into fragments distributed across quantum nodes. Each node executes its fragment; results are classically recombined to reconstruct the full quantum probability distribution."
           badge={
-            <span className="text-xs text-faint">
+            <span className="text-[11px] text-white/30">
               {plan ? `${Object.keys(plan?.fragments ?? {}).length} fragments` : "plan pending"}
             </span>
           }
         />
         <CircuitFragmentFlow plan={plan} fragmentResults={fragmentResultsArr} />
-      </SurfaceCard>
+      </GlassCard>
 
       {/* ── Execution Pipeline ────────────────────────────────────────────── */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle
           icon={Clock}
           title="Execution Pipeline"
           accentColor="emerald"
           tooltip="Timeline of QAOA stages from circuit compilation through variational optimization to final measurement. Each stage feeds results into the next."
-          badge={totalMs !== null ? <span className="font-mono text-xs text-faint">{totalMs}ms total</span> : undefined}
+          badge={totalMs !== null ? <span className="font-mono text-[11px] text-white/30">{totalMs}ms total</span> : undefined}
         />
         <ExecutionPipeline steps={pipelineSteps} />
-      </SurfaceCard>
+      </GlassCard>
 
       {/* ── QAOA Parameters ───────────────────────────────────────────────── */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle
           icon={Zap}
           title="QAOA Parameters"
           accentColor="emerald"
-          tooltip="Variational angles γ (phase separation, encodes the cost function) and β (mixing, explores solution space), optimized by the classical outer loop. More layers (p) increase expressibility at the cost of circuit depth."
+          tooltip="Variational angles γ (phase separation — encodes the cost function) and β (mixing — explores solution space), optimized by the classical outer loop. More layers (p) increase expressibility at the cost of circuit depth."
           badge={
-            <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success ring-1 ring-success/20">
+            <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
               {str(qaoa.mixer_strategy).replace(/_/g, " ")}
             </span>
           }
         />
-        <MetricGrid metrics={qaoaMetrics} accentClass="text-success" />
-        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 md:grid-cols-3">
+        <MetricGrid metrics={qaoaMetrics} accentClass="text-emerald-300" />
+        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/6 pt-4 md:grid-cols-3">
           {[
             { label: "Search Strategy", value: str(qaoa.search_strategy).replace(/_/g, " ") },
             { label: "Initial State", value: str(qaoa.initial_state_strategy).replace(/_/g, " ") },
             { label: "Warm Start Bitstring", value: str(qaoa.warm_start_bitstring) },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="text-xs text-faint">{label}</p>
-              <p className="font-mono text-xs text-subtle capitalize">{value}</p>
+              <p className="text-[11px] text-white/35">{label}</p>
+              <p className="font-mono text-xs text-white/60 capitalize">{value}</p>
             </div>
           ))}
         </div>
         {arr(qaoa.beta_parameters).length > 0 && (
-          <div className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4">
+          <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/6 pt-4">
             <div>
-              <p className="mb-1.5 text-xs text-faint">β parameters</p>
+              <p className="mb-1.5 text-[11px] text-white/35">β parameters</p>
               <div className="flex flex-wrap gap-1.5">
                 {arr(qaoa.beta_parameters).map((v, i) => (
-                  <span key={i} className="rounded-md bg-surface-muted px-2 py-1 font-mono text-xs text-success ring-1 ring-border">
+                  <span key={i} className="rounded-md bg-white/[0.03] px-2 py-1 font-mono text-[11px] text-emerald-400/80 ring-1 ring-white/6">
                     {num(v) !== null ? fmt(num(v)!, 4) : str(v)}
                   </span>
                 ))}
               </div>
             </div>
             <div>
-              <p className="mb-1.5 text-xs text-faint">γ parameters</p>
+              <p className="mb-1.5 text-[11px] text-white/35">γ parameters</p>
               <div className="flex flex-wrap gap-1.5">
                 {arr(qaoa.gamma_parameters).map((v, i) => (
-                  <span key={i} className="rounded-md bg-surface-muted px-2 py-1 font-mono text-xs text-subtle ring-1 ring-border">
+                  <span key={i} className="rounded-md bg-white/[0.03] px-2 py-1 font-mono text-[11px] text-white/50 ring-1 ring-white/6">
                     {num(v) !== null ? fmt(num(v)!, 4) : str(v)}
                   </span>
                 ))}
@@ -607,61 +607,61 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
             </div>
           </div>
         )}
-      </SurfaceCard>
+      </GlassCard>
 
       {/* ── Circuit Summary ───────────────────────────────────────────────── */}
-      <SurfaceCard>
-        <SectionTitle icon={Cpu} title="Circuit Summary" accentColor="emerald" tooltip="Key metrics of the compiled QAOA quantum circuit. Depth is the number of sequential gate layers, shallower circuits have lower error rates on current hardware." />
-        <MetricGrid metrics={circuitMetrics} accentClass="text-success" />
+      <GlassCard>
+        <SectionTitle icon={Cpu} title="Circuit Summary" accentColor="emerald" tooltip="Key metrics of the compiled QAOA quantum circuit. Depth is the number of sequential gate layers — shallower circuits have lower error rates on current hardware." />
+        <MetricGrid metrics={circuitMetrics} accentClass="text-emerald-300" />
         {gateRows.length > 0 && (
-          <div className="mt-4 border-t border-border pt-4">
-            <p className="mb-3 text-xs text-faint">Gate Breakdown</p>
-            <DataTable rows={gateRows} columns={gateCols} getRowKey={(r) => r.gate} />
+          <div className="mt-4 border-t border-white/6 pt-4">
+            <p className="mb-3 text-[11px] text-white/35">Gate Breakdown</p>
+            <DataTable rows={gateRows} columns={gateCols} accentClass="text-emerald-300" getRowKey={(r) => r.gate} />
           </div>
         )}
-      </SurfaceCard>
+      </GlassCard>
 
       {/* ── Top QAOA Measurement States ───────────────────────────────────── */}
       {topStateRows.length > 0 && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle
             icon={BarChart3}
             title="Top Measurement States"
             accentColor="emerald"
             tooltip="Most frequently observed bitstrings when the QAOA circuit was measured. Each bitstring encodes a portfolio: bit '1' means the asset at that position was selected. Higher probability = stronger algorithmic preference."
-            badge={<span className="text-xs text-faint">top {topStateRows.length} of 2<sup className="text-xs">{logN}</sup></span>}
+            badge={<span className="text-[11px] text-white/30">top {topStateRows.length} of 2<sup className="text-[0.65em]">{logN}</sup></span>}
           />
-          <DataTable rows={topStateRows} columns={topStateCols} getRowKey={(r) => r.bitstring} />
-        </SurfaceCard>
+          <DataTable rows={topStateRows} columns={topStateCols} accentClass="text-emerald-300" getRowKey={(r) => r.bitstring} />
+        </GlassCard>
       )}
 
       {/* ── Hamiltonian Coupling Matrix ───────────────────────────────────── */}
       {(linearFields.length > 0 || couplings.length > 0) && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle
             icon={GitBranch}
             title="Ising Hamiltonian"
             accentColor="emerald"
-            tooltip="Ising Hamiltonian coupling matrix encoding the portfolio optimization. Each cell J_ij shows the interaction strength between asset qubits i and j, negative values favour joint selection; positive values penalise it. Linear terms h_i encode individual asset biases."
+            tooltip="Ising Hamiltonian coupling matrix encoding the portfolio optimization. Each cell J_ij shows the interaction strength between asset qubits i and j — negative values favour joint selection; positive values penalise it. Linear terms h_i encode individual asset biases."
             badge={
-              <span className="text-xs text-faint">
+              <span className="text-[11px] text-white/30">
                 offset = {fmt(num(hamiltonian.offset) ?? 0, 4)} · {str(hamiltonian.penalty_strategy).replace(/_/g, " ")}
               </span>
             }
           />
           <HamiltonianGrid tickers={encodedAssets} linearFields={linearFields} couplings={couplings} />
-        </SurfaceCard>
+        </GlassCard>
       )}
 
       {/* ── Quantum Solver ────────────────────────────────────────────────── */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle
           icon={Layers}
           title="Quantum Solver"
           accentColor="emerald"
           tooltip="Configuration of the QAOA variational circuit: ansatz structure, number of layers (reps), mixer type, and whether constraint-preserving gates were used to always produce feasible portfolio allocations."
           badge={
-            <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-subtle ring-1 ring-border">
+            <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/40 ring-1 ring-white/8">
               {str(qSolver.ansatz)} p={num(qSolver.reps) ?? "?"}
             </span>
           }
@@ -669,53 +669,53 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Strategy", value: str(qSolver.strategy).replace(/_/g, " ") },
-            { label: "Parameter Evaluations", value: num(qSolver.parameter_evaluations) ?? "-" },
-            { label: "Screened Assets", value: num(solverDiag.screened_asset_count) ?? "-" },
+            { label: "Parameter Evaluations", value: num(qSolver.parameter_evaluations) ?? "—" },
+            { label: "Screened Assets", value: num(solverDiag.screened_asset_count) ?? "—" },
             {
               label: "State Space",
               value: totalBinaryStates !== null
                 ? <PowerOf2 n={logN} result={totalBinaryStates} />
-                : "-",
+                : "—",
             },
-            { label: "Coarse Grid Steps", value: num(qSolver.coarse_grid_steps) ?? "-" },
-            { label: "Local Refinement Rounds", value: num(qSolver.local_refinement_rounds) ?? "-" },
+            { label: "Coarse Grid Steps", value: num(qSolver.coarse_grid_steps) ?? "—" },
+            { label: "Local Refinement Rounds", value: num(qSolver.local_refinement_rounds) ?? "—" },
             { label: "Mixer", value: str(qSolver.mixer).replace(/_/g, " ") },
             { label: "Initial State", value: str(qSolver.initial_state).replace(/_/g, " ") },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="text-xs text-faint">{label}</p>
-              <p className="text-sm text-foreground capitalize tabular-nums">{value}</p>
+              <p className="text-[11px] text-white/35">{label}</p>
+              <p className="text-sm text-white/70 capitalize tabular-nums">{value}</p>
             </div>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-white/6 pt-4">
           {bool(qSolver.constraint_preserving) && (
-            <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs text-success ring-1 ring-success/20">Constraint Preserving</span>
+            <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-400 ring-1 ring-emerald-500/20">Constraint Preserving</span>
           )}
           {bool(qSolver.distributed) && (
-            <span className="rounded-full bg-info/10 px-2.5 py-1 text-xs text-info ring-1 ring-info/20">Distributed</span>
+            <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] text-sky-400 ring-1 ring-sky-500/20">Distributed</span>
           )}
-          <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs text-faint ring-1 ring-border capitalize">{str(qSolver.backend)}</span>
+          <span className="rounded-full bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/30 ring-1 ring-white/6 capitalize">{str(qSolver.backend)}</span>
         </div>
-      </SurfaceCard>
+      </GlassCard>
 
       {/* ── Classical Solver ──────────────────────────────────────────────── */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle icon={Settings2} title="Classical Solver" accentColor="emerald" tooltip="The classical optimizer that tunes the QAOA angles. It runs on a classical CPU and evaluates the quantum circuit repeatedly, adjusting γ and β to minimize the cost function." />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Strategy", value: str(cSolver.strategy).replace(/_/g, " ") },
-            { label: "Evaluated Portfolios", value: num(cSolver.evaluated_portfolios) ?? "-" },
-            { label: "Feasible Count", value: num(solverDiag.feasible_portfolio_count) ?? "-" },
+            { label: "Evaluated Portfolios", value: num(cSolver.evaluated_portfolios) ?? "—" },
+            { label: "Feasible Count", value: num(solverDiag.feasible_portfolio_count) ?? "—" },
             { label: "Compute Model", value: str(cSolver.compute_model).replace(/_/g, " ") },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="text-xs text-faint">{label}</p>
-              <p className="text-sm text-foreground capitalize tabular-nums">{String(value)}</p>
+              <p className="text-[11px] text-white/35">{label}</p>
+              <p className="text-sm text-white/70 capitalize tabular-nums">{String(value)}</p>
             </div>
           ))}
         </div>
-      </SurfaceCard>
+      </GlassCard>
     </>
   );
 }

@@ -9,12 +9,12 @@ export function RunDetailHeader({ run }: { run: RunDetail }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="font-mono text-sm text-subtle">
+        <span className="font-mono text-sm text-muted-foreground">
           {run.jobId}
         </span>
         <RunStatusBadge status={run.status} />
       </div>
-      <div className="flex flex-wrap gap-4 text-xs text-subtle">
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span>Created {formatRelativeTime(run.createdAt, now)}</span>
         <span>Updated {formatRelativeTime(run.updatedAt, now)}</span>
         {run.planId && (
@@ -25,7 +25,7 @@ export function RunDetailHeader({ run }: { run: RunDetail }) {
         )}
       </div>
       {run.error && (
-        <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {run.error}
         </div>
       )}

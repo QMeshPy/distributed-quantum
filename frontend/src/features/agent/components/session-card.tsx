@@ -1,8 +1,7 @@
 "use client";
 
-import { Panel, PanelContent } from "@/shared/components/panel/panel";
-import { Badge } from "@/components/arc/badge/badge";
-import { legacyBadge } from "@/lib/legacy-badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useAgentStore } from "../stores/agent-store";
@@ -25,27 +24,27 @@ export function SessionCard({ session }: SessionCardProps) {
   }[session.status] as "default" | "outline" | "secondary" | "destructive";
 
   return (
-    <Panel
+    <Card
       className={cn(
-        "cursor-pointer transition-all hover:bg-surface-muted",
-        isActive && "bg-accent/10 border-accent/30"
+        "cursor-pointer transition-all hover:bg-white/5",
+        isActive && "bg-indigo-500/10 border-indigo-500/30"
       )}
       onClick={() => setActiveSession(session.session_id)}
     >
-      <PanelContent className="p-3 space-y-2">
+      <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <span className="text-sm font-medium line-clamp-1">
             {session.title}
           </span>
           <Badge
-            {...legacyBadge(statusVariant)}
+            variant={statusVariant}
             className="shrink-0 text-xs"
           >
             {session.status}
           </Badge>
         </div>
 
-        <div className="text-xs text-subtle space-y-1">
+        <div className="text-xs text-white/40 space-y-1">
           <div>
             {formatDistanceToNow(new Date(session.updated_at), { addSuffix: true })}
           </div>
@@ -53,7 +52,7 @@ export function SessionCard({ session }: SessionCardProps) {
             {session.workflow?.steps.length ?? 0} steps • ${session.cost.actual.toFixed(2)}
           </div>
         </div>
-      </PanelContent>
-    </Panel>
+      </CardContent>
+    </Card>
   );
 }

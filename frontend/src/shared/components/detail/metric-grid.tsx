@@ -11,19 +11,19 @@ export interface MetricItem {
 
 interface MetricGridProps {
   metrics: MetricItem[];
-  /** Tailwind text class for accented values, e.g. "text-warning" */
+  /** Tailwind text class for accented values, e.g. "text-amber-300" */
   accentClass?: string;
   cols?: 2 | 3 | 4;
 }
 
-export function MetricGrid({ metrics, accentClass = "text-warning", cols = 4 }: MetricGridProps) {
+export function MetricGrid({ metrics, accentClass = "text-amber-300", cols = 4 }: MetricGridProps) {
   const colClass = { 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" }[cols];
   return (
     <div className={cn("grid grid-cols-2 gap-5", colClass)}>
       {metrics.map((m) => (
         <div key={m.label} className="flex flex-col gap-1">
-          <p className="text-xs text-faint">{m.label}</p>
-          <p className={cn("text-2xl font-medium tabular-nums", m.accent ? (m.accentClass ?? accentClass) : "text-foreground")}>
+          <p className="text-[11px] text-white/35">{m.label}</p>
+          <p className={cn("text-2xl font-semibold tabular-nums", m.accent ? (m.accentClass ?? accentClass) : "text-white/90")}>
             {m.value}
           </p>
         </div>

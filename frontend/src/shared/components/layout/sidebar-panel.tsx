@@ -2,6 +2,7 @@
 
 import type { RailItem } from "@/constants";
 import { useTrialEnabled } from "@/features/auth";
+import { SidebarContent, SidebarProvider } from "@/components/ui/sidebar";
 import { StaticSidebar } from "./static-sidebar";
 import { DynamicSidebar } from "./dynamic-sidebar";
 import { NavUser } from "./nav-user";
@@ -20,21 +21,21 @@ export function SidebarPanel({ activeRailItem }: SidebarPanelProps) {
   const { sidebar } = activeRailItem;
 
   return (
-    <div className={`flex-none${!trialEnabled ?" pointer-events-none blur-sm select-none" : ""}`}>
-      <aside className="flex w-[220px] flex-col border-r border-border-subtle">
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <SidebarProvider defaultOpen className={`!w-auto !min-h-0 flex-none${!trialEnabled ? " pointer-events-none blur-sm select-none" : ""}`}>
+      <aside className="flex w-[220px] flex-col border-r border-hairline">
+        <SidebarContent className="flex-1">
           {sidebar.type === "static" ? (
             <StaticSidebar groups={sidebar.groups} />
           ) : (
             <DynamicSidebar tools={sidebar.tools} />
           )}
-        </div>
+        </SidebarContent>
         {sidebar.type === "dynamic" && (
-          <div className="shrink-0 border-t border-border-subtle p-3">
+          <div className="shrink-0 border-t border-hairline p-3">
             <NavUser />
           </div>
         )}
       </aside>
-    </div>
+    </SidebarProvider>
   );
 }

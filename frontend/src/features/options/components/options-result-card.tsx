@@ -1,11 +1,10 @@
 "use client";
 import { OracleEvidence } from "@/shared/components/oracle-evidence";
 import { TrendingUp, Zap, Settings, AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/arc/badge/badge";
-import { legacyBadge } from "@/lib/legacy-badge";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  SurfaceCard,
+  GlassCard,
   SectionTitle,
   JobMetaStrip,
   MetricGrid,
@@ -33,9 +32,9 @@ function titleCase(s: string) {
 }
 function priceDiffColor(pct: number) {
   const abs = Math.abs(pct);
-  if (abs < 1) return "text-success";
-  if (abs < 5) return "text-warning";
-  return "text-danger";
+  if (abs < 1) return "text-emerald-400";
+  if (abs < 5) return "text-amber-400";
+  return "text-red-400";
 }
 
 // ── Greeks table ──────────────────────────────────────────────────────────────
@@ -43,9 +42,9 @@ type GreekRow = { greek: string; quantum: string; classical: string };
 const greekCols: DataTableColumn<GreekRow>[] = [
   {
     key: "greek", header: "Greek", align: "left",
-    render: (r) => <span className="font-medium text-foreground">{r.greek}</span>,
+    render: (r) => <span className="font-medium text-white/70">{r.greek}</span>,
   },
-  { key: "quantum", header: "Quantum (IQAE)", align: "right" },
+  { key: "quantum", header: "Quantum (IQAE)", align: "right", accent: true, accentClass: "text-amber-300" },
   { key: "classical", header: "Classical BS", align: "right" },
 ];
 
@@ -54,9 +53,9 @@ type ParamRow = { param: string; value: string };
 const paramCols: DataTableColumn<ParamRow>[] = [
   {
     key: "param", header: "Parameter", align: "left",
-    render: (r) => <span className="text-subtle">{r.param}</span>,
+    render: (r) => <span className="text-white/60">{r.param}</span>,
   },
-  { key: "value", header: "Value", align: "right" },
+  { key: "value", header: "Value", align: "right", accentClass: "tabular-nums text-white/85" },
 ];
 
 
@@ -66,15 +65,15 @@ export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
 
   if (!r) {
     return (
-      <SurfaceCard className={cn("ring-danger/20", className)}>
+      <GlassCard className={cn("ring-red-500/20", className)}>
         <div className="flex items-center gap-2 mb-2">
-          <Badge {...legacyBadge(job.status === "failed" ? "destructive" : "secondary")}>{job.status}</Badge>
-          <span className="font-mono text-xs text-faint">{job.jobId}</span>
+          <Badge variant={job.status === "failed" ? "destructive" : "secondary"}>{job.status}</Badge>
+          <span className="font-mono text-[11px] text-white/30">{job.jobId}</span>
         </div>
-        <p className="text-sm text-subtle">
+        <p className="text-sm text-white/50">
           {job.status === "failed" ? `Failed: ${job.error ?? "Unknown error"}` : "Analysis in progress…"}
         </p>
-      </SurfaceCard>
+      </GlassCard>
     );
   }
 
@@ -94,7 +93,7 @@ export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
     {
       label: "95% Confidence Interval",
       value: (
-        <span className="text-sm tabular-nums text-foreground">
+        <span className="text-sm tabular-nums text-white/70">
           [{fmt(r.confidenceInterval[0], 4)}, {fmt(r.confidenceInterval[1], 4)}]
         </span>
       ),
@@ -102,7 +101,7 @@ export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
     {
       label: "Moneyness",
       value: (
-        <span className={cn("font-medium", r.moneyness === "ITM" ? "text-success" : r.moneyness === "OTM" ? "text-danger" : "text-warning")}>
+        <span className={cn("font-semibold", r.moneyness === "ITM" ? "text-emerald-400" : r.moneyness === "OTM" ? "text-red-400" : "text-amber-400")}>
           {r.moneyness} ({fmt(r.moneynessRatio, 4)})
         </span>
       ),
@@ -135,29 +134,29 @@ export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
         status={job.status}
         createdAt={job.createdAt}
         extraBadges={[
-          { label: titleCase(job.optionType), className: "border-warning/30 bg-warning/10 text-warning" },
-          { label: r.moneyness, className: "border-border text-subtle" },
-          ...(r.divergenceWarning ? [{ label: "Divergence Warning", className: "border-danger/30 bg-danger/10 text-danger" }] : []),
-          ...(r.sigmaZeroFallback ? [{ label: "σ=0 Fallback", className: "border-warning/30 bg-warning/10 text-warning" }] : []),
+          { label: titleCase(job.optionType), className: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
+          { label: r.moneyness, className: "border-white/10 text-white/40" },
+          ...(r.divergenceWarning ? [{ label: "Divergence Warning", className: "border-red-500/30 bg-red-500/10 text-red-400" }] : []),
+          ...(r.sigmaZeroFallback ? [{ label: "σ=0 Fallback", className: "border-orange-500/30 bg-orange-500/10 text-orange-400" }] : []),
         ]}
-        rightContent={<QuantumDetailsButton href={ROUTES.optionsQuantum(job.jobId)} />}
+        rightContent={<QuantumDetailsButton href={ROUTES.optionsQuantum(job.jobId)} accent="amber" />}
       />
 
       {/* Pricing result */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle icon={TrendingUp} title="Pricing Result" accentColor="amber" tooltip="Quantum price computed via IQAE amplitude estimation, versus classical Black-Scholes and Binomial models. The confidence interval shows the 95% precision bounds on the quantum estimate." />
-        <MetricGrid metrics={pricingMetrics} accentClass="text-warning" />
-      </SurfaceCard>
+        <MetricGrid metrics={pricingMetrics} accentClass="text-amber-300" />
+      </GlassCard>
 
       {/* Greeks */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle
           icon={Zap}
           title="Option Greeks"
           accentColor="amber"
           tooltip="Sensitivity measures: Delta (price vs underlying), Gamma (delta change rate), Vega (price vs volatility), Theta (price vs time). Quantum values use IQAE differentiation; Classical uses Black-Scholes formulae."
           badge={
-            <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning ring-1 ring-warning/20">
+            <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400 ring-1 ring-amber-500/20">
               {r.quadraticSpeedupFactor.toFixed(1)}× Quantum Speedup
             </span>
           }
@@ -165,42 +164,44 @@ export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
         <DataTable
           rows={greekRows}
           columns={greekCols}
+          accentClass="text-amber-300"
           getRowKey={(row) => row.greek}
         />
-      </SurfaceCard>
+      </GlassCard>
 
       {/* Request parameters */}
       {paramRows.length > 0 && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle icon={Settings} title="Option Parameters" accentColor="amber" tooltip="The input parameters submitted for this option pricing job. These define the option contract and underlie both the quantum IQAE computation and the classical benchmark." />
           <DataTable
             rows={paramRows}
             columns={paramCols}
+            accentClass="text-amber-300"
             getRowKey={(row) => row.param}
           />
-        </SurfaceCard>
+        </GlassCard>
       )}
 
       {/* Warnings */}
       {(r.divergenceWarning || r.sigmaZeroFallback) && (
-        <SurfaceCard className="ring-warning/20 !bg-warning/4">
+        <GlassCard className="ring-orange-500/20 !bg-[rgba(251,146,60,0.04)]">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" />
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-warning">Accuracy Warnings</p>
+              <p className="text-sm font-medium text-orange-300">Accuracy Warnings</p>
               {r.divergenceWarning && (
-                <p className="text-xs text-subtle">
-                  Divergence detected, quantum price differs significantly from classical estimate. Results may be less reliable.
+                <p className="text-[12px] text-white/55">
+                  Divergence detected — quantum price differs significantly from classical estimate. Results may be less reliable.
                 </p>
               )}
               {r.sigmaZeroFallback && (
-                <p className="text-xs text-subtle">
-                  σ=0 fallback applied, intrinsic value used because volatility is near zero.
+                <p className="text-[12px] text-white/55">
+                  σ=0 fallback applied — intrinsic value used because volatility is near zero.
                 </p>
               )}
             </div>
           </div>
-        </SurfaceCard>
+        </GlassCard>
       )}
     </div>
   );

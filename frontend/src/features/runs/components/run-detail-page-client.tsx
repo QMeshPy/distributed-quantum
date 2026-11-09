@@ -3,11 +3,11 @@ import { useParams } from "next/navigation";
 import {
   Cpu, Zap, BarChart3, Database, CheckCircle2, XCircle, Clock,
 } from "lucide-react";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { cn } from "@/lib/utils";
 import {
-  SurfaceCard,
+  GlassCard,
   SectionTitle,
   JobMetaStrip,
   MetricGrid,
@@ -36,14 +36,14 @@ const fragmentCols: DataTableColumn<FragmentResult>[] = [
     header: "Fragment",
     align: "left",
     render: (r) => (
-      <span className="font-mono text-xs text-subtle">{r.fragmentId.slice(0, 12)}…</span>
+      <span className="font-mono text-[11px] text-white/60">{r.fragmentId.slice(0, 12)}…</span>
     ),
   },
   {
     key: "nodeId",
     header: "Node",
     align: "left",
-    render: (r) => <span className="text-subtle text-xs">{r.nodeId}</span>,
+    render: (r) => <span className="text-white/55 text-[12px]">{r.nodeId}</span>,
   },
   {
     key: "status",
@@ -55,13 +55,13 @@ const fragmentCols: DataTableColumn<FragmentResult>[] = [
       return (
         <div className="flex items-center gap-1.5">
           {isOk ? (
-            <CheckCircle2 className="h-3 w-3 text-success" />
+            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
           ) : isErr ? (
-            <XCircle className="h-3 w-3 text-danger" />
+            <XCircle className="h-3 w-3 text-red-400" />
           ) : (
-            <Clock className="h-3 w-3 text-faint" />
+            <Clock className="h-3 w-3 text-white/30" />
           )}
-          <span className={cn("text-xs", isOk ? "text-success" : isErr ? "text-danger" : "text-subtle")}>
+          <span className={cn("text-[12px]", isOk ? "text-emerald-400" : isErr ? "text-red-400" : "text-white/40")}>
             {r.status}
           </span>
         </div>
@@ -73,16 +73,16 @@ const fragmentCols: DataTableColumn<FragmentResult>[] = [
     header: "Fidelity",
     align: "right",
     render: (r) => r.observedFidelity !== null ? (
-      <span className={cn("tabular-nums text-xs", r.observedFidelity >= 0.9 ? "text-success" : r.observedFidelity >= 0.7 ? "text-warning" : "text-danger")}>
+      <span className={cn("tabular-nums text-[12px]", r.observedFidelity >= 0.9 ? "text-emerald-400" : r.observedFidelity >= 0.7 ? "text-amber-400" : "text-red-400")}>
         {(r.observedFidelity * 100).toFixed(1)}%
       </span>
-    ) : <span className="text-faint">-</span>,
+    ) : <span className="text-white/25">—</span>,
   },
   {
     key: "attempts",
     header: "Attempts",
     align: "right",
-    render: (r) => <span className="tabular-nums text-subtle">{r.attempts}</span>,
+    render: (r) => <span className="tabular-nums text-white/50">{r.attempts}</span>,
   },
 ];
 
@@ -93,12 +93,14 @@ const topStateCols: DataTableColumn<TopStateRow>[] = [
     key: "state",
     header: "Basis State",
     align: "left",
-    render: (r) => <span className="font-mono text-sm text-foreground">{r.state}</span>,
+    render: (r) => <span className="font-mono text-sm text-white/70">{r.state}</span>,
   },
   {
     key: "probability",
     header: "Probability",
     align: "right",
+    accent: true,
+    accentClass: "text-violet-300 tabular-nums",
     render: (r) => `${(r.probability * 100).toFixed(2)}%`,
   },
   {
@@ -106,8 +108,8 @@ const topStateCols: DataTableColumn<TopStateRow>[] = [
     header: "Shots",
     align: "right",
     render: (r) => r.count !== null ? (
-      <span className="tabular-nums text-subtle">{r.count.toLocaleString()}</span>
-    ) : <span className="text-faint">-</span>,
+      <span className="tabular-nums text-white/50">{r.count.toLocaleString()}</span>
+    ) : <span className="text-white/20">—</span>,
   },
 ];
 
@@ -130,10 +132,10 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
     { label: "Total Fragments", value: (progress?.totalFragments ?? fragments.length).toLocaleString() },
     { label: "Completed", value: (progress?.completedFragments ?? successFragments).toLocaleString(), accent: true },
     { label: "Active", value: (progress?.activeFragments ?? 0).toLocaleString() },
-    { label: "Success Rate", value: fragments.length > 0 ? `${((successFragments / fragments.length) * 100).toFixed(0)}%` : "-" },
-    { label: "Avg Fidelity", value: avgFidelity !== null && !isNaN(avgFidelity) ? `${(avgFidelity * 100).toFixed(1)}%` : "-" },
-    { label: "Shots", value: qr?.shots != null ? qr.shots.toLocaleString() : "-" },
-    { label: "Plan ID", value: run.planId ? <span className="font-mono text-xs">{run.planId}</span> : "-" },
+    { label: "Success Rate", value: fragments.length > 0 ? `${((successFragments / fragments.length) * 100).toFixed(0)}%` : "—" },
+    { label: "Avg Fidelity", value: avgFidelity !== null && !isNaN(avgFidelity) ? `${(avgFidelity * 100).toFixed(1)}%` : "—" },
+    { label: "Shots", value: qr?.shots != null ? qr.shots.toLocaleString() : "—" },
+    { label: "Plan ID", value: run.planId ? <span className="font-mono text-[11px]">{run.planId}</span> : "—" },
   ];
 
   const rawCounts = qr?.counts ?? null;
@@ -144,7 +146,7 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
     return {
       state,
       probability: typeof s.probability === "number" ? s.probability : 0,
-      // top_basis_states doesn't include count, look it up from counts map
+      // top_basis_states doesn't include count — look it up from counts map
       count: rawCounts?.[state] ?? (typeof s.count === "number" ? s.count : null),
     };
   });
@@ -176,10 +178,10 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
         status={run.status}
         createdAt={run.createdAt}
         extraBadges={[
-          ...(run.planId ? [{ label: "Distributed", className: "border-accent/30 bg-accent/10 text-accent" }] : []),
-          ...(failedFragments > 0 ? [{ label: `${failedFragments} failed`, className: "border-danger/30 bg-danger/10 text-danger" }] : []),
+          ...(run.planId ? [{ label: "Distributed", className: "border-violet-500/30 bg-violet-500/10 text-violet-400" }] : []),
+          ...(failedFragments > 0 ? [{ label: `${failedFragments} failed`, className: "border-red-500/30 bg-red-500/10 text-red-400" }] : []),
         ]}
-        rightContent={<QuantumDetailsButton href={ROUTES.runFragmentFlow(run.jobId)} />}
+        rightContent={<QuantumDetailsButton href={ROUTES.runFragmentFlow(run.jobId)} accent="violet" />}
       />
 
       {run.status.toLowerCase() === "completed" ? (
@@ -187,7 +189,7 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
       ) : null}
 
       {/* Execution overview */}
-      <SurfaceCard>
+      <GlassCard>
         <SectionTitle
           icon={Cpu}
           title="Execution Overview"
@@ -195,7 +197,7 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
           tooltip="Real-time status of the circuit execution job. Fragment completion tracks how many of the distributed circuit pieces have finished running on their assigned quantum nodes."
           badge={
             progress && completionPct !== null ? (
-              <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent ring-1 ring-accent/20">
+              <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-400 ring-1 ring-violet-500/20">
                 {completionPct}% complete{progress.finalizing ? " · finalizing" : ""}
               </span>
             ) : undefined
@@ -203,27 +205,27 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
         />
         {progress && completionPct !== null && (
           <div className="mb-4">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
               <div
-                className="h-full rounded-full bg-accent/60 transition-all duration-700"
+                className="h-full rounded-full bg-violet-500/60 transition-all duration-700"
                 style={{ width: `${completionPct}%` }}
               />
             </div>
           </div>
         )}
-        <MetricGrid metrics={executionMetrics} accentClass="text-accent" />
-      </SurfaceCard>
+        <MetricGrid metrics={executionMetrics} accentClass="text-violet-300" />
+      </GlassCard>
 
       {/* Fragment results */}
       {fragments.length > 0 && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle
             icon={BarChart3}
             title="Fragment Execution Results"
             accentColor="violet"
-            tooltip="Per-fragment execution outcomes. Each fragment is a sub-circuit sent to one quantum node. Fidelity measures how accurately the node executed the gates, values above 90% are considered high quality."
+            tooltip="Per-fragment execution outcomes. Each fragment is a sub-circuit sent to one quantum node. Fidelity measures how accurately the node executed the gates — values above 90% are considered high quality."
             badge={
-              <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs text-subtle ring-1 ring-border">
+              <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] text-white/40 ring-1 ring-white/8">
                 {fragments.length} fragments
               </span>
             }
@@ -231,44 +233,46 @@ export function RunDetailPanel({ run }: { run: RunDetail }) {
           <DataTable
             rows={fragments}
             columns={fragmentCols}
+            accentClass="text-violet-300"
             getRowKey={(r, i) => `${r.fragmentId ?? i}-${i}`}
           />
-        </SurfaceCard>
+        </GlassCard>
       )}
 
       {/* Top measurement states */}
       {measurementRows.length > 0 && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle icon={Database} title="Measurement Outcomes" accentColor="violet" tooltip="The most probable bitstrings observed when the circuit qubits were measured. Each bitstring represents a distinct quantum state; probabilities must sum to 1. High-probability states dominate the quantum result." />
           <DataTable
             rows={measurementRows}
             columns={topStateCols}
+            accentClass="text-violet-300"
             getRowKey={(r, i) => `${r.state ?? i}-${i}`}
           />
-        </SurfaceCard>
+        </GlassCard>
       )}
 
       {/* Circuit text */}
       {run.circuitText && (
-        <SurfaceCard>
+        <GlassCard>
           <SectionTitle icon={Zap} title="Circuit" accentColor="violet" tooltip="The OpenQASM or Qiskit circuit text submitted for execution. This defines the exact sequence of quantum gates applied to each qubit before measurement." />
-          <pre className="max-h-64 overflow-auto rounded-lg bg-surface-muted p-3 font-mono text-xs text-subtle ring-1 ring-border">
+          <pre className="max-h-64 overflow-auto rounded-lg bg-white/[0.025] p-3 font-mono text-[11px] text-white/55 ring-1 ring-white/6">
             {run.circuitText}
           </pre>
-        </SurfaceCard>
+        </GlassCard>
       )}
 
       {/* Error */}
       {run.error && (
-        <SurfaceCard className="ring-danger/20">
+        <GlassCard className="ring-red-500/20">
           <div className="flex items-start gap-2">
-            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
             <div>
-              <p className="text-sm font-medium text-danger">Execution Error</p>
-              <p className="mt-1 text-xs text-subtle">{run.error}</p>
+              <p className="text-sm font-medium text-red-300">Execution Error</p>
+              <p className="mt-1 text-[12px] text-white/50">{run.error}</p>
             </div>
           </div>
-        </SurfaceCard>
+        </GlassCard>
       )}
     </div>
   );
@@ -282,8 +286,10 @@ export function RunDetailPageClient() {
     <div className="flex min-h-full flex-col">
       <PageHeader
         icon={Cpu}
+        label="Quantum Runs"
         title="Run Detail"
         description="Circuit execution progress, fragment results, and measurement outcomes."
+        glow="violet"
       >
         {run && run.status.toLowerCase() === "completed" && (
           <ShareToVaultButton
@@ -306,23 +312,29 @@ export function RunDetailPageClient() {
       </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">
         <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden" style={{ height: "280px" }}>
-          
-          
+          <div
+            className="absolute h-[240px] w-[300px] rounded-full opacity-12 blur-[90px]"
+            style={{ left: "5%", top: "-40px", background: "radial-gradient(circle, rgba(167,139,250,0.35) 0%, transparent 70%)" }}
+          />
+          <div
+            className="absolute h-[200px] w-[250px] rounded-full opacity-8 blur-[75px]"
+            style={{ right: "10%", top: "-20px", background: "radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%)" }}
+          />
         </div>
 
         <div className="relative z-10">
           {isLoading ? (
             <div className="space-y-4">
-              <Skeleton lines={5} className="h-32 w-full" />
-              <Skeleton lines={6} className="h-48 w-full" />
-              <Skeleton lines={6} className="h-64 w-full" />
+              <Skeleton className="h-32 w-full rounded-2xl bg-white/5" />
+              <Skeleton className="h-48 w-full rounded-2xl bg-white/5" />
+              <Skeleton className="h-64 w-full rounded-2xl bg-white/5" />
             </div>
           ) : isError || !run ? (
             <div
-              className="flex items-center gap-3 rounded-2xl px-5 py-4 ring-1 ring-danger/20"
-              style={{ background: "color-mix(in oklab, var(--danger) 6%, transparent)" }}
+              className="flex items-center gap-3 rounded-2xl px-5 py-4 ring-1 ring-red-500/20"
+              style={{ background: "rgba(239,68,68,0.06)" }}
             >
-              <p className="text-sm text-danger">Failed to load run.</p>
+              <p className="text-sm text-red-400">Failed to load run.</p>
             </div>
           ) : (
             <RunDetailPanel run={run} />

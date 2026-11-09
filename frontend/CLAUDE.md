@@ -64,7 +64,7 @@ Never use `npm`, `yarn`, or `pnpm` in this directory.
 | Constants (routes, API paths, query keys, config, UI strings) | `@/constants`                       |
 | Feature public API                                            | `@/features/<name>`                 |
 | Shared components (layout shell, nav)                         | `@/shared/components/layout/<name>` |
-| Arc UI components (uiarc.dev)                                 | `@/components/arc/<name>/<name>`    |
+| shadcn primitives                                             | `@/shared/components/ui/<name>`     |
 | Shared hooks                                                  | `@/shared/hooks/<name>`             |
 | Shared lib utilities                                          | `@/shared/lib/<name>`               |
 | Providers                                                     | `@/providers`                       |

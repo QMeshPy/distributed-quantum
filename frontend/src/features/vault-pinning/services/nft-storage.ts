@@ -1,5 +1,5 @@
 // NOTE: NFT.Storage (app.nft.storage) is a Filecoin archival service for NFT
-// collections, it does NOT expose a programmatic IPFS pinning API.
+// collections — it does NOT expose a programmatic IPFS pinning API.
 // We use Pinata (api.pinata.cloud) instead, which is the standard drop-in
 // replacement: free tier (1 GB), same Bearer token auth, same /pinning/pinJSONByHash
 // endpoint pattern.

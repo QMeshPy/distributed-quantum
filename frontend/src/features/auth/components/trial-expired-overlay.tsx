@@ -17,22 +17,22 @@ export function TrialExpiredOverlay({ endsAt, action }: TrialExpiredOverlayProps
     : null;
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80">
-      <div className="bg-surface border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-lg text-center">
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-lg text-center">
         <p className="text-xl font-normal text-foreground">
           Your 1-hour trial has ended
         </p>
-        <p className="text-sm text-subtle mt-2">
+        <p className="text-sm text-muted-foreground mt-2">
           Upgrade to continue using Distributed Quantum Services. Your data and
           runs are safe.
         </p>
         {endedDateStr ? (
-          <p className="text-xs text-subtle mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Trial ended on {endedDateStr}
           </p>
         ) : null}
         <div className="mt-6">{action}</div>
-        <p className="text-xs text-subtle mt-3">
+        <p className="text-xs text-muted-foreground mt-3">
           Questions? Contact support@distributed-quantum.com
         </p>
       </div>

@@ -40,7 +40,7 @@ export type BuildRunRecordInput = {
   results?: Record<string, unknown>;
 };
 
-/** Plain (UI / legacy) run record, circuitCid is always a string. */
+/** Plain (UI / legacy) run record — circuitCid is always a string. */
 export function buildRunRecord(input: BuildRunRecordInput): RunIPFSRecord {
   const name = input.name.trim();
   const circuitCid = normalizeCircuitCid(input.circuitCid);

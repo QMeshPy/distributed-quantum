@@ -35,7 +35,7 @@ function bytesToHex(bytes: Uint8Array): string {
 
 /**
  * Recovers the Ethereum address from an EIP-191 personal_sign signature and message.
- * Server-only, keep out of client bundles (uses noble curves / Node-like APIs).
+ * Server-only — keep out of client bundles (uses noble curves / Node-like APIs).
  */
 export function recoverAddressFromEthSig(
   message: string,

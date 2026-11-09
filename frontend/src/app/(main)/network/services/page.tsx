@@ -7,8 +7,9 @@ export default function ServicesPage() {
     <div className="flex min-h-full flex-col">
       <PageHeader
         icon={Layers}
-        title="Services"
-        description="Registered quantum services, type, fidelity, and qubit ranges."
+        label="Network"
+        title="Services" glow="emerald"
+        description="Registered quantum services — type, fidelity, and qubit ranges."
       />
       <div className="flex-1 overflow-y-auto p-6">
         <ServiceTable />

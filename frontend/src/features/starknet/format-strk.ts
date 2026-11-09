@@ -1,10 +1,10 @@
 export function formatStrk(units: string | number | undefined, decimals = 18): string {
-  if (units == null || units === "") return "-";
+  if (units == null || units === "") return "—";
   let raw: bigint;
   try {
     raw = BigInt(units);
   } catch {
-    return "-";
+    return "—";
   }
   const scale = BigInt(10) ** BigInt(decimals);
   const whole = raw / scale;

@@ -1,5 +1,5 @@
 "use client";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useFinanceList } from "@/features/finance/hooks/use-finance-list";
 import { FinanceHistoryTable } from "@/features/finance/components/finance-history-table";
 
@@ -14,7 +14,7 @@ export default function FinanceHistoryPage() {
       {isPending ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton lines={2} key={i} className="h-10 w-full" />
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       ) : (
