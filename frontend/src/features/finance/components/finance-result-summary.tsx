@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  GlassCard,
+  SurfaceCard,
   SectionTitle,
   JobMetaStrip,
   MetricGrid,
@@ -30,7 +30,7 @@ export function fmt(n: number, d = 4) {
 }
 export function pct(n: number) { return `${(n * 100).toFixed(2)}%`; }
 export function num(v: unknown): number | null { return typeof v === "number" ? v : null; }
-export function str(v: unknown): string { return typeof v === "string" ? v : String(v ?? "—"); }
+export function str(v: unknown): string { return typeof v === "string" ? v : String(v ?? "-"); }
 export function bool(v: unknown): boolean { return Boolean(v); }
 export function obj(v: unknown): Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
@@ -48,44 +48,44 @@ const assetCols: DataTableColumn<AssetRow>[] = [
   {
     key: "ticker", header: "Asset", align: "left",
     render: (r) => (
-      <span className={cn("font-medium", r.selQ ? "text-white/90" : "text-white/50")}>{r.ticker}</span>
+      <span className={cn("font-medium", r.selQ ? "text-foreground" : "text-subtle")}>{r.ticker}</span>
     ),
   },
   {
-    key: "selQ", header: "Quantum", align: "right", accent: true, accentClass: "text-emerald-300",
+    key: "selQ", header: "Quantum", align: "right",
     render: (r) => r.selQ
-      ? <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /><span className="text-emerald-400 font-medium text-xs">Selected</span></span>
-      : <span className="text-white/20 text-[11px]">—</span>,
+      ? <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-success" /><span className="text-success font-medium text-xs">Selected</span></span>
+      : <span className="text-faint text-xs">-</span>,
   },
   {
     key: "selC", header: "Classical", align: "right",
     render: (r) => r.selC
-      ? <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-white/40" /><span className="text-white/60 font-medium text-xs">Selected</span></span>
-      : <span className="text-white/20 text-[11px]">—</span>,
+      ? <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-foreground/40" /><span className="text-subtle font-medium text-xs">Selected</span></span>
+      : <span className="text-faint text-xs">-</span>,
   },
   {
     key: "annReturn", header: "Ann. Return", align: "right",
     render: (r) => r.annReturn !== null
-      ? <span className={cn("tabular-nums", r.annReturn >= 0 ? "text-white/70" : "text-red-400")}>{pct(r.annReturn)}</span>
-      : <span className="text-white/20">—</span>,
+      ? <span className={cn("tabular-nums", r.annReturn >= 0 ? "text-foreground" : "text-danger")}>{pct(r.annReturn)}</span>
+      : <span className="text-faint">-</span>,
   },
   {
     key: "volatility", header: "Volatility", align: "right",
     render: (r) => r.volatility !== null
-      ? <span className="tabular-nums text-white/50">{pct(r.volatility)}</span>
-      : <span className="text-white/20">—</span>,
+      ? <span className="tabular-nums text-subtle">{pct(r.volatility)}</span>
+      : <span className="text-faint">-</span>,
   },
   {
     key: "sharpe", header: "Sharpe", align: "right",
     render: (r) => r.sharpe !== null
-      ? <span className={cn("tabular-nums font-medium", r.sharpe >= 1 ? "text-emerald-400" : r.sharpe >= 0.5 ? "text-white/70" : "text-white/40")}>{fmt(r.sharpe, 3)}</span>
-      : <span className="text-white/20">—</span>,
+      ? <span className={cn("tabular-nums font-medium", r.sharpe >= 1 ? "text-success" : r.sharpe >= 0.5 ? "text-foreground" : "text-subtle")}>{fmt(r.sharpe, 3)}</span>
+      : <span className="text-faint">-</span>,
   },
   {
     key: "selProb", header: "QAOA Prob.", align: "right",
     render: (r) => r.selProb !== null
-      ? <span className="tabular-nums text-white/40">{pct(r.selProb)}</span>
-      : <span className="text-white/20">—</span>,
+      ? <span className="tabular-nums text-subtle">{pct(r.selProb)}</span>
+      : <span className="text-faint">-</span>,
   },
 ];
 
@@ -95,15 +95,15 @@ const frontierCols: DataTableColumn<FrontierRow>[] = [
     key: "bitstring", header: "Portfolio", align: "left",
     render: (r) => (
       <span className="flex items-center gap-2">
-        <span className="font-mono text-[11px] text-white/30">{r.bitstring}</span>
+        <span className="font-mono text-xs text-faint">{r.bitstring}</span>
         {r.isQuantum && (
-          <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400 ring-1 ring-emerald-500/20">Quantum</span>
+          <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-xs text-success ring-1 ring-success/20">Quantum</span>
         )}
       </span>
     ),
   },
-  { key: "assets", header: "Assets", align: "left", render: (r) => <span className="text-xs text-white/60">{r.assets}</span> },
-  { key: "ret", header: "Return", align: "right", accent: true, accentClass: "text-emerald-300" },
+  { key: "assets", header: "Assets", align: "left", render: (r) => <span className="text-xs text-subtle">{r.assets}</span> },
+  { key: "ret", header: "Return", align: "right" },
   { key: "vol", header: "Volatility", align: "right" },
 ];
 
@@ -121,24 +121,24 @@ export function FinanceResultSummary({ job, className }: FinanceResultSummaryPro
         createdAt={job.createdAt}
         extraBadges={
           problemType
-            ? [{ label: problemType, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" }]
+            ? [{ label: problemType, className: "border-success/30 bg-success/10 text-success" }]
             : []
         }
-        rightContent={hasResult ? <QuantumDetailsButton href={ROUTES.financeQuantum(job.jobId)} accent="emerald" /> : undefined}
+        rightContent={hasResult ? <QuantumDetailsButton href={ROUTES.financeQuantum(job.jobId)} /> : undefined}
       />
 
       {hasResult ? (
         <PortfolioOptimizationFinance result={job.result!} />
       ) : !job.result && job.status !== "failed" ? (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle icon={TrendingUp} title="Analysis Results" accentColor="emerald" tooltip="Core portfolio optimization output: the optimal allocation selected by the QAOA quantum algorithm versus the classical benchmark, with risk-adjusted performance metrics." />
-          <p className="text-sm text-white/35">Results will appear here once the analysis completes.</p>
-        </GlassCard>
+          <p className="text-sm text-faint">Results will appear here once the analysis completes.</p>
+        </SurfaceCard>
       ) : null}
 
       {job.error && (
-        <div className="rounded-xl bg-red-500/8 px-3 py-2.5 ring-1 ring-red-500/20">
-          <p className="text-sm text-red-400">{job.error}</p>
+        <div className="rounded-xl bg-danger/8 px-3 py-2.5 ring-1 ring-danger/20">
+          <p className="text-sm text-danger">{job.error}</p>
         </div>
       )}
     </div>
@@ -167,27 +167,27 @@ function PortfolioOptimizationFinance({ result }: { result: FinanceResult }) {
   const advantageDetected = bool(comparison.quantum_advantage_detected);
 
   const portfolioMetrics: MetricItem[] = [
-    { label: "Quantum Return", value: qReturn !== null ? pct(qReturn) : "—", accent: true },
-    { label: "Classical Return", value: cReturn !== null ? pct(cReturn) : "—" },
+    { label: "Quantum Return", value: qReturn !== null ? pct(qReturn) : "-", accent: true },
+    { label: "Classical Return", value: cReturn !== null ? pct(cReturn) : "-" },
     {
       label: "Return Advantage",
       value: returnDiff !== null
-        ? <span className={returnDiff >= 0 ? "text-emerald-300" : "text-red-400"}>{returnDiff >= 0 ? "+" : ""}{pct(returnDiff)}</span>
-        : "—",
+        ? <span className={returnDiff >= 0 ? "text-success" : "text-danger"}>{returnDiff >= 0 ? "+" : ""}{pct(returnDiff)}</span>
+        : "-",
     },
-    { label: "Quantum Volatility", value: qVolatility !== null ? pct(qVolatility) : "—" },
+    { label: "Quantum Volatility", value: qVolatility !== null ? pct(qVolatility) : "-" },
   ];
 
   const comparisonMetrics: MetricItem[] = [
-    { label: "Objective Gap", value: num(comparison.objective_gap) !== null ? fmt(num(comparison.objective_gap)!, 6) : "—" },
-    { label: "Objective Ratio", value: num(comparison.objective_ratio) !== null ? fmt(num(comparison.objective_ratio)!, 4) : "—" },
+    { label: "Objective Gap", value: num(comparison.objective_gap) !== null ? fmt(num(comparison.objective_gap)!, 6) : "-" },
+    { label: "Objective Ratio", value: num(comparison.objective_ratio) !== null ? fmt(num(comparison.objective_ratio)!, 4) : "-" },
     {
       label: "Asset Overlap",
       value: num(comparison.overlap_count) !== null
-        ? `${num(comparison.overlap_count)} (${num(comparison.overlap_ratio) !== null ? `${(num(comparison.overlap_ratio)! * 100).toFixed(0)}%` : "—"})`
-        : "—",
+        ? `${num(comparison.overlap_count)} (${num(comparison.overlap_ratio) !== null ? `${(num(comparison.overlap_ratio)! * 100).toFixed(0)}%` : "-"})`
+        : "-",
     },
-    { label: "Feasible Prob. Mass", value: num(comparison.feasible_probability_mass) !== null ? pct(num(comparison.feasible_probability_mass)!) : "—" },
+    { label: "Feasible Prob. Mass", value: num(comparison.feasible_probability_mass) !== null ? pct(num(comparison.feasible_probability_mass)!) : "-" },
   ];
 
   const assetRows: AssetRow[] = assetUniverse
@@ -215,8 +215,8 @@ function PortfolioOptimizationFinance({ result }: { result: FinanceResult }) {
     return {
       bitstring: str(fp.bitstring),
       assets: arr(fp.selected_assets).map(str).join(", "),
-      ret: num(fp.expected_return) !== null ? pct(num(fp.expected_return)!) : "—",
-      vol: num(fp.volatility) !== null ? pct(num(fp.volatility)!) : "—",
+      ret: num(fp.expected_return) !== null ? pct(num(fp.expected_return)!) : "-",
+      vol: num(fp.volatility) !== null ? pct(num(fp.volatility)!) : "-",
       isQuantum: str(fp.bitstring) === qBitstring,
     };
   });
@@ -225,7 +225,7 @@ function PortfolioOptimizationFinance({ result }: { result: FinanceResult }) {
     <>
       <TokenizedMarketData result={result} />
       <PortfolioValuation result={result} />
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle
           icon={TrendingUp}
           title="Portfolio Result"
@@ -233,16 +233,16 @@ function PortfolioOptimizationFinance({ result }: { result: FinanceResult }) {
           tooltip="The optimal portfolio allocation found by QAOA, scored by annualised return, Sharpe ratio, and volatility. A higher percentile rank means the solution outperforms more random portfolios."
           badge={
             quantileRank !== null ? (
-              <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+              <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success ring-1 ring-success/20">
                 {quantileRank.toFixed(0)}th percentile
               </span>
             ) : undefined
           }
         />
-        <MetricGrid metrics={portfolioMetrics} accentClass="text-emerald-300" />
-      </GlassCard>
+        <MetricGrid metrics={portfolioMetrics} accentClass="text-success" />
+      </SurfaceCard>
 
-      <GlassCard className={advantageDetected ? "ring-emerald-500/20" : ""}>
+      <SurfaceCard className={advantageDetected ? "ring-success/20" : ""}>
         <SectionTitle
           icon={Activity}
           title="Quantum vs Classical"
@@ -251,122 +251,122 @@ function PortfolioOptimizationFinance({ result }: { result: FinanceResult }) {
           badge={
             <div className="flex items-center gap-2">
               {advantageDetected
-                ? <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">Advantage Detected</span>
-                : <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/30 ring-1 ring-white/8">No Advantage</span>
+                ? <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success ring-1 ring-success/20">Advantage Detected</span>
+                : <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-faint ring-1 ring-border">No Advantage</span>
               }
               {quantumOnFrontier && (
-                <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">On Frontier</span>
+                <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success ring-1 ring-success/20">On Frontier</span>
               )}
             </div>
           }
         />
-        <MetricGrid metrics={comparisonMetrics} accentClass="text-emerald-300" />
-        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/6 pt-4 md:grid-cols-4">
+        <MetricGrid metrics={comparisonMetrics} accentClass="text-success" />
+        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 md:grid-cols-4">
           {[
-            { label: "Optimum Probability", value: num(comparison.optimum_probability) !== null ? pct(num(comparison.optimum_probability)!) : "—" },
-            { label: "Return Gap", value: num(comparison.return_gap) !== null ? fmt(num(comparison.return_gap)!, 4) : "—" },
-            { label: "Variance Gap", value: num(comparison.variance_gap) !== null ? fmt(num(comparison.variance_gap)!, 6) : "—" },
-            { label: "Quantum Rank", value: frontier.quantum_rank != null ? `#${frontier.quantum_rank} of ${feasibleCount ?? "?"}` : "—" },
+            { label: "Optimum Probability", value: num(comparison.optimum_probability) !== null ? pct(num(comparison.optimum_probability)!) : "-" },
+            { label: "Return Gap", value: num(comparison.return_gap) !== null ? fmt(num(comparison.return_gap)!, 4) : "-" },
+            { label: "Variance Gap", value: num(comparison.variance_gap) !== null ? fmt(num(comparison.variance_gap)!, 6) : "-" },
+            { label: "Quantum Rank", value: frontier.quantum_rank != null ? `#${frontier.quantum_rank} of ${feasibleCount ?? "?"}` : "-" },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="text-[11px] text-white/35">{label}</p>
-              <p className="tabular-nums text-sm text-white/60">{value}</p>
+              <p className="text-xs text-faint">{label}</p>
+              <p className="tabular-nums text-sm text-subtle">{value}</p>
             </div>
           ))}
         </div>
-      </GlassCard>
+      </SurfaceCard>
 
       {assetRows.length > 0 && (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle
             icon={Layers}
             title="Asset Universe" tooltip="All assets considered in the optimization. 'Q' indicates the asset was selected by the quantum QAOA algorithm; 'C' by the classical benchmark. Sharpe ratio = excess return per unit of risk."
             accentColor="emerald"
-            badge={feasibleCount !== null ? <span className="text-[11px] text-white/30">{feasibleCount} feasible portfolios</span> : undefined}
+            badge={feasibleCount !== null ? <span className="text-xs text-faint">{feasibleCount} feasible portfolios</span> : undefined}
           />
-          <DataTable rows={assetRows} columns={assetCols} accentClass="text-emerald-300" getRowKey={(r) => r.ticker} />
-        </GlassCard>
+          <DataTable rows={assetRows} columns={assetCols} getRowKey={(r) => r.ticker} />
+        </SurfaceCard>
       )}
 
       {frontierRows.length > 0 && (
-        <GlassCard>
-          <SectionTitle icon={GitBranch} title="Efficient Frontier" tooltip="The set of optimal portfolios offering the best possible expected return for each level of risk (volatility). Points on the frontier are Pareto-optimal — you cannot improve return without increasing risk." accentColor="emerald" />
-          <DataTable rows={frontierRows} columns={frontierCols} accentClass="text-emerald-300" getRowKey={(r) => r.bitstring} />
-        </GlassCard>
+        <SurfaceCard>
+          <SectionTitle icon={GitBranch} title="Efficient Frontier" tooltip="The set of optimal portfolios offering the best possible expected return for each level of risk (volatility). Points on the frontier are Pareto-optimal, you cannot improve return without increasing risk." accentColor="emerald" />
+          <DataTable rows={frontierRows} columns={frontierCols} getRowKey={(r) => r.bitstring} />
+        </SurfaceCard>
       )}
 
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={Database} title="Dataset" accentColor="emerald" tooltip="The input historical price dataset used to compute asset returns, covariances, and Sharpe ratios. Longer lookback periods give more stable estimates but may miss recent regime changes." />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Input Layout", value: str(dataset.input_layout) },
-            { label: "Period Count", value: num(dataset.period_count) ?? "—" },
-            { label: "Raw Assets", value: num(dataset.raw_asset_count) ?? "—" },
-            { label: "Screened Assets", value: num(dataset.asset_count) ?? "—" },
+            { label: "Period Count", value: num(dataset.period_count) ?? "-" },
+            { label: "Raw Assets", value: num(dataset.raw_asset_count) ?? "-" },
+            { label: "Screened Assets", value: num(dataset.asset_count) ?? "-" },
             { label: "Start Date", value: str(dataset.start_date) },
             { label: "End Date", value: str(dataset.end_date) },
             { label: "Frequency", value: str(dataset.inferred_frequency) },
             { label: "Return Method", value: str(dataset.return_method).replace(/_/g, " ") },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="text-[11px] text-white/35">{label}</p>
-              <p className="text-sm tabular-nums text-white/70 capitalize">{String(value)}</p>
+              <p className="text-xs text-faint">{label}</p>
+              <p className="text-sm tabular-nums text-foreground capitalize">{String(value)}</p>
             </div>
           ))}
         </div>
         {(num(dataset.dropped_records) ?? 0) > 0 && (
-          <p className="mt-3 text-[11px] text-amber-400/70">{String(dataset.dropped_records)} records dropped during alignment</p>
+          <p className="mt-3 text-xs text-warning">{String(dataset.dropped_records)} records dropped during alignment</p>
         )}
         {arr(dataset.semantic_notes).length > 0 && (
-          <div className="mt-3 flex flex-col gap-1 border-t border-white/6 pt-3">
+          <div className="mt-3 flex flex-col gap-1 border-t border-border pt-3">
             {arr(dataset.semantic_notes).map((note, i) => (
-              <p key={i} className="text-[11px] text-white/35">{str(note)}</p>
+              <p key={i} className="text-xs text-faint">{str(note)}</p>
             ))}
           </div>
         )}
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-white/6 pt-4">
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
           {[
             { key: "asset_identifier_mode", label: str(dataset.asset_identifier_mode).replace(/_/g, " ") },
             { key: "asset_semantics", label: str(dataset.asset_semantics).replace(/_/g, " ") },
             { key: "benchmark_readiness", label: str(dataset.benchmark_readiness).replace(/_/g, " ") },
             ...(bool(dataset.market_comparable) ? [{ key: "market_comparable", label: "market comparable" }] : []),
           ].map(({ key, label }) => (
-            <span key={key} className="rounded-full bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/30 ring-1 ring-white/6 capitalize">{label}</span>
+            <span key={key} className="rounded-full bg-surface-muted px-2.5 py-1 text-xs text-faint ring-1 ring-border capitalize">{label}</span>
           ))}
         </div>
-      </GlassCard>
+      </SurfaceCard>
 
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={Settings} title="Run Configuration" accentColor="emerald" tooltip="The solver parameters submitted for this run: number of QAOA layers (p), optimizer type, qubit count, and risk preference. More layers generally improve solution quality at the cost of circuit depth." />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
-            { label: "Budget (# Assets)", value: num(request.budget) ?? "—" },
-            { label: "Risk Aversion", value: num(request.risk_aversion) !== null ? fmt(num(request.risk_aversion)!, 2) : "—" },
+            { label: "Budget (# Assets)", value: num(request.budget) ?? "-" },
+            { label: "Risk Aversion", value: num(request.risk_aversion) !== null ? fmt(num(request.risk_aversion)!, 2) : "-" },
             { label: "Value Mode", value: str(request.resolved_value_mode) },
-            { label: "Max Assets Considered", value: num(request.max_assets_considered) ?? "—" },
-            { label: "QAOA Reps", value: num(request.qaoa_reps) ?? "—" },
-            { label: "Search Steps", value: num(request.parameter_search_steps) ?? "—" },
+            { label: "Max Assets Considered", value: num(request.max_assets_considered) ?? "-" },
+            { label: "QAOA Reps", value: num(request.qaoa_reps) ?? "-" },
+            { label: "Search Steps", value: num(request.parameter_search_steps) ?? "-" },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="text-[11px] text-white/35">{label}</p>
-              <p className="text-sm tabular-nums text-white/70 capitalize">{String(value)}</p>
+              <p className="text-xs text-faint">{label}</p>
+              <p className="text-sm tabular-nums text-foreground capitalize">{String(value)}</p>
             </div>
           ))}
         </div>
-      </GlassCard>
+      </SurfaceCard>
 
       {warnings.length > 0 && (
-        <GlassCard>
+        <SurfaceCard>
           <SectionTitle icon={AlertTriangle} title="Warnings" accentColor="amber" tooltip="Non-fatal issues detected during execution that may affect result reliability. Common causes: shallow circuit depth, optimizer convergence issues, or degenerate asset correlations." />
           <ul className="flex flex-col gap-1.5">
             {warnings.map((w, i) => (
               <li key={i} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/70" />
-                <p className="text-[12px] text-white/50">{str(w)}</p>
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                <p className="text-xs text-subtle">{str(w)}</p>
               </li>
             ))}
           </ul>
-        </GlassCard>
+        </SurfaceCard>
       )}
     </>
   );

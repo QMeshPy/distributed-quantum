@@ -53,7 +53,7 @@ export async function getHelia(): Promise<Helia> {
 
     // Trustless-gateway broker + HTTP gateway routing so CIDs pinned elsewhere
     // resolve on a fresh browser without the sender's peers. Local IDB still
-    // caches verified blocks. (Gateways see the CID — see gateways.ts.)
+    // caches verified blocks. (Gateways see the CID, see gateways.ts.)
     const helia = await withTimeout(
       createHelia({
         blockstore,

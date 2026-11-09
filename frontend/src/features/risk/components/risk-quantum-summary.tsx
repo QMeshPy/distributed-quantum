@@ -1,9 +1,9 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { LinkButton } from "@/shared/components/link-button";
 import { Cpu, Zap, BarChart3, ArrowLeft, ShieldAlert, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  GlassCard,
+  SurfaceCard,
   SectionTitle,
   JobMetaStrip,
   MetricGrid,
@@ -29,8 +29,8 @@ function titleCase(s: string) {
 // ── PowerOf2 ──────────────────────────────────────────────────────────────────
 function PowerOf2({ base, exp }: { base: number; exp: number }) {
   return (
-    <span className="font-mono tabular-nums text-white/80">
-      {base}<sup className="text-[10px]">{exp}</sup> = {Math.pow(base, exp).toLocaleString()}
+    <span className="font-mono tabular-nums text-foreground">
+      {base}<sup className="text-xs">{exp}</sup> = {Math.pow(base, exp).toLocaleString()}
     </span>
   );
 }
@@ -51,7 +51,7 @@ function RiskBlochSphere({ idx, numQubits, role }: { idx: number; numQubits: num
 
   const dotX = cx + R * Math.sin(theta) * 0.55;
   const dotY = cy - R * Math.cos(theta);
-  const dotColor = role === "estimation" ? "#fb7185" : role === "systematic" ? "#c4b5fd" : "#67e8f9";
+  const dotColor = role === "estimation" ? "var(--danger)" : role === "systematic" ? "var(--accent)" : "var(--info)";
   const labelColor = dotColor;
 
   const roleLabel = role === "estimation"
@@ -61,44 +61,44 @@ function RiskBlochSphere({ idx, numQubits, role }: { idx: number; numQubits: num
     : "idiosyncratic risk";
 
   return (
-    <div className="flex items-start gap-4 rounded-xl bg-white/[0.025] p-4 ring-1 ring-white/6">
+    <div className="flex items-start gap-4 rounded-xl bg-surface-muted p-4 ring-1 ring-border">
       <div className="shrink-0">
         <svg width="128" height="150" viewBox="0 0 128 150" fill="none">
-          <circle cx={cx} cy={cy} r={R} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="rgba(255,255,255,0.02)" />
-          <ellipse cx={cx} cy={cy} rx={R} ry={R * 0.26} stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="4 3" fill="none" />
-          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy + R + 8} stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-          <line x1={cx - R * 0.7} y1={cy} x2={cx + R * 0.7} y2={cy} stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 2" />
-          <text x={cx} y={cy - R - 12} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.40)">|1⟩</text>
-          <text x={cx} y={cy + R + 20} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.20)">|0⟩</text>
-          <text x={cx + R * 0.7 + 6} y={cy + 4} fontSize="10" fill="rgba(255,255,255,0.18)">X</text>
-          <text x={cx + 4} y={cy - R - 4} fontSize="10" fill="rgba(255,255,255,0.18)">Z</text>
+          <circle cx={cx} cy={cy} r={R} stroke="color-mix(in oklab, var(--foreground) 8%, transparent)" strokeWidth="1.5" fill="color-mix(in oklab, var(--foreground) 2%, transparent)" />
+          <ellipse cx={cx} cy={cy} rx={R} ry={R * 0.26} stroke="color-mix(in oklab, var(--foreground) 7%, transparent)" strokeWidth="1" strokeDasharray="4 3" fill="none" />
+          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy + R + 8} stroke="color-mix(in oklab, var(--foreground) 10%, transparent)" strokeWidth="1" />
+          <line x1={cx - R * 0.7} y1={cy} x2={cx + R * 0.7} y2={cy} stroke="color-mix(in oklab, var(--foreground) 6%, transparent)" strokeWidth="1" strokeDasharray="3 2" />
+          <text x={cx} y={cy - R - 12} textAnchor="middle" fontSize="11" fill="color-mix(in oklab, var(--foreground) 40%, transparent)">|1⟩</text>
+          <text x={cx} y={cy + R + 20} textAnchor="middle" fontSize="11" fill="color-mix(in oklab, var(--foreground) 20%, transparent)">|0⟩</text>
+          <text x={cx + R * 0.7 + 6} y={cy + 4} fontSize="10" fill="color-mix(in oklab, var(--foreground) 18%, transparent)">X</text>
+          <text x={cx + 4} y={cy - R - 4} fontSize="10" fill="color-mix(in oklab, var(--foreground) 18%, transparent)">Z</text>
           <line x1={cx} y1={cy} x2={dotX} y2={dotY} stroke={dotColor} strokeWidth="2" opacity="0.75" />
           <line x1={dotX} y1={dotY} x2={dotX} y2={cy} stroke={dotColor} strokeWidth="1" strokeDasharray="3 2" opacity="0.25" />
           <circle cx={dotX} cy={dotY} r="6" fill={dotColor} opacity="0.95" />
           <circle cx={dotX} cy={dotY} r="3" fill="white" opacity="0.4" />
-          <circle cx={cx} cy={cy} r="2.5" fill="rgba(255,255,255,0.15)" />
+          <circle cx={cx} cy={cy} r="2.5" fill="color-mix(in oklab, var(--foreground) 15%, transparent)" />
         </svg>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 pt-1">
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40">Q{idx}</span>
-          <span className="text-sm font-semibold" style={{ color: labelColor }}>{roleLabel}</span>
+          <span className="text-xs font-medium text-subtle">Q{idx}</span>
+          <span className="text-sm font-medium" style={{ color: labelColor }}>{roleLabel}</span>
         </div>
         <div className="flex flex-col gap-1.5">
-          <p className="text-[11px] text-white/35">Encodes</p>
-          <p className="text-[12px] text-white/60 leading-relaxed">
+          <p className="text-xs text-faint">Encodes</p>
+          <p className="text-xs text-subtle leading-relaxed">
             {role === "estimation"
-              ? "CVaR amplitude register — collapses to encode expected tail loss above VaR threshold."
+              ? "CVaR amplitude register, collapses to encode expected tail loss above VaR threshold."
               : role === "systematic"
-              ? "Market-wide factor qubit — models correlated asset movements via Gaussian copula."
-              : "Asset-specific shock qubit — models independent credit/equity loss events."}
+              ? "Market-wide factor qubit, models correlated asset movements via Gaussian copula."
+              : "Asset-specific shock qubit, models independent credit/equity loss events."}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-white/[0.03] px-2.5 py-1.5 ring-1 ring-white/6">
+        <div className="flex items-center gap-1.5 rounded-lg bg-surface-muted px-2.5 py-1.5 ring-1 ring-border">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />
-          <span className="text-[11px] text-white/50">
-            θ ≈ {Math.round((theta * 180 / Math.PI))}° — {role === "systematic" ? "equatorial superposition" : "committed amplitude"}
+          <span className="text-xs text-subtle">
+            θ ≈ {Math.round((theta * 180 / Math.PI))}°, {role === "systematic" ? "equatorial superposition" : "committed amplitude"}
           </span>
         </div>
       </div>
@@ -111,7 +111,7 @@ function IqaeConvergence({ numCalls }: { numCalls: number }) {
   const bars = Math.min(numCalls, 10);
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11px] text-white/40">IQAE Amplitude Estimation Convergence ({numCalls} total calls)</p>
+      <p className="text-xs text-subtle">IQAE Amplitude Estimation Convergence ({numCalls} total calls)</p>
       <div className="flex items-end gap-1.5">
         {Array.from({ length: bars }, (_, i) => {
           const progress = (i + 1) / bars;
@@ -123,19 +123,19 @@ function IqaeConvergence({ numCalls }: { numCalls: number }) {
                 className="w-7 rounded-sm"
                 style={{
                   height: `${height}px`,
-                  background: `rgba(251,113,133,${opacity})`,
+                  background: `color-mix(in oklab, var(--danger) ${opacity * 100}%, transparent)`,
                 }}
               />
-              <span className="text-[9px] text-white/20">{i + 1}</span>
+              <span className="text-xs text-faint">{i + 1}</span>
             </div>
           );
         })}
         {numCalls > 10 && (
-          <span className="self-center text-[11px] text-white/30 ml-1">+{numCalls - 10} more</span>
+          <span className="self-center text-xs text-faint ml-1">+{numCalls - 10} more</span>
         )}
       </div>
-      <p className="text-[11px] text-white/35">
-        Each bar represents one IQAE oracle call — successive iterations narrow the CVaR confidence interval.
+      <p className="text-xs text-faint">
+        Each bar represents one IQAE oracle call, successive iterations narrow the CVaR confidence interval.
       </p>
     </div>
   );
@@ -143,7 +143,6 @@ function IqaeConvergence({ numCalls }: { numCalls: number }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function RiskQuantumSummary({ job, className }: RiskQuantumSummaryProps) {
-  const router = useRouter();
   const r = job.result;
   if (!r) return null;
 
@@ -168,7 +167,7 @@ export function RiskQuantumSummary({ job, className }: RiskQuantumSummaryProps) 
   ];
 
   // Synthesise a CircuitPlan from IQAE oracle calls (risk has no distributed plan).
-  // Each oracle call is treated as a sequential fragment — one call per IQAE iteration.
+  // Each oracle call is treated as a sequential fragment, one call per IQAE iteration.
   const numCalls = r.numIqaeCalls ?? 0;
   const iqaePlan: CircuitPlan = {
     plan_id: r.generatedAt,
@@ -211,28 +210,21 @@ export function RiskQuantumSummary({ job, className }: RiskQuantumSummaryProps) 
         status={job.status}
         createdAt={job.createdAt}
         extraBadges={[
-          { label: titleCase(job.riskModel), className: "border-rose-500/30 bg-rose-500/10 text-rose-400" },
-          { label: "IQAE Algorithm", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" },
+          { label: titleCase(job.riskModel), className: "border-danger/30 bg-danger/10 text-danger" },
+          { label: "IQAE Algorithm", className: "border-info/30 bg-info/10 text-info" },
         ]}
         rightContent={
-          <button
-            onClick={() => router.push(ROUTES.riskDetail(job.jobId))}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5",
-              "px-3 py-1.5 text-[12px] font-medium text-white/55 transition-colors",
-              "hover:border-white/20 hover:text-white/75",
-            )}
-          >
+          <LinkButton href={ROUTES.riskDetail(job.jobId)} size="sm" variant="secondary">
             <ArrowLeft className="h-3 w-3 shrink-0" />
             <span>Back to Risk</span>
-          </button>
+          </LinkButton>
         }
       />
 
       {/* Bloch spheres */}
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={Cpu} title="Qubit States (Bloch Spheres)" accentColor="rose" tooltip="IQAE encodes the portfolio loss distribution as quantum amplitudes. Systematic qubits model correlated market factors (Gaussian copula); idiosyncratic qubits model independent shocks; the estimation register encodes the final CVaR value." />
-        <p className="mb-4 text-[12px] text-white/40">
+        <p className="mb-4 text-xs text-subtle">
           IQAE encodes the portfolio loss distribution as quantum amplitudes.
           Systematic qubits model correlated market factors; idiosyncratic qubits
           model independent asset shocks; the estimation register collapses to the CVaR value.
@@ -244,75 +236,75 @@ export function RiskQuantumSummary({ job, className }: RiskQuantumSummaryProps) 
         </div>
 
         {/* Legend */}
-        <div className="mt-5 rounded-xl border-l-2 border-rose-500/40 bg-rose-500/[0.04] px-4 py-3 ring-1 ring-rose-500/10">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-rose-400/70">
+        <div className="mt-5 rounded-xl border-l-2 border-danger/40 bg-danger/4 px-4 py-3 ring-1 ring-danger/10">
+          <p className="mb-2 text-xs font-medium text-danger">
             Reading the Spheres
           </p>
           <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3">
             {[
-              { dot: "#c4b5fd", label: "Equatorial (θ=90°)", desc: "Systematic factor qubit — full superposition over market scenarios" },
-              { dot: "#67e8f9", label: "Tilted (θ≈117°)", desc: "Idiosyncratic shock qubit — biased toward loss scenario" },
-              { dot: "#fb7185", label: "Committed (θ≈54°)", desc: "CVaR estimation register — amplitude encodes expected tail loss" },
+              { dot: "var(--accent)", label: "Equatorial (θ=90°)", desc: "Systematic factor qubit, full superposition over market scenarios" },
+              { dot: "var(--info)", label: "Tilted (θ≈117°)", desc: "Idiosyncratic shock qubit, biased toward loss scenario" },
+              { dot: "var(--danger)", label: "Committed (θ≈54°)", desc: "CVaR estimation register, amplitude encodes expected tail loss" },
             ].map(({ dot, label, desc }) => (
               <div key={label} className="flex items-start gap-2">
-                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot, boxShadow: `0 0 6px ${dot}` }} />
+                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot }} />
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] font-semibold text-white/70">{label}</span>
-                  <span className="text-[11px] text-white/40">{desc}</span>
+                  <span className="text-xs font-medium text-foreground">{label}</span>
+                  <span className="text-xs text-subtle">{desc}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </GlassCard>
+      </SurfaceCard>
 
       {/* Circuit */}
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={Zap} title="IQAE Circuit" accentColor="rose" tooltip="The Iterative Quantum Amplitude Estimation circuit for CVaR. Each oracle call encodes the loss distribution; Grover-like iterations amplify the tail-loss amplitude, converging to the Conditional Value-at-Risk." />
-        <MetricGrid metrics={circuitMetrics} accentClass="text-rose-300" />
-      </GlassCard>
+        <MetricGrid metrics={circuitMetrics} accentClass="text-danger" />
+      </SurfaceCard>
 
       {/* Convergence */}
-      <GlassCard>
-        <SectionTitle icon={BarChart3} title="Iterative Convergence" accentColor="rose" tooltip="Each bar is one IQAE oracle call. The CVaR confidence interval shrinks quadratically — early calls have high uncertainty, later calls converge to a precise tail-loss estimate." />
+      <SurfaceCard>
+        <SectionTitle icon={BarChart3} title="Iterative Convergence" accentColor="rose" tooltip="Each bar is one IQAE oracle call. The CVaR confidence interval shrinks quadratically, early calls have high uncertainty, later calls converge to a precise tail-loss estimate." />
         <IqaeConvergence numCalls={r.numIqaeCalls ?? 0} />
-      </GlassCard>
+      </SurfaceCard>
 
       {/* Speedup summary */}
-      <GlassCard>
-        <SectionTitle icon={Settings2} title="Quantum Advantage" accentColor="rose" tooltip="Classical Monte Carlo VaR scales as O(1/ε²) samples. IQAE achieves the same precision with O(1/ε) oracle calls — a quadratic speedup. The equivalent classical sample count shows what would be needed without quantum." />
-        <MetricGrid metrics={precisionMetrics} accentClass="text-rose-300" />
-        <div className="mt-4 rounded-xl border-l-2 border-cyan-500/30 bg-cyan-500/[0.04] px-4 py-3 ring-1 ring-cyan-500/10">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-cyan-400/70 mb-2">
+      <SurfaceCard>
+        <SectionTitle icon={Settings2} title="Quantum Advantage" accentColor="rose" tooltip="Classical Monte Carlo VaR scales as O(1/ε²) samples. IQAE achieves the same precision with O(1/ε) oracle calls, a quadratic speedup. The equivalent classical sample count shows what would be needed without quantum." />
+        <MetricGrid metrics={precisionMetrics} accentClass="text-danger" />
+        <div className="mt-4 rounded-xl border-l-2 border-info/30 bg-info/4 px-4 py-3 ring-1 ring-info/10">
+          <p className="text-xs font-medium text-info mb-2">
             Quantum Risk Advantage
           </p>
-          <p className="text-[12px] text-white/50 leading-relaxed">
+          <p className="text-xs text-subtle leading-relaxed">
             Classical Monte Carlo VaR/CVaR computation scales as O(1/ε²) samples.{" "}
-            IQAE achieves the same precision with O(1/ε) oracle calls —
-            a <span className="text-rose-300 font-semibold">{r.quadraticSpeedupFactor.toFixed(1)}×</span> speedup
-            over <span className="tabular-nums text-white/70">{(r.classicalMcSamplesEquivalent ?? 0).toLocaleString()}</span> classical samples.
+            IQAE achieves the same precision with O(1/ε) oracle calls,
+            a <span className="text-danger font-medium">{r.quadraticSpeedupFactor.toFixed(1)}×</span> speedup
+            over <span className="tabular-nums text-foreground">{(r.classicalMcSamplesEquivalent ?? 0).toLocaleString()}</span> classical samples.
           </p>
         </div>
-      </GlassCard>
+      </SurfaceCard>
 
       {/* IQAE Circuit Fragment Execution Flow */}
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={Zap} title="Circuit Fragment Execution" accentColor="rose" tooltip="Each IQAE oracle call as a circuit fragment. Colour indicates gate type: programmable gates apply the loss oracle; entangling gates create superposition across scenarios; measurement gates collapse the CVaR amplitude." />
         <CircuitFragmentFlow plan={iqaePlan} fragmentResults={iqaeFragments} />
-      </GlassCard>
+      </SurfaceCard>
 
       {/* Risk summary */}
-      <GlassCard>
+      <SurfaceCard>
         <SectionTitle icon={ShieldAlert} title="Risk Summary" accentColor="rose" tooltip="Value-at-Risk (VaR) at each confidence level: the maximum loss not exceeded with that probability. E.g. VaR 99% = the loss threshold that is only exceeded 1% of the time under the model." />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {r.varResults.slice(0, 4).map((v) => (
-            <div key={v.confidenceLevel} className="flex flex-col gap-1 rounded-lg bg-white/[0.025] px-3 py-2.5 ring-1 ring-white/6">
-              <p className="text-[11px] text-white/35">VaR {(v.confidenceLevel * 100).toFixed(0)}%</p>
-              <p className="font-mono text-sm font-semibold tabular-nums text-rose-300">{fmt(v.quantumVar, 2)}</p>
+            <div key={v.confidenceLevel} className="flex flex-col gap-1 rounded-lg bg-surface-muted px-3 py-2.5 ring-1 ring-border">
+              <p className="text-xs text-faint">VaR {(v.confidenceLevel * 100).toFixed(0)}%</p>
+              <p className="font-mono text-sm font-medium tabular-nums text-danger">{fmt(v.quantumVar, 2)}</p>
             </div>
           ))}
         </div>
-      </GlassCard>
+      </SurfaceCard>
     </div>
   );
 }

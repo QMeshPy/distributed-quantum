@@ -8,7 +8,7 @@ export function RiskPageClient() {
     <div className="p-6 max-w-xl space-y-10">
       <div>
         <h1 className="text-2xl font-normal text-foreground">Risk Analysis</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-subtle">
           Run quantum VaR and CVaR on a CSV portfolio or on read-only on-chain
           wallet holdings.
         </p>

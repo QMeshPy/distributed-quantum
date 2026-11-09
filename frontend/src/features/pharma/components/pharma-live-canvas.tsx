@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/arc/button/button";
+
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -33,11 +35,11 @@ const ProteinViewer = dynamic(
 );
 
 const STATUS_COLORS: Record<string, string> = {
-  queued:    "text-amber-400 bg-amber-400/10 border-amber-400/25",
-  running:   "text-sky-400 bg-sky-400/10 border-sky-400/25",
-  completed: "text-emerald-400 bg-emerald-400/10 border-emerald-400/25",
-  failed:    "text-red-400 bg-red-400/10 border-red-400/25",
-  cancelled: "text-white/30 bg-white/5 border-white/10",
+  queued:    "text-warning bg-warning/10 border-warning/25",
+  running:   "text-info bg-info/10 border-info/25",
+  completed: "text-success bg-success/10 border-success/25",
+  failed:    "text-danger bg-danger/10 border-danger/25",
+  cancelled: "text-faint bg-surface-muted border-border",
 };
 
 const QUANTUM_LEVELS = new Set<PipelineLogLevel>(["vqe"]);
@@ -115,8 +117,8 @@ function StatCard({ label, value, color }: { label: string; value: string; color
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="flex flex-col px-4 py-2.5"
     >
-      <p className="mb-0.5 text-[9px] uppercase tracking-wider text-white/25">{label}</p>
-      <p className={`text-[14px] font-semibold ${color}`}>{value}</p>
+      <p className="mb-0.5 text-xs text-faint">{label}</p>
+      <p className={`text-sm font-medium ${color}`}>{value}</p>
     </motion.div>
   );
 }
@@ -141,12 +143,12 @@ function LiveLogRow({ entry }: { entry: PipelineLogEntry }) {
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={`flex items-start gap-2 rounded px-2.5 py-1.5 ${meta.bg}`}
     >
-      <span className="mt-px shrink-0 font-mono text-[9px] text-white/20">{time}</span>
-      <span className={`mt-px flex h-[16px] w-[40px] shrink-0 items-center justify-center rounded text-[8px] font-bold uppercase tracking-wider ${meta.color} bg-white/5`}>
+      <span className="mt-px shrink-0 font-mono text-xs text-faint">{time}</span>
+      <span className={`mt-px flex h-[16px] w-[40px] shrink-0 items-center justify-center rounded text-xs font-medium ${meta.color} bg-surface-muted`}>
         {meta.label}
       </span>
       <Icon size={10} className={`mt-0.5 shrink-0 ${meta.color} opacity-60`} />
-      <span className={`font-mono text-[10px] leading-relaxed ${meta.color}`}>{displayMsg}</span>
+      <span className={`font-mono text-xs leading-relaxed ${meta.color}`}>{displayMsg}</span>
     </motion.div>
   );
 }
@@ -154,18 +156,18 @@ function LiveLogRow({ entry }: { entry: PipelineLogEntry }) {
 function IterProgress({ current, max }: { current: number; max: number }) {
   const pct = Math.min((current / max) * 100, 100);
   return (
-    <div className="flex items-center gap-3 border-b border-white/5 px-4 py-2">
-      <span className="shrink-0 text-[10px] font-medium text-violet-300">
+    <div className="flex items-center gap-3 border-b border-border px-4 py-2">
+      <span className="shrink-0 text-xs font-medium text-accent">
         Iter {current}/{max}
       </span>
-      <div className="flex-1 overflow-hidden rounded-full bg-white/6 h-1">
+      <div className="flex-1 overflow-hidden rounded-full bg-surface-muted h-1">
         <motion.div
-          className="h-full rounded-full bg-violet-400"
+          className="h-full rounded-full bg-accent"
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         />
       </div>
-      <span className="shrink-0 font-mono text-[9px] text-white/20">{pct.toFixed(0)}%</span>
+      <span className="shrink-0 font-mono text-xs text-faint">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -296,97 +298,97 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
 
   const stageMeta       = effectiveStage ? STAGE_ICONS[effectiveStage] : null;
   const ActiveStageIcon = isCompleted ? CheckCircle2 : (stageMeta?.icon ?? Activity);
-  const stageColor      = isCompleted ? "text-emerald-400" : (stageMeta?.color ?? "text-white/30");
+  const stageColor      = isCompleted ? "text-success" : (stageMeta?.color ?? "text-faint");
   const maxIter         = derived.maxIter;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#07090d]">
+    <div className="flex h-full min-h-0 flex-col bg-background">
 
       {/* Top bar */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-white/6 bg-white/[0.02] px-5 py-2.5">
-        <FlaskConical size={14} className="text-emerald-400/60" />
-        <span className="text-[13px] font-medium text-white/70">
-          {targetPdbId} — <span className="capitalize">{mode}</span>
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface-muted px-5 py-2.5">
+        <FlaskConical size={14} className="text-success" />
+        <span className="text-sm font-medium text-foreground">
+          {targetPdbId}, <span className="capitalize">{mode}</span>
         </span>
-        <span className={["inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium", STATUS_COLORS[status] ?? "text-white/50"].join(" ")}>
+        <span className={["inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium", STATUS_COLORS[status] ?? "text-subtle"].join(" ")}>
           {isRunning   && <Loader2    size={9} className="animate-spin" />}
           {isCompleted && <CheckCircle2 size={9} />}
           <span className="capitalize">{status}</span>
         </span>
         {isRunning && (
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400">
+          <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
             <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
             </span>
             live
           </span>
         )}
-        <span className="font-mono text-[10px] text-white/20">{jobId}</span>
+        <span className="font-mono text-xs text-faint">{jobId}</span>
         <div className="ml-auto">
           <PharmaPeersDrawer job={job} liveData={liveData} isRunning={isRunning} />
         </div>
         {isRunning && (
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] tabular-nums text-white/50">
+            <span className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-muted px-3 py-1.5 font-mono text-xs tabular-nums text-subtle">
               <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/30 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white/30" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/30 opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-foreground/30" />
               </span>
               {elapsedDisplay}
             </span>
-            <button onClick={onCancel} disabled={isCancelling} className="flex items-center gap-1.5 rounded-lg border border-red-400/25 bg-red-400/8 px-3 py-1.5 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-400/15 disabled:opacity-50">
+            <Button variant="danger" size="sm" onClick={onCancel} disabled={isCancelling}>
               {isCancelling ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
               {isCancelling ? "Cancelling…" : "Cancel"}
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* Main split */}
-      <div className="flex min-h-0 flex-1 divide-x divide-white/5 overflow-hidden">
+      <div className="flex min-h-0 flex-1 divide-x divide-border overflow-hidden">
 
         {/* LEFT: 3D protein viewer */}
         <div className="relative flex w-[45%] flex-col">
-          <div className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-2">
+          <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
             <ActiveStageIcon size={12} className={stageColor} />
-            <span className={`text-[11px] font-medium ${stageColor}`}>
+            <span className={`text-xs font-medium ${stageColor}`}>
               {isCompleted ? "Completed" : (stageMeta?.label ?? "Protein Structure")}
             </span>
-            <span className="ml-auto font-mono text-[10px] text-white/20">{targetPdbId.toUpperCase()}</span>
+            <span className="ml-auto font-mono text-xs text-faint">{targetPdbId.toUpperCase()}</span>
           </div>
           <div className="min-h-0 flex-1">
             <ProteinViewer pdbId={targetPdbId} onStageReady={(stage) => { stageRef.current = stage; }} />
           </div>
           {/* Live stage / score overlay on the 3D canvas */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 border-t border-white/6 bg-[#07090d]/85 px-4 py-2.5 backdrop-blur-sm">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 border-t border-border bg-background/85 px-4 py-2.5">
             {isRunning ? (
               <>
-                <Loader2 size={10} className="animate-spin text-emerald-400/60" />
-                <span className={`text-[11px] font-semibold ${stageColor}`}>
+                <Loader2 size={10} className="animate-spin text-success" />
+                <span className={`text-xs font-medium ${stageColor}`}>
                   {stageMeta?.label ?? "Initialising…"}
                 </span>
                 {maxIter > 0 && (
-                  <span className="text-[10px] text-white/30">iter {effectiveIter}/{maxIter}</span>
+                  <span className="text-xs text-faint">iter {effectiveIter}/{maxIter}</span>
                 )}
                 {effectiveScore !== null && (
-                  <span className="ml-auto font-mono text-[11px] font-semibold text-rose-300">
+                  <span className="ml-auto font-mono text-xs font-medium text-danger">
                     {effectiveScore.toFixed(2)} kcal/mol
                   </span>
                 )}
               </>
             ) : isCompleted ? (
               <>
-                <CheckCircle2 size={10} className="text-emerald-400" />
-                <span className="text-[11px] font-semibold text-emerald-400">Pipeline complete</span>
+                <CheckCircle2 size={10} className="text-success" />
+                <span className="text-xs font-medium text-success">Pipeline complete</span>
                 {effectiveScore !== null && (
-                  <span className="ml-auto font-mono text-[11px] font-semibold text-rose-300">
+                  <span className="ml-auto font-mono text-xs font-medium text-danger">
                     best {effectiveScore.toFixed(2)} kcal/mol
                   </span>
                 )}
               </>
             ) : (
-              <span className="text-[11px] text-white/20">No active pipeline</span>
+              <span className="text-xs text-faint">No active pipeline</span>
             )}
           </div>
         </div>
@@ -395,28 +397,28 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
         <div className="flex w-[55%] flex-col overflow-hidden">
 
           {/* Stat cards */}
-          <div className="grid shrink-0 grid-cols-4 divide-x divide-white/5 border-b border-white/5">
-            <StatCard label="Stage" value={isCompleted ? "Done" : (stageMeta?.label ?? (effectiveStage ?? "—"))} color={isCompleted ? "text-emerald-400" : (stageMeta?.color ?? "text-white/40")} />
-            <StatCard label="Iteration" value={effectiveIter > 0 ? (maxIter > 0 ? `${effectiveIter}/${maxIter}` : String(effectiveIter)) : "—"} color="text-violet-300" />
-            <StatCard label="Best Score" value={effectiveScore != null ? `${effectiveScore.toFixed(2)}` : "—"} color="text-rose-300" />
-            <StatCard label="ADMET Pass" value={effectiveAdmet > 0 ? String(effectiveAdmet) : "—"} color="text-teal-300" />
+          <div className="grid shrink-0 grid-cols-4 divide-x divide-border border-b border-border">
+            <StatCard label="Stage" value={isCompleted ? "Done" : (stageMeta?.label ?? (effectiveStage ?? "-"))} color={isCompleted ? "text-success" : (stageMeta?.color ?? "text-subtle")} />
+            <StatCard label="Iteration" value={effectiveIter > 0 ? (maxIter > 0 ? `${effectiveIter}/${maxIter}` : String(effectiveIter)) : "-"} color="text-accent" />
+            <StatCard label="Best Score" value={effectiveScore != null ? `${effectiveScore.toFixed(2)}` : "-"} color="text-danger" />
+            <StatCard label="ADMET Pass" value={effectiveAdmet > 0 ? String(effectiveAdmet) : "-"} color="text-success" />
           </div>
 
           {/* Iteration progress bar */}
           {maxIter > 0 && <IterProgress current={effectiveIter} max={maxIter} />}
 
           {/* Live biology event feed */}
-          <div className="flex min-h-0 flex-1 flex-col border-b border-white/5">
-            <div className="flex shrink-0 items-center gap-2 border-b border-white/5 bg-white/[0.015] px-4 py-1.5">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/25">Live Biology Feed</span>
-              <span className="ml-auto text-[9px] text-white/20">
+          <div className="flex min-h-0 flex-1 flex-col border-b border-border">
+            <div className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-4 py-1.5">
+              <span className="text-xs font-medium text-faint">Live Biology Feed</span>
+              <span className="ml-auto text-xs text-faint">
                 {isRunning && <Loader2 size={8} className="inline animate-spin mr-1" />}
                 {bioLogLines.length} event{bioLogLines.length !== 1 ? "s" : ""}
               </span>
             </div>
             <div ref={logScrollRef} className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
               {bioLogLines.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center text-[11px] text-white/20">
+                <div className="flex flex-1 items-center justify-center text-xs text-faint">
                   {isRunning ? (
                     <span className="flex items-center gap-2"><Loader2 size={11} className="animate-spin" />Waiting for pipeline to start…</span>
                   ) : "No events"}
@@ -432,33 +434,33 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
           </div>
 
           {/* Score chart + best ligand side-by-side */}
-          <div className="flex shrink-0 divide-x divide-white/5 border-b border-white/5" style={{ height: 180 }}>
+          <div className="flex shrink-0 divide-x divide-border border-b border-border" style={{ height: 180 }}>
             <div className="flex min-w-0 flex-1 flex-col px-3 py-2">
-              <p className="mb-1 shrink-0 text-[9px] uppercase tracking-wider text-white/25">Score / Iter</p>
+              <p className="mb-1 shrink-0 text-xs text-faint">Score / Iter</p>
               {effectiveHistory.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={effectiveHistory} margin={{ top: 2, right: 4, bottom: 0, left: -22 }}>
-                    <XAxis dataKey="iteration" tick={{ fontSize: 8, fill: "rgba(255,255,255,0.18)" }} axisLine={false} tickLine={false} />
-                    <YAxis reversed tick={{ fontSize: 8, fill: "rgba(255,255,255,0.18)" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 10, color: "rgba(255,255,255,0.7)" }} formatter={(v: unknown) => [`${(v as number).toFixed(2)} kcal/mol`, "Score"]} labelFormatter={(l: unknown) => `Iter ${l}`} />
-                    <Line type="monotone" dataKey="score" stroke="#fb7185" strokeWidth={1.5} dot={{ r: 2, fill: "#fb7185" }} activeDot={{ r: 3 }} isAnimationActive />
+                    <XAxis dataKey="iteration" tick={{ fontSize: 12, fill: "color-mix(in oklab, var(--foreground) 18%, transparent)" }} axisLine={false} tickLine={false} />
+                    <YAxis reversed tick={{ fontSize: 12, fill: "color-mix(in oklab, var(--foreground) 18%, transparent)" }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: "var(--background)", border: "1px solid color-mix(in oklab, var(--foreground) 8%, transparent)", borderRadius: 6, fontSize: 10, color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }} formatter={(v: unknown) => [`${(v as number).toFixed(2)} kcal/mol`, "Score"]} labelFormatter={(l: unknown) => `Iter ${l}`} />
+                    <Line type="monotone" dataKey="score" stroke="var(--danger)" strokeWidth={1.5} dot={{ r: 2, fill: "var(--danger)" }} activeDot={{ r: 3 }} isAnimationActive />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex flex-1 items-center justify-center text-[10px] text-white/20">
-                  {isRunning ? <span className="flex items-center gap-1.5"><Loader2 size={9} className="animate-spin" />waiting…</span> : "—"}
+                <div className="flex flex-1 items-center justify-center text-xs text-faint">
+                  {isRunning ? <span className="flex items-center gap-1.5"><Loader2 size={9} className="animate-spin" />waiting…</span> : "-"}
                 </div>
               )}
             </div>
             <div className="flex w-[140px] shrink-0 flex-col items-center px-3 py-2">
-              <p className="mb-1 shrink-0 self-start text-[9px] uppercase tracking-wider text-white/25">
+              <p className="mb-1 shrink-0 self-start text-xs text-faint">
                 {effectiveScore != null ? "Best Ligand" : "Current Candidate"}
               </p>
               {effectiveSmiles ? (
                 <LigandViewer smiles={effectiveSmiles} width={120} height={130} />
               ) : (
-                <div className="flex flex-1 items-center justify-center text-[10px] text-white/20">
-                  {isRunning ? <Loader2 size={10} className="animate-spin" /> : "—"}
+                <div className="flex flex-1 items-center justify-center text-xs text-faint">
+                  {isRunning ? <Loader2 size={10} className="animate-spin" /> : "-"}
                 </div>
               )}
             </div>
@@ -466,8 +468,8 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
 
           {/* Discovered SMILES strip */}
           {discoveredSmiles.length > 0 && (
-            <div className="shrink-0 border-b border-white/5 px-4 py-2">
-              <p className="mb-1.5 text-[9px] uppercase tracking-wider text-white/25">Discovered ({discoveredSmiles.length})</p>
+            <div className="shrink-0 border-b border-border px-4 py-2">
+              <p className="mb-1.5 text-xs text-faint">Discovered ({discoveredSmiles.length})</p>
               <div ref={discoveredScrollRef} className="flex gap-2 overflow-x-auto pb-1">
                 <AnimatePresence initial={false}>
                   {discoveredSmiles.map((smiles) => (
@@ -484,11 +486,11 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
           {isCompleted && job.result && job.result.candidates.length > 0 && (
             <div className="overflow-y-auto px-4 py-4">
               <div className="mb-3 flex items-center gap-2">
-                <Star size={12} className="text-emerald-400/60" />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                <Star size={12} className="text-success" />
+                <p className="text-xs font-medium text-faint">
                   Top Candidates ({job.result.candidates.length})
                 </p>
-                <span className="ml-auto text-[10px] text-white/20">
+                <span className="ml-auto text-xs text-faint">
                   {job.result.total_runtime_seconds.toFixed(1)}s · {job.result.iterations_used} iters
                 </span>
               </div>

@@ -1,17 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { Button } from "@/components/arc/button/button";
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
+import { Input } from "@/components/arc/input/input";
+import { toast } from "@/shared/lib/toast";
 import { useStarknetWallet } from "./use-starknet-wallet";
 import { useNoteStarknetTx, useOpenStarknetSession } from "@/features/agentkit/hooks/use-agents";
 import { Loader2 } from "lucide-react";
@@ -108,18 +101,11 @@ export function OpenSessionDialog({
 
   return (
     <Dialog open={open && !walletPicker} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Open Starknet Session</DialogTitle>
-          <DialogDescription>
-            Set spending caps. Ready owner signs register_session.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent title="Open Starknet Session" description="Set spending caps. Ready owner signs register_session.">
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="max-per-proposal">Max per proposal (STRK)</Label>
-            <Input
+            <Input label="Max per proposal (STRK)"
               id="max-per-proposal"
               type="number"
               value={maxPerProposal}
@@ -129,8 +115,7 @@ export function OpenSessionDialog({
           </div>
 
           <div>
-            <Label htmlFor="daily-budget">Daily budget (STRK)</Label>
-            <Input
+            <Input label="Daily budget (STRK)"
               id="daily-budget"
               type="number"
               value={dailyBudget}
@@ -140,8 +125,7 @@ export function OpenSessionDialog({
           </div>
 
           <div>
-            <Label htmlFor="expires-in-days">Expires in (days)</Label>
-            <Input
+            <Input label="Expires in (days)"
               id="expires-in-days"
               type="number"
               value={expiresInDays}
@@ -151,7 +135,7 @@ export function OpenSessionDialog({
           </div>
 
           {address && (
-            <p className="text-center font-mono text-[11px] text-white/50">
+            <p className="text-center font-mono text-xs text-subtle">
               Connected Wallet: {address.slice(0, 6)}…{address.slice(-4)}
             </p>
           )}

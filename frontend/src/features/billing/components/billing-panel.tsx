@@ -1,14 +1,15 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/arc/badge/badge";
+import { legacyBadge } from "@/lib/legacy-badge";
+import { Button } from "@/components/arc/button/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Panel,
+  PanelContent,
+  PanelDescription,
+  PanelHeader,
+  PanelTitle,
+} from "@/shared/components/panel/panel";
 import { UI } from "@/constants";
 import { useAuth } from "@/features/auth";
 import { useBillingPortal, useCheckoutReturn } from "../hooks/use-billing";
@@ -21,13 +22,13 @@ export function BillingPanel() {
   const hasSubscription = Boolean(user?.hasSubscription);
 
   return (
-    <Card className="border-hairline">
-      <CardHeader>
-        <CardTitle className="text-base font-medium">{UI.BILLING.TITLE}</CardTitle>
-        <CardDescription>{UI.BILLING.DESCRIPTION}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex items-center justify-between gap-4">
-        <Badge variant={hasSubscription ? "default" : "secondary"}>
+    <Panel className="border-border-subtle">
+      <PanelHeader>
+        <PanelTitle className="text-base font-medium">{UI.BILLING.TITLE}</PanelTitle>
+        <PanelDescription>{UI.BILLING.DESCRIPTION}</PanelDescription>
+      </PanelHeader>
+      <PanelContent className="flex items-center justify-between gap-4">
+        <Badge {...legacyBadge(hasSubscription ? "default" : "secondary")}>
           {confirming
             ? UI.BILLING.CONFIRMING
             : hasSubscription
@@ -36,7 +37,7 @@ export function BillingPanel() {
         </Badge>
         {hasSubscription ? (
           <Button
-            variant="outline"
+            variant="secondary"
             disabled={portal.isPending}
             onClick={() => portal.mutate()}
           >
@@ -45,7 +46,7 @@ export function BillingPanel() {
         ) : (
           <UpgradeButton />
         )}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   );
 }

@@ -7,9 +7,8 @@ export default function NodesPage() {
     <div className="flex min-h-full flex-col">
       <PageHeader
         icon={Server}
-        label="Network"
-        title="Nodes" glow="blue"
-        description="All discovered peers — status, trust tier, and execution load."
+        title="Nodes"
+        description="All discovered peers, status, trust tier, and execution load."
       />
       <div className="flex-1 overflow-y-auto p-6">
         <NodesPageClient />

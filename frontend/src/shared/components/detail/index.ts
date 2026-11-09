@@ -1,4 +1,4 @@
-export { GlassCard } from "./glass-card";
+export { SurfaceCard } from "./surface-card";
 export { SectionTitle } from "./section-title";
 export { JobMetaStrip } from "./job-meta-strip";
 export { MetricGrid, type MetricItem } from "./metric-grid";

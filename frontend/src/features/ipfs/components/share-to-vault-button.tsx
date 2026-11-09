@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/arc/button/button";
+
 import dynamic from "next/dynamic";
 import { Share2, XCircle } from "lucide-react";
 
@@ -16,11 +18,11 @@ const ShareToVaultButtonInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <button className="inline-flex cursor-pointer items-center self-center gap-1.5 rounded-md border border-rose-500/25 bg-rose-500/8 px-3 py-1.5 text-[12px] font-medium text-rose-400">
+      <Button variant="danger" size="sm" className="self-center">
         <Share2 className="h-3 w-3 shrink-0 animate-pulse" />
         <span>Share to VAULT</span>
         <XCircle className="h-3 w-3 shrink-0" />
-      </button>
+      </Button>
     ),
   },
 );

@@ -2,10 +2,9 @@
 
 import { useWallet } from "../hooks/use-wallet";
 import { useNotifications } from "../hooks/use-notifications";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Bell, Wallet } from "lucide-react";
 import Link from "next/link";
 import { EnsAddress } from "./ens-address";
@@ -22,21 +21,21 @@ export function WalletStrip({ onNotificationsClick }: WalletStripProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-16" />
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-muted px-4 py-2">
+        <Skeleton lines={1} className="h-4 w-24" />
+        <Skeleton lines={1} className="h-4 w-16" />
+        <Skeleton lines={1} className="h-4 w-16" />
       </div>
     );
   }
 
   if (!wallet) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-2">
-        <Wallet className="h-4 w-4 text-white/40" />
-        <span className="text-sm text-white/60">No wallet connected</span>
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-muted px-4 py-2">
+        <Wallet className="h-4 w-4 text-subtle" />
+        <span className="text-sm text-subtle">No wallet connected</span>
         <Link href="/agents/wallet">
-          <Button variant="ghost" size="sm" className="text-emerald-400">
+          <Button variant="ghost" size="sm" className="text-success">
             Create Wallet
           </Button>
         </Link>
@@ -45,24 +44,24 @@ export function WalletStrip({ onNotificationsClick }: WalletStripProps) {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-2">
-      <EnsAddress address={wallet.address} className="text-sm text-white/80" />
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-muted px-4 py-2">
+      <EnsAddress address={wallet.address} className="text-sm text-foreground" />
 
-      <Separator orientation="vertical" className="h-4" />
+      <span aria-hidden="true" className="h-4 w-px bg-border" />
 
-      <span className="text-sm text-emerald-400">
+      <span className="text-sm text-success">
         USDC: {wallet.usdc}
       </span>
 
-      <span className="text-sm text-white/60">
+      <span className="text-sm text-subtle">
         ETH: {wallet.eth}
       </span>
 
-      <Badge variant="outline" className="text-xs text-white/60">
+      <Badge outline className="text-xs text-subtle">
         {wallet.network}
       </Badge>
 
-      <Separator orientation="vertical" className="h-4" />
+      <span aria-hidden="true" className="h-4 w-px bg-border" />
 
       <Button
         variant="ghost"
@@ -72,14 +71,14 @@ export function WalletStrip({ onNotificationsClick }: WalletStripProps) {
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <Badge className="absolute -right-1 -top-1 h-4 w-4 rounded-full p-0 text-[10px] bg-amber-500">
+          <Badge className="absolute -right-1 -top-1 h-4 w-4 rounded-full p-0 text-xs bg-warning">
             {unreadCount}
           </Badge>
         )}
       </Button>
 
       <Link href="/agents/wallet">
-        <Button variant="ghost" size="sm" className="text-white/60 hover:text-white">
+        <Button variant="ghost" size="sm" className="text-subtle hover:text-foreground">
           Manage Wallet
         </Button>
       </Link>

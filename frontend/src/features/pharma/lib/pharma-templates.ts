@@ -28,10 +28,10 @@ export const PHARMA_TEMPLATES: PharmaTemplate[] = [
     max_iterations: 5,
     candidate_count: 100,
     description:
-      "Refine a peptidomimetic inhibitor scaffold against the SARS-CoV-2 main protease — a validated antiviral target with extensive literature.",
+      "Refine a peptidomimetic inhibitor scaffold against the SARS-CoV-2 main protease, a validated antiviral target with extensive literature.",
     tags: ["Optimization", "Antiviral", "Hot target"],
     highlights: [
-      "PDB 6LU7 — high-resolution 2.16 Å crystal structure",
+      "PDB 6LU7, high-resolution 2.16 Å crystal structure",
       "Peptidomimetic seed for fast QAOA convergence",
       "Benchmarked against Nirmatrelvir scaffold",
     ],
@@ -48,7 +48,7 @@ export const PHARMA_TEMPLATES: PharmaTemplate[] = [
     max_iterations: 8,
     candidate_count: 150,
     description:
-      "Optimise an erlotinib-like scaffold in the EGFR ATP-binding pocket — a canonical benchmark for structure-based drug design tools.",
+      "Optimise an erlotinib-like scaffold in the EGFR ATP-binding pocket, a canonical benchmark for structure-based drug design tools.",
     tags: ["Optimization", "Oncology", "Kinase"],
     highlights: [
       "Classical drug-discovery benchmark target",
@@ -66,7 +66,7 @@ export const PHARMA_TEMPLATES: PharmaTemplate[] = [
     max_iterations: 10,
     candidate_count: 200,
     description:
-      "Generate novel scaffolds targeting the HSP90 N-terminal ATP-binding domain — a broad-spectrum cancer chaperone inhibitor target.",
+      "Generate novel scaffolds targeting the HSP90 N-terminal ATP-binding domain, a broad-spectrum cancer chaperone inhibitor target.",
     tags: ["Discovery", "Oncology", "Novel scaffold"],
     highlights: [
       "Unrestricted scaffold generation via VQC",
@@ -90,7 +90,7 @@ export const PHARMA_TEMPLATES: PharmaTemplate[] = [
     highlights: [
       "Dual CAS+PAS binding site handling",
       "Donepezil analogue as seed",
-      "PDB 1EVE — 2.76 Å resolution",
+      "PDB 1EVE, 2.76 Å resolution",
     ],
   },
   {
@@ -103,7 +103,7 @@ export const PHARMA_TEMPLATES: PharmaTemplate[] = [
     max_iterations: 12,
     candidate_count: 300,
     description:
-      "Discover small-molecule allosteric disruptors of the TNF-α trimer interface — challenging for quantum-accelerated fragment growing.",
+      "Discover small-molecule allosteric disruptors of the TNF-α trimer interface, challenging for quantum-accelerated fragment growing.",
     tags: ["Discovery", "Auto-immune", "PPI"],
     highlights: [
       "Protein-protein interface disruptor strategy",
@@ -122,11 +122,11 @@ export const PHARMA_TEMPLATES: PharmaTemplate[] = [
     max_iterations: 7,
     candidate_count: 100,
     description:
-      "Optimise ruxolitinib-like scaffolds in the JAK2 ATP pocket — relevant to myeloproliferative disorders and haematological cancers.",
+      "Optimise ruxolitinib-like scaffolds in the JAK2 ATP pocket, relevant to myeloproliferative disorders and haematological cancers.",
     tags: ["Optimization", "Hematology", "Kinase"],
     highlights: [
       "Ruxolitinib-inspired seed SMILES",
-      "PDB 2B7A — well-studied kinase pocket",
+      "PDB 2B7A, well-studied kinase pocket",
       "Selectivity scoring against JAK1/JAK3",
     ],
   },

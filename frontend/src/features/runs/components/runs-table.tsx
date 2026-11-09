@@ -1,15 +1,8 @@
 "use client";
 import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { SortableDataTable } from "@/components/arc/sortable-data-table/sortable-data-table";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { LinkButton } from "@/shared/components/link-button";
 import { Plus } from "lucide-react";
 import { useRunsList } from "../hooks/use-runs-list";
 import { RunStatusBadge } from "./run-status-badge";
@@ -29,7 +22,7 @@ export function RunsTable() {
     return (
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
+          <Skeleton lines={2} key={i} className="h-12 w-full" />
         ))}
       </div>
     );
@@ -37,57 +30,42 @@ export function RunsTable() {
 
   if (isError) {
     return (
-      <p className="text-sm text-muted-foreground">Failed to load runs.</p>
+      <p className="text-sm text-subtle">Failed to load runs.</p>
     );
   }
 
   if (!runs || runs.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-sm text-muted-foreground">No runs yet.</p>
-        <Button asChild size="sm">
-          <Link href={ROUTES.RUNS_NEW}>
+        <p className="text-sm text-subtle">No runs yet.</p>
+        <LinkButton href={ROUTES.RUNS_NEW} size="sm">
             <Plus size={16} />
             Start your first run
-          </Link>
-        </Button>
+          </LinkButton>
       </div>
     );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Job ID</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Circuit</TableHead>
-          <TableHead>Created</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {runs.map((run) => (
-          <TableRow key={run.jobId}>
-            <TableCell className="font-mono text-xs">
-              <Link
-                href={ROUTES.runDetail(run.jobId)}
-                className="text-foreground hover:underline"
-              >
-                {truncate(run.jobId, 16)}
-              </Link>
-            </TableCell>
-            <TableCell>
-              <RunStatusBadge status={run.status} />
-            </TableCell>
-            <TableCell className="max-w-xs truncate font-mono text-xs text-muted-foreground">
-              {truncate(run.circuitPreview, 40)}
-            </TableCell>
-            <TableCell className="text-xs text-muted-foreground">
-              {formatRelativeTime(run.createdAt, now)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <SortableDataTable
+      caption="Runs"
+      rows={runs.map((run) => ({ ...run }))}
+      rowKey="jobId"
+      columns={[
+        {
+          key: "jobId",
+          label: "Job ID",
+          sortable: true,
+          render: (_, run) => (
+            <Link href={ROUTES.runDetail(run.jobId as string)} className="font-mono text-xs hover:underline">
+              {truncate(run.jobId as string, 16)}
+            </Link>
+          ),
+        },
+        { key: "status", label: "Status", sortable: true, render: (_, run) => <RunStatusBadge status={run.status as typeof runs[number]["status"]} /> },
+        { key: "circuitPreview", label: "Circuit", render: (_, run) => <span className="font-mono text-xs">{truncate(run.circuitPreview as string, 40)}</span> },
+        { key: "createdAt", label: "Created", sortable: true, render: (_, run) => formatRelativeTime(run.createdAt as typeof runs[number]["createdAt"], now) },
+      ]}
+    />
   );
 }

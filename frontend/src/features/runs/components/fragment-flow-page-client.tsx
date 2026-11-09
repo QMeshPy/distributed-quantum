@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { useRunDetail } from "../hooks/use-run-detail";
 
 const FragmentFlowCanvas = dynamic(
@@ -10,7 +10,7 @@ const FragmentFlowCanvas = dynamic(
     import("./fragment-flow-canvas").then((m) => m.FragmentFlowCanvas),
   {
     ssr: false,
-    loading: () => <Skeleton className="h-64 w-full" />,
+    loading: () => <Skeleton lines={6} className="h-64 w-full" />,
   },
 );
 
@@ -21,7 +21,7 @@ export function FragmentFlowPageClient() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <Skeleton className="h-64 w-full" />
+        <Skeleton lines={6} className="h-64 w-full" />
       </div>
     );
   }
@@ -29,7 +29,7 @@ export function FragmentFlowPageClient() {
   if (isError || !run) {
     return (
       <div className="p-6">
-        <p className="text-sm text-muted-foreground">Run not found.</p>
+        <p className="text-sm text-subtle">Run not found.</p>
       </div>
     );
   }
@@ -38,7 +38,7 @@ export function FragmentFlowPageClient() {
     <div className="flex flex-col gap-4 p-6">
       <div>
         <h1 className="text-2xl font-normal text-foreground">Fragment Flow</h1>
-        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+        <p className="mt-0.5 font-mono text-xs text-subtle">
           {run.jobId}
         </p>
       </div>

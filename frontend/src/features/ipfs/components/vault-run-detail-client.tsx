@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { HardDrive } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { GlassCard } from "@/shared/components/detail/glass-card";
+import { SurfaceCard } from "@/shared/components/detail/surface-card";
 import { PinButton } from "@/features/vault-pinning/components/pin-button";
 import { PinStatusBadge } from "@/features/vault-pinning/components/pin-status-badge";
 import { ROUTES } from "@/constants";
@@ -56,7 +56,7 @@ export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <h3 className="text-sm font-medium">Run not found</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-subtle">
           CID: {cid.slice(0, 16)}...
         </p>
       </div>
@@ -67,10 +67,8 @@ export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={HardDrive}
-        label="Vault"
         title={run.name}
         description={`Shared by ${run.author}`}
-        glow="orange"
       >
         <PinStatusBadge cid={cid} />
         <PinButton
@@ -85,27 +83,27 @@ export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
       </PageHeader>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <GlassCard>
-          <p className="text-xs text-muted-foreground">Qubits</p>
+        <SurfaceCard>
+          <p className="text-xs text-subtle">Qubits</p>
           <p className="text-lg font-medium">{run.qubitCount}</p>
-        </GlassCard>
-        <GlassCard>
-          <p className="text-xs text-muted-foreground">Peers</p>
+        </SurfaceCard>
+        <SurfaceCard>
+          <p className="text-xs text-subtle">Peers</p>
           <p className="text-lg font-medium">{run.peerCount}</p>
-        </GlassCard>
-        <GlassCard>
-          <p className="text-xs text-muted-foreground">Runtime</p>
+        </SurfaceCard>
+        <SurfaceCard>
+          <p className="text-xs text-subtle">Runtime</p>
           <p className="text-lg font-medium">{run.runtime}ms</p>
-        </GlassCard>
-        <GlassCard>
-          <p className="text-xs text-muted-foreground">Status</p>
+        </SurfaceCard>
+        <SurfaceCard>
+          <p className="text-xs text-subtle">Status</p>
           <p className="text-lg font-medium capitalize">{run.status}</p>
-        </GlassCard>
+        </SurfaceCard>
       </div>
 
       {circuitCid ? (
-        <GlassCard>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
+        <SurfaceCard>
+          <p className="mb-1 text-xs font-medium text-subtle">
             Circuit (IPLD link)
           </p>
           {circuit ? (
@@ -113,20 +111,20 @@ export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
           ) : null}
           <Link
             href={ROUTES.vaultCircuitDetail(circuitCid)}
-            className="mt-1 break-all font-mono text-xs text-cyan-400 hover:underline"
+            className="mt-1 break-all font-mono text-xs text-info hover:underline"
           >
             {circuitCid}
           </Link>
-        </GlassCard>
+        </SurfaceCard>
       ) : null}
 
       {run.results && (
-        <GlassCard>
-          <p className="mb-2 text-xs font-medium text-muted-foreground">Results</p>
-          <pre className="overflow-auto rounded bg-muted/50 p-3 text-xs">
+        <SurfaceCard>
+          <p className="mb-2 text-xs font-medium text-subtle">Results</p>
+          <pre className="overflow-auto rounded bg-surface-muted/50 p-3 text-xs">
             {JSON.stringify(run.results, null, 2)}
           </pre>
-        </GlassCard>
+        </SurfaceCard>
       )}
     </div>
   );
@@ -135,14 +133,14 @@ export function VaultRunDetailClient({ cid }: VaultRunDetailClientProps) {
 function RunDetailSkeleton() {
   return (
     <div className="flex flex-col gap-6">
-      <Skeleton className="h-24 w-full" />
+      <Skeleton lines={4} className="h-24 w-full" />
       <div className="grid grid-cols-4 gap-4">
-        <Skeleton className="h-20" />
-        <Skeleton className="h-20" />
-        <Skeleton className="h-20" />
-        <Skeleton className="h-20" />
+        <Skeleton lines={3} className="h-20" />
+        <Skeleton lines={3} className="h-20" />
+        <Skeleton lines={3} className="h-20" />
+        <Skeleton lines={3} className="h-20" />
       </div>
-      <Skeleton className="h-48 w-full" />
+      <Skeleton lines={6} className="h-48 w-full" />
     </div>
   );
 }

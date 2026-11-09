@@ -2,17 +2,16 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { toast } from "@/shared/lib/toast";
+import { Button } from "@/components/arc/button/button";
+import { Input } from "@/components/arc/input/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Panel,
+  PanelContent,
+  PanelDescription,
+  PanelHeader,
+  PanelTitle,
+} from "@/shared/components/panel/panel";
 import { authClient } from "@/features/auth/hooks/use-auth";
 
 const profileSchema = z.object({
@@ -46,38 +45,34 @@ export function ProfileForm() {
   };
 
   return (
-    <Card className="border-hairline">
-      <CardHeader>
-        <CardTitle className="text-base font-medium">Profile</CardTitle>
-        <CardDescription>Update your display name and organization.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Panel className="border-border-subtle">
+      <PanelHeader>
+        <PanelTitle className="text-base font-medium">Profile</PanelTitle>
+        <PanelDescription>Update your display name and organization.</PanelDescription>
+      </PanelHeader>
+      <PanelContent>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-email">Email</Label>
-            <Input
+            <Input label="Email"
               id="profile-email"
               type="email"
               value={user?.email ?? ""}
               disabled
-              className="bg-muted/50"
+              className="bg-surface-muted/50"
             />
-            <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
+            <p className="text-xs text-subtle">Email cannot be changed.</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-name">Display name</Label>
-            <Input id="profile-name" {...form.register("name")} />
+            <Input label="Display name" id="profile-name" {...form.register("name")} />
             {form.formState.errors.name && (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-xs text-danger">{form.formState.errors.name.message}</p>
             )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-org">Organization</Label>
-            <Input id="profile-org" {...form.register("organization")} />
+            <Input label="Organization" id="profile-org" {...form.register("organization")} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-designation">Designation</Label>
-            <Input id="profile-designation" {...form.register("designation")} />
+            <Input label="Designation" id="profile-designation" {...form.register("designation")} />
           </div>
           <div className="pt-2">
             <Button
@@ -89,7 +84,7 @@ export function ProfileForm() {
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   );
 }
