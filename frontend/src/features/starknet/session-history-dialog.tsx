@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
 import { humanWhen, useRefreshStarknetTxs, type StarknetCall, type StarknetSessionStatus } from "@/features/agentkit/hooks/use-agents";
 import { TxLink } from "@/features/starknet/tx-link";
 
@@ -25,9 +19,9 @@ const RECEIPT_LABEL: Record<string, string> = {
 };
 
 function receiptClass(status: string | undefined) {
-  if (status === "confirmed") return "text-green-300";
-  if (status === "failed") return "text-red-300";
-  return "text-amber-300";
+  if (status === "confirmed") return "text-success";
+  if (status === "failed") return "text-danger";
+  return "text-warning";
 }
 
 function callTitle(call: StarknetCall) {
@@ -62,15 +56,13 @@ export function SessionHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" onClick={(event) => event.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle>Transaction history</DialogTitle>
-          <DialogDescription>
-            Register, spend, and revoke on Starknet Sepolia. Status follows the transaction receipt.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        title="Transaction history"
+        description="Register, spend, and revoke on Starknet Sepolia. Status follows the transaction receipt."
+        onClick={(event) => event.stopPropagation()}
+      >
         {calls.length === 0 ? (
-          <p className="rounded-xl px-4 py-8 text-center text-sm text-white/45 ring-1 ring-white/10">
+          <p className="rounded-xl px-4 py-8 text-center text-sm text-subtle ring-1 ring-border">
             No records yet.
           </p>
         ) : (
@@ -81,17 +73,17 @@ export function SessionHistoryDialog({
               );
               const status = call.status ?? "pending";
               return (
-                <li key={call.tx_hash} className="rounded-xl px-4 py-3 ring-1 ring-white/10">
+                <li key={call.tx_hash} className="rounded-xl px-4 py-3 ring-1 ring-border">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-white/85">{callTitle(call)}</span>
+                    <span className="text-sm text-foreground">{callTitle(call)}</span>
                     <span className={`text-xs ${receiptClass(status)}`}>
                       {RECEIPT_LABEL[status] ?? status}
                     </span>
                   </div>
                   <div className="mt-2.5 flex items-center justify-between gap-4 text-xs">
                     <TxLink hash={call.tx_hash} chainId={session.chain_id} />
-                    <span className="text-white/40" title={when?.exact}>
-                      {when ? when.exact : "—"}
+                    <span className="text-subtle" title={when?.exact}>
+                      {when ? when.exact : "-"}
                     </span>
                   </div>
                 </li>

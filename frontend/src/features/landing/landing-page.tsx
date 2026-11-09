@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Globe, Plus } from "lucide-react";
-import localFont from "next/font/local";
 
 import { ArchStack } from "./components/arch-stack";
 import { InfrastructureStrip } from "./components/infrastructure-strip";
@@ -33,22 +32,6 @@ import {
 } from "./landing-content";
 import styles from "./landing.module.css";
 
-const display = localFont({
-  src: [
-    { path: "../../assets/fonts/newsreader/Newsreader[opsz,wght].woff2", weight: "300 400", style: "normal" },
-    { path: "../../assets/fonts/newsreader/Newsreader-Italic[opsz,wght].woff2", weight: "300 400", style: "italic" },
-  ],
-  display: "swap",
-  adjustFontFallback: "Times New Roman",
-  variable: "--landing-display",
-});
-const text = localFont({
-  src: "../../assets/fonts/inter/Inter[opsz,wght].woff2",
-  weight: "300 600",
-  display: "swap",
-  variable: "--landing-text",
-});
-
 function External({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
   return (
     <a href={href} target="_blank" rel="noreferrer" className={className}>
@@ -59,7 +42,7 @@ function External({ href, className, children }: { href: string; className?: str
 
 export function LandingPage() {
   return (
-    <div id="top" className={`${styles.page} ${display.variable} ${text.variable}`}>
+    <div id="top" className={styles.page}>
       <SmoothScroll />
       <div className={styles.rails} aria-hidden="true" />
 

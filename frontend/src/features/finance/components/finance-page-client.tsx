@@ -9,7 +9,7 @@ export function FinancePageClient() {
       <h1 className="text-2xl font-normal text-foreground">
         Financial Analysis
       </h1>
-      <p className="mt-2 mb-6 text-sm text-muted-foreground">
+      <p className="mt-2 mb-6 text-sm text-subtle">
         Upload a portfolio CSV to run quantum portfolio optimization and factor
         analysis.
       </p>

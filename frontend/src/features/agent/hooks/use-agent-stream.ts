@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getStreamWS, AGENT_QUERY_KEYS } from "@/constants/agent";
 import { useAgentStore } from "../stores/agent-store";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import type { AgentSession } from "../types";
 
 export function useAgentStream(sessionId: string | null) {

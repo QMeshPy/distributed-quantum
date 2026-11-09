@@ -5,17 +5,11 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { ArrowLeft, Wallet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Button } from "@/components/arc/button/button";
+import { Input } from "@/components/arc/input/input";
+import { OtpInput } from "@/components/arc/otp-input/otp-input";
 import { authClient } from "@/features/auth/hooks/use-auth";
 import { signInWithEthereum } from "@/features/auth/lib/siwe";
 import { ROUTES, UI, AUTH, API } from "@/constants";
@@ -145,28 +139,22 @@ export function SignupForm() {
     return (
       <form onSubmit={handleOTPSubmit} className="flex flex-col gap-6">
         <div className="text-center">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground">
+          <h1 className="text-2xl font-medium text-foreground">
             Verify your email
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-subtle">
             {UI.AUTH.otpSubtitle(email)}
           </p>
         </div>
 
         <div className="flex justify-center py-2">
-          <InputOTP maxLength={AUTH.OTP_LENGTH} value={otp} onChange={setOtp}>
-            <InputOTPGroup>
-              {Array.from({ length: AUTH.OTP_LENGTH }, (_, i) => (
-                <InputOTPSlot key={i} index={i} />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
+          <OtpInput label="One-time code" length={AUTH.OTP_LENGTH} value={otp} onChange={setOtp} autoFocus />
         </div>
 
         <div className="flex gap-3">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="flex-1"
             onClick={() => {
               setStep("details");
@@ -178,23 +166,20 @@ export function SignupForm() {
           </Button>
           <Button
             type="submit"
-            className="flex-1"
+            className="flex-1" loading={loading}
             disabled={loading || otp.length !== AUTH.OTP_LENGTH}
           >
-            {loading ? <Spinner data-icon="inline-start" /> : null}
             {loading ? "Verifying\u2026" : "Create Account"}
           </Button>
         </div>
 
         <div className="text-center">
-          <button
+          <Button variant="ghost" size="sm"
             type="button"
             onClick={handleResend}
-            disabled={loading}
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-          >
+            disabled={loading}>
             {UI.AUTH.OTP_RESEND}
-          </button>
+          </Button>
         </div>
       </form>
     );
@@ -207,85 +192,80 @@ export function SignupForm() {
         className="flex flex-col gap-6"
       >
         <div className="text-center">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground">
+          <h1 className="text-2xl font-medium text-foreground">
             {UI.AUTH.SIGNUP_DETAILS_TITLE}
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-subtle">
             {UI.AUTH.SIGNUP_DETAILS_SUBTITLE}
           </p>
         </div>
 
-        <FieldGroup>
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field>
-              <FieldLabel htmlFor="signup-first">First Name</FieldLabel>
-              <Input
+            <div className="flex flex-col gap-1.5">
+              <Input label="First Name"
                 id="signup-first"
                 placeholder="John"
                 {...detailsForm.register("firstName")}
               />
               {detailsForm.formState.errors.firstName && (
-                <p className="text-sm text-destructive">
+                <p className="text-sm text-danger">
                   {detailsForm.formState.errors.firstName.message}
                 </p>
               )}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="signup-last">Last Name</FieldLabel>
-              <Input
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Input label="Last Name"
                 id="signup-last"
                 placeholder="Doe"
                 {...detailsForm.register("lastName")}
               />
               {detailsForm.formState.errors.lastName && (
-                <p className="text-sm text-destructive">
+                <p className="text-sm text-danger">
                   {detailsForm.formState.errors.lastName.message}
                 </p>
               )}
-            </Field>
+            </div>
           </div>
 
-          <Field>
-            <FieldLabel htmlFor="signup-org">Organization</FieldLabel>
-            <Input
+          <div className="flex flex-col gap-1.5">
+            <Input label="Organization"
               id="signup-org"
               placeholder="Company Inc."
               {...detailsForm.register("organization")}
             />
             {detailsForm.formState.errors.organization && (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-danger">
                 {detailsForm.formState.errors.organization.message}
               </p>
             )}
-          </Field>
+          </div>
 
-          <Field>
-            <FieldLabel htmlFor="signup-role">Designation</FieldLabel>
-            <Input
+          <div className="flex flex-col gap-1.5">
+            <Input label="Designation"
               id="signup-role"
               placeholder="Software Engineer"
               {...detailsForm.register("designation")}
             />
             {detailsForm.formState.errors.designation && (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-danger">
                 {detailsForm.formState.errors.designation.message}
               </p>
             )}
-          </Field>
-        </FieldGroup>
+          </div>
+        </div>
 
         <div className="flex gap-3">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="flex-1"
             onClick={() => setStep("email")}
           >
             <ArrowLeft data-icon="inline-start" />
             Back
           </Button>
-          <Button type="submit" className="flex-1" disabled={loading}>
-            {loading ? <Spinner data-icon="inline-start" /> : null}
+          <Button type="submit" className="flex-1" loading={loading} disabled={loading}>
             {loading ? "Sending\u2026" : "Send OTP"}
           </Button>
         </div>
@@ -299,18 +279,17 @@ export function SignupForm() {
       className="flex flex-col gap-6"
     >
       <div className="text-center">
-        <h1 className="text-2xl font-medium tracking-tight text-foreground">
+        <h1 className="text-2xl font-medium text-foreground">
           {UI.AUTH.SIGNUP_TITLE}
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-sm text-subtle">
           {UI.AUTH.SIGNUP_SUBTITLE}
         </p>
       </div>
 
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="signup-email">Email</FieldLabel>
-          <Input
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Input label="Email"
             id="signup-email"
             type="email"
             placeholder="you@company.com"
@@ -326,39 +305,38 @@ export function SignupForm() {
             })}
           />
           {emailForm.formState.errors.email && (
-            <p className="text-sm text-destructive">
+            <p className="text-sm text-danger">
               {emailForm.formState.errors.email.message}
             </p>
           )}
-        </Field>
-      </FieldGroup>
+        </div>
+      </div>
 
       {emailTaken ? (
         <a
           href={ROUTES.SIGNIN}
-          className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="inline-flex w-full items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
         >
           Go to Sign In
         </a>
       ) : (
-        <Button type="submit" className="w-full" disabled={loading || walletLoading}>
-          {loading ? <Spinner data-icon="inline-start" /> : null}
+        <Button type="submit" className="w-full" loading={loading} disabled={loading || walletLoading}>
           {loading ? "Checking\u2026" : "Continue"}
         </Button>
       )}
 
       <div className="relative my-1 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-hairline" />
+          <div className="w-full border-t border-border-subtle" />
         </div>
-        <div className="relative bg-background px-3 text-xs uppercase text-muted-foreground">
+        <div className="relative bg-background px-3 text-xs text-subtle">
           Or continue with
         </div>
       </div>
 
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         onClick={async () => {
           setWalletLoading(true);
           try {
@@ -376,21 +354,18 @@ export function SignupForm() {
           }
         }}
         disabled={loading || walletLoading}
+        loading={walletLoading}
         className="w-full gap-2"
       >
-        {walletLoading ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <Wallet className="h-4 w-4" />
-        )}
+        <Wallet className="h-4 w-4" />
         {walletLoading ? "Connecting wallet…" : "Sign in with Ethereum"}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-sm text-subtle">
         {UI.AUTH.SIGNIN_LINK_TEXT}{" "}
         <a
           href={ROUTES.SIGNIN}
-          className="font-medium text-link transition-colors hover:text-link-active"
+          className="font-medium text-accent transition-colors hover:text-accent-strong"
         >
           Sign in
         </a>

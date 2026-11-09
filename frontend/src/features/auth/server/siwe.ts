@@ -1,9 +1,6 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
 import { ObjectId } from "mongodb";
-import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { keccak_256 } from "@noble/hashes/sha3.js";
 import { siwe } from "better-auth/plugins";
 import { getDatabase } from "@/shared/lib/mongodb";
 import { BACKEND_AGENTKIT } from "@/constants/backend";

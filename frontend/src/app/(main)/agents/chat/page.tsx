@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/arc/textarea/textarea";
+import { Button } from "@/components/arc/button/button";
+import { ScrollArea } from "@/components/arc/scroll-area/scroll-area";
+import { Badge } from "@/components/arc/badge/badge";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
   Send, DollarSign, Store, BarChart3, Search,
@@ -41,9 +41,9 @@ function AgentChatIdentity({ agent, session }: { agent: AgentItem; session: Chat
   if (!agent.wallet_address && !span) return null;
   return (
     <div className="flex flex-col items-end gap-0.5 text-right">
-      {agent.wallet_address && <WalletAddressCopy address={agent.wallet_address} className="text-[11px]" />}
+      {agent.wallet_address && <WalletAddressCopy address={agent.wallet_address} className="text-xs" />}
       {span && (
-        <p className="text-[11px] leading-relaxed text-white/35" title={span.title}>
+        <p className="text-xs leading-relaxed text-faint" title={span.title}>
           {span.text}
         </p>
       )}
@@ -54,12 +54,12 @@ function AgentChatIdentity({ agent, session }: { agent: AgentItem; session: Chat
 const STARTERS: {
   label: string; prompt: string; icon: LucideIcon; iconClass: string; hoverGradient: string;
 }[] = [
-  { label: "My Proposals",       prompt: "Show me all my research proposals",                                icon: Search,       iconClass: "text-violet-400",  hoverGradient: "from-violet-500/20 via-violet-600/8 to-transparent" },
-  { label: "Browse Marketplace", prompt: "What agents are available in the marketplace?",                    icon: Store,        iconClass: "text-cyan-400",    hoverGradient: "from-cyan-500/20 via-cyan-600/8 to-transparent" },
-  { label: "Check my balance",   prompt: "What is my current wallet balance?",                               icon: BarChart3,    iconClass: "text-emerald-400", hoverGradient: "from-emerald-500/20 via-emerald-600/8 to-transparent" },
-  { label: "Analyze Proposals",  prompt: "Analyze my proposals and tell me which I should fund",             icon: DollarSign,   iconClass: "text-amber-400",   hoverGradient: "from-amber-500/20 via-amber-600/8 to-transparent" },
-  { label: "Draft Proposal",     prompt: "Help me draft a new research proposal",                            icon: PenLine,      iconClass: "text-rose-400",    hoverGradient: "from-rose-500/20 via-rose-600/8 to-transparent" },
-  { label: "Run Research",       prompt: "Run a drug discovery research simulation",                         icon: FlaskConical, iconClass: "text-teal-400",    hoverGradient: "from-teal-500/20 via-teal-600/8 to-transparent" },
+  { label: "My Proposals",       prompt: "Show me all my research proposals",                                icon: Search,       iconClass: "text-accent",  hoverGradient: "" },
+  { label: "Browse Marketplace", prompt: "What agents are available in the marketplace?",                    icon: Store,        iconClass: "text-info",    hoverGradient: "" },
+  { label: "Check my balance",   prompt: "What is my current wallet balance?",                               icon: BarChart3,    iconClass: "text-success", hoverGradient: "" },
+  { label: "Analyze Proposals",  prompt: "Analyze my proposals and tell me which I should fund",             icon: DollarSign,   iconClass: "text-warning",   hoverGradient: "" },
+  { label: "Draft Proposal",     prompt: "Help me draft a new research proposal",                            icon: PenLine,      iconClass: "text-danger",    hoverGradient: "" },
+  { label: "Run Research",       prompt: "Run a drug discovery research simulation",                         icon: FlaskConical, iconClass: "text-success",    hoverGradient: "" },
 ];
 
 function AgentsChatInner() {
@@ -234,7 +234,7 @@ function AgentsChatInner() {
         return;
       }
       if (!created?.agent_id) {
-        setMessages((prev) => [...prev, { role: "user", content: text }, { role: "agent", content: "Your personal agent is still being set up — please wait a moment and try again!" }]);
+        setMessages((prev) => [...prev, { role: "user", content: text }, { role: "agent", content: "Your personal agent is still being set up, please wait a moment and try again!" }]);
         setInput("");
         return;
       }
@@ -287,27 +287,26 @@ function AgentsChatInner() {
 
   return (
     <div className="relative flex flex-col">
-      {/* Ambient glows */}
       <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "300px" }}>
-        <div className="absolute h-[260px] w-[260px] rounded-full opacity-20 blur-[80px]" style={{ left: "10%", top: "-40px", background: "radial-gradient(circle, rgba(245,158,11,0.65) 0%, transparent 70%)" }} />
-        <div className="absolute h-[220px] w-[220px] rounded-full opacity-15 blur-[70px]" style={{ right: "10%", top: "-30px", background: "radial-gradient(circle, rgba(167,139,250,0.6) 0%, transparent 70%)" }} />
+        
+        
       </div>
 
-      <PageHeader icon={MessageSquare} label="AgentKit" title="Chat" description="Natural language interface with your AI agent." glow="amber">
+      <PageHeader icon={MessageSquare} title="Chat" description="Natural language interface with your AI agent.">
         <div className="flex min-w-[22.5rem] flex-col items-end gap-2">
           {displayName ? (
             <div className="flex flex-col items-end gap-1.5">
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Badge variant="outline" className="border-emerald-400/30 text-emerald-400">
+                <Badge outline className="border-success/30 text-success">
                   <Bot className="mr-1 h-3 w-3" />{displayName}
                 </Badge>
                 {urlSpecialty && (
-                  <Badge variant="outline" className="border-cyan-400/30 text-cyan-400 text-[10px]">
+                  <Badge outline className="border-info/30 text-info text-xs">
                     {urlSpecialty}
                   </Badge>
                 )}
                 {urlCapabilities.slice(0, 2).map((cap) => (
-                  <Badge key={cap} variant="outline" className="border-white/20 text-white/50 text-[10px]">
+                  <Badge key={cap} outline className="border-border-strong text-subtle text-xs">
                     {cap}
                   </Badge>
                 ))}
@@ -315,13 +314,13 @@ function AgentsChatInner() {
               {activeAgent && <AgentChatIdentity agent={activeAgent} session={activeSession} />}
             </div>
           ) : createAgent.isPending || agentsLoading ? (
-            <Badge variant="outline" className="border-white/20 text-white/40">Setting up agent…</Badge>
+            <Badge outline className="border-border-strong text-subtle">Setting up agent…</Badge>
           ) : null}
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className="mt-1 h-8 w-fit cursor-pointer px-3 text-white/75 ring-1 ring-white/10 hover:bg-white/6 hover:text-white"
+            className="mt-1 h-8 w-fit cursor-pointer px-3 text-foreground ring-1 ring-border hover:bg-surface-muted hover:text-foreground"
             disabled={messages.length === 0 && !loading}
             onClick={() => {
               const params = new URLSearchParams({ new: String(Date.now()) });
@@ -363,8 +362,8 @@ function AgentsChatInner() {
 
       <div className="relative z-10 flex flex-col gap-4 p-6" style={{ height: "calc(100vh - 328px)" }}>
         <ScrollArea
-          className="flex-1 rounded-2xl p-4 ring-1 ring-white/8"
-          style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)" }}
+          className="flex-1 rounded-2xl p-4 ring-1 ring-border"
+          style={{ background: "color-mix(in oklab, var(--foreground) 3%, transparent)" }}
         >
           <AnimatePresence initial={false}>
             {showStarters ? (
@@ -375,19 +374,19 @@ function AgentsChatInner() {
                 exit={{ opacity: 0 }}
                 className="flex h-full flex-col items-center justify-center gap-6 py-8"
               >
-                <p className="text-[13px] text-white/30">What would you like to do?</p>
+                <p className="text-sm text-faint">What would you like to do?</p>
                 <div className="grid w-full max-w-lg grid-cols-2 gap-3">
                   {STARTERS.map((s) => (
                     <button
                       key={s.label}
                       onClick={() => send(s.prompt)}
-                      className="group relative cursor-pointer overflow-hidden rounded-2xl p-4 text-left ring-1 ring-white/8 transition-all duration-200 hover:scale-[1.02] hover:ring-white/20"
-                      style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+                      className="group relative cursor-pointer overflow-hidden rounded-2xl p-4 text-left ring-1 ring-border transition-all duration-200 hover:scale-[1.02] hover:ring-border-strong"
+                      style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
                     >
-                      <div className={`absolute inset-0 bg-gradient-to-br ${s.hoverGradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+                      <div className={`absolute inset-0 ${s.hoverGradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
                       <div className="relative z-10 flex items-center gap-2">
                         <s.icon className={`h-4 w-4 ${s.iconClass}`} />
-                        <p className="text-sm font-semibold text-white/80 transition-colors group-hover:text-white">{s.label}</p>
+                        <p className="text-sm font-medium text-foreground transition-colors group-hover:text-foreground">{s.label}</p>
                       </div>
                     </button>
                   ))}
@@ -402,9 +401,9 @@ function AgentsChatInner() {
                       initial={{ opacity: 0, y: 6, x: 12 }}
                       animate={{ opacity: 1, y: 0, x: 0 }}
                       transition={{ duration: 0.25, ease: "easeOut" }}
-                      className="ml-auto max-w-[80%] rounded-2xl bg-indigo-500/20 px-4 py-3 text-white ring-1 ring-indigo-400/15"
+                      className="ml-auto max-w-[80%] rounded-2xl bg-accent/20 px-4 py-3 text-foreground ring-1 ring-accent/15"
                     >
-                      <p className="whitespace-pre-wrap text-[13px]">{msg.content}</p>
+                      <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                     </motion.div>
                   ) : (
                     <motion.div
@@ -414,10 +413,10 @@ function AgentsChatInner() {
                       transition={{ duration: 0.25, ease: "easeOut" }}
                       className="mr-auto max-w-[92%]"
                     >
-                      <div className="rounded-2xl px-4 py-3 ring-1 ring-white/6" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="rounded-2xl px-4 py-3 ring-1 ring-border" style={{ background: "color-mix(in oklab, var(--foreground) 5%, transparent)" }}>
                         <RichMessageRenderer content={msg.content} richContent={msg.richContent} />
                         {msg.attestation && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/8 pt-2">
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
                             <AttestationBadge attestation={msg.attestation} />
                           </div>
                         )}
@@ -432,8 +431,8 @@ function AgentsChatInner() {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 ring-1 ring-white/6"
-                    style={{ background: "rgba(255,255,255,0.05)" }}
+                    className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 ring-1 ring-border"
+                    style={{ background: "color-mix(in oklab, var(--foreground) 5%, transparent)" }}
                   >
                     <div className="flex gap-1.5 py-0.5">
                       {[0, 0.15, 0.3].map((delay, k) => (
@@ -441,7 +440,7 @@ function AgentsChatInner() {
                           key={k}
                           animate={{ opacity: [0.2, 0.8, 0.2], y: [0, -3, 0] }}
                           transition={{ repeat: Infinity, duration: 1, delay, ease: "easeInOut" }}
-                          className="block h-1.5 w-1.5 rounded-full bg-white/40"
+                          className="block h-1.5 w-1.5 rounded-full bg-foreground/40"
                         />
                       ))}
                     </div>
@@ -460,17 +459,17 @@ function AgentsChatInner() {
           </div>
           <div className="flex gap-2">
             <Textarea
-              placeholder="Ask your agent anything…"
+              label="Ask your agent anything" placeholder="Ask your agent anything…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-              className="min-h-[44px] resize-none border-white/10 bg-white/[0.025] text-white"
+              className="min-h-[44px] resize-none border-border bg-surface-muted text-foreground"
               rows={1}
             />
             <Button
               onClick={() => send(input)}
               disabled={!input.trim() || loading}
-              className="shrink-0 cursor-pointer bg-amber-600 hover:bg-amber-700"
+              className="shrink-0 cursor-pointer bg-warning hover:bg-warning"
             >
               <Send className="h-4 w-4" />
             </Button>

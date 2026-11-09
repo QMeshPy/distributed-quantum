@@ -1,6 +1,6 @@
 "use client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/shared/components/panel/panel";
+import { Progress } from "@/components/arc/progress/progress";
 import type { RunDetail } from "../types";
 
 export function RunMetricsPanel({ run }: { run: RunDetail }) {
@@ -12,13 +12,13 @@ export function RunMetricsPanel({ run }: { run: RunDetail }) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Card className="border-hairline">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+      <Panel className="border-border-subtle">
+        <PanelHeader className="pb-2">
+          <PanelTitle className="text-sm font-medium text-subtle">
             Execution Progress
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+          </PanelTitle>
+        </PanelHeader>
+        <PanelContent className="space-y-3">
           {progress ? (
             <>
               <div className="flex items-center justify-between text-sm">
@@ -26,13 +26,13 @@ export function RunMetricsPanel({ run }: { run: RunDetail }) {
                   {completionPct}% complete
                 </span>
                 {progress.finalizing && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-subtle">
                     Finalizing…
                   </span>
                 )}
               </div>
               <Progress value={completionPct ?? 0} className="h-2" />
-              <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-muted-foreground">
+              <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-subtle">
                 <div>
                   <p className="font-medium text-foreground">
                     {progress.totalFragments}
@@ -54,23 +54,23 @@ export function RunMetricsPanel({ run }: { run: RunDetail }) {
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">No progress data.</p>
+            <p className="text-sm text-subtle">No progress data.</p>
           )}
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
 
-      <Card className="border-hairline">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+      <Panel className="border-border-subtle">
+        <PanelHeader className="pb-2">
+          <PanelTitle className="text-sm font-medium text-subtle">
             Quantum Result
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </PanelTitle>
+        </PanelHeader>
+        <PanelContent>
           {quantumResult ? (
             <div className="space-y-2">
               {quantumResult.shots != null && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Shots</span>
+                  <span className="text-subtle">Shots</span>
                   <span className="font-medium text-foreground">
                     {quantumResult.shots}
                   </span>
@@ -79,7 +79,7 @@ export function RunMetricsPanel({ run }: { run: RunDetail }) {
               {quantumResult.topBasisStates &&
                 quantumResult.topBasisStates.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-subtle">
                       Top basis states
                     </p>
                     {quantumResult.topBasisStates.slice(0, 5).map((state, i) => (
@@ -87,7 +87,7 @@ export function RunMetricsPanel({ run }: { run: RunDetail }) {
                         key={i}
                         className="flex justify-between font-mono text-xs"
                       >
-                        <span className="text-muted-foreground">
+                        <span className="text-subtle">
                           {String(state.state ?? state.basis ?? i)}
                         </span>
                         <span className="text-foreground">
@@ -102,20 +102,20 @@ export function RunMetricsPanel({ run }: { run: RunDetail }) {
               {!quantumResult.shots &&
                 (!quantumResult.topBasisStates ||
                   quantumResult.topBasisStates.length === 0) && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-subtle">
                     Result available.
                   </p>
                 )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-subtle">
               {run.status === "completed"
                 ? "No quantum result."
                 : "Awaiting completion."}
             </p>
           )}
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
     </div>
   );
 }

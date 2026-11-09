@@ -20,6 +20,7 @@ export function useTokenizedPortfolioForm(catalog: TokenizedAssetsResponse | und
   const today = isoDay(0);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<TokenizedPortfolioValues>({
@@ -44,5 +45,5 @@ export function useTokenizedPortfolioForm(catalog: TokenizedAssetsResponse | und
         { onSuccess: (data) => router.push(ROUTES.financeDetail(data.job_id)) },
       ),
     )(event);
-  return { errors, register, submit, isPending, today };
+  return { errors, register, control, submit, isPending, today };
 }

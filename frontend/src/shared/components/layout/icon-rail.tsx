@@ -11,7 +11,7 @@ export function IconRail() {
   const trialEnabled = useTrialEnabled();
 
   return (
-    <nav className={`flex w-[68px] flex-col items-center bg-transparent py-3${!trialEnabled ? " pointer-events-none blur-sm select-none" : ""}`}>
+    <nav className={`flex w-[68px] flex-col items-center bg-transparent py-3${!trialEnabled ?" pointer-events-none blur-sm select-none" : ""}`}>
       <WorkspaceSwitcher />
       <div className="mt-4 flex flex-col items-center gap-1">
         {NAV_CONFIG.map((item) => {

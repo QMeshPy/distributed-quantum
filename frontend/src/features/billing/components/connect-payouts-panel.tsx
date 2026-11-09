@@ -1,14 +1,15 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/arc/badge/badge";
+import { legacyBadge } from "@/lib/legacy-badge";
+import { Button } from "@/components/arc/button/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Panel,
+  PanelContent,
+  PanelDescription,
+  PanelHeader,
+  PanelTitle,
+} from "@/shared/components/panel/panel";
 import { BILLING, UI } from "@/constants";
 import { connectStatusLabel } from "../lib/connect";
 import type { ConnectOverview, ConnectPayoutStatus } from "../types";
@@ -49,18 +50,18 @@ export function ConnectPayoutsCard({
     overview.dashboardAvailable && status !== BILLING.CONNECT_STATUS_UNAVAILABLE;
 
   return (
-    <Card className="border-hairline">
-      <CardHeader>
-        <CardTitle className="text-base font-medium">{UI.CONNECT.TITLE}</CardTitle>
-        <CardDescription>{UI.CONNECT.DESCRIPTION}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <Panel className="border-border-subtle">
+      <PanelHeader>
+        <PanelTitle className="text-base font-medium">{UI.CONNECT.TITLE}</PanelTitle>
+        <PanelDescription>{UI.CONNECT.DESCRIPTION}</PanelDescription>
+      </PanelHeader>
+      <PanelContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <Badge variant={statusVariant(status)}>{connectStatusLabel(status)}</Badge>
+          <Badge {...legacyBadge(statusVariant(status))}>{connectStatusLabel(status)}</Badge>
           <div className="flex flex-wrap gap-2">
             {showOnboard ? (
               <Button
-                variant="outline"
+                variant="secondary"
                 disabled={onboarding}
                 onClick={onOnboard}
               >
@@ -71,7 +72,7 @@ export function ConnectPayoutsCard({
             ) : null}
             {showDashboard ? (
               <Button
-                variant="outline"
+                variant="secondary"
                 disabled={openingDashboard}
                 onClick={onDashboard}
               >
@@ -80,12 +81,12 @@ export function ConnectPayoutsCard({
             ) : null}
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">{UI.CONNECT.SKIP_NOTE}</p>
+        <p className="text-xs text-subtle">{UI.CONNECT.SKIP_NOTE}</p>
         {status === BILLING.CONNECT_STATUS_UNAVAILABLE ? (
-          <p className="text-xs text-muted-foreground">{UI.CONNECT.UNAVAILABLE}</p>
+          <p className="text-xs text-subtle">{UI.CONNECT.UNAVAILABLE}</p>
         ) : null}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   );
 }
 
@@ -111,7 +112,7 @@ export function ConnectPayoutsPanel() {
         onDashboard={() => dashboard.mutate()}
       />
       {isError ? (
-        <p className="px-1 text-xs text-muted-foreground">{UI.CONNECT.ERROR}</p>
+        <p className="px-1 text-xs text-subtle">{UI.CONNECT.ERROR}</p>
       ) : null}
     </div>
   );

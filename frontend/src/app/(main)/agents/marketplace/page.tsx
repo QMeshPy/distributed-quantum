@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useMarketplace, useCreateAgent } from "@/features/agentkit";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { Input } from "@/components/arc/input/input";
+import { Drawer, DrawerContent } from "@/components/arc/drawer/drawer";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Search, Star, Store } from "lucide-react";
 import type { MarketplaceAgent } from "@/features/agentkit";
@@ -30,11 +30,11 @@ function StarRating({ rating }: { rating: number }) {
           }
           strokeWidth={1.5}
           style={{
-            color: i < full || (i === full && partial >= 0.5) ? "#f59e0b" : "rgba(255,255,255,0.2)",
+            color: i < full || (i === full && partial >= 0.5) ? "var(--warning)" : "color-mix(in oklab, var(--foreground) 20%, transparent)",
           }}
         />
       ))}
-      <span className="ml-1 text-[10px] text-amber-400/80">{rating.toFixed(1)}</span>
+      <span className="ml-1 text-xs text-warning">{rating.toFixed(1)}</span>
     </span>
   );
 }
@@ -74,7 +74,7 @@ export default function MarketplacePage() {
       params.set("capabilities", agent.capabilities.slice(0, 6).join(","));
       router.push(`/agents/chat?${params.toString()}`);
     } catch {
-      // agent may already exist — navigate with marketplace context so chat has persona
+      // agent may already exist, navigate with marketplace context so chat has persona
       setSelected(null);
       const params = new URLSearchParams({ name: agent.agent_name });
       if (agent.specialty) params.set("specialty", agent.specialty);
@@ -88,30 +88,27 @@ export default function MarketplacePage() {
   return (
     <div className="relative flex flex-col">
 
-      {/* Ambient glows */}
       <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "300px" }}>
-        <div className="absolute h-[280px] w-[280px] rounded-full opacity-20 blur-[80px]" style={{ left: "0%", top: "-50px", background: "radial-gradient(circle, rgba(34,211,238,0.65) 0%, transparent 70%)" }} />
-        <div className="absolute h-[220px] w-[220px] rounded-full opacity-15 blur-[70px]" style={{ right: "5%", top: "-30px", background: "radial-gradient(circle, rgba(99,102,241,0.6) 0%, transparent 70%)" }} />
+        
+        
       </div>
 
       <PageHeader
         icon={Store}
-        label="AgentKit"
         title="Marketplace"
         description="Discover and hire AI agents for quantum research."
-        glow="cyan"
       />
 
       <div className="relative z-10 flex flex-col gap-6 p-6">
 
         {/* Search bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
           <Input
-            placeholder="Search agents..."
+            label="Search agents" placeholder="Search agents..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border-white/10 bg-white/[0.025] pl-9 text-white placeholder:text-white/30"
+            className="border-border bg-surface-muted pl-9 text-foreground placeholder:text-faint"
           />
         </div>
 
@@ -119,10 +116,10 @@ export default function MarketplacePage() {
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-2xl p-4 ring-1 ring-white/8 space-y-3" style={{ background: "rgba(255,255,255,0.04)" }}>
-                <Skeleton className="h-5 w-32 bg-white/10" />
-                <Skeleton className="h-4 w-full bg-white/10" />
-                <Skeleton className="h-4 w-24 bg-white/10" />
+              <div key={i} className="rounded-2xl p-4 ring-1 ring-border space-y-3" style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}>
+                <Skeleton lines={1} className="h-5 w-32" />
+                <Skeleton lines={1} className="h-4 w-full" />
+                <Skeleton lines={1} className="h-4 w-24" />
               </div>
             ))}
           </div>
@@ -131,22 +128,21 @@ export default function MarketplacePage() {
             {agents?.map((agent) => (
               <div
                 key={agent.agent_id}
-                className="group relative overflow-hidden rounded-2xl p-4 ring-1 ring-white/10 transition-all duration-200 hover:ring-white/20 hover:scale-[1.01]"
-                style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+                className="group relative overflow-hidden rounded-2xl p-4 ring-1 ring-border transition-all duration-200 hover:ring-border-strong hover:scale-[1.01]"
+                style={{ background: "color-mix(in oklab, var(--foreground) 4%, transparent)" }}
               >
-                {/* Hover gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/15 via-cyan-600/6 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
                 <div className="relative z-10 space-y-3">
                   {/* Name + status */}
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-white/90 truncate">{agent.agent_name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{agent.agent_name}</p>
                     <Badge
-                      variant="outline"
+                      outline
                       className={
                         agent.status === "active" || agent.status === "available"
-                          ? "shrink-0 text-emerald-400 border-emerald-400/30 text-[10px]"
-                          : "shrink-0 text-white/30 text-[10px]"
+                          ? "shrink-0 text-success border-success/30 text-xs"
+                          : "shrink-0 text-faint text-xs"
                       }
                     >
                       {agent.status}
@@ -155,19 +151,19 @@ export default function MarketplacePage() {
 
                   {/* Specialty badge */}
                   {agent.specialty && (
-                    <Badge variant="secondary" className="text-[10px] bg-indigo-500/15 text-indigo-300 border-0">
+                    <Badge  className="text-xs bg-accent/15 text-accent border-0">
                       {agent.specialty}
                     </Badge>
                   )}
 
                   {/* Description */}
-                  <p className="line-clamp-2 text-xs text-white/40 leading-relaxed">{agent.description}</p>
+                  <p className="line-clamp-2 text-xs text-subtle leading-relaxed">{agent.description}</p>
 
                   {/* Capabilities */}
                   {agent.capabilities.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {agent.capabilities.slice(0, 3).map((cap) => (
-                        <Badge key={cap} variant="secondary" className="text-[10px] bg-cyan-500/10 text-cyan-400 border-0">
+                        <Badge key={cap}  className="text-xs bg-info/10 text-info border-0">
                           {cap}
                         </Badge>
                       ))}
@@ -177,14 +173,14 @@ export default function MarketplacePage() {
                   {/* Footer: price + rating + view */}
                   <div className="flex items-center justify-between pt-1 gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-xs font-medium text-white/50 shrink-0">{formatPrice(agent)}</span>
+                      <span className="text-xs font-medium text-subtle shrink-0">{formatPrice(agent)}</span>
                       {agent.rating != null && <StarRating rating={agent.rating} />}
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelected(agent)}
-                      className="h-7 px-3 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 shrink-0"
+                      className="h-7 px-3 text-xs text-info hover:text-info hover:bg-info/10 shrink-0"
                     >
                       View
                     </Button>
@@ -196,58 +192,56 @@ export default function MarketplacePage() {
         )}
       </div>
 
-      <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
-        <SheetContent className="w-[420px] border-white/10 bg-background">
+      <Drawer open={!!selected} onOpenChange={() => setSelected(null)}>
+        <DrawerContent title={selected?.agent_name ?? ""}>
           {selected && (
             <>
-              <SheetHeader>
-                <SheetTitle className="text-white">{selected.agent_name}</SheetTitle>
-              </SheetHeader>
+              
               <div className="mt-6 space-y-4">
                 {selected.specialty && (
-                  <Badge variant="secondary" className="bg-indigo-500/15 text-indigo-300 border-0">
+                  <Badge  className="bg-accent/15 text-accent border-0">
                     {selected.specialty}
                   </Badge>
                 )}
-                <p className="text-sm text-white/70">{selected.description}</p>
+                <p className="text-sm text-foreground">{selected.description}</p>
                 {selected.capabilities.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-medium text-white">Capabilities</h3>
+                    <h3 className="text-sm font-medium text-foreground">Capabilities</h3>
                     <div className="flex flex-wrap gap-1">
                       {selected.capabilities.map((cap) => (
-                        <Badge key={cap} variant="secondary" className="bg-cyan-500/10 text-cyan-400 border-0">
+                        <Badge key={cap}  className="bg-info/10 text-info border-0">
                           {cap}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4 rounded-xl border border-white/10 p-3" style={{ background: "rgba(255,255,255,0.03)" }}>
+                <div className="grid grid-cols-2 gap-4 rounded-xl border border-border p-3" style={{ background: "color-mix(in oklab, var(--foreground) 3%, transparent)" }}>
                   <div>
-                    <p className="text-xs text-white/40">Price</p>
-                    <p className="text-sm text-white">{formatPrice(selected)}</p>
+                    <p className="text-xs text-subtle">Price</p>
+                    <p className="text-sm text-foreground">{formatPrice(selected)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-white/40">Tasks</p>
-                    <p className="text-sm text-white">{selected.total_tasks}</p>
+                    <p className="text-xs text-subtle">Tasks</p>
+                    <p className="text-sm text-foreground">{selected.total_tasks}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-white/40">Rating</p>
+                    <p className="text-xs text-subtle">Rating</p>
                     <div className="mt-0.5">
                       {selected.rating != null ? (
                         <StarRating rating={selected.rating} />
                       ) : (
-                        <p className="text-sm text-white">{selected.reputation_score}/100</p>
+                        <p className="text-sm text-foreground">{selected.reputation_score}/100</p>
                       )}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs text-white/40">Status</p>
-                    <p className="text-sm text-white">{selected.status}</p>
+                    <p className="text-xs text-subtle">Status</p>
+                    <p className="text-sm text-foreground">{selected.status}</p>
                   </div>
                 </div>
                 <Button
-                  className="w-full bg-cyan-600 hover:bg-cyan-700"
+                  className="w-full bg-info hover:bg-info"
                   onClick={() => selected && hireAgent(selected)}
                   disabled={hiring}
                 >
@@ -256,8 +250,8 @@ export default function MarketplacePage() {
               </div>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

@@ -27,7 +27,7 @@ export function TxLink({ hash, chainId }: { hash: string; chainId?: string }) {
       rel="noreferrer"
       title={hash}
       onClick={(event) => event.stopPropagation()}
-      className="font-mono text-purple-200 underline decoration-purple-400/40 underline-offset-2 hover:text-white"
+      className="font-mono text-accent underline decoration-accent/40 underline-offset-2 hover:text-foreground"
     >
       {shortTx(hash)}
     </a>

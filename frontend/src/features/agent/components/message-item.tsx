@@ -1,8 +1,8 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/arc/avatar/avatar";
+import { Panel, PanelContent } from "@/shared/components/panel/panel";
+import { Badge } from "@/components/arc/badge/badge";
 import { cn } from "@/lib/utils";
 import { ThinkingBlock } from "./thinking-block";
 import type { AttestationSummary, Message } from "../types";
@@ -19,9 +19,9 @@ export function AttestationBadge({ attestation }: { attestation: AttestationSumm
     case "model_tee_verified":
       return (
         <Badge
-          variant="outline"
+          outline
           title={detail}
-          className="border-emerald-400/30 bg-emerald-500/10 text-emerald-300 text-[11px]"
+          className="border-success/30 bg-success/10 text-success text-xs"
         >
           Model TEE verified · {attestation.model}
         </Badge>
@@ -29,9 +29,9 @@ export function AttestationBadge({ attestation }: { attestation: AttestationSumm
     case "gateway_verified":
       return (
         <Badge
-          variant="outline"
+          outline
           title={detail}
-          className="border-amber-400/30 bg-amber-500/10 text-amber-300 text-[11px]"
+          className="border-warning/30 bg-warning/10 text-warning text-xs"
         >
           Gateway verified · {attestation.model}
         </Badge>
@@ -39,9 +39,9 @@ export function AttestationBadge({ attestation }: { attestation: AttestationSumm
     case "unverified":
       return (
         <Badge
-          variant="outline"
+          outline
           title={detail}
-          className="border-rose-400/30 bg-rose-500/10 text-rose-300 text-[11px]"
+          className="border-danger/30 bg-danger/10 text-danger text-xs"
         >
           Unverified · {attestation.model}
         </Badge>
@@ -60,7 +60,7 @@ export function MessageItem({ message }: MessageItemProps) {
   if (isSystem) {
     return (
       <div className="flex justify-center my-4">
-        <Badge variant="outline" className="text-xs">
+        <Badge outline className="text-xs">
           {message.content}
         </Badge>
       </div>
@@ -69,20 +69,16 @@ export function MessageItem({ message }: MessageItemProps) {
 
   return (
     <div className={cn("flex gap-3", !isAgent && "flex-row-reverse")}>
-      <Avatar className="h-8 w-8 shrink-0">
-        <AvatarFallback>
-          {isAgent ? "🤖" : "👤"}
-        </AvatarFallback>
-      </Avatar>
+      <Avatar size="sm" className="shrink-0" name={isAgent ? "Agent" : "You"} />
 
       <div className="flex-1 space-y-2 max-w-2xl">
-        <Card className={cn(
-          !isAgent && "bg-indigo-500/10 border-indigo-500/20"
+        <Panel className={cn(
+          !isAgent && "bg-accent/10 border-accent/20"
         )}>
-          <CardContent className="p-4">
+          <PanelContent className="p-4">
             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
 
         {/* Agent Thinking (collapsible) */}
         {message.metadata?.thinking && (
@@ -93,7 +89,7 @@ export function MessageItem({ message }: MessageItemProps) {
         {message.metadata?.actions && message.metadata.actions.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {message.metadata.actions.map((action, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs">
+              <Badge key={idx} outline className="text-xs">
                 Ran: {action}
               </Badge>
             ))}

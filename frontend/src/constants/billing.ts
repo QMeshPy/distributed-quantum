@@ -31,7 +31,7 @@ export const BILLING = {
   /** Sent to the backend's internal credit-purchase route. */
   BILLING_SECRET_HEADER: "X-Billing-Internal-Secret",
   MIN_BILLING_SECRET_LENGTH: 32,
-  /** Opt-in Connect Express onboarding for worker cash-out (#110). */
+  /** Opt-in Connect Express onboarding for worker cash-out (var(--background)). */
   CONNECT_RESULT_PARAM: "connect",
   CONNECT_RETURN: "return",
   CONNECT_REFRESH: "refresh",
