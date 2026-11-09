@@ -128,6 +128,17 @@ fixtures and removes only their pins, never runs GC or deletes unrelated content
 QB2_KUBO_LIVE_TEST=1 uv run --frozen pytest tests/live/test_kubo_rpc.py -m live_kubo -q
 ```
 
+Compose-based client/node coverage (`#68`) starts a disposable offline Kubo from
+`docker-compose.yaml`, adds through `KuboClient`, reads the CID from the loopback
+gateway, and asserts matching bytes/CIDs. It briefly publishes RPC on `127.0.0.1`
+for that uniquely named project only; production still leaves RPC unpublished.
+Requires Docker Compose with `up --wait`. CI runs it on PRs that touch the content
+node or client (`.github/workflows/kubo-compose-client.yml`).
+
+```bash
+QB2_KUBO_COMPOSE_TEST=1 uv run --frozen pytest tests/live/test_kubo_compose_client.py -m kubo_compose -q
+```
+
 ## Current Milestone
 
 The current scaffold establishes:
