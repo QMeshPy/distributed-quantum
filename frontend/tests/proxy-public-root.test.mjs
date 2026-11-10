@@ -29,4 +29,10 @@ describe("authentication proxy", () => {
 
     expect(response.status).toBe(307);
   });
+
+  test("lets the Filecoin API enforce its session without redirecting JSON requests to HTML", () => {
+    expect(proxy(request("/api/filecoin/accounts")).status).toBe(200);
+    expect(proxy(request("/api/filecoin-malicious/accounts")).status).toBe(307);
+    expect(proxy(request("/vault/filecoin")).status).toBe(307);
+  });
 });

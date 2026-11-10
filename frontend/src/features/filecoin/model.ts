@@ -110,6 +110,7 @@ export function formatToken(value?: string): string {
   if (!value || !/^\d+$/.test(value)) return "—";
   const units = BigInt(value);
   const scale = BigInt("1000000000000000000");
+  if (units > BigInt(0) && units < BigInt("1000000000000")) return "<0.000001";
   const fraction = (units % scale)
     .toString()
     .padStart(18, "0")

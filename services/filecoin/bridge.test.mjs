@@ -165,6 +165,59 @@ test('fresh key-free download validates real piece shape and rejects mismatched 
   await assert.rejects(execute(request,sdk),e=>e.code==='integrity_error');
 });
 
+test('provider piece redirect to same-origin public path is followed with integrity checks',async t=>{
+  const cid=await pieceCalculate(data);
+  const request=parseRequest({command:'download',piece_cid:cid.toString(),sha256:digest,size_bytes:data.length,
+    provider_address:address});
+  const {sdk}=fake(); sdk.getProviderInfo=async()=>({pdp:{serviceURL:'https://provider.example/'}});
+  const paths=[];
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    assert.equal(options.redirect,'manual');
+    paths.push(url.pathname);
+    return paths.length===1 ? new Response(null,{status:301,headers:{location:`/public/${cid}`}}) : new Response(data);
+  });
+  assert.equal((await execute(request,sdk)).data_base64,data.toString('base64'));
+  assert.deepEqual(paths,[`/piece/${cid}`,`/public/${cid}`]);
+});
+
+test('cross-origin and unsafe redirects are rejected before fetching their target',async t=>{
+  const cid=await pieceCalculate(data);
+  const request=parseRequest({command:'download',piece_cid:cid.toString(),sha256:digest,size_bytes:data.length,
+    provider_address:address});
+  const {sdk}=fake(); sdk.getProviderInfo=async()=>({pdp:{serviceURL:'https://provider.example/'}});
+  for (const location of ['https://other.example/public/piece','http://provider.example/public/piece',
+    'https://user:secret@provider.example/public/piece','https://127.0.0.1/piece','https://localhost/piece']) {
+    let requests=0;
+    t.mock.method(globalThis,'fetch',async()=>{
+      requests++;
+      return new Response(null,{status:302,headers:{location}});
+    });
+    await assert.rejects(execute(request,sdk),e=>e.code==='unsafe_provider_url');
+    assert.equal(requests,1);
+  }
+});
+
+test('redirect loops and more than three same-origin redirects are bounded',async t=>{
+  const cid=await pieceCalculate(data);
+  const request=parseRequest({command:'download',piece_cid:cid.toString(),sha256:digest,size_bytes:data.length,
+    provider_address:address});
+  const {sdk}=fake(); sdk.getProviderInfo=async()=>({pdp:{serviceURL:'https://provider.example/'}});
+  let requests=0;
+  t.mock.method(globalThis,'fetch',async url=>{
+    requests++;
+    return new Response(null,{status:307,headers:{location:url.href}});
+  });
+  await assert.rejects(execute(request,sdk),e=>e.code==='retrieval_unavailable');
+  assert.equal(requests,1);
+  requests=0;
+  t.mock.method(globalThis,'fetch',async()=>{
+    requests++;
+    return new Response(null,{status:308,headers:{location:`/hop/${requests}`}});
+  });
+  await assert.rejects(execute(request,sdk),e=>e.code==='retrieval_unavailable');
+  assert.equal(requests,4);
+});
+
 test('oversized provider stream is cancelled before buffering its remaining chunks',async t=>{
   const cid=await pieceCalculate(data);
   const request=parseRequest({command:'download',piece_cid:cid.toString(),sha256:digest,size_bytes:data.length,
@@ -183,7 +236,7 @@ test('oversized provider stream is cancelled before buffering its remaining chun
   },{highWaterMark:0});
   t.mock.method(globalThis,'fetch',async(url,options)=>{
     assert.ok(url.toString().startsWith('https://provider.example/'));
-    assert.equal(options.redirect,'error');
+    assert.equal(options.redirect,'manual');
     return new Response(stream);
   });
   await assert.rejects(execute(request,sdk),e=>e.code==='integrity_error' && e.uncertain===false);

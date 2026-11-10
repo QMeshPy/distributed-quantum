@@ -52,6 +52,7 @@ describe("Filecoin evidence", () => {
   test("formats token units without precision loss and scopes pending writes to the account", () => {
     expect(formatToken("1000000000000000000")).toBe("1");
     expect(formatToken("1234560000000000000")).toBe("1.23456");
+    expect(formatToken("123456")).toBe("<0.000001");
     expect(formatToken(undefined)).toBe("—");
     expect(pendingKey("alice")).not.toBe(pendingKey("bob"));
   });

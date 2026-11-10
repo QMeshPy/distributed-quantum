@@ -2,15 +2,29 @@ name: Filecoin Calibration
 
 on:
   push:
-    paths: ['services/filecoin/**', 'backend/**', '.github/workflows/filecoin-calibration.yml']
+    paths: ['services/filecoin/**', 'backend/**', 'frontend/**', '.github/workflows/filecoin-calibration.yml']
   pull_request:
-    paths: ['services/filecoin/**', 'backend/**', '.github/workflows/filecoin-calibration.yml']
+    paths: ['services/filecoin/**', 'backend/**', 'frontend/**', '.github/workflows/filecoin-calibration.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.4'
+      - run: bun install --frozen-lockfile
+      - run: bun run test:filecoin
+      - run: bun run test:proxy
+      - run: bun x tsc --noEmit
   sdk:
     runs-on: ubuntu-latest
     defaults:

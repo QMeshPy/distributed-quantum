@@ -139,6 +139,10 @@ immutable finance inputs, task restart, grouped tasks, uncertain writes, archive
 replay and coordinator leases. CI also tests real Mongo atomic claims. Live proof
 results, when available, are recorded separately with public transaction links.
 
+The [Calibration evidence pack](evidence/filecoin-calibration-20261111/README.md)
+contains five confirmed objects, fresh retrieval checks, the finance result,
+the pharma checkpoint/resume result, and independent NEAR verification.
+
 The reusable package format and verifier are Apache-2.0 project code. They make
 research artifacts useful to Filecoin clients outside QMeshPy and make actual
 retrieval reliability measurable. Testnet activity is development evidence, not

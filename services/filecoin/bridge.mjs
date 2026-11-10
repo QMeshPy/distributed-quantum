@@ -175,6 +175,10 @@ function retrievalUrl(serviceURL,pieceCid) {
   let url;
   try {url=new URL(Piece.createPieceUrlPDP({serviceURL,cid:pieceCid}));}
   catch {fail('unsafe_provider_url','Invalid registered provider URL');}
+  return validateRetrievalUrl(url);
+}
+
+function validateRetrievalUrl(url) {
   const hostname=url.hostname.toLowerCase().replace(/\.$/,'');
   if (url.protocol!=='https:' || url.username || url.password || isIP(hostname) || hostname.includes(':') ||
       !hostname.includes('.') || /\.(localhost|local|internal|lan|home)$/.test(hostname)) {
@@ -185,7 +189,25 @@ function retrievalUrl(serviceURL,pieceCid) {
 
 async function downloadBytes(url,expectedSize) {
   // The SDK's convenience download buffers an unbounded response before checking its PieceCID.
-  const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(60000)});
+  const origin=url.origin;
+  const visited=new Set([url.href]);
+  const signal=AbortSignal.timeout(60000);
+  let response;
+  for (let redirects=0;;redirects++) {
+    response=await fetch(url,{redirect:'manual',signal});
+    if (![301,302,303,307,308].includes(response.status)) break;
+    await response.body?.cancel();
+    const location=response.headers.get('location');
+    if (!location || redirects>=3) fail('retrieval_unavailable','Provider redirect limit reached or target missing');
+    let target;
+    try {target=new URL(location,url);}
+    catch {fail('unsafe_provider_url','Invalid provider redirect URL');}
+    validateRetrievalUrl(target);
+    if (target.origin!==origin) fail('unsafe_provider_url','Provider redirect must stay on its registered HTTPS origin');
+    if (visited.has(target.href)) fail('retrieval_unavailable','Provider redirect loop detected');
+    visited.add(target.href);
+    url=target;
+  }
   if (!response.ok || !response.body) {
     await response.body?.cancel();
     fail('retrieval_unavailable','Registered provider did not return the piece');

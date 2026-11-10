@@ -73,7 +73,9 @@ Supply at least `provider_address` or `payer_address` from the receipt. Resoluti
 uses the SDK's registered provider lookup, never a caller-provided retrieval URL.
 The response stream is capped at the expected size (maximum 16 MiB) and cancelled
 as soon as it exceeds that limit. Retrieval requires HTTPS with a DNS hostname;
-literal IP addresses, local hostnames, URL credentials and redirects are rejected.
+literal IP addresses, local hostnames and URL credentials are rejected. Up to
+three redirects are followed within the registered provider's same HTTPS origin,
+with every target validated; cross-origin redirects and loops are rejected.
 The SDK computes the received bytes' PieceCID, and independent SHA256/size checks
 must also pass. Output adds `data_base64`, `sha256`, `size_bytes`, `network`, and
 `chain_id`. Deployments should apply network egress controls as DNS answers are

@@ -59,6 +59,8 @@ type TaskRun = {
 const selectClass =
   "h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const panelClass = "rounded-xl border border-border bg-card p-5";
+const tabClass =
+  "min-h-8 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
 
 export function FilecoinVault() {
   const { user, loading } = useAuth();
@@ -81,7 +83,10 @@ export function FilecoinWorkspace({
   const [accounts, setAccounts] = useState<StorageAccount[]>([]);
   const [artifacts, setArtifacts] = useState<StoredArtifact[]>([]);
   const [agentId, setAgentId] = useState("");
-  const [balanceResult, setBalanceResult] = useState<{ agentId: string; value: AccountBalance } | null>(null);
+  const [balanceResult, setBalanceResult] = useState<{
+    agentId: string;
+    value: AccountBalance;
+  } | null>(null);
   const [loading, setLoading] = useState(!!userId);
   const [available, setAvailable] = useState(false);
   const [error, setError] = useState("");
@@ -105,36 +110,42 @@ export function FilecoinWorkspace({
   const [portfolioBudget, setPortfolioBudget] = useState("2");
   const [lastTx, setLastTx] = useState("");
   const account = accounts.find((item) => item.agent_id === agentId);
-  const balance = available && balanceResult?.agentId === agentId ? balanceResult.value : null;
+  const balance =
+    available && balanceResult?.agentId === agentId
+      ? balanceResult.value
+      : null;
   const canWrite = available && storageReady && !!account && !pending && !busy;
 
   const refresh = useCallback(() => {
     if (!userId) return Promise.resolve();
     return Promise.all([
-        requestFilecoin<{ accounts: StorageAccount[] }>("accounts"),
-        requestFilecoin<{ artifacts: StoredArtifact[] }>("artifacts"),
-      ]).then(([owned, history]) => {
-      setAccounts(owned.accounts);
-      setArtifacts(history.artifacts);
-      setAvailable(true);
-      setAgentId((current) =>
-        owned.accounts.some((item) => item.agent_id === current)
-          ? current
-          : (owned.accounts[0]?.agent_id ?? ""),
-      );
-      setError("");
-    }).catch((e) => {
-      setAvailable(false);
-      setError(
-        e instanceof FilecoinRequestError && e.status === 404
-          ? "Filecoin storage is not enabled on this deployment yet."
-          : e instanceof Error
-            ? e.message
-            : "Storage is unavailable.",
-      );
-    }).finally(() => {
-      setLoading(false);
-    });
+      requestFilecoin<{ accounts: StorageAccount[] }>("accounts"),
+      requestFilecoin<{ artifacts: StoredArtifact[] }>("artifacts"),
+    ])
+      .then(([owned, history]) => {
+        setAccounts(owned.accounts);
+        setArtifacts(history.artifacts);
+        setAvailable(true);
+        setAgentId((current) =>
+          owned.accounts.some((item) => item.agent_id === current)
+            ? current
+            : (owned.accounts[0]?.agent_id ?? ""),
+        );
+        setError("");
+      })
+      .catch((e) => {
+        setAvailable(false);
+        setError(
+          e instanceof FilecoinRequestError && e.status === 404
+            ? "Filecoin storage is not enabled on this deployment yet."
+            : e instanceof Error
+              ? e.message
+              : "Storage is unavailable.",
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [userId]);
 
   useEffect(() => {
@@ -226,8 +237,9 @@ export function FilecoinWorkspace({
       setIntent(null);
       setNotice(`${intent.label} confirmed.`);
       await refresh();
-      setBalanceResult({ agentId, value:
-        await requestFilecoin<AccountBalance>(
+      setBalanceResult({
+        agentId,
+        value: await requestFilecoin<AccountBalance>(
           `agents/${encodeURIComponent(agentId)}/balance`,
         ),
       });
@@ -442,7 +454,7 @@ export function FilecoinWorkspace({
       <PageHeader
         icon={Archive}
         label="Vault / Filecoin"
-        title="Keep the work. Keep the evidence."
+        title="Filecoin research vault"
         description="Publish research artifacts, verify their storage, and continue from saved work."
         glow="blue"
       >
@@ -478,7 +490,10 @@ export function FilecoinWorkspace({
           </div>
           <Button
             variant="outline"
-            onClick={() => void refresh()}
+            onClick={() => {
+              setLoading(true);
+              void refresh();
+            }}
             disabled={loading || !!busy}
           >
             <RefreshCw className={loading ? "animate-spin" : ""} />
@@ -552,11 +567,19 @@ export function FilecoinWorkspace({
           </p>
         )}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1">
-            <TabsTrigger value="archive">Publish</TabsTrigger>
-            <TabsTrigger value="proofs">Saved evidence</TabsTrigger>
-            <TabsTrigger value="funding">Agent funding</TabsTrigger>
-            <TabsTrigger value="resume">Use a dataset</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 gap-1 group-data-horizontal/tabs:h-auto sm:inline-flex sm:w-fit">
+            <TabsTrigger className={tabClass} value="archive">
+              Publish
+            </TabsTrigger>
+            <TabsTrigger className={tabClass} value="proofs">
+              Saved evidence
+            </TabsTrigger>
+            <TabsTrigger className={tabClass} value="funding">
+              Agent funding
+            </TabsTrigger>
+            <TabsTrigger className={tabClass} value="resume">
+              Use a dataset
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="archive" className="mt-4">
             <div className="grid gap-4 lg:grid-cols-2">
@@ -691,6 +714,9 @@ export function FilecoinWorkspace({
                           </span>
                           <span className="mt-1 block text-xs text-muted-foreground">
                             {item.agent_id}
+                            {receipt?.copies.length
+                              ? ` · Dataset ${receipt.copies.map((copy) => copy.data_set_id).join(", ")}`
+                              : ""}
                             {item.created_at
                               ? ` · ${new Date(item.created_at).toLocaleDateString()}`
                               : ""}
@@ -708,7 +734,7 @@ export function FilecoinWorkspace({
               </div>
             </div>
             {selected && (
-              <ReceiptPanel key={selected.sha256} receipt={selected} />
+              <ReceiptPanel key={JSON.stringify(selected)} receipt={selected} />
             )}
           </TabsContent>
           <TabsContent value="funding" className="mt-4">

@@ -1,0 +1,242 @@
+{
+  "bell": {
+    "receipt": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "piece_cid": "bafkzcibdyqdarmlrnos4iu6tpqjyr3b7ln4vwxoo35qzumgi75oemx6qefdoqmzc",
+      "sha256": "abd163263016cdbdd5c05aae5b40bb0fadea0d8f7f6046734d27ce88875cba39",
+      "size_bytes": 7292,
+      "complete": true,
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "0",
+          "transaction_hash": "0xece0512aca548d03f5222406c305e389aa9ac565a5f741f3bdf36810e87ad8b2",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdyqdarmlrnos4iu6tpqjyr3b7ln4vwxoo35qzumgi75oemx6qefdoqmzc"
+        }
+      ],
+      "transaction_hashes": [
+        "0xece0512aca548d03f5222406c305e389aa9ac565a5f741f3bdf36810e87ad8b2"
+      ],
+      "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+    },
+    "retrieved_sha256": "abd163263016cdbdd5c05aae5b40bb0fadea0d8f7f6046734d27ce88875cba39",
+    "retrieval": "verified",
+    "possession": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "observed_block": "4234005",
+      "observed_at": "2026-11-10T21:36:13.534Z",
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "0",
+          "transaction_hash": "0xece0512aca548d03f5222406c305e389aa9ac565a5f741f3bdf36810e87ad8b2",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdyqdarmlrnos4iu6tpqjyr3b7ln4vwxoo35qzumgi75oemx6qefdoqmzc",
+          "registered": true,
+          "live": true,
+          "service_end_epoch": "0",
+          "next_challenge_epoch": "4234215",
+          "proof_status": "pending_this_period",
+          "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+        }
+      ]
+    }
+  },
+  "finance-dataset": {
+    "receipt": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "piece_cid": "bafkzcibdveaqk6e5peub6bsn2n7ds2n6xgnwkbsgdkge6zdpa2juzamgcgwh3gb4",
+      "sha256": "05881c4397aabfdf25f0e5211af280b6a582d11bc7e611095c73f6ccf47f2393",
+      "size_bytes": 847,
+      "complete": true,
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "1",
+          "transaction_hash": "0xe895434a95b4ca30c653278236016c5a1358f17f9507dbc599a5c186dda2529f",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdveaqk6e5peub6bsn2n7ds2n6xgnwkbsgdkge6zdpa2juzamgcgwh3gb4"
+        }
+      ],
+      "transaction_hashes": [
+        "0xe895434a95b4ca30c653278236016c5a1358f17f9507dbc599a5c186dda2529f"
+      ],
+      "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+    },
+    "retrieved_sha256": "05881c4397aabfdf25f0e5211af280b6a582d11bc7e611095c73f6ccf47f2393",
+    "retrieval": "verified",
+    "possession": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "observed_block": "4234005",
+      "observed_at": "2026-11-10T21:36:24.824Z",
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "1",
+          "transaction_hash": "0xe895434a95b4ca30c653278236016c5a1358f17f9507dbc599a5c186dda2529f",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdveaqk6e5peub6bsn2n7ds2n6xgnwkbsgdkge6zdpa2juzamgcgwh3gb4",
+          "registered": true,
+          "live": true,
+          "service_end_epoch": "0",
+          "next_challenge_epoch": "4234215",
+          "proof_status": "pending_this_period",
+          "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+        }
+      ]
+    }
+  },
+  "pharma-dataset": {
+    "receipt": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "piece_cid": "bafkzcibdtydqnjm3hkbkx6yxryhhl2dug2ny4ansdaqydteemvmboba4iu5477yk",
+      "sha256": "eac417517674d3b53e73321e5a1f58034bc005e0876474f5ecf051af0e892f41",
+      "size_bytes": 1106,
+      "complete": true,
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "2",
+          "transaction_hash": "0x77e79da32215090106677d56d85dd5590eefbc84faf2552637d4189ef15404a3",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdtydqnjm3hkbkx6yxryhhl2dug2ny4ansdaqydteemvmboba4iu5477yk"
+        }
+      ],
+      "transaction_hashes": [
+        "0x77e79da32215090106677d56d85dd5590eefbc84faf2552637d4189ef15404a3"
+      ],
+      "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+    },
+    "retrieved_sha256": "eac417517674d3b53e73321e5a1f58034bc005e0876474f5ecf051af0e892f41",
+    "retrieval": "verified",
+    "possession": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "observed_block": "4234006",
+      "observed_at": "2026-11-10T21:36:35.854Z",
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "2",
+          "transaction_hash": "0x77e79da32215090106677d56d85dd5590eefbc84faf2552637d4189ef15404a3",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdtydqnjm3hkbkx6yxryhhl2dug2ny4ansdaqydteemvmboba4iu5477yk",
+          "registered": true,
+          "live": true,
+          "service_end_epoch": "0",
+          "next_challenge_epoch": "4234215",
+          "proof_status": "pending_this_period",
+          "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+        }
+      ]
+    }
+  },
+  "pharma-checkpoint": {
+    "receipt": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "piece_cid": "bafkzcibchqcjsv7tvkjyon2znkusp6hywkruuk2vfoia37pgacdj2ryrg3kjoky",
+      "sha256": "66bbd36b5684e404e0c242725cc4fbfa52b4db17a67be0f64aa19e2f06306cd1",
+      "size_bytes": 448,
+      "complete": true,
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "3",
+          "transaction_hash": "0xeec3df365fb20c6f6d4bfabd89df94e379e85502dfb50a6c25b2d325338abc8f",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibchqcjsv7tvkjyon2znkusp6hywkruuk2vfoia37pgacdj2ryrg3kjoky"
+        }
+      ],
+      "transaction_hashes": [
+        "0xeec3df365fb20c6f6d4bfabd89df94e379e85502dfb50a6c25b2d325338abc8f"
+      ],
+      "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+    },
+    "retrieved_sha256": "66bbd36b5684e404e0c242725cc4fbfa52b4db17a67be0f64aa19e2f06306cd1",
+    "retrieval": "verified",
+    "possession": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "observed_block": "4234006",
+      "observed_at": "2026-11-10T21:36:46.800Z",
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "3",
+          "transaction_hash": "0xeec3df365fb20c6f6d4bfabd89df94e379e85502dfb50a6c25b2d325338abc8f",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibchqcjsv7tvkjyon2znkusp6hywkruuk2vfoia37pgacdj2ryrg3kjoky",
+          "registered": true,
+          "live": true,
+          "service_end_epoch": "0",
+          "next_challenge_epoch": "4234215",
+          "proof_status": "pending_this_period",
+          "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+        }
+      ]
+    }
+  },
+  "finance-package": {
+    "receipt": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "piece_cid": "bafkzcibd5voqunvk3t67szzdlt67vl4ipgjlh5vlamrjefkkuuxxypqrjcaiiwba",
+      "sha256": "06145b9339ca58698d9977f6ef6fc2c5675e1004de20ff6c9a8c167bec1a5000",
+      "size_bytes": 20499,
+      "complete": true,
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "4",
+          "transaction_hash": "0xedc6401aa5aa80085aafb3298baddbb3c504da45f4fe233bf3132efb44859449",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibd5voqunvk3t67szzdlt67vl4ipgjlh5vlamrjefkkuuxxypqrjcaiiwba"
+        }
+      ],
+      "transaction_hashes": [
+        "0xedc6401aa5aa80085aafb3298baddbb3c504da45f4fe233bf3132efb44859449"
+      ],
+      "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+    },
+    "retrieved_sha256": "06145b9339ca58698d9977f6ef6fc2c5675e1004de20ff6c9a8c167bec1a5000",
+    "retrieval": "verified",
+    "possession": {
+      "network": "calibration",
+      "chain_id": 314159,
+      "observed_block": "4234006",
+      "observed_at": "2026-11-10T21:36:58.405Z",
+      "copies": [
+        {
+          "provider_id": "9",
+          "data_set_id": "52518",
+          "piece_id": "4",
+          "transaction_hash": "0xedc6401aa5aa80085aafb3298baddbb3c504da45f4fe233bf3132efb44859449",
+          "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+          "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibd5voqunvk3t67szzdlt67vl4ipgjlh5vlamrjefkkuuxxypqrjcaiiwba",
+          "registered": true,
+          "live": true,
+          "service_end_epoch": "0",
+          "next_challenge_epoch": "4234215",
+          "proof_status": "pending_this_period",
+          "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+        }
+      ]
+    }
+  }
+}
