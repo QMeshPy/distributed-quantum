@@ -9,6 +9,8 @@ grow into the full migration plan described in `backend-migration.md`.
 
 See [PROVENANCE.md](PROVENANCE.md) for the versioned canonical hashing and Merkle
 proof format, backward-compatible bundle fields, and Ethereum anchoring handoff.
+See [NEAR testnet provenance](docs/near-provenance.md) for the optional registry,
+operator publication workflow and finalized receipt checks.
 
 ## Tokenized-stock portfolios
 

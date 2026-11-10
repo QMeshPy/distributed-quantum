@@ -119,6 +119,40 @@ class WorkerPayoutSettings(BaseModel):
     interval_seconds: int = Field(default=300, ge=0)
 
 
+NearTestnetAccount = Annotated[
+    str, Field(max_length=64, pattern=r"^[a-z0-9]+(?:[._-][a-z0-9]+)*\.testnet$")
+]
+
+
+class NearRegistrySettings(BaseModel):
+    """Opt-in, read-only verification of one trusted NEAR testnet registry."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
+
+    contract_id: NearTestnetAccount | None = None
+    publisher_id: NearTestnetAccount | None = None
+    rpc_url: str = Field(default="https://rpc.testnet.near.org", repr=False)
+
+    @field_validator("rpc_url")
+    @classmethod
+    def https_rpc(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username
+                or parsed.password or parsed.fragment):
+            raise ValueError("NEAR registry RPC must be an HTTPS URL without userinfo or fragment")
+        return value
+
+    @model_validator(mode="after")
+    def complete_identity(self) -> NearRegistrySettings:
+        if (self.contract_id is None) != (self.publisher_id is None):
+            raise ValueError("NEAR registry contract and publisher must be configured together")
+        return self
+
+    @property
+    def configured(self) -> bool:
+        return self.contract_id is not None
+
+
 class AnchorSettings(BaseModel):
     """Provenance anchoring (#21); off unless a registry network is configured."""
 
@@ -221,6 +255,7 @@ class AppSettings(BaseModel):
     kubo: KuboSettings = Field(default_factory=KuboSettings)
     gateway: GatewaySettings = Field(default_factory=GatewaySettings)
     anchor: AnchorSettings = Field(default_factory=AnchorSettings)
+    near_registry: NearRegistrySettings = Field(default_factory=NearRegistrySettings)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> AppSettings:
@@ -262,6 +297,13 @@ class AppSettings(BaseModel):
                     "public_url": env.get("IPFS_PUBLIC_GATEWAY_URL") or None,
                     "timeout_seconds": env.get("IPFS_GATEWAY_TIMEOUT_SECONDS", "30"),
                     "max_response_bytes": env.get("IPFS_GATEWAY_MAX_RESPONSE_BYTES", "4194304"),
+                }
+            ),
+            near_registry=NearRegistrySettings.model_validate(
+                {
+                    "contract_id": _optional(env.get("QB2_NEAR_REGISTRY_CONTRACT")),
+                    "publisher_id": _optional(env.get("QB2_NEAR_REGISTRY_PUBLISHER")),
+                    "rpc_url": env.get("QB2_NEAR_RPC_URL", "https://rpc.testnet.near.org"),
                 }
             ),
             anchor=AnchorSettings.model_validate(

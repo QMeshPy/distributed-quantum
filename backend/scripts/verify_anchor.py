@@ -15,6 +15,7 @@ found on this node).
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -26,9 +27,12 @@ from web3 import Web3
 from quantum_backend_v2.chains.anchor import AnchorPayload, EvmAnchorAdapter
 from quantum_backend_v2.chains.loader import load_chain_registry
 from quantum_backend_v2.chains.rpc import resolve_rpc_url
+from quantum_backend_v2.config import load_settings
 from quantum_backend_v2.provenance.hashing import bundle_hash
 from quantum_backend_v2.provenance.merkle import MerkleProof, verify_proof
 from quantum_backend_v2.provenance.models import ProvenanceBundle
+from quantum_backend_v2.provenance.near_registry import CHAIN_ID as NEAR_CHAIN_ID
+from quantum_backend_v2.provenance.near_registry import NearRegistryAdapter
 
 
 def main() -> int:
@@ -37,7 +41,7 @@ def main() -> int:
     parser.add_argument(
         "--sender",
         action="append",
-        required=True,
+        default=[],
         help="published anchor account; repeat for accounts used before a key rotation",
     )
     args = parser.parse_args()
@@ -71,20 +75,15 @@ def main() -> int:
             continue
         payload = AnchorPayload(anchor.merkle_root, anchor.leaf_count, anchor.hash_profile)
         try:
-            chain = registry.resolve(anchor.chain)
-            with Session() as session:
-                web3 = Web3(
-                    Web3.HTTPProvider(
-                        resolve_rpc_url(chain, os.environ),
-                        session=session,
-                        request_kwargs={"timeout": 30},
-                    )
-                )
-                status = (
-                    EvmAnchorAdapter(chain, web3)
-                    .check_anchor(anchor.tx_hash, payload, args.sender)
-                    .status
-                )
+            if anchor.chain == NEAR_CHAIN_ID:
+                adapter = NearRegistryAdapter(load_settings().near_registry)
+                status = "confirmed" if asyncio.run(adapter.contains_root(anchor)) else "mismatch"
+            else:
+                if not args.sender:
+                    raise ValueError("--sender is required for EVM verification")
+                chain = registry.resolve(anchor.chain)
+                with Session() as session:
+                    status = _check_evm(chain, session, payload, anchor.tx_hash, args.sender)
         except Exception as exc:
             # Never print the error: RPC errors can include a credential-bearing URL.
             print(f"UNAVAILABLE {label}: lookup failed ({type(exc).__name__})")
@@ -94,13 +93,23 @@ def main() -> int:
         if status == "confirmed":
             print(f"PASS {label}: confirmed, {position}")
         elif status in ("pending", "not_found"):
-            # Not final yet, or pruned from this node's history: not evidence either way.
             print(f"UNAVAILABLE {label}: {status}, {position}")
             outcome = 1 if outcome == 1 else 2
         else:
-            print(f"FAIL {label}: {status}, {position}")
+            print(f"FAIL {label}: {status}")
             outcome = 1
     return outcome
+
+
+def _check_evm(chain, session, payload, tx_hash, senders):
+    web3 = Web3(
+        Web3.HTTPProvider(
+            resolve_rpc_url(chain, os.environ),
+            session=session,
+            request_kwargs={"timeout": 30},
+        )
+    )
+    return EvmAnchorAdapter(chain, web3).check_anchor(tx_hash, payload, senders).status
 
 
 if __name__ == "__main__":

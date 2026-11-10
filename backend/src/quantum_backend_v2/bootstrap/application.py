@@ -35,6 +35,8 @@ from quantum_backend_v2.config import load_settings
 from quantum_backend_v2.config.loader import load_environment
 from quantum_backend_v2.discovery.service import build_discovery_service
 from quantum_backend_v2.observability import configure_logging
+from quantum_backend_v2.provenance.near_registry import CHAIN_ID as NEAR_CHAIN_ID
+from quantum_backend_v2.provenance.near_registry import NearRegistryAdapter
 from quantum_backend_v2.provenance.service import ProvenanceService
 from quantum_backend_v2.reservations.service import ReservationService
 from quantum_backend_v2.runtime.recovery import RuntimeRecoveryService
@@ -78,22 +80,16 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
     reservation_service = ReservationService()
     runtime_recovery_service = RuntimeRecoveryService()
     storage_adapters = {KUBO_BACKEND: GatewayBundleStorage(settings.gateway)}
-    provenance_service = ProvenanceService(
-        MongoProvenanceRepository(), storage_adapters=storage_adapters
-    )
+    anchor_adapters = {}
+    if settings.near_registry.configured:
+        anchor_adapters[NEAR_CHAIN_ID] = NearRegistryAdapter(settings.near_registry)
     anchor_service = None
     anchor = settings.anchor
     if anchor.network is not None and anchor.sender is not None:
         # Unknown, disabled or non-anchoring networks fail startup instead of skipping checks.
         anchor_chain = chain_registry.resolve(anchor.network)
-        provenance_service = ProvenanceService(
-            MongoProvenanceRepository(),
-            storage_adapters=storage_adapters,
-            anchor_adapters={
-                anchor_chain.chain_id: RegistryAnchorAdapter(
-                    anchor_chain, (anchor.sender, *anchor.past_senders), env
-                )
-            },
+        anchor_adapters[anchor_chain.chain_id] = RegistryAnchorAdapter(
+            anchor_chain, (anchor.sender, *anchor.past_senders), env
         )
         if anchor.private_key is not None:
             from eth_account import Account
@@ -110,6 +106,10 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
                 sender=anchor.sender,
                 max_batch=anchor.max_batch,
             )
+    provenance_service = ProvenanceService(
+        MongoProvenanceRepository(), storage_adapters=storage_adapters,
+        anchor_adapters=anchor_adapters,
+    )
     return create_app(
         settings,
         chain_registry=chain_registry,
