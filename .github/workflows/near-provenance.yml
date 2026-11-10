@@ -1,6 +1,14 @@
 name: NEAR provenance
 
 on:
+  push:
+    paths:
+      - 'contracts/near-provenance-registry/**'
+      - 'backend/src/quantum_backend_v2/**'
+      - 'backend/scripts/*provenance*'
+      - 'backend/scripts/verify_anchor.py'
+      - 'backend/tests/unit/test_*provenance*'
+      - '.github/workflows/near-provenance.yml'
   pull_request:
     paths:
       - 'contracts/near-provenance-registry/**'
