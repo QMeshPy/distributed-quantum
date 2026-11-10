@@ -1,0 +1,22 @@
+{
+  "network": "calibration",
+  "chain_id": 314159,
+  "piece_cid": "bafkzcibdtydqnjm3hkbkx6yxryhhl2dug2ny4ansdaqydteemvmboba4iu5477yk",
+  "sha256": "eac417517674d3b53e73321e5a1f58034bc005e0876474f5ecf051af0e892f41",
+  "size_bytes": 1106,
+  "complete": true,
+  "copies": [
+    {
+      "provider_id": "9",
+      "data_set_id": "52518",
+      "piece_id": "2",
+      "transaction_hash": "0x77e79da32215090106677d56d85dd5590eefbc84faf2552637d4189ef15404a3",
+      "provider_address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+      "retrieval_url": "https://calib.ezpdpz.net/piece/bafkzcibdtydqnjm3hkbkx6yxryhhl2dug2ny4ansdaqydteemvmboba4iu5477yk"
+    }
+  ],
+  "transaction_hashes": [
+    "0x77e79da32215090106677d56d85dd5590eefbc84faf2552637d4189ef15404a3"
+  ],
+  "payer_address": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f"
+}

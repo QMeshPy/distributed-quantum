@@ -1,0 +1,87 @@
+{
+  "bundle_id": "provenance-near-demo-20261110T170703Z-bell-pair",
+  "status": "verified",
+  "checks": [
+    {
+      "kind": "hash",
+      "name": "bundle_hash",
+      "status": "passed",
+      "message": "Commitment matches",
+      "reference": null,
+      "url": null
+    },
+    {
+      "kind": "hash",
+      "name": "input_hash",
+      "status": "passed",
+      "message": "Commitment matches",
+      "reference": null,
+      "url": null
+    },
+    {
+      "kind": "hash",
+      "name": "plan_id",
+      "status": "passed",
+      "message": "Commitment matches",
+      "reference": null,
+      "url": null
+    },
+    {
+      "kind": "hash",
+      "name": "result_hash",
+      "status": "passed",
+      "message": "Commitment matches",
+      "reference": null,
+      "url": null
+    },
+    {
+      "kind": "hash",
+      "name": "fragment_hashes",
+      "status": "passed",
+      "message": "Commitment matches",
+      "reference": null,
+      "url": null
+    },
+    {
+      "kind": "storage",
+      "name": "storage_content",
+      "status": "not_applicable",
+      "message": "No storage references recorded",
+      "reference": null,
+      "url": null
+    },
+    {
+      "kind": "anchor",
+      "name": "anchor_proof",
+      "status": "passed",
+      "message": "Merkle inclusion matches",
+      "reference": "near:testnet:FbM5wgccrreiuA9UDc1Dzyn34qwNBoWu6UjvpvNQ7vvX",
+      "url": null
+    },
+    {
+      "kind": "anchor",
+      "name": "anchor_transaction",
+      "status": "passed",
+      "message": "Confirmed anchor root matches",
+      "reference": "near:testnet:FbM5wgccrreiuA9UDc1Dzyn34qwNBoWu6UjvpvNQ7vvX",
+      "url": "https://testnet.nearblocks.io/txns/FbM5wgccrreiuA9UDc1Dzyn34qwNBoWu6UjvpvNQ7vvX"
+    },
+    {
+      "kind": "anchor",
+      "name": "anchor_proof",
+      "status": "passed",
+      "message": "Merkle inclusion matches",
+      "reference": "near:testnet:Cge8aNb4w3HXH61roPFLY9qyYwoSfHm8kvuao2rQeDax",
+      "url": null
+    },
+    {
+      "kind": "anchor",
+      "name": "anchor_transaction",
+      "status": "passed",
+      "message": "Confirmed anchor root matches",
+      "reference": "near:testnet:Cge8aNb4w3HXH61roPFLY9qyYwoSfHm8kvuao2rQeDax",
+      "url": "https://testnet.nearblocks.io/txns/Cge8aNb4w3HXH61roPFLY9qyYwoSfHm8kvuao2rQeDax"
+    }
+  ],
+  "checked_at": "2026-11-10T21:31:03.625300Z"
+}

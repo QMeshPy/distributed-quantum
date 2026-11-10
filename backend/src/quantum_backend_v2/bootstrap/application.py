@@ -12,12 +12,15 @@ from quantum_backend_v2.application.anchoring import (
     ProvenanceAnchorService,
     RegistryAnchorAdapter,
 )
+from quantum_backend_v2.application.filecoin_archive import FilecoinBundleStorage
+from quantum_backend_v2.application.filecoin_service import FilecoinConfig, FilecoinService
 from quantum_backend_v2.application.parity import (
     CircuitJobService,
     FinancialJobService,
     OptionsJobService,
     RiskJobService,
 )
+from quantum_backend_v2.application.peer_tasks import PeerTaskDispatcher
 from quantum_backend_v2.application.pharma_jobs import PharmaJobService
 from quantum_backend_v2.application.price_sources import ChainlinkPriceSource
 from quantum_backend_v2.application.provenance import (
@@ -58,6 +61,17 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         mongo_runtime=persistence_runtime.mongodb,
         enforce_enrollment=settings.auth_required,
     )
+    filecoin_config = FilecoinConfig.from_env(dict(env))
+    filecoin_service = None
+    if filecoin_config.enabled:
+        if persistence_runtime.mongodb is None:
+            raise ValueError("Filecoin requires MongoDB for durable operation journals")
+        filecoin_service = FilecoinService(
+            persistence_runtime.mongodb.database,
+            filecoin_config,
+            dict(env),
+            dispatcher=PeerTaskDispatcher(discovery_service=discovery_service),
+        )
     circuit_job_service = CircuitJobService(
         discovery_service=discovery_service,
         libp2p_runtime=libp2p_runtime,
@@ -69,6 +83,7 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         ),
     )
     financial_job_service = FinancialJobService(
+        filecoin_store=filecoin_service.reader if filecoin_service else None,
         price_source=ChainlinkPriceSource(chain_registry, env),
         history_source=ChainlinkHistorySource(load_market_data(), env),
         discovery_service=discovery_service,
@@ -80,6 +95,8 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
     reservation_service = ReservationService()
     runtime_recovery_service = RuntimeRecoveryService()
     storage_adapters = {KUBO_BACKEND: GatewayBundleStorage(settings.gateway)}
+    if filecoin_service is not None:
+        storage_adapters["filecoin"] = FilecoinBundleStorage(filecoin_service.reader)
     anchor_adapters = {}
     if settings.near_registry.configured:
         anchor_adapters[NEAR_CHAIN_ID] = NearRegistryAdapter(settings.near_registry)
@@ -107,7 +124,8 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
                 max_batch=anchor.max_batch,
             )
     provenance_service = ProvenanceService(
-        MongoProvenanceRepository(), storage_adapters=storage_adapters,
+        MongoProvenanceRepository(),
+        storage_adapters=storage_adapters,
         anchor_adapters=anchor_adapters,
     )
     return create_app(
@@ -126,4 +144,5 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         runtime_recovery_service=runtime_recovery_service,
         provenance_service=provenance_service,
         anchor_service=anchor_service,
+        filecoin_service=filecoin_service,
     )

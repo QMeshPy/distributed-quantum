@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from quantum_backend_v2.artifacts.filecoin import FilecoinReceipt
 from quantum_backend_v2.provenance.merkle import proof_length
 
 
@@ -69,6 +70,15 @@ class StorageReference(BaseModel):
     cid: str = Field(min_length=1)
     url: str | None = None
     expires_at: datetime | None = None
+    filecoin: FilecoinReceipt | None = None
+
+    @model_validator(mode="after")
+    def validate_filecoin(self) -> StorageReference:
+        if self.backend == "filecoin" and (self.filecoin is None or self.cid != self.filecoin.piece_cid):
+            raise ValueError("Filecoin storage requires a matching typed receipt")
+        if self.backend != "filecoin" and self.filecoin is not None:
+            raise ValueError("Filecoin receipt cannot describe another backend")
+        return self
 
 
 class ChainAnchor(BaseModel):

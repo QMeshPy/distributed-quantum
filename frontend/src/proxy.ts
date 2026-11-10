@@ -10,6 +10,8 @@ const PUBLIC_PREFIX_PATHS = [
   "/api/network/node-script",
   "/api/network/coordinator-info",
   "/api/agentkit",
+  // This API validates the full session before forwarding and returns JSON 401s.
+  "/api/filecoin",
   API.X402.ROOT,
 ];
 

@@ -35,6 +35,7 @@ from quantum_backend_v2.application.tokenized_portfolio import (
     tokenized_request,
     tokenized_result,
 )
+from quantum_backend_v2.artifacts.filecoin import FilecoinReceipt, FilecoinStore
 from quantum_backend_v2.chains.market_data import MarketDataSource
 from quantum_backend_v2.chains.prices import PriceUnavailableError
 from quantum_backend_v2.identity.models import UserTokenClaims
@@ -405,9 +406,11 @@ class FinancialJobService:
         libp2p_runtime: Any,
         price_source: PriceSource | None = None,
         history_source: TokenPriceHistorySource | None = None,
+        filecoin_store: FilecoinStore | None = None,
     ) -> None:
         self._price_source = price_source
         self._history_source = history_source
+        self._filecoin_store = filecoin_store
         self._discovery_service = discovery_service
         self._libp2p_runtime = libp2p_runtime
 
@@ -444,6 +447,35 @@ class FinancialJobService:
     @property
     def tokenized_market_data(self) -> MarketDataSource | None:
         return None if self._history_source is None else self._history_source.market_data
+
+    async def submit_filecoin(
+        self,
+        *,
+        owner_user_id: str,
+        filename: str,
+        receipt: FilecoinReceipt,
+        config: PortfolioOptimizationConfig,
+    ) -> FinancialJobDocument:
+        """Queue an immutable CSV reference; fetch and verify it before computation."""
+        if self._filecoin_store is None:
+            raise ValueError("Filecoin dataset retrieval is not configured")
+        if receipt.size_bytes > 4 * 1024 * 1024 or not receipt.complete:
+            raise ValueError("Filecoin CSV must be complete and at most 4 MB")
+        if not filename.lower().endswith(".csv"):
+            raise ValueError("Filecoin finance datasets must be CSV files")
+        await _ensure_platform_user(owner_user_id)
+        doc = FinancialJobDocument(
+            id=f"fin-{uuid.uuid4()}", owner_user_id=owner_user_id, filename=filename,
+            status=_FIN_STATUS_INGESTING,
+            result_payload={"request": _submission_request_snapshot(config)},
+            request_payload={
+                "filecoin_dataset": receipt.model_dump(mode="json"),
+                "config": _submission_request_snapshot(config),
+                "price_observations": [],
+            },
+        )
+        await doc.insert()
+        return doc
 
     async def submit_tokenized(
         self,
@@ -484,6 +516,22 @@ class FinancialJobService:
         await doc.save()
 
         try:
+            if doc.request_payload and "filecoin_dataset" in doc.request_payload:
+                if self._filecoin_store is None:
+                    raise ValueError("Filecoin dataset retrieval is not configured")
+                try:
+                    receipt = FilecoinReceipt.model_validate(
+                        doc.request_payload["filecoin_dataset"]
+                    )
+                    if receipt.size_bytes > 4 * 1024 * 1024 or not receipt.complete:
+                        raise ValueError("Invalid Filecoin CSV receipt")
+                    verified_csv = await self._filecoin_store.download(receipt)
+                    doc.request_payload["csv_text"] = verified_csv.decode("utf-8-sig")
+                except (OSError, ValueError, TimeoutError):
+                    raise ValueError(
+                        "Filecoin dataset could not be retrieved and verified"
+                    ) from None
+                await doc.save()
             if doc.request_payload and "tokenized_assets" in doc.request_payload:
                 doc.request_payload = await resolve_tokenized_history(
                     doc.request_payload, self._history_source
@@ -508,12 +556,12 @@ class FinancialJobService:
                     artifacts.payload.update(
                         tokenized_result(artifacts.payload, doc.request_payload)
                     )
-                else:
+                elif "filecoin_dataset" not in doc.request_payload:
                     artifacts.payload["valuation"] = calculate_portfolio_quantities(
                         artifacts.payload, doc.request_payload
                     )
                 if doc.owner_user_id is None:
-                    raise ValueError("oracle portfolio jobs require an owner")
+                    raise ValueError("portfolio provenance requires an owner")
                 artifacts.payload["provenance"] = build_finance_provenance(
                     job_id, doc.owner_user_id, doc.request_payload, artifacts.payload,
                     workflow="portfolio-optimization",

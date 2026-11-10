@@ -1,0 +1,43 @@
+{
+  "network": "calibration",
+  "chain_id": 314159,
+  "issue": 144,
+  "pull_request": 145,
+  "wallet": "0xA63A33e52589c761F90ce46F7c86aeEe8644112f",
+  "new_custom_contracts": 0,
+  "confirmed_objects": 5,
+  "total_object_bytes": 30192,
+  "data_set_id": "52518",
+  "provider_id": "9",
+  "execution": "Local CPU; no live mesh peers or production HTTP jobs in this evidence run",
+  "pharma": {
+    "scope": "Previously generated NCN RHF/STO-3G active-space Hamiltonian",
+    "new_molecule_generation": false,
+    "energy_hartree": -148.33704862401328,
+    "evaluations": 35,
+    "same_hamiltonian_absolute_error_hartree": 4.343806381257309e-08,
+    "fresh_resume": true,
+    "resume_compute_calls": 0,
+    "resume_uploads": 0,
+    "outcomes_hash": "7861a4f9bcba6b9a939edf62c30a86e1e0c232937a229c2411d7d647091ce23c"
+  },
+  "finance": {
+    "data_source": "Synthetic price series retrieved from Filecoin; no observed market prices",
+    "row_count": 13,
+    "asset_count": 4,
+    "selected_assets": [
+      "SYN_B",
+      "SYN_A"
+    ],
+    "objective": 0.554655045676,
+    "feasible_portfolios": 6,
+    "classical_objective_gap": 0.0,
+    "result_hash": "aa03fc3ad7fd22fd49e2e6e34cfbfa15ae968071491c3504d1393fd4b1f29239"
+  },
+  "near": {
+    "package_verification": "verified",
+    "confirmed_anchors": 2
+  },
+  "pdp": "pending_this_period at captured observations; not a completed possession-proof claim",
+  "ui_validation": "Production build and typecheck; isolated browser fixture with simulated account/API. Real Brave email OTP not exercised because computer-use initialization failed."
+}

@@ -20,6 +20,7 @@ from quantum_backend_v2.api.deps.x402_gateway import X402_OWNER_USER_ID, build_x
 from quantum_backend_v2.api.errors.models import not_found
 from quantum_backend_v2.api.finance_download import finance_provenance_download
 from quantum_backend_v2.api.models.financial import (
+    FilecoinPortfolioRequest,
     FinancialComparisonResponse,
     FinancialJobResponse,
     FinancialJobSummary,
@@ -43,6 +44,26 @@ def build_financial_router(
 ) -> APIRouter:
     """Build the financial analysis router."""
     router = APIRouter(prefix="/api/v1/finance", tags=["financial"])
+
+    @router.post("/filecoin-submit", response_model=FinancialSubmitResponse, status_code=201)
+    async def submit_filecoin_dataset(
+        request: FilecoinPortfolioRequest,
+        background_tasks: BackgroundTasks,
+        current_user: CurrentUser,
+    ) -> FinancialSubmitResponse:
+        try:
+            record = await financial_job_service.submit_filecoin(
+                owner_user_id=current_user.user_id, filename=request.filename,
+                receipt=request.receipt,
+                config=PortfolioOptimizationConfig(
+                    **request.model_dump(exclude={"receipt", "filename"})
+                ),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        background_tasks.add_task(financial_job_service.process, job_id=record.id, csv_bytes=b"")
+        return FinancialSubmitResponse(job_id=record.id, status=record.status,
+                                       problem_type="portfolio_optimization")
 
     async def queue_tokenized_job(
         request: TokenizedPortfolioRequest,

@@ -2,7 +2,7 @@
 
 Peers pull work from a shared list, so a fast laptop simply takes more tasks. A peer that fails
 (unreachable, missing a library, protocol unknown) is dropped for the rest of the call and its task
-goes to another peer; whatever no peer could run is run on the coordinator, so a call always finishes.
+goes to another peer; whatever no peer could run is run on the coordinator.
 """
 
 from __future__ import annotations
@@ -12,12 +12,15 @@ import logging
 import os
 import time
 import uuid
-from collections.abc import Callable, Hashable
+from collections.abc import Callable, Coroutine, Hashable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
 from quantum_backend_v2.protocols.compute import ComputeTaskRequest, ComputeTaskResponse
+
+if TYPE_CHECKING:
+    from quantum_backend_v2.application.filecoin_tasks import CheckpointCallback
+    from quantum_backend_v2.artifacts.filecoin import FilecoinReceipt, FilecoinStore
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +57,8 @@ class PeerTaskDispatcher:
     def _protocol_id(self) -> str:
         if self._explicit_protocol_id is not None:
             return self._explicit_protocol_id
+        from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
+
         namespace = self._discovery.settings.rendezvous_namespace
         return build_execution_protocol_ids(namespace).compute_task
 
@@ -83,20 +88,44 @@ class PeerTaskDispatcher:
     async def run(
         self,
         kind: str,
-        inputs: list[dict[str, Any]],
+        inputs: list[dict[str, Any]] | None,
         *,
         run_locally: Callable[[dict[str, Any]], dict[str, Any]],
         on_event: Callable[[str], None] = lambda message: None,
         on_task: TaskListener = lambda index, state, peer_id, detail: None,
         groups: list[Hashable] | None = None,
+        filecoin_store: FilecoinStore | None = None,
+        dataset_receipt: FilecoinReceipt | None = None,
+        checkpoint_receipt: FilecoinReceipt | None = None,
+        checkpoint_namespace: str | None = None,
+        on_checkpoint: CheckpointCallback | None = None,
     ) -> list[TaskOutcome | None]:
         """Run the inputs as `kind` tasks; outcomes come back in input order.
 
         Tasks that share a group are interchangeable (redundant starts of one fragment): the first
         to finish wins and the rest are abandoned, so a slow peer never holds the call up. An
         abandoned or unneeded task has no outcome (None).
+
+        Filecoin is opt-in. Inputs are verified before dispatch; checkpoints resume
+        completed tasks, never an optimizer's partial iterations. The callback must
+        durably save each receipt; a failed upload or callback stops this call.
         """
+        checkpoint_requested = any(
+            value is not None for value in (checkpoint_receipt, checkpoint_namespace, on_checkpoint)
+        )
+        if (dataset_receipt is not None or checkpoint_requested) and filecoin_store is None:
+            raise ValueError("Filecoin task inputs/checkpoints require a configured store")
+        if checkpoint_requested and (checkpoint_namespace is None or on_checkpoint is None):
+            raise ValueError("Filecoin checkpoints require a namespace and receipt callback")
+        if filecoin_store is not None:
+            from quantum_backend_v2.application.filecoin_tasks import resolve_inputs
+
+            inputs = await resolve_inputs(kind, inputs, filecoin_store, dataset_receipt)
+        if inputs is None:
+            raise ValueError("Task inputs are required")
         count = len(inputs)
+        if groups is not None and len(groups) != count:
+            raise ValueError("Task groups must have one entry per input")
         group_of: list[Hashable] = groups if groups is not None else list(range(count))
         outcomes: list[TaskOutcome | None] = [None] * count
         attempts = [0] * count
@@ -105,8 +134,33 @@ class PeerTaskDispatcher:
         dropped: set[str] = set()
         inflight: dict[int, asyncio.Future[dict[str, Any]]] = {}
         done_groups: set[Hashable] = set()
+        journal = None
+        if checkpoint_requested:
+            from quantum_backend_v2.application.filecoin_tasks import CheckpointJournal
+
+            assert filecoin_store is not None and checkpoint_namespace is not None
+            assert on_checkpoint is not None
+            journal = CheckpointJournal(
+                store=filecoin_store,
+                namespace=checkpoint_namespace,
+                kind=kind,
+                inputs=inputs,
+                groups=group_of,
+                on_checkpoint=on_checkpoint,
+            )
+            if checkpoint_receipt is not None:
+                for index, saved in (await journal.restore(checkpoint_receipt)).items():
+                    outcomes[index] = TaskOutcome(**saved.model_dump())
+                    done_groups.add(group_of[index])
+                pending = [index for index in pending if group_of[index] not in done_groups]
         for index in range(count):
-            on_task(index, "queued", None, None)
+            restored = outcomes[index]
+            if restored is not None:
+                on_task(index, "done", restored.executed_by, "restored from Filecoin checkpoint")
+            elif group_of[index] in done_groups:
+                on_task(index, "superseded", None, None)
+            else:
+                on_task(index, "queued", None, None)
 
         def finish_group(winner: int) -> None:
             done_groups.add(group_of[winner])
@@ -158,6 +212,8 @@ class PeerTaskDispatcher:
                     return
                 finally:
                     inflight.pop(index, None)
+                if group_of[index] in done_groups:
+                    return
                 outcomes[index] = TaskOutcome(
                     output=output,
                     executed_by=peer.peer_id,
@@ -166,12 +222,24 @@ class PeerTaskDispatcher:
                 )
                 on_task(index, "done", peer.peer_id, None)
                 finish_group(index)
+                if journal is not None:
+                    await journal.save(outcomes)
 
-        # A drop re-queues a task after the other peers may have gone idle, so run passes until quiet.
+        async def gather_workers(work: list[Coroutine[Any, Any, None]]) -> None:
+            workers = [asyncio.create_task(item) for item in work]
+            try:
+                await asyncio.gather(*workers)
+            except BaseException:
+                for worker in workers:
+                    worker.cancel()
+                await asyncio.gather(*workers, return_exceptions=True)
+                raise
+
+        # A dropped peer can re-queue work after the others went idle, so run another pass.
         while pending:
             alive = [peer for peer in self.peers() if peer.peer_id not in dropped]
             waiting, dropped_before = len(pending), len(dropped)
-            await asyncio.gather(*(peer_loop(peer) for peer in alive))
+            await gather_workers([peer_loop(peer) for peer in alive])
             if len(pending) == waiting and len(dropped) == dropped_before:
                 break
 
@@ -192,6 +260,8 @@ class PeerTaskDispatcher:
                     on_task(index, "running", LOCAL, None)
                     started = time.perf_counter()
                     output = await asyncio.to_thread(run_locally, inputs[index])
+                    if group_of[index] in done_groups:
+                        return
                     outcomes[index] = TaskOutcome(
                         output=output,
                         executed_by=LOCAL,
@@ -200,8 +270,10 @@ class PeerTaskDispatcher:
                     )
                     on_task(index, "done", LOCAL, None)
                     finish_group(index)
+                    if journal is not None:
+                        await journal.save(outcomes)
 
-            await asyncio.gather(*(local(i) for i in leftovers))
+            await gather_workers([local(i) for i in leftovers])
         return outcomes
 
     async def _send(self, peer: Any, kind: str, task_input: dict[str, Any]) -> dict[str, Any]:
