@@ -2,6 +2,7 @@
 
 import { PortfolioUploadPanel } from "./portfolio-upload-panel";
 import { TokenizedPortfolioPanel } from "./tokenized-portfolio-panel";
+import Link from "next/link";
 
 export function FinancePageClient() {
   return (
@@ -15,6 +16,7 @@ export function FinancePageClient() {
       </p>
       <PortfolioUploadPanel />
       <TokenizedPortfolioPanel className="mt-6" />
+      <p className="mt-6 text-sm text-muted-foreground">Have a dataset on Filecoin? <Link href="/vault/filecoin" className="text-primary underline underline-offset-4">Use its saved inputs from the vault.</Link></p>
     </div>
   );
 }

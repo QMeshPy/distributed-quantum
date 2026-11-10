@@ -1,0 +1,23 @@
+{
+  "name": "@qmeshpy/filecoin-bridge",
+  "version": "1.0.0",
+  "description": "Calibration-only Filecoin storage bridge for QMeshPy",
+  "scripts": {
+    "test": "node --test bridge.test.mjs",
+    "check": "node --check bridge.mjs"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@filoz/synapse-core": "0.10.3",
+    "@filoz/synapse-sdk": "2.0.2",
+    "viem": "2.57.17"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "zod": "4.6.6"
+  }
+}

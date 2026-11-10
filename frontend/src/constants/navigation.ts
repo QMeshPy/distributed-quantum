@@ -176,6 +176,7 @@ export const NAV_CONFIG: RailItem[] = [
           links: [
             { label: "My Circuits", href: "/vault/my/circuits" },
             { label: "My Runs", href: "/vault/my/runs" },
+            { label: "Filecoin Storage", href: "/vault/filecoin" },
           ],
         },
       ],

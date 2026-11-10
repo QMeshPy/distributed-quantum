@@ -37,6 +37,8 @@ from quantum_backend_v2.api.routers.circuits import build_circuits_router
 from quantum_backend_v2.api.routers.credits import build_credits_router
 from quantum_backend_v2.api.routers.enrollment import build_enrollment_router
 from quantum_backend_v2.api.routers.financial import build_financial_router
+from quantum_backend_v2.api.routers.filecoin import build_filecoin_router
+from quantum_backend_v2.application.filecoin_service import FilecoinService
 from quantum_backend_v2.api.routers.options import build_options_router
 from quantum_backend_v2.api.routers.payments_admin import build_payments_admin_router
 from quantum_backend_v2.api.routers.pharma import build_pharma_router
@@ -88,6 +90,7 @@ def create_app(
     runtime_recovery_service: RuntimeRecoveryService | None = None,
     provenance_service: ProvenanceService | None = None,
     anchor_service: ProvenanceAnchorService | None = None,
+    filecoin_service: FilecoinService | None = None,
 ) -> FastAPI:
     """Create the backend FastAPI application."""
     configure_auth(
@@ -130,6 +133,8 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> Any:
         await persistence_runtime.startup()
+        if filecoin_service is not None:
+            await filecoin_service.recover_tasks()
         if pharma_job_service is not None and persistence_runtime.mongodb is not None:
             # Pipelines run inside this process, so any job still active died with the last one.
             interrupted = await pharma_job_service.recover_interrupted()
@@ -232,6 +237,8 @@ def create_app(
 
     register_exception_handlers(app)
     app.include_router(build_chains_router(registry=chain_registry))
+    if filecoin_service is not None:
+        app.include_router(build_filecoin_router(service=filecoin_service))
 
     app.include_router(
         system_router(

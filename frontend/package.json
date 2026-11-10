@@ -18,6 +18,7 @@
     "test:vault-cid": "bun test tests/vault-cid-resolve.test.mjs",
     "test:vault-run-link": "bun test tests/vault-run-circuit-link.test.mjs",
     "test:vault-circuit": "bun test tests/vault-publish-circuit.test.mjs",
+    "test:filecoin": "bun test tests/filecoin.test.mjs tests/filecoin-workspace.test.mjs",
     "analyze": "ANALYZE=true bun run build"
   },
   "dependencies": {

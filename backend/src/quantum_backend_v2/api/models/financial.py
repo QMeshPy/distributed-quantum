@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from quantum_backend_v2.artifacts.filecoin import FilecoinReceipt
 
 
 class FinancialJobStatus(str, Enum):
@@ -24,6 +26,25 @@ class FinancialSubmitResponse(BaseModel):
     job_id: str
     status: str
     problem_type: str
+
+
+class FilecoinPortfolioRequest(BaseModel):
+    """Analyze a public, immutable CSV; storage does not establish its market source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    receipt: FilecoinReceipt
+    filename: str = Field(default="filecoin-dataset.csv", min_length=5, max_length=128,
+                          pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*\.[cC][sS][vV]$")
+    budget: int | None = Field(default=None, ge=1)
+    risk_aversion: float = Field(default=0.5, ge=0.0, le=10.0, allow_inf_nan=False)
+    max_assets_considered: int = Field(default=6, ge=2, le=8)
+    qaoa_reps: int = Field(default=1, ge=1, le=4)
+    parameter_search_steps: int = Field(default=9, ge=3, le=25)
+    date_column: str | None = Field(default=None, max_length=128)
+    ticker_column: str | None = Field(default=None, max_length=128)
+    value_column: str | None = Field(default=None, max_length=128)
+    value_mode: Literal["auto", "prices", "returns"] = "auto"
 
 
 class FinancialJobSummary(BaseModel):
