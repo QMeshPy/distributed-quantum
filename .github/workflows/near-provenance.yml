@@ -1,0 +1,76 @@
+name: NEAR provenance
+
+on:
+  push:
+    paths:
+      - 'contracts/near-provenance-registry/**'
+      - 'backend/src/quantum_backend_v2/**'
+      - 'backend/scripts/*provenance*'
+      - 'backend/scripts/verify_anchor.py'
+      - 'backend/tests/unit/test_*provenance*'
+      - '.github/workflows/near-provenance.yml'
+  pull_request:
+    paths:
+      - 'contracts/near-provenance-registry/**'
+      - 'backend/src/quantum_backend_v2/**'
+      - 'backend/scripts/*provenance*'
+      - 'backend/scripts/verify_anchor.py'
+      - 'backend/tests/unit/test_*provenance*'
+      - '.github/workflows/near-provenance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/near-provenance-registry
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.95.0'
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/near-provenance-registry
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo build --locked --target wasm32-unknown-unknown --release
+        env:
+          RUSTFLAGS: '--cfg near'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: near-provenance-registry-wasm
+          path: contracts/near-provenance-registry/target/wasm32-unknown-unknown/release/near_provenance_registry.wasm
+          if-no-files-found: error
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install focused provenance test dependencies
+        run: >-
+          python -m pip install pytest ruff 'pydantic>=2.8,<3' 'httpx>=0.27,<1'
+          'beanie>=1.27,<3' 'pymongo>=4.11,<5' 'web3>=7.6,<8'
+          'fastapi>=0.115,<1' pyyaml python-dotenv 'pyunormalize<18'
+      - run: python -m pip install --no-deps -e backend
+      - name: Lint NEAR integration
+        run: >-
+          ruff check backend/src/quantum_backend_v2/provenance/near_registry.py
+          backend/src/quantum_backend_v2/application/near_provenance.py
+          backend/scripts/near_provenance.py backend/scripts/verify_anchor.py
+          backend/tests/unit/test_near_provenance.py
+      - name: Provenance regression tests
+        run: >-
+          python -m pytest backend/tests/unit/test_provenance.py
+          backend/tests/unit/test_provenance_verification.py
+          backend/tests/unit/test_provenance_api.py
+          backend/tests/unit/test_provenance_anchor.py
+          backend/tests/unit/test_near_provenance.py -q

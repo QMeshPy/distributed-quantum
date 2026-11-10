@@ -1,0 +1,14 @@
+{
+  "chain": "near:testnet",
+  "contract_id": "qmesh-provenance-20261110.testnet",
+  "publisher_id": "qmesh-provenance-20261110.testnet",
+  "hash_profile": "qmesh-provenance-sha256-v1",
+  "bundles": [
+    {
+      "bundle_id": "provenance-registry-smoke-20261110",
+      "digest": "f37b795ab46aa9e114fdf5dcdfcd1c53ffd1b90bb404c7a996b53bc851589d9d"
+    }
+  ],
+  "merkle_root": "aa7f9c728cd6ee525279fd108e193031c6437038619fc0ad9cd3c92afe84cf8f",
+  "leaf_count": 1
+}
