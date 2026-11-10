@@ -34,6 +34,21 @@ Initialize once by calling `new` **from the deployed contract account itself**:
 from claiming an uninitialized deployment. Prefer deploying and initializing
 in one transaction. The publisher has no setter.
 
+For example, with the deployed account's key already in the official CLI keychain:
+
+```sh
+near contract deploy REGISTRY.testnet \
+  use-file target/wasm32-unknown-unknown/release/near_provenance_registry.wasm \
+  with-init-call new json-args '{"publisher_id":"REGISTRY.testnet"}' \
+  prepaid-gas '30 Tgas' attached-deposit '0 NEAR' \
+  network-config testnet sign-with-keychain send
+```
+
+Use a real lowercase testnet account in place of `REGISTRY.testnet`. The public
+[testnet deployment record](deployments/testnet.json) includes the deployed artifact
+hash and finalized success/failure smoke receipts. The account's operator key is
+kept in the local OS keychain and is not part of these files.
+
 Only that publisher's immediate call can invoke the payable `anchor` method:
 
 ```json

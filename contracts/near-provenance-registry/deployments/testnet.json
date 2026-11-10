@@ -1,0 +1,66 @@
+{
+  "network": "testnet",
+  "contract_id": "qmesh-provenance-20261110.testnet",
+  "publisher_id": "qmesh-provenance-20261110.testnet",
+  "build_commit": "d370bbb",
+  "ci_run": "https://github.com/QMeshPy/distributed-quantum/actions/runs/42853311449",
+  "wasm_sha256": "f85e591cd47a5b992ee5a172720d0dfde1cd2f7cd54019606516994583da1f68",
+  "on_chain_code_hash": "HiXYxVgH2d1DPErszPQYv63csdJfsfgPb3LmeiDkLDNF",
+  "account_creation_tx": "9NKNfCpSp9CvDppnrYBmKvHHmWsNkgkwoGj46HZ8DNhb",
+  "deployment_tx": "HB7UWmbtC9FcxubVXRMFTPWzkAkAPzFcsu8VY13bXyfU",
+  "smoke_anchor_tx": "6mzhxWVCiW7kUA8M4VbZ4o7NKfqvEcPvTaXeYaetHuvo",
+  "smoke_merkle_root": "aa7f9c728cd6ee525279fd108e193031c6437038619fc0ad9cd3c92afe84cf8f",
+  "registration": {
+    "merkle_root": "aa7f9c728cd6ee525279fd108e193031c6437038619fc0ad9cd3c92afe84cf8f",
+    "leaf_count": 1,
+    "hash_profile": "qmesh-provenance-sha256-v1",
+    "publisher_id": "qmesh-provenance-20261110.testnet",
+    "block_height": "277091436",
+    "timestamp_ns": "1794327721995459981"
+  },
+  "smoke_fixture_notice": "Registry integration fixture; no quantum experiment or production workflow executed.",
+  "checks": {
+    "idempotent": {
+      "signer_id": "qmesh-provenance-20261110.testnet",
+      "transaction": "FD8AvYMqDqqn5iNEHkPcQVkeiJtfT5S79epC1XGzo9y4",
+      "exit_code": 0,
+      "expected_error": null,
+      "expected_error_observed": true,
+      "finalized_status": "success",
+      "original_registration_preserved": true
+    },
+    "insufficient_deposit": {
+      "signer_id": "qmesh-provenance-20261110.testnet",
+      "transaction": "B8TvnwsVJBFZbcpbY9MQhH8gvcPPBgxU95L7dFcC6Fdx",
+      "exit_code": 1,
+      "expected_error": "Insufficient storage deposit",
+      "expected_error_observed": true,
+      "finalized_status": "expected_failure",
+      "storage_rollback_verified": true
+    },
+    "conflict": {
+      "signer_id": "qmesh-provenance-20261110.testnet",
+      "transaction": "HVX4CFPtg6Y3xAVYVjtizbSq3KuCQwNctDkMTd8AX2RR",
+      "exit_code": 1,
+      "expected_error": "Conflicting anchor metadata",
+      "expected_error_observed": true,
+      "finalized_status": "expected_failure"
+    },
+    "reinitialization": {
+      "signer_id": "qmesh-provenance-20261110.testnet",
+      "transaction": "62hFePgtHzpXKWyoJeojXQW4xkwbeD6vw2CHWt4BrhZp",
+      "exit_code": 1,
+      "expected_error": "already been initialized",
+      "expected_error_observed": true,
+      "finalized_status": "expected_failure"
+    },
+    "unauthorized": {
+      "signer_id": "qmesh-provenance-check-20261110.testnet",
+      "transaction": "BKjPMG1GpsmyWHr1suPh5XyPUpV7zLWgiiH6Gjm8P5vF",
+      "exit_code": 1,
+      "expected_error": "Only the publisher can anchor",
+      "expected_error_observed": true,
+      "finalized_status": "expected_failure"
+    }
+  }
+}

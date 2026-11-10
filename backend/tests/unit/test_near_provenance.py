@@ -6,6 +6,7 @@ import asyncio
 import base64
 import copy
 import json
+import threading
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -71,8 +72,10 @@ class Node:
             ],
         }
         self.finality = "FINAL"
-        self.status = {"SuccessValue": ""}
-        self.receipt_status = {"SuccessValue": ""}
+        self.status = None
+        self.receipt_status = None
+        self.receipt_executor = "registry.testnet"
+        self.receipt_id = "registry-receipt"
         self.error = None
         self.methods = []
 
@@ -90,12 +93,24 @@ class Node:
                 "sender_account_id": "publisher.testnet",
                 "wait_until": "FINAL",
             }
+            success = {"SuccessValue": base64.b64encode(json.dumps(self.record).encode()).decode()}
             result = dict(
                 final_execution_status=self.finality,
                 transaction=self.transaction,
-                status=self.status,
+                status=self.status if self.status is not None else success,
+                transaction_outcome={
+                    "outcome": {"status": {"SuccessReceiptId": "registry-receipt"}}
+                },
                 receipts_outcome=[
-                    {"outcome": {"executor_id": "registry.testnet", "status": self.receipt_status}}
+                    {
+                        "id": self.receipt_id,
+                        "outcome": {
+                            "executor_id": self.receipt_executor,
+                            "status": self.receipt_status
+                            if self.receipt_status is not None
+                            else success,
+                        },
+                    }
                 ],
             )
         elif method == "query":
@@ -121,7 +136,7 @@ def check(node, reference=None):
 def test_final_transaction_and_registry_record_are_both_required():
     node = Node()
     assert check(node)
-    assert node.methods == ["status", "tx", "query"]
+    assert sorted(node.methods) == ["query", "status", "tx"]
 
 
 @pytest.mark.parametrize(
@@ -168,6 +183,53 @@ def test_invalid_hash_and_chain_fail_before_network():
     assert not check(node, anchor().model_copy(update={"chain": "near:mainnet"}))
     assert not check(node, anchor().model_copy(update={"tx_hash": "invalid hash"}))
     assert not node.methods
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda n: setattr(n, "status", ["SuccessValue"]),
+        lambda n: setattr(n, "receipt_status", ["SuccessValue"]),
+        lambda n: setattr(n, "receipt_executor", "other.testnet"),
+        lambda n: setattr(n, "receipt_id", "unlinked-receipt"),
+        lambda n: n.transaction.update(actions=[[]]),
+    ],
+)
+def test_incomplete_or_malformed_receipts_are_unavailable(change):
+    node = Node()
+    change(node)
+    with pytest.raises(OSError):
+        check(node)
+
+
+def test_malformed_rpc_result_becomes_unavailable_check_in_report():
+    def malformed(request):
+        if json.loads(request.content)["method"] == "tx":
+            return httpx.Response(200, json={"result": []})
+        return Node().respond(request)
+
+    with httpx.Client(transport=httpx.MockTransport(malformed)) as client:
+        adapter = NearRegistryAdapter(SETTINGS, client=client)
+        with pytest.raises(OSError):
+            asyncio.run(adapter.contains_root(anchor()))
+
+
+def test_rpc_reads_are_concurrent_and_allow_realistic_latency():
+    node = Node()
+    ready = threading.Barrier(3)
+
+    def respond(request):
+        assert request.extensions["timeout"]["read"] >= 5.0
+        ready.wait(timeout=2)
+        return node.respond(request)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        assert asyncio.run(NearRegistryAdapter(SETTINGS, client=client).contains_root(anchor()))
+
+
+def test_invalid_rpc_port_is_rejected_during_configuration():
+    with pytest.raises(ValueError):
+        NearRegistrySettings(rpc_url="https://example.test:bad")
 
 
 def test_settings_are_opt_in_and_reject_partial_or_non_testnet_configuration():

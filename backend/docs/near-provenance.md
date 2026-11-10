@@ -22,6 +22,12 @@ Keep the operator key in the official NEAR CLI keychain, outside source control.
 
 ## Build and deploy
 
+The published testnet instance is
+[`qmesh-provenance-20261110.testnet`](https://testnet.nearblocks.io/address/qmesh-provenance-20261110.testnet).
+Its public [deployment metadata](../../contracts/near-provenance-registry/deployments/testnet.json)
+records the CI artifact hash, deployment transaction and finalized smoke checks.
+The downloadable fixture bundle and manifest are in that same directory.
+
 See `contracts/near-provenance-registry/README.md` for the pinned toolchain,
 tests, WASM build and atomic initialization. The `NEAR provenance` GitHub workflow
 tests and uploads the WASM for the exact reviewed commit.
@@ -67,6 +73,9 @@ transaction from the trusted publisher to the trusted contract, exactly one
 `anchor` action with the expected root/count/profile, successful receipts and a
 matching finalized `get_anchor` result. Unknown/non-final transactions and outages
 are never accepted. Historical transactions require an RPC retaining that history.
+The linked registry execution receipt must also return the same record as the
+finalized view; arbitrary successful receipts are insufficient. Independent RPC
+reads run concurrently within the existing verification report's I/O budget.
 
 Attachment appends positional `near:testnet` proofs, preserving storage refs,
 other anchors and EVM scheduler claims. Concurrent changes abort; rerunning safely

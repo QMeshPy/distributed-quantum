@@ -6,6 +6,7 @@ import asyncio
 import base64
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import httpx
@@ -39,7 +40,7 @@ class NearRegistryAdapter:
             raise ValueError("Invalid NEAR transaction hash")
         return f"https://testnet.nearblocks.io/txns/{tx_hash}"
 
-    def _rpc(self, client: httpx.Client, method: str, params: Any) -> Any:
+    def _rpc(self, client: httpx.Client, method: str, params: Any) -> dict[str, Any]:
         try:
             with client.stream(
                 "POST",
@@ -50,7 +51,7 @@ class NearRegistryAdapter:
                     "method": method,
                     "params": params,
                 },
-                timeout=3.0,
+                timeout=5.0,
                 follow_redirects=False,
             ) as response:
                 response.raise_for_status()
@@ -60,10 +61,14 @@ class NearRegistryAdapter:
                     if len(data) > _MAX_RPC_BYTES:
                         raise ValueError("Oversized RPC response")
             body = json.loads(data)
-            if "error" in body or "result" not in body:
+            if (
+                not isinstance(body, dict)
+                or "error" in body
+                or not isinstance(body.get("result"), dict)
+            ):
                 raise ValueError("RPC result unavailable")
             return body["result"]
-        except (httpx.HTTPError, ValueError, TypeError):
+        except (httpx.HTTPError, httpx.InvalidURL, ValueError, TypeError):
             # RPC error payloads and endpoint URLs can contain credentials.
             raise OSError("NEAR registry lookup unavailable") from None
 
@@ -75,17 +80,44 @@ class NearRegistryAdapter:
 
     def _check_with(self, client: httpx.Client, anchor: ChainAnchor) -> bool:
         try:
-            if self._rpc(client, "status", [])["chain_id"] != "testnet":
+            # Independent reads run together within the verifier's ten-second I/O budget.
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                network_read = pool.submit(self._rpc, client, "status", [])
+                transaction_read = pool.submit(
+                    self._rpc,
+                    client,
+                    "tx",
+                    {
+                        "tx_hash": anchor.tx_hash,
+                        "sender_account_id": self.settings.publisher_id,
+                        "wait_until": "FINAL",
+                    },
+                )
+                record_read = pool.submit(
+                    self._rpc,
+                    client,
+                    "query",
+                    {
+                        "request_type": "call_function",
+                        "finality": "final",
+                        "account_id": self.settings.contract_id,
+                        "method_name": "get_anchor",
+                        "args_base64": base64.b64encode(
+                            json.dumps(
+                                {
+                                    "merkle_root": anchor.merkle_root,
+                                }
+                            ).encode()
+                        ).decode(),
+                    },
+                )
+                network, result, view = (
+                    network_read.result(),
+                    transaction_read.result(),
+                    record_read.result(),
+                )
+            if network["chain_id"] != "testnet":
                 raise OSError("NEAR registry lookup unavailable: wrong network")
-            result = self._rpc(
-                client,
-                "tx",
-                {
-                    "tx_hash": anchor.tx_hash,
-                    "sender_account_id": self.settings.publisher_id,
-                    "wait_until": "FINAL",
-                },
-            )
             if result.get("final_execution_status") != "FINAL":
                 raise OSError("NEAR registry transaction is not final")
             tx = result["transaction"]
@@ -107,43 +139,50 @@ class NearRegistryAdapter:
             arguments = json.loads(base64.b64decode(call["args"], validate=True))
             if arguments != expected or type(arguments.get("leaf_count")) is not int:
                 return False
-            if set(result["status"]) != {"SuccessValue"}:
+            if not _successful_status(result["status"]):
                 return False
             receipts = result["receipts_outcome"]
-            if not receipts or any(
-                set(r["outcome"]["status"])
-                not in (
-                    {"SuccessValue"},
-                    {"SuccessReceiptId"},
-                )
-                for r in receipts
-            ):
+            if not isinstance(receipts, list) or not receipts:
+                raise OSError("NEAR registry receipt evidence unavailable")
+            for receipt in receipts:
+                if not _successful_status(receipt["outcome"]["status"]):
+                    return False
+            transaction_status = result["transaction_outcome"]["outcome"]["status"]
+            if not _successful_status(transaction_status):
                 return False
-            view = self._rpc(
-                client,
-                "query",
-                {
-                    "request_type": "call_function",
-                    "finality": "final",
-                    "account_id": self.settings.contract_id,
-                    "method_name": "get_anchor",
-                    "args_base64": base64.b64encode(
-                        json.dumps(
-                            {
-                                "merkle_root": anchor.merkle_root,
-                            }
-                        ).encode()
-                    ).decode(),
-                },
+            receipt_id = transaction_status.get("SuccessReceiptId")
+            executed = [receipt["outcome"] for receipt in receipts if receipt["id"] == receipt_id]
+            if len(executed) != 1 or executed[0]["executor_id"] != self.settings.contract_id:
+                raise OSError("NEAR registry execution receipt unavailable")
+            returned = json.loads(
+                base64.b64decode(
+                    executed[0]["status"]["SuccessValue"],
+                    validate=True,
+                )
             )
             record = json.loads(bytes(view["result"]))
+            if record is None:
+                return False
             return (
                 isinstance(record, dict)
+                and record == returned
                 and all(record.get(key) == value for key, value in expected.items())
                 and type(record.get("leaf_count")) is int
                 and record.get("publisher_id") == self.settings.publisher_id
                 and 0 < int(record["block_height"]) <= view["block_height"]
                 and int(record["timestamp_ns"]) > 0
             )
-        except (KeyError, TypeError, ValueError, OverflowError):
-            return False
+        except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+            raise OSError("NEAR registry returned malformed evidence") from None
+
+
+def _successful_status(value: Any) -> bool:
+    """Accept NEAR execution status objects, never arrays masquerading as their keys."""
+    if not isinstance(value, dict) or len(value) != 1:
+        raise OSError("NEAR execution status unavailable")
+    kind, payload = next(iter(value.items()))
+    if kind == "Failure" and isinstance(payload, dict):
+        return False
+    if kind not in {"SuccessValue", "SuccessReceiptId"} or not isinstance(payload, str):
+        raise OSError("NEAR execution status unavailable")
+    return True

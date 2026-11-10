@@ -137,6 +137,7 @@ class NearRegistrySettings(BaseModel):
     @classmethod
     def https_rpc(cls, value: str) -> str:
         parsed = urlsplit(value)
+        parsed.port  # Validate numeric port syntax/range before creating an HTTP client.
         if (parsed.scheme != "https" or not parsed.hostname or parsed.username
                 or parsed.password or parsed.fragment):
             raise ValueError("NEAR registry RPC must be an HTTPS URL without userinfo or fragment")
