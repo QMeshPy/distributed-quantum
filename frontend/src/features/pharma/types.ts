@@ -42,13 +42,17 @@ export interface VQCScore {
 export interface QUBOPlacement {
   fragment_id: string;
   grid_site_index: number;
+  binary_variable_assignment: number[];
   interaction_energy_kcal: number;
+  clash_penalty: number;
+  bond_geometry_penalty: number;
 }
 
 export interface DockingPose {
   ligand_smiles: string;
   fragment_placements: QUBOPlacement[];
   total_qubo_energy: number;
+  rmsd_angstrom: number | null;
   qaoa_approximation_ratio: number;
   dc_qaoa_alpha: number;
   qaoa_params_beta: number[];
@@ -60,6 +64,7 @@ export interface ScaffoldIteration {
   input_smiles: string;
   output_smiles: string;
   reason_for_hop: string;
+  replacement_fragment_smiles: string;
 }
 
 export interface VQEDescriptor {
@@ -68,6 +73,9 @@ export interface VQEDescriptor {
   lumo_energy_ev: number;
   homo_lumo_gap_ev: number;
   chemical_hardness_ev: number;
+  ground_state_energy_hartree: number;
+  exact_energy_hartree: number | null;
+  vqe_starts: number;
   qubit_count: number;
   gate_count: number;
   vqe_iterations: number;

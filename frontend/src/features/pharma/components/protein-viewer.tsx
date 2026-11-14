@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, RotateCcw, Maximize2, Layers } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 
 type RepStyle = "cartoon" | "surface" | "ball+stick";
 
@@ -140,29 +140,23 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-white/6 bg-[#080b12]">
-      {/* Header bar */}
-      <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
-        <Layers size={12} className="text-sky-400/60" />
-        <span className="text-[11px] font-medium uppercase tracking-wider text-white/25">
-          3D Protein Structure
-        </span>
-        <code className="ml-1 rounded bg-sky-400/10 px-1.5 py-0.5 font-mono text-[10px] text-sky-300/70">
-          {pdbId.toUpperCase()}
-        </code>
+    <div className="relative overflow-hidden rounded-xl border border-white/[0.07] bg-[#080b12]" style={{ height }}>
+      <div ref={containerRef} className="h-full w-full" />
 
-        {/* Rep toggles */}
-        <div className="ml-auto flex items-center gap-1">
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+        <span className="rounded-md bg-black/50 px-2 py-1 font-mono text-[11px] text-white/70 backdrop-blur">
+          PDB {pdbId.toUpperCase()}
+        </span>
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur" role="group" aria-label="Representation">
           {REP_LABELS.map(({ key, label }) => (
             <button
               key={key}
               type="button"
               onClick={() => applyRep(key)}
               disabled={loading}
-              className={`rounded px-2 py-0.5 text-[10px] font-medium transition-all disabled:opacity-30 ${
-                repStyle === key
-                  ? "bg-sky-400/15 text-sky-300"
-                  : "text-white/25 hover:text-white/50"
+              aria-pressed={repStyle === key}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-30 ${
+                repStyle === key ? "bg-white/15 text-white" : "text-white/45 hover:text-white/80"
               }`}
             >
               {label}
@@ -172,42 +166,29 @@ export function ProteinViewer({ pdbId, height = 380, onStageReady }: Props) {
             type="button"
             onClick={resetView}
             disabled={loading}
-            title="Reset view"
-            className="ml-1 rounded p-1 text-white/20 transition-all hover:text-white/50 disabled:opacity-30"
+            aria-label="Reset view"
+            className="rounded-md p-1.5 text-white/45 transition-colors hover:text-white/80 disabled:opacity-30"
           >
-            <RotateCcw size={11} />
+            <RotateCcw size={12} />
           </button>
         </div>
       </div>
 
-      {/* Viewer canvas */}
-      <div className="relative" style={{ height }}>
-        <div ref={containerRef} className="h-full w-full" />
-
-        {loading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#080b12]/80">
-            <Loader2 size={20} className="animate-spin text-sky-400/50" />
-            <p className="text-[11px] text-white/25">
-              Loading {pdbId.toUpperCase()} from RCSB…
-            </p>
-          </div>
-        )}
-
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center px-6">
-            <p className="text-center text-[11px] text-red-400/70">{error}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Footer hint */}
-      {!loading && !error && (
-        <div className="border-t border-white/5 px-3 py-1.5">
-          <p className="text-[10px] text-white/15">
-            Drag to rotate · Scroll to zoom · Right-drag to translate ·
-            Ligand shown as ball+stick · Binding pocket surface (electrostatic)
-          </p>
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <Loader2 size={20} className="animate-spin text-white/30" />
+          <p className="text-[11px] text-white/35">Loading {pdbId.toUpperCase()} from RCSB…</p>
         </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center px-6">
+          <p className="text-center text-[11px] text-rose-300/80">{error}</p>
+        </div>
+      )}
+      {!loading && !error && (
+        <p className="pointer-events-none absolute bottom-3 left-3 text-[10px] text-white/30">
+          Drag to rotate · scroll to zoom · pocket surface coloured by charge
+        </p>
       )}
     </div>
   );

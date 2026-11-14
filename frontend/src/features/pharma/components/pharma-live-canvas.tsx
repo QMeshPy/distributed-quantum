@@ -2,46 +2,43 @@
 
 import { PublishToNearButton } from "@/features/agentkit";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
-import {
-  Activity,
-  Ban,
-  CheckCircle2,
-  FlaskConical,
-  Loader2,
-  Star,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { motion, AnimatePresence } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Ban, Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePharmaJobLive } from "../hooks/use-pharma-job-live";
 import { LigandViewer } from "./ligand-viewer";
-import { CandidateCard } from "./candidate-card";
+import { CandidateDossier } from "./candidate-dossier";
 import { PharmaPeersDrawer } from "./pharma-peers-drawer";
-import { LOG_META, STAGE_ICONS } from "../lib/pharma-stage-config";
+import { ChemicalSpacePlot, ConvergencePlot, Figure } from "./science-figures";
+import { LOG_META, STAGE_ICONS, STAGE_ORDER } from "../lib/pharma-stage-config";
+import { fragmentSmilesByEnergy, parseScienceLog } from "../lib/pharma-science";
 import type { PharmaJob, PipelineLogEntry, PipelineLogLevel } from "../types";
-import type { ScorePoint } from "../types-live";
 
 const ProteinViewer = dynamic(
   () => import("./protein-viewer").then((m) => ({ default: m.ProteinViewer })),
   { ssr: false },
 );
 
-const STATUS_COLORS: Record<string, string> = {
-  queued:    "text-amber-400 bg-amber-400/10 border-amber-400/25",
-  running:   "text-sky-400 bg-sky-400/10 border-sky-400/25",
-  completed: "text-emerald-400 bg-emerald-400/10 border-emerald-400/25",
-  failed:    "text-red-400 bg-red-400/10 border-red-400/25",
-  cancelled: "text-white/30 bg-white/5 border-white/10",
+const STATUS_STYLE: Record<string, string> = {
+  queued: "border-amber-400/40 text-amber-300",
+  running: "border-sky-400/40 text-sky-300",
+  completed: "border-emerald-400/40 text-emerald-300",
+  failed: "border-rose-400/40 text-rose-300",
+  cancelled: "border-white/15 text-white/40",
 };
 
 const QUANTUM_LEVELS = new Set<PipelineLogLevel>(["vqe"]);
+const PIPELINE = STAGE_ORDER.filter((s) => s !== "completed");
+
+const STAGE_METHOD: Record<string, string> = {
+  init: "load target",
+  filtering: "Ro5 seed check",
+  generating: "QWGAN pool",
+  fragmenting: "BRICS cuts",
+  vqe_computing: "VQE ground state",
+  docking: "DC-QAOA QUBO",
+  scoring: "VQC ΔG + ADMET",
+  refining: "scaffold hop",
+};
 
 interface Props {
   job: PharmaJob;
@@ -49,459 +46,384 @@ interface Props {
   isCancelling: boolean;
 }
 
-interface DerivedMetrics {
-  currentStage: string | null;
-  iterCount: number;
-  maxIter: number;
-  bestScore: number | null;
-  bestSmiles: string | null;
-  currentCandidateSmiles: string | null;
-  scoreHistory: ScorePoint[];
-  admetPasses: number;
+// Backend timestamps are UTC but may lack a zone suffix; without one JS parses them as local time.
+function parseUtc(ts: string): number {
+  return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts : `${ts}Z`).getTime();
 }
 
-function deriveMetricsFromLogs(logLines: PipelineLogEntry[]): DerivedMetrics {
-  let currentStage: string | null = null;
-  let iterCount = 0;
-  let maxIter = 0;
-  let bestScore: number | null = null;
-  let bestSmiles: string | null = null;
-  let currentCandidateSmiles: string | null = null;
-  const scoreHistory: ScorePoint[] = [];
-  let admetPasses = 0;
-
-  for (const line of logLines) {
-    if (QUANTUM_LEVELS.has(line.level)) continue;
-    if (line.stage) currentStage = line.stage;
-
-    if (line.level === "iter") {
-      iterCount++;
-      const m = line.message.match(/Iteration \d+\/(\d+)/);
-      if (m) maxIter = Math.max(maxIter, parseInt(m[1], 10));
-    }
-
-    // Extract the current candidate SMILES from the Stage 3 fragmenting log
-    if (line.level === "stage" && line.message.includes("fragment decomposition:")) {
-      const m = line.message.match(/fragment decomposition:\s*(\S+)/);
-      if (m) currentCandidateSmiles = m[1];
-    }
-
-    if (line.level === "score") {
-      const scoreM = line.message.match(/([-\d.]+)\s*kcal/);
-      const smilesM = line.message.match(/SMILES:(\S+)/);
-      if (scoreM) {
-        const v = parseFloat(scoreM[1]);
-        if (bestScore === null || v < bestScore) {
-          bestScore = v;
-          if (smilesM) bestSmiles = smilesM[1];
-        }
-        scoreHistory.push({ iteration: iterCount, score: v, ts: line.ts });
-      }
-    }
-
-    if (line.level === "admet" && line.message.toLowerCase().includes("pass")) {
-      admetPasses++;
-    }
-  }
-
-  return { currentStage, iterCount, maxIter, bestScore, bestSmiles, currentCandidateSmiles, scoreHistory, admetPasses };
+function formatDuration(totalSec: number): string {
+  const s = Math.max(0, Math.round(totalSec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(sec).padStart(2, "0")}s`;
+  return `${sec}s`;
 }
 
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+function lastStage(lines: PipelineLogEntry[]): string | null {
+  for (let i = lines.length - 1; i >= 0; i--) if (lines[i].stage) return lines[i].stage;
+  return null;
+}
+
+function Readout({ label, value, unit, sub, tone = "text-white" }: { label: React.ReactNode; value: string; unit?: string; sub?: string; tone?: string }) {
   return (
-    <motion.div
-      key={value}
-      initial={{ scale: 1 }}
-      animate={{ scale: [1, 1.07, 1] }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="flex flex-col px-4 py-2.5"
-    >
-      <p className="mb-0.5 text-[9px] uppercase tracking-wider text-white/25">{label}</p>
-      <p className={`text-[14px] font-semibold ${color}`}>{value}</p>
-    </motion.div>
-  );
-}
-
-function LiveLogRow({ entry }: { entry: PipelineLogEntry }) {
-  const meta = LOG_META[entry.level] ?? LOG_META.info;
-  const Icon = meta.icon;
-  const time = new Date(entry.ts).toLocaleTimeString("en-US", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const displayMsg = entry.level === "score"
-    ? entry.message.replace(/\s*SMILES:\S+/, "").trim()
-    : entry.message;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
-      className={`flex items-start gap-2 rounded px-2.5 py-1.5 ${meta.bg}`}
-    >
-      <span className="mt-px shrink-0 font-mono text-[9px] text-white/20">{time}</span>
-      <span className={`mt-px flex h-[16px] w-[40px] shrink-0 items-center justify-center rounded text-[8px] font-bold uppercase tracking-wider ${meta.color} bg-white/5`}>
-        {meta.label}
-      </span>
-      <Icon size={10} className={`mt-0.5 shrink-0 ${meta.color} opacity-60`} />
-      <span className={`font-mono text-[10px] leading-relaxed ${meta.color}`}>{displayMsg}</span>
-    </motion.div>
-  );
-}
-
-function IterProgress({ current, max }: { current: number; max: number }) {
-  const pct = Math.min((current / max) * 100, 100);
-  return (
-    <div className="flex items-center gap-3 border-b border-white/5 px-4 py-2">
-      <span className="shrink-0 text-[10px] font-medium text-violet-300">
-        Iter {current}/{max}
-      </span>
-      <div className="flex-1 overflow-hidden rounded-full bg-white/6 h-1">
-        <motion.div
-          className="h-full rounded-full bg-violet-400"
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        />
-      </div>
-      <span className="shrink-0 font-mono text-[9px] text-white/20">{pct.toFixed(0)}%</span>
+    <div className="min-w-0 border-b border-r border-white/[0.06] px-4 py-3 lg:border-b-0 lg:last:border-r-0">
+      <p className="text-[10px] uppercase tracking-wider text-white/35">{label}</p>
+      <p className={`mt-1 font-mono text-[21px] font-semibold leading-tight tabular-nums ${tone}`}>
+        {value}
+        {unit && <span className="ml-1 text-[11px] font-normal text-white/35">{unit}</span>}
+      </p>
+      {sub && <p className="mt-0.5 truncate font-mono text-[10px] text-white/30">{sub}</p>}
     </div>
+  );
+}
+
+function PipelineTrace({ stage, done, iter, maxIter }: { stage: string | null; done: boolean; iter: number; maxIter: number }) {
+  const current = stage ? PIPELINE.indexOf(stage) : -1;
+  return (
+    <div className="border border-white/[0.07] bg-white/[0.015]">
+      <ol className="grid grid-cols-4 sm:grid-cols-8" aria-label="Pipeline stages">
+        {PIPELINE.map((key, i) => {
+          const state = done || i < current ? "done" : i === current ? "active" : "todo";
+          return (
+            <li
+              key={key}
+              aria-current={state === "active" ? "step" : undefined}
+              className={`relative border-b border-r border-white/[0.05] px-3 py-2 sm:border-b-0 ${state === "active" ? "bg-sky-400/[0.06]" : ""}`}
+            >
+              <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                <span className={state === "done" ? "text-emerald-300" : state === "active" ? "text-sky-300" : "text-white/25"}>
+                  {state === "done" ? <Check size={10} aria-hidden /> : state === "active" ? <Loader2 size={10} className="animate-spin" aria-hidden /> : `S${i}`}
+                </span>
+                <span className={state === "todo" ? "text-white/30" : "text-white/80"}>{STAGE_ICONS[key]?.label ?? key}</span>
+              </div>
+              <p className="mt-0.5 truncate text-[9.5px] text-white/30">{STAGE_METHOD[key]}</p>
+              {state === "active" && <span className="absolute inset-x-0 bottom-0 h-px bg-sky-300/70" aria-hidden />}
+            </li>
+          );
+        })}
+      </ol>
+      {maxIter > 0 && (
+        <div className="flex items-center gap-3 border-t border-white/[0.05] px-3 py-1.5">
+          <span className="font-mono text-[10px] text-white/35">iter</span>
+          <div className="flex flex-1 gap-0.5">
+            {Array.from({ length: maxIter }, (_, i) => {
+              const finished = done ? i < iter : i < iter - 1;
+              const active = !done && i === iter - 1;
+              return <span key={i} className={`h-1.5 flex-1 ${finished ? "bg-emerald-400/60" : active ? "animate-pulse bg-sky-400/70" : "bg-white/[0.07]"}`} />;
+            })}
+          </div>
+          <span className="font-mono text-[10px] tabular-nums text-white/45">{iter}/{maxIter}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LogRow({ entry }: { entry: PipelineLogEntry }) {
+  const meta = LOG_META[entry.level] ?? LOG_META.info;
+  const time = new Date(parseUtc(entry.ts)).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const message = entry.level === "score" ? entry.message.replace(/\s*SMILES:\S+/, "").trim() : entry.message;
+  return (
+    <li className="grid grid-cols-[4.5rem_3.25rem_1fr] items-baseline gap-2 px-4 py-0.5 font-mono text-[10.5px] hover:bg-white/[0.02]">
+      <span className="text-white/25">{time}</span>
+      <span className={`text-[9.5px] font-semibold ${meta.color}`}>{meta.label}</span>
+      <span className="min-w-0 whitespace-pre-wrap break-words text-white/60">{message}</span>
+    </li>
   );
 }
 
 export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
   const { job_id: jobId, target_pdb_id: targetPdbId, mode, status } = job;
-  const isRunning   = status === "queued" || status === "running";
+  const isRunning = status === "queued" || status === "running";
   const isCompleted = status === "completed";
-
   const { data: liveData } = usePharmaJobLive(jobId, isRunning);
 
-  const allLogLines = job.log_lines ?? [];
+  const allLogLines = useMemo(() => job.log_lines ?? [], [job.log_lines]);
+  const science = useMemo(() => parseScienceLog(allLogLines), [allLogLines]);
+  const fragmentNames = useMemo(() => fragmentSmilesByEnergy(science.vqe), [science.vqe]);
+  const candidates = job.result?.candidates ?? [];
+  const [selected, setSelected] = useState(0);
+  const candidate = candidates[Math.min(selected, candidates.length - 1)];
+
+  const molecules = science.molecules;
+  const bestMol = molecules.reduce<(typeof molecules)[number] | null>((b, m) => (!b || m.dg < b.dg ? m : b), null);
+  const stage = liveData?.current_stage ?? lastStage(allLogLines);
+  const iter = liveData?.iteration_count ?? molecules.at(-1)?.iteration ?? 0;
+  const maxIter = science.maxIterations;
+  const bestDg = isCompleted ? (candidates[0]?.vqc_score.binding_affinity_kcal ?? bestMol?.dg ?? null) : (liveData?.best_score ?? bestMol?.dg ?? null);
+  const bestSmiles = isCompleted ? (candidates[0]?.smiles ?? bestMol?.smiles) : (liveData?.best_smiles ?? bestMol?.smiles);
+  const passes = molecules.filter((m) => m.admet?.pass).length;
+  const peers = new Set(science.vqe.map((v) => v.peer));
   const bioLogLines = allLogLines.filter((l) => !QUANTUM_LEVELS.has(l.level));
-  const derived     = deriveMetricsFromLogs(allLogLines);
+  const [logOpen, setLogOpen] = useState(isRunning);
+  const [quantumLog, setQuantumLog] = useState(true);
+  const shownLog = quantumLog ? allLogLines : bioLogLines;
 
-  const effectiveStage   = liveData?.current_stage   ?? derived.currentStage;
-  const effectiveIter    = liveData?.iteration_count ?? derived.iterCount;
-  const effectiveScore   = isCompleted
-    ? (job.result?.candidates[0]?.vqc_score?.binding_affinity_kcal ?? liveData?.best_score ?? derived.bestScore)
-    : (liveData?.best_score ?? derived.bestScore);
-  const effectiveAdmet   = liveData?.admet_passes ?? derived.admetPasses;
-  const effectiveHistory = (liveData?.score_history?.length ?? 0) > 0
-    ? liveData!.score_history
-    : derived.scoreHistory;
-  const effectiveSmiles  = isCompleted
-    ? (job.result?.candidates[0]?.smiles ?? liveData?.best_smiles ?? derived.bestSmiles ?? derived.currentCandidateSmiles)
-    : (liveData?.best_smiles ?? derived.bestSmiles ?? derived.currentCandidateSmiles);
-
-  const stageRef      = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- NGL ships no types
+  const stageRef = useRef<any>(null);
   const prevSmilesRef = useRef<string | null>(null);
-  const prevScoreRef  = useRef<number | null>(null);
-  const prevStageRef  = useRef<string | null>(null);
-  const logScrollRef  = useRef<HTMLDivElement>(null);
-  const [discoveredSmiles, setDiscoveredSmiles] = useState<string[]>([]);
-  const discoveredScrollRef = useRef<HTMLDivElement>(null);
+  const logScrollRef = useRef<HTMLDivElement>(null);
 
-  // Elapsed-time timer (ticks every second while running)
-  const [elapsedSec, setElapsedSec] = useState<number>(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
   useEffect(() => {
     if (!isRunning) return;
-    const start = new Date(job.submitted_at).getTime();
+    const start = parseUtc(job.submitted_at);
     const tick = () => setElapsedSec(Math.floor((Date.now() - start) / 1000));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [isRunning, job.submitted_at]);
 
-  const elapsedDisplay = (() => {
-    const h = Math.floor(elapsedSec / 3600);
-    const m = Math.floor((elapsedSec % 3600) / 60);
-    const s = elapsedSec % 60;
-    return h > 0
-      ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-      : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  })();
-
-  // NGL: swap ligand when best smiles changes
+  // NGL: put the current best ligand into the protein scene
   useEffect(() => {
-    const stage = stageRef.current;
-    const smiles = effectiveSmiles;
-    if (!stage || !smiles || smiles === prevSmilesRef.current) return;
-    prevSmilesRef.current = smiles;
-    stage.compList
-      .filter((c: any) => c.name === "live-ligand")
-      .forEach((c: any) => stage.removeComponent(c));
-    stage
-      .loadFile(`smiles://${smiles}`, { name: "live-ligand" })
+    const ngl = stageRef.current;
+    if (!ngl || !bestSmiles || bestSmiles === prevSmilesRef.current) return;
+    prevSmilesRef.current = bestSmiles;
+    ngl.compList.filter((c: { name: string }) => c.name === "live-ligand").forEach((c: unknown) => ngl.removeComponent(c));
+    ngl
+      .loadFile(`smiles://${bestSmiles}`, { name: "live-ligand" })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((comp: any) => {
         if (!comp) return;
         comp.addRepresentation("ball+stick", { colorScheme: "element", quality: "high" });
         comp.autoView(400);
       })
       .catch(() => {});
-  }, [effectiveSmiles]);
+  }, [bestSmiles]);
 
-  // NGL: pocket pulse on new best score
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage || effectiveScore === null || effectiveScore === prevScoreRef.current) return;
-    prevScoreRef.current = effectiveScore;
-    stage.compList.forEach((comp: any) => {
-      comp.reprList
-        .filter((r: any) => r.type === "surface")
-        .forEach((r: any) => {
-          r.setParameters({ opacity: 0.5 });
-          setTimeout(() => r.setParameters({ opacity: 0.18 }), 700);
-        });
-    });
-  }, [effectiveScore]);
-
-  // NGL: camera refocus on stage change
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage || !effectiveStage || effectiveStage === prevStageRef.current) return;
-    prevStageRef.current = effectiveStage;
-    stage.autoView(800);
-  }, [effectiveStage]);
-
-  // Auto-scroll log to bottom on new events
   useEffect(() => {
     const el = logScrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [bioLogLines.length]);
+  }, [shownLog.length, logOpen]);
 
-  // Accumulate discovered SMILES on ADMET pass
-  useEffect(() => {
-    const smiles = effectiveSmiles;
-    if (!smiles || effectiveAdmet === 0) return;
-    setDiscoveredSmiles((prev) => {
-      if (prev.includes(smiles)) return prev;
-      return [...prev, smiles].slice(-20);
-    });
-  }, [effectiveAdmet, effectiveSmiles]);
-
-  // On completion, add final candidates
-  useEffect(() => {
-    if (!isCompleted || !job.result) return;
-    setDiscoveredSmiles((prev) => {
-      const fresh = job.result!.candidates.map((c) => c.smiles).filter((s) => !prev.includes(s));
-      return [...prev, ...fresh].slice(-20);
-    });
-  }, [isCompleted, job.result]);
-
-  useEffect(() => {
-    const el = discoveredScrollRef.current;
-    if (el) el.scrollLeft = el.scrollWidth;
-  }, [discoveredSmiles.length]);
-
-  const stageMeta       = effectiveStage ? STAGE_ICONS[effectiveStage] : null;
-  const ActiveStageIcon = isCompleted ? CheckCircle2 : (stageMeta?.icon ?? Activity);
-  const stageColor      = isCompleted ? "text-emerald-400" : (stageMeta?.color ?? "text-white/30");
-  const maxIter         = derived.maxIter;
+  const runtime = isCompleted && job.result ? job.result.total_runtime_seconds : elapsedSec;
+  const lead = candidates[0];
+  const qubits = [...new Set(lead?.descriptors.map((d) => d.qubit_count) ?? [])].join("/");
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#07090d]">
-
-      {/* Top bar */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-white/6 bg-white/[0.02] px-5 py-2.5">
-        <FlaskConical size={14} className="text-emerald-400/60" />
-        <span className="text-[13px] font-medium text-white/70">
-          {targetPdbId} — <span className="capitalize">{mode}</span>
-        </span>
-        <span className={["inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium", STATUS_COLORS[status] ?? "text-white/50"].join(" ")}>
-          {isRunning   && <Loader2    size={9} className="animate-spin" />}
-          {isCompleted && <CheckCircle2 size={9} />}
-          <span className="capitalize">{status}</span>
-        </span>
-        {isRunning && (
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            </span>
-            live
-          </span>
-        )}
-        <span className="font-mono text-[10px] text-white/20">{jobId}</span>
-        <div className="ml-auto">
-          <PharmaPeersDrawer job={job} liveData={liveData} isRunning={isRunning} />
-        </div>
-        {isCompleted && <PublishToNearButton jobId={jobId} />}
-        {isRunning && (
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] tabular-nums text-white/50">
-              <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/30 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white/30" />
+    <div className="h-full overflow-y-auto bg-[#07090d] [background-image:radial-gradient(rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:16px_16px]">
+      <header className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#07090d]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 sm:px-6">
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/35">In-silico screen · {mode} · PDB</p>
+            <div className="flex items-center gap-3">
+              <h1 className="font-mono text-[22px] font-semibold tracking-tight text-white">{targetPdbId.toUpperCase()}</h1>
+              <span className={`inline-flex items-center gap-1.5 border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${STATUS_STYLE[status] ?? "text-white/50"}`}>
+                {isRunning && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />}
+                {status}
               </span>
-              {elapsedDisplay}
-            </span>
-            <button onClick={onCancel} disabled={isCancelling} className="flex items-center gap-1.5 rounded-lg border border-red-400/25 bg-red-400/8 px-3 py-1.5 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-400/15 disabled:opacity-50">
-              {isCancelling ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
-              {isCancelling ? "Cancelling…" : "Cancel"}
-            </button>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Main split */}
-      <div className="flex min-h-0 flex-1 divide-x divide-white/5 overflow-hidden">
-
-        {/* LEFT: 3D protein viewer */}
-        <div className="relative flex w-[45%] flex-col">
-          <div className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-2">
-            <ActiveStageIcon size={12} className={stageColor} />
-            <span className={`text-[11px] font-medium ${stageColor}`}>
-              {isCompleted ? "Completed" : (stageMeta?.label ?? "Protein Structure")}
-            </span>
-            <span className="ml-auto font-mono text-[10px] text-white/20">{targetPdbId.toUpperCase()}</span>
-          </div>
-          <div className="min-h-0 flex-1">
-            <ProteinViewer pdbId={targetPdbId} onStageReady={(stage) => { stageRef.current = stage; }} />
-          </div>
-          {/* Live stage / score overlay on the 3D canvas */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 border-t border-white/6 bg-[#07090d]/85 px-4 py-2.5 backdrop-blur-sm">
-            {isRunning ? (
-              <>
-                <Loader2 size={10} className="animate-spin text-emerald-400/60" />
-                <span className={`text-[11px] font-semibold ${stageColor}`}>
-                  {stageMeta?.label ?? "Initialising…"}
-                </span>
-                {maxIter > 0 && (
-                  <span className="text-[10px] text-white/30">iter {effectiveIter}/{maxIter}</span>
-                )}
-                {effectiveScore !== null && (
-                  <span className="ml-auto font-mono text-[11px] font-semibold text-rose-300">
-                    {effectiveScore.toFixed(2)} kcal/mol
-                  </span>
-                )}
-              </>
-            ) : isCompleted ? (
-              <>
-                <CheckCircle2 size={10} className="text-emerald-400" />
-                <span className="text-[11px] font-semibold text-emerald-400">Pipeline complete</span>
-                {effectiveScore !== null && (
-                  <span className="ml-auto font-mono text-[11px] font-semibold text-rose-300">
-                    best {effectiveScore.toFixed(2)} kcal/mol
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-[11px] text-white/20">No active pipeline</span>
+          <dl className="hidden gap-x-5 font-mono text-[10px] md:flex">
+            <div><dt className="text-white/30">run</dt><dd className="max-w-[200px] truncate text-white/60" title={jobId}>{jobId}</dd></div>
+            <div><dt className="text-white/30">submitted (UTC)</dt><dd className="text-white/60">{new Date(parseUtc(job.submitted_at)).toISOString().replace("T", " ").slice(0, 19)}</dd></div>
+          </dl>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <PharmaPeersDrawer job={job} liveData={liveData} isRunning={isRunning} />
+            {isCompleted && <PublishToNearButton jobId={jobId} />}
+            {isRunning && (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isCancelling}
+                className="inline-flex h-8 items-center gap-1.5 px-3 text-[12px] font-medium text-rose-300 ring-1 ring-rose-400/30 transition-colors hover:bg-rose-400/10 disabled:opacity-50"
+              >
+                {isCancelling ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />}
+                {isCancelling ? "Cancelling…" : "Abort run"}
+              </button>
             )}
           </div>
         </div>
+      </header>
 
-        {/* RIGHT: dashboard + live log */}
-        <div className="flex w-[55%] flex-col overflow-hidden">
-
-          {/* Stat cards */}
-          <div className="grid shrink-0 grid-cols-4 divide-x divide-white/5 border-b border-white/5">
-            <StatCard label="Stage" value={isCompleted ? "Done" : (stageMeta?.label ?? (effectiveStage ?? "—"))} color={isCompleted ? "text-emerald-400" : (stageMeta?.color ?? "text-white/40")} />
-            <StatCard label="Iteration" value={effectiveIter > 0 ? (maxIter > 0 ? `${effectiveIter}/${maxIter}` : String(effectiveIter)) : "—"} color="text-violet-300" />
-            <StatCard label="Best Score" value={effectiveScore != null ? `${effectiveScore.toFixed(2)}` : "—"} color="text-rose-300" />
-            <StatCard label="ADMET Pass" value={effectiveAdmet > 0 ? String(effectiveAdmet) : "—"} color="text-teal-300" />
+      <div className="mx-auto max-w-[1440px] space-y-4 px-4 py-5 sm:px-6">
+        {job.error && (
+          <div className="border border-rose-400/30 bg-rose-400/[0.05] px-4 py-3 font-mono text-[11.5px] text-rose-300">
+            <span className="mr-2 font-semibold">RUN {status.toUpperCase()}</span>
+            {job.error}
           </div>
+        )}
 
-          {/* Iteration progress bar */}
-          {maxIter > 0 && <IterProgress current={effectiveIter} max={maxIter} />}
+        <PipelineTrace stage={stage} done={isCompleted} iter={iter} maxIter={maxIter} />
 
-          {/* Live biology event feed */}
-          <div className="flex min-h-0 flex-1 flex-col border-b border-white/5">
-            <div className="flex shrink-0 items-center gap-2 border-b border-white/5 bg-white/[0.015] px-4 py-1.5">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/25">Live Biology Feed</span>
-              <span className="ml-auto text-[9px] text-white/20">
-                {isRunning && <Loader2 size={8} className="inline animate-spin mr-1" />}
-                {bioLogLines.length} event{bioLogLines.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <div ref={logScrollRef} className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
-              {bioLogLines.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center text-[11px] text-white/20">
-                  {isRunning ? (
-                    <span className="flex items-center gap-2"><Loader2 size={11} className="animate-spin" />Waiting for pipeline to start…</span>
-                  ) : "No events"}
-                </div>
-              ) : (
-                <AnimatePresence>
-                  {bioLogLines.map((entry, i) => (
-                    <LiveLogRow key={`${entry.ts}-${i}`} entry={entry} />
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-          </div>
-
-          {/* Score chart + best ligand side-by-side */}
-          <div className="flex shrink-0 divide-x divide-white/5 border-b border-white/5" style={{ height: 180 }}>
-            <div className="flex min-w-0 flex-1 flex-col px-3 py-2">
-              <p className="mb-1 shrink-0 text-[9px] uppercase tracking-wider text-white/25">Score / Iter</p>
-              {effectiveHistory.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={effectiveHistory} margin={{ top: 2, right: 4, bottom: 0, left: -22 }}>
-                    <XAxis dataKey="iteration" tick={{ fontSize: 8, fill: "rgba(255,255,255,0.18)" }} axisLine={false} tickLine={false} />
-                    <YAxis reversed tick={{ fontSize: 8, fill: "rgba(255,255,255,0.18)" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 10, color: "rgba(255,255,255,0.7)" }} formatter={(v: unknown) => [`${(v as number).toFixed(2)} kcal/mol`, "Score"]} labelFormatter={(l: unknown) => `Iter ${l}`} />
-                    <Line type="monotone" dataKey="score" stroke="#fb7185" strokeWidth={1.5} dot={{ r: 2, fill: "#fb7185" }} activeDot={{ r: 3 }} isAnimationActive />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex flex-1 items-center justify-center text-[10px] text-white/20">
-                  {isRunning ? <span className="flex items-center gap-1.5"><Loader2 size={9} className="animate-spin" />waiting…</span> : "—"}
-                </div>
-              )}
-            </div>
-            <div className="flex w-[140px] shrink-0 flex-col items-center px-3 py-2">
-              <p className="mb-1 shrink-0 self-start text-[9px] uppercase tracking-wider text-white/25">
-                {effectiveScore != null ? "Best Ligand" : "Current Candidate"}
-              </p>
-              {effectiveSmiles ? (
-                <LigandViewer smiles={effectiveSmiles} width={120} height={130} />
-              ) : (
-                <div className="flex flex-1 items-center justify-center text-[10px] text-white/20">
-                  {isRunning ? <Loader2 size={10} className="animate-spin" /> : "—"}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Discovered SMILES strip */}
-          {discoveredSmiles.length > 0 && (
-            <div className="shrink-0 border-b border-white/5 px-4 py-2">
-              <p className="mb-1.5 text-[9px] uppercase tracking-wider text-white/25">Discovered ({discoveredSmiles.length})</p>
-              <div ref={discoveredScrollRef} className="flex gap-2 overflow-x-auto pb-1">
-                <AnimatePresence initial={false}>
-                  {discoveredSmiles.map((smiles) => (
-                    <motion.div key={smiles} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }} className="shrink-0">
-                      <LigandViewer smiles={smiles} width={80} height={65} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </div>
-          )}
-
-          {/* Completed: candidate cards */}
-          {isCompleted && job.result && job.result.candidates.length > 0 && (
-            <div className="overflow-y-auto px-4 py-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Star size={12} className="text-emerald-400/60" />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
-                  Top Candidates ({job.result.candidates.length})
-                </p>
-                <span className="ml-auto text-[10px] text-white/20">
-                  {job.result.total_runtime_seconds.toFixed(1)}s · {job.result.iterations_used} iters
-                </span>
-              </div>
-              <div className="space-y-4">
-                {job.result.candidates.map((c) => (
-                  <CandidateCard key={c.rank} candidate={c} />
-                ))}
-              </div>
-            </div>
-          )}
+        <div className="grid grid-cols-2 border border-white/[0.07] bg-white/[0.015] sm:grid-cols-3 lg:grid-cols-6">
+          <Readout label={<>min ΔG<sub>bind</sub></>} value={bestDg != null ? bestDg.toFixed(2) : "—"} unit={bestDg != null ? "kcal/mol" : undefined} sub="VQC · lower binds tighter" tone="text-emerald-300" />
+          <Readout label="Ligands scored" value={molecules.length ? String(molecules.length) : "—"} sub={`${passes} pass ADMET`} />
+          <Readout label="Iterations" value={iter > 0 ? String(iter) : "—"} unit={maxIter ? `/ ${maxIter}` : undefined} sub={science.hops.length ? `${science.hops.length} scaffold hop${science.hops.length === 1 ? "" : "s"}` : "no hops"} />
+          <Readout label="VQE solves" value={science.vqe.length ? String(science.vqe.length) : "—"} sub={qubits ? `${qubits} qubits / fragment` : undefined} />
+          <Readout label="Mesh peers" value={peers.size ? String(peers.size) : "—"} sub={job.result ? `${Math.round(job.result.cache_hit_rate * 100)}% VQE cache hits` : undefined} />
+          <Readout label={isCompleted ? "Wall time" : "Elapsed"} value={runtime > 0 ? formatDuration(runtime) : "—"} sub={!isCompleted && stage ? (STAGE_ICONS[stage]?.label ?? stage) : undefined} />
         </div>
+
+        <p className="pt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/35">Figure 1 · Target and optimisation trajectory</p>
+        <div className="grid gap-3 lg:grid-cols-12">
+          <Figure
+            panel="a"
+            title={`Receptor ${targetPdbId.toUpperCase()}`}
+            aside="RCSB · NGL"
+            className="lg:col-span-7"
+            caption="Crystal structure from RCSB. The best ligand so far is drawn in ball-and-stick with element colours."
+          >
+            <ProteinViewer pdbId={targetPdbId} height={420} onStageReady={(s) => { stageRef.current = s; }} />
+          </Figure>
+          <Figure
+            panel="b"
+            title={isCompleted ? "Lead compound" : "Current best ligand"}
+            aside={bestDg != null ? `ΔG ${bestDg.toFixed(2)} kcal/mol` : undefined}
+            className="lg:col-span-5"
+            caption={bestSmiles ? <span className="break-all font-mono">{bestSmiles}</span> : undefined}
+          >
+            <div className="flex h-full min-h-[300px] items-center justify-center bg-black/30 p-4">
+              {bestSmiles ? (
+                <LigandViewer smiles={bestSmiles} width={380} height={300} />
+              ) : (
+                <p className="text-[11px] text-white/30">{isRunning ? "Waiting for the first scored ligand…" : "No ligand"}</p>
+              )}
+            </div>
+          </Figure>
+          <Figure
+            panel="c"
+            title="Binding free-energy convergence"
+            aside="ΔG ± 95% CI"
+            className="lg:col-span-6"
+            caption="Predicted ΔG for each ligand in the order it was scored. Error bars are the VQC 95% confidence interval. The dashed step is the running minimum."
+          >
+            <ConvergencePlot molecules={molecules} fallback={liveData?.score_history ?? []} />
+          </Figure>
+          <Figure
+            panel="d"
+            title="Chemical space"
+            aside="MW × cLogP"
+            className="lg:col-span-6"
+            caption="Each scored ligand by molecular weight and cLogP. The shaded box is Lipinski space (MW ≤ 500, cLogP ≤ 5). Dots passed ADMET and crosses failed. The dashed path follows the scoring order."
+          >
+            <ChemicalSpacePlot molecules={molecules} />
+          </Figure>
+        </div>
+
+        {molecules.length > 0 && (
+          <section className="border border-white/[0.07] bg-white/[0.015]">
+            <header className="flex flex-wrap items-baseline gap-x-3 border-b border-white/[0.05] px-3.5 py-2">
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/50">Table 1 · Scored ligands</h2>
+              <span className="text-[10.5px] text-white/30">read from the run log, in scoring order</span>
+            </header>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px]">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-left text-[10px] uppercase tracking-wider text-white/35">
+                    <th className="px-3 py-1.5 font-medium">#</th>
+                    <th className="px-3 py-1.5 font-medium">Iter</th>
+                    <th className="px-3 py-1.5 font-medium">Structure</th>
+                    <th className="px-3 py-1.5 font-medium">SMILES</th>
+                    <th className="px-3 py-1.5 text-right font-medium">ΔG (kcal/mol)</th>
+                    <th className="px-3 py-1.5 text-right font-medium">95% CI</th>
+                    <th className="px-3 py-1.5 text-right font-medium">MW</th>
+                    <th className="px-3 py-1.5 text-right font-medium">cLogP</th>
+                    <th className="px-3 py-1.5 text-right font-medium">QED</th>
+                    <th className="px-3 py-1.5 text-right font-medium">SA</th>
+                    <th className="px-3 py-1.5 font-medium">ADMET</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono text-[11px] tabular-nums text-white/75">
+                  {molecules.map((m, i) => (
+                    <tr key={`${i}-${m.smiles}`} className={`border-b border-white/[0.03] ${m === bestMol ? "bg-emerald-400/[0.05]" : ""}`}>
+                      <td className="px-3 py-1 text-white/40">{i + 1}</td>
+                      <td className="px-3 py-1 text-white/40">{m.iteration}</td>
+                      <td className="px-1 py-0.5"><div className="w-[84px]"><LigandViewer smiles={m.smiles} width={80} height={52} /></div></td>
+                      <td className="max-w-[260px] truncate px-3 py-1 text-white/85" title={m.smiles}>{m.smiles}</td>
+                      <td className={`px-3 py-1 text-right ${m === bestMol ? "font-semibold text-emerald-300" : ""}`}>{m.dg.toFixed(2)}</td>
+                      <td className="px-3 py-1 text-right text-white/45">[{m.ciLo.toFixed(2)}, {m.ciHi.toFixed(2)}]</td>
+                      <td className="px-3 py-1 text-right">{m.admet?.mw.toFixed(1) ?? "—"}</td>
+                      <td className="px-3 py-1 text-right">{m.admet?.logp.toFixed(2) ?? "—"}</td>
+                      <td className={`px-3 py-1 text-right ${m.admet && m.admet.qed < 0.4 ? "text-rose-300" : ""}`}>{m.admet?.qed.toFixed(3) ?? "—"}</td>
+                      <td className="px-3 py-1 text-right">{m.admet?.sa.toFixed(2) ?? "—"}</td>
+                      <td className="px-3 py-1">
+                        {m.admet ? <span className={m.admet.pass ? "text-emerald-300" : "text-rose-300"}>{m.admet.pass ? "✓ pass" : "✕ fail"}</span> : <span className="text-white/30">pending</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {candidate && (
+          <section className="space-y-2 pt-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/35">Figure 2 · Candidate dossier</p>
+              {candidates.length > 1 && (
+                <div role="tablist" aria-label="Candidate" className="flex flex-wrap gap-1">
+                  {candidates.map((c, i) => (
+                    <button
+                      key={c.rank}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === selected}
+                      onClick={() => setSelected(i)}
+                      className={`border px-2 py-0.5 font-mono text-[10.5px] ${i === selected ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200" : "border-white/10 text-white/45 hover:text-white/75"}`}
+                    >
+                      Cpd {c.rank} · {c.vqc_score.binding_affinity_kcal.toFixed(2)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <CandidateDossier candidate={candidate} fragmentNames={fragmentNames} fragmentPeers={job.result?.fragments_distributed ?? {}} />
+          </section>
+        )}
+
+        {lead && job.result && (
+          <section className="border-l-2 border-white/10 py-1 pl-4">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/50">Methods</h2>
+            <p className="mt-1.5 max-w-[95ch] text-[12px] leading-relaxed text-white/55">
+              Target <span className="font-mono text-white/75">{targetPdbId.toUpperCase()}</span> was screened in {mode} mode for{" "}
+              {job.result.iterations_used} of {maxIter || job.result.iterations_used} iteration{job.result.iterations_used === 1 ? "" : "s"}. Each ligand was cut into BRICS
+              fragments, and VQE found each fragment&apos;s ground state in a {qubits}-qubit active space ({lead.descriptors[0]?.gate_count.toLocaleString()} gates,{" "}
+              {lead.descriptors[0]?.vqe_iterations} optimiser steps). {science.vqe.length} VQE solves ran on {peers.size} mesh peer{peers.size === 1 ? "" : "s"}, and each
+              energy was checked against exact diagonalisation of the same active space. Fragment placement on the binding-site grid was solved as a QUBO with DC-QAOA
+              (p = {lead.docking_pose.qaoa_params_beta.length}, α = {lead.docking_pose.dc_qaoa_alpha}), taking the most probable bitstring. A variational quantum
+              classifier predicted binding affinity with a 95% confidence interval. Ligands had to pass Lipinski&apos;s rule of five, TPSA ≤ 140 Å², SA ≤ 4 and QED ≥ 0.4.
+              Ligands that failed went to the scaffold hopper ({science.hops.length} hop{science.hops.length === 1 ? "" : "s"}). Wall time was{" "}
+              {formatDuration(job.result.total_runtime_seconds)}.
+            </p>
+          </section>
+        )}
+
+        <section className="border border-white/[0.07] bg-black/40">
+          <div className="flex items-center gap-3 px-4 py-2.5">
+            <button type="button" onClick={() => setLogOpen((o) => !o)} aria-expanded={logOpen} className="flex flex-1 items-center gap-2 text-left">
+              <h3 className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/50">Run log</h3>
+              {isRunning && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-300" aria-hidden />}
+              <span className="font-mono text-[10px] text-white/30">{shownLog.length} lines</span>
+              <ChevronDown size={13} className={`ml-auto text-white/40 transition-transform ${logOpen ? "rotate-180" : ""}`} aria-hidden />
+            </button>
+            {logOpen && (
+              <label className="flex items-center gap-1.5 font-mono text-[10px] text-white/40">
+                <input type="checkbox" checked={quantumLog} onChange={(e) => setQuantumLog(e.target.checked)} className="accent-amber-400" />
+                VQE lines
+              </label>
+            )}
+          </div>
+          {logOpen && (
+            <div ref={logScrollRef} className="max-h-[340px] overflow-y-auto border-t border-white/[0.06] py-2">
+              {shownLog.length === 0 ? (
+                <p className="flex items-center gap-2 px-4 py-6 text-[11px] text-white/30">
+                  {isRunning && <Loader2 size={12} className="animate-spin" />}
+                  {isRunning ? "Waiting for the pipeline to start…" : "No events"}
+                </p>
+              ) : (
+                <ol>
+                  {shownLog.map((entry, i) => (
+                    <LogRow key={`${entry.ts}-${i}`} entry={entry} />
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
