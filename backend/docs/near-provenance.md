@@ -40,6 +40,32 @@ this release trusts that operator and the configured RPC. It is not a light clie
 Keep the original registry configuration to verify historical records after
 migration; changing contract/publisher settings can invalidate those checks.
 
+## Publish from the app (agent chat and Lab pages)
+
+Finished circuit, finance and pharma results show a **Publish to NEAR** button, and the agent's
+`publish_near_anchor` tool shows a **Sign with wallet & publish** card. Both use
+`/api/v1/near-provenance`: `prepare` writes one `near-<job_id>` bundle per job and a single-use,
+owner-bound request (15 minutes); the browser asks the connected wallet (MetaMask) to sign the
+publication statement (`anchor_intent`, EIP-191); `requests/{id}` checks that signature, then
+the backend signs the NEAR `anchor` call itself, waits for finality, verifies it and attaches
+the inclusion proofs. Nobody runs a CLI. Without a browser wallet it publishes unsigned and
+says so. Without `QB2_NEAR_PUBLISHER_PRIVATE_KEY=ed25519:...` it falls back to the manual
+command below.
+
+`anchor` is payable and NEAR function-call keys cannot attach a deposit, so this needs a
+**full-access key** for the publisher account. On this registry the publisher is also the
+contract account, so that key can also upgrade the contract. Keep it only in the backend
+environment, and prefer a dedicated registry whose publisher is a separate low-value account for
+anything beyond testnet demos.
+
+**Wallet in the explorer.** When every bundle commits to the signed-in Ethereum wallet
+(`summary.owner_wallet`), the call carries it as an extra `submitter` argument:
+`anchor {"merkle_root":…,"leaf_count":…,"hash_profile":…,"submitter":"0x…"}`. NearBlocks shows
+call input on the transaction page, together with `submitter_signature` when the wallet signed.
+The deployed contract ignores unknown input fields, so the record is unchanged. The verifier
+checks the address, that every bundle commits to it, and that the signature recovers to it over
+the statement rebuilt from the call itself, so anyone can re-check it from the explorer alone.
+
 ## Publish committed evidence
 
 From `backend/`, with project dependencies and `QB2_MONGODB_URI` configured:

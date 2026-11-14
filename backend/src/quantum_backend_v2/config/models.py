@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -125,13 +126,27 @@ NearTestnetAccount = Annotated[
 
 
 class NearRegistrySettings(BaseModel):
-    """Opt-in, read-only verification of one trusted NEAR testnet registry."""
+    """Opt-in verification of one trusted NEAR testnet registry.
+
+    ``private_key`` is optional: set, the backend signs ``anchor`` calls as the publisher so
+    users never touch a CLI; unset, publication stays an operator-signed manual step.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     contract_id: NearTestnetAccount | None = None
     publisher_id: NearTestnetAccount | None = None
     rpc_url: str = Field(default="https://rpc.testnet.near.org", repr=False)
+    private_key: SecretStr | None = Field(default=None, repr=False)
+
+    @field_validator("private_key")
+    @classmethod
+    def ed25519_key(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not re.fullmatch(
+            r"ed25519:[1-9A-HJ-NP-Za-km-z]{43,90}", value.get_secret_value()
+        ):
+            raise ValueError("NEAR publisher key must look like ed25519:<base58>")
+        return value
 
     @field_validator("rpc_url")
     @classmethod
@@ -147,6 +162,8 @@ class NearRegistrySettings(BaseModel):
     def complete_identity(self) -> NearRegistrySettings:
         if (self.contract_id is None) != (self.publisher_id is None):
             raise ValueError("NEAR registry contract and publisher must be configured together")
+        if self.private_key is not None and self.publisher_id is None:
+            raise ValueError("A NEAR publisher key needs the registry contract and publisher")
         return self
 
     @property
@@ -305,6 +322,7 @@ class AppSettings(BaseModel):
                     "contract_id": _optional(env.get("QB2_NEAR_REGISTRY_CONTRACT")),
                     "publisher_id": _optional(env.get("QB2_NEAR_REGISTRY_PUBLISHER")),
                     "rpc_url": env.get("QB2_NEAR_RPC_URL", "https://rpc.testnet.near.org"),
+                    "private_key": _optional(env.get("QB2_NEAR_PUBLISHER_PRIVATE_KEY")),
                 }
             ),
             anchor=AnchorSettings.model_validate(

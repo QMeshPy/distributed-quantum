@@ -16,6 +16,7 @@ import pytest
 from quantum_backend_v2.application.near_provenance import (
     NearManifest,
     attach_manifest,
+    common_wallet,
     prepare_manifest,
 )
 from quantum_backend_v2.config.models import AppSettings, NearRegistrySettings
@@ -41,8 +42,11 @@ def anchor(root=ROOT, count=1):
     )
 
 
+WALLET = "0x9E61709c27d1214eb01A72e778d5FAd20D0B4e26"
+
+
 class Node:
-    def __init__(self, root=ROOT, count=1):
+    def __init__(self, root=ROOT, count=1, submitter=None):
         self.network = "testnet"
         self.record = dict(
             merkle_root=root,
@@ -63,6 +67,7 @@ class Node:
                         "args": base64.b64encode(
                             json.dumps(
                                 dict(merkle_root=root, leaf_count=count, hash_profile=PROFILE)
+                                | ({"submitter": submitter} if submitter is not None else {})
                             ).encode()
                         ).decode(),
                         "gas": 30_000_000_000_000,
@@ -259,7 +264,7 @@ class Cursor:
 
 
 class Collection:
-    def __init__(self):
+    def __init__(self, wallet=None):
         self.rows = {}
         self.writes = 0
         self.conflict = False
@@ -274,6 +279,9 @@ class Collection:
         bundle = build_result_bundle(
             self.run, created_at=datetime(2026, 11, 10, tzinfo=timezone.utc)
         )
+        if wallet is not None:  # a wallet-committing bundle, as the agent's publish tool writes
+            summary = {**bundle.summary, "owner_wallet": wallet}
+            bundle = bundle.model_copy(update={"summary": summary})
         self.rows[bundle.bundle_id] = dict(
             bundle_id=bundle.bundle_id,
             workflow_run_id=bundle.workflow_run_id,
@@ -424,3 +432,93 @@ def test_partial_batch_can_resume_without_touching_storage_or_evm_claims():
         assert current["payload"]["anchors"][0] == before[key]["payload"]["anchors"][0]
         assert len(current["payload"]["anchors"]) == 2
         assert current["anchor_batch_id"] == before[key]["anchor_batch_id"]
+
+
+def test_submitter_is_optional_checked_and_never_required_by_default():
+    assert check(Node(submitter=WALLET))  # explorer-visible wallet does not break verification
+    assert check(Node())  # older anchors without one still verify
+    for bad in ("0xnothex", "x" * 42, 7):
+        assert not check(Node(submitter=bad))
+
+
+def test_expected_submitter_must_match_the_call():
+    def verify(node, submitter):
+        with httpx.Client(transport=httpx.MockTransport(node.respond)) as client:
+            adapter = NearRegistryAdapter(SETTINGS, client=client)
+            return asyncio.run(adapter.contains_root(anchor(), submitter=submitter))
+
+    assert verify(Node(submitter=WALLET), WALLET.lower())
+    assert not verify(Node(submitter=WALLET), "0x" + "1" * 40)
+    assert not verify(Node(), WALLET)  # a wallet was promised but the call never named it
+
+
+def test_manifest_names_the_wallet_every_bundle_commits_to():
+    collection = Collection(wallet=WALLET)
+    ids = list(collection.rows)
+    assert asyncio.run(common_wallet(collection, ids)) == WALLET
+    manifest = asyncio.run(prepare_manifest(collection, ids, SETTINGS, WALLET))
+    assert manifest.contract_arguments()["submitter"] == WALLET
+    assert NearManifest.model_validate_json(manifest.model_dump_json()) == manifest
+    # the wallet is explorer-only: it does not change the committed Merkle root
+    plain = asyncio.run(prepare_manifest(Collection(), list(Collection().rows), SETTINGS))
+    assert "submitter" not in plain.contract_arguments()
+    with pytest.raises(ValueError, match="commit to the submitting wallet"):
+        asyncio.run(prepare_manifest(collection, ids, SETTINGS, "0x" + "2" * 40))
+    assert asyncio.run(common_wallet(Collection(), list(Collection().rows))) is None
+    node = Node(manifest.merkle_root, submitter=WALLET)
+    with httpx.Client(transport=httpx.MockTransport(node.respond)) as client:
+        adapter = NearRegistryAdapter(SETTINGS, client=client)
+        asyncio.run(attach_manifest(collection, manifest, TX, adapter))
+    wrong = Node(manifest.merkle_root, submitter="0x" + "3" * 40)
+    with httpx.Client(transport=httpx.MockTransport(wrong.respond)) as client:
+        with pytest.raises(ValueError, match="does not match"):
+            asyncio.run(
+                attach_manifest(
+                    Collection(wallet=WALLET),
+                    manifest,
+                    TX,
+                    NearRegistryAdapter(SETTINGS, client=client),
+                )
+            )
+
+
+def _signed_node(sign_with=None, submitter=None):
+    from eth_account import Account
+    from eth_account.messages import encode_defunct
+
+    from quantum_backend_v2.provenance.near_registry import anchor_intent
+
+    wallet = Account.create()
+    signer = sign_with or wallet
+    claimed = submitter or wallet.address
+    message = anchor_intent("registry.testnet", ROOT, 1, claimed)
+    signature = signer.sign_message(encode_defunct(text=message)).signature.to_0x_hex()
+    node = Node(submitter=claimed)
+    call = node.transaction["actions"][0]["FunctionCall"]
+    arguments = json.loads(base64.b64decode(call["args"])) | {"submitter_signature": signature}
+    call["args"] = base64.b64encode(json.dumps(arguments).encode()).decode()
+    return node, claimed, signature
+
+
+def test_wallet_signature_in_the_call_must_come_from_the_named_submitter():
+    from eth_account import Account
+
+    node, wallet, signature = _signed_node()
+    assert check(node)
+    with httpx.Client(transport=httpx.MockTransport(node.respond)) as client:
+        adapter = NearRegistryAdapter(SETTINGS, client=client)
+        assert asyncio.run(adapter.contains_root(anchor(), submitter=wallet, signature=signature))
+        assert not asyncio.run(
+            adapter.contains_root(anchor(), submitter=wallet, signature="0x" + "1" * 130)
+        )
+    forged, _, _ = _signed_node(sign_with=Account.create())  # signed by someone else
+    assert not check(forged)
+    unnamed, _, _ = _signed_node()
+    call = unnamed.transaction["actions"][0]["FunctionCall"]
+    arguments = json.loads(base64.b64decode(call["args"]))
+    del arguments["submitter"]
+    call["args"] = base64.b64encode(json.dumps(arguments).encode()).decode()
+    assert not check(unnamed)  # a signature without the address it proves
+    plain = asyncio.run(prepare_manifest(Collection(), list(Collection().rows), SETTINGS))
+    with pytest.raises(ValueError):
+        NearManifest.model_validate(plain.model_dump() | {"submitter_signature": signature})

@@ -56,6 +56,7 @@ dependencies = [
   # declare explicitly so resolve/reverse APIs stay stable.
   "web3>=7.6.0,<8",
   "cryptography>=43.0.0",
+  "base58>=2.1.1",
   "motor>=3.3.0",
   # Agent chat still imports FastMCP; mcp 2 renamed it.
   "mcp[cli]>=1.0.0,<2",

@@ -217,12 +217,20 @@ async def complete(
                     raise ValueError("Tool arguments must be an object")
                 logging.getLogger(__name__).info("Agent tool: %s", function["name"])
                 result = await invoke(function["name"], arguments)
-                if function["name"] == "request_approval" and isinstance(result, dict):
+                approval = None
+                if isinstance(result, dict):
+                    approval = (
+                        {"summary": result["summary"], "action": result["action"]}
+                        if function["name"] == "request_approval"
+                        else result.get("approval")
+                    )
+                if isinstance(approval, dict):
+                    # The turn ends here; the chat shows the approval card (or wallet-sign card).
                     if meta is not None:
-                        meta["approval"] = {"summary": result["summary"], "action": result["action"]}
+                        meta["approval"] = approval
                         if provider == "near":
                             _populate_near_meta(meta, model, round_statuses, round_signatures, last_request_id, round_index)
-                    return message.get("content") or result["summary"]
+                    return message.get("content") or approval["summary"]
                 if function["name"] == "prepare_storage_export" and isinstance(result, dict) and result.get("status") == "pending":
                     if provider == "near" and meta is not None:
                         _populate_near_meta(meta, model, round_statuses, round_signatures, last_request_id, round_index)

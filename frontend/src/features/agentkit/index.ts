@@ -23,3 +23,6 @@ export {
   truncateAddress,
 } from "./lib/ens";
 export { useAgentLlmProvider } from "./llm-provider/use-agent-llm-provider";
+export { PublishToNearButton } from "./components/publish-to-near-button";
+export { signAndPublish, publicationMessage } from "./lib/near-publish";
+export type { NearPublication, NearPublishRequest } from "./lib/near-publish";

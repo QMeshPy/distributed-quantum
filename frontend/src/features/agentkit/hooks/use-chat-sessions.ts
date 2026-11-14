@@ -16,7 +16,15 @@ export type AttestationSummary = {
 };
 
 /** The agent paused for the user's go-ahead (backend `request_approval` tool). */
-export type ApprovalRequest = { summary: string; action: string };
+export type ApprovalRequest = {
+  summary: string;
+  action: string;
+  /** near_publish: confirm by wallet signature; the app publishes, not the agent. */
+  kind?: "near_publish" | null;
+  request_id?: string | null;
+  message?: string | null;
+  submitter?: string | null;
+};
 
 export type ChatMessage = {
   role: "user" | "agent";

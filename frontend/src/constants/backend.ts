@@ -81,6 +81,11 @@ export const BACKEND = {
 } as const;
 
 export const BACKEND_AGENTKIT = {
+  NEAR_PREPARE:    `${BASE_URL}/api/v1/near-provenance/prepare`,
+  NEAR_PUBLISH:    (requestId: string) =>
+    `${BASE_URL}/api/v1/near-provenance/requests/${encodeURIComponent(requestId)}` as const,
+  NEAR_STATUS:     (jobId: string) =>
+    `${BASE_URL}/api/v1/near-provenance/jobs/${encodeURIComponent(jobId)}` as const,
   WALLET:          `${BASE_URL}/api/v1/wallet`,
   WALLET_CREATE:   `${BASE_URL}/api/v1/wallet/create`,
   WALLET_BALANCE:  `${BASE_URL}/api/v1/wallet/balance`,

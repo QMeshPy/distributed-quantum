@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { useFinanceJob } from "@/features/finance/hooks/use-finance-job";
 import { ShareToVaultButton } from "@/features/ipfs/components/share-to-vault-button";
+import { PublishToNearButton } from "@/features/agentkit";
 import { FinanceResultSummary } from "@/features/finance/components/finance-result-summary";
 
 export default function FinanceDetailPage() {
@@ -22,11 +23,14 @@ export default function FinanceDetailPage() {
         glow="emerald"
       >
         {data && data.status.toLowerCase() === "completed" && (
-          <ShareToVaultButton
-            data={data as unknown as Record<string, unknown>}
-            name={data.jobId}
-            type="run"
-          />
+          <div className="flex items-center gap-2">
+            <PublishToNearButton jobId={data.jobId} />
+            <ShareToVaultButton
+              data={data as unknown as Record<string, unknown>}
+              name={data.jobId}
+              type="run"
+            />
+          </div>
         )}
       </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">

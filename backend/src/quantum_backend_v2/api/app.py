@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse, Response
 from api.v1.agents import router as agents_router
 from api.v1.starknet_sessions import router as starknet_sessions_router
 from api.v1.chat_sessions import router as chat_sessions_router
+from api.v1.near_publish import router as near_publish_router
 from api.v1.ens import router as ens_router
 from api.v1.ens_workers import router as ens_workers_router
 from api.v1.marketplace import router as marketplace_router
@@ -325,6 +326,7 @@ def create_app(
     app.include_router(notifications_router)
     app.include_router(marketplace_router)
     app.include_router(chat_sessions_router)
+    app.include_router(near_publish_router)
     app.include_router(ens_router)
     app.include_router(ens_workers_router)
 

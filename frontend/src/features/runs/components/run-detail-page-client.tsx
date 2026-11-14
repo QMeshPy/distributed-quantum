@@ -1,4 +1,5 @@
 "use client";
+import { PublishToNearButton } from "@/features/agentkit";
 import { useParams } from "next/navigation";
 import {
   Cpu, Zap, BarChart3, Database, CheckCircle2, XCircle, Clock,
@@ -292,6 +293,8 @@ export function RunDetailPageClient() {
         glow="violet"
       >
         {run && run.status.toLowerCase() === "completed" && (
+          <div className="flex items-center gap-2">
+          <PublishToNearButton jobId={run.jobId} />
           <ShareToVaultButton
             data={{
               name: run.jobId,
@@ -308,6 +311,7 @@ export function RunDetailPageClient() {
             name={run.jobId}
             type="run"
           />
+          </div>
         )}
       </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">
