@@ -15,11 +15,15 @@ export type AttestationSummary = {
   rounds: number;
 };
 
+/** The agent paused for the user's go-ahead (backend `request_approval` tool). */
+export type ApprovalRequest = { summary: string; action: string };
+
 export type ChatMessage = {
   role: "user" | "agent";
   content: string;
   richContent?: RichContent;
   attestation?: AttestationSummary | null;
+  approval?: ApprovalRequest | null;
 };
 
 export type ChatSession = {
@@ -39,6 +43,7 @@ function toLocalSession(raw: {
     content: string;
     richContent?: RichContent;
     attestation?: AttestationSummary | null;
+    approval?: ApprovalRequest | null;
   }>;
   agent_id: string;
   created_at: string;
@@ -53,6 +58,7 @@ function toLocalSession(raw: {
       content: m.content,
       richContent: m.richContent,
       attestation: m.attestation ?? null,
+      approval: m.approval ?? null,
     })),
     createdAt: parseApiTimestamp(raw.created_at)?.getTime() ?? 0,
     updatedAt: parseApiTimestamp(raw.updated_at)?.getTime() ?? 0,
@@ -143,6 +149,7 @@ export function useChatSessions() {
               content: message.content,
               rich_content: message.richContent ?? null,
               attestation: message.attestation ?? null,
+              approval: message.approval ?? null,
             },
           }),
         });

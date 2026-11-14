@@ -757,9 +757,18 @@ class AttestationSummary(BaseModel):
     rounds: int = Field(default=1, ge=1, description="Number of verified completion rounds")
 
 
+class ApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    summary: str = Field(max_length=2000, description="What the agent will do once approved")
+    action: str = Field(max_length=80, description="Approve button label")
+
+
 class ChatResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reply: str = Field(description="Agent's reply")
+    approval: ApprovalRequest | None = Field(
+        default=None, description="Set when the agent is waiting for the user's go-ahead"
+    )
     attestation: AttestationSummary | None = Field(
         default=None,
         description="NEAR AI Cloud private inference attestation summary when provider=near",
@@ -806,12 +815,15 @@ async def chat_with_agent(
             message=body.message,
             history=[{"role": m.role, "content": m.content} for m in body.history],
             owner_id=current_user.user_id,
+            owner_email=current_user.email,
+            owner_wallet=current_user.wallet_address,
             session_id=body.session_id if current_user.external_subject.startswith("betterauth|") else None,
             meta=meta,
             llm_provider=body.llm_provider,
         )
+        approval = meta.pop("approval", None)
         attestation = AttestationSummary(**meta) if meta.get("provider") == "near" else None
-        return ChatResponse(reply=reply, attestation=attestation)
+        return ChatResponse(reply=reply, attestation=attestation, approval=approval)
 
     except PlatformException:
         raise

@@ -883,11 +883,14 @@ class AIAgentService:
 
     async def chat(self, agent_id: str, agent_name: str, message: str,
                    history: list[dict] | None = None, owner_id: str | None = None,
+                   owner_email: str | None = None, owner_wallet: str | None = None,
                    session_id: str | None = None,
                    meta: dict[str, Any] | None = None, llm_provider: str | None = None) -> str:
         from services.groq_agent import complete
         from mcp_server.platform_mcp import create_platform_mcp
-        mcp_server = create_platform_mcp(self.db, owner_id or "", agent_id)
+        mcp_server = create_platform_mcp(
+            self.db, owner_id or "", agent_id, owner_email=owner_email, owner_wallet=owner_wallet
+        )
         tool_map = await mcp_server.list_tools()
         definitions = [{"type": "function", "function": {
             "name": tool.name, "description": " ".join((tool.description or "").split()),
@@ -907,7 +910,26 @@ class AIAgentService:
                 }, "required": ["title", "content"], "additionalProperties": False},
             }})
 
+        definitions.append({"type": "function", "function": {
+            "name": "request_approval",
+            "description": (
+                "Ask the user to approve an action before you take it. The chat shows Approve and "
+                "Decline buttons and your turn ends. Use it instead of asking 'shall I proceed?' "
+                "in text. When the user approves, carry the action out."
+            ),
+            "parameters": {"type": "object", "properties": {
+                "summary": {"type": "string", "description": "What will happen, in one or two sentences."},
+                "action": {"type": "string", "description": "Short button label, e.g. 'Publish to NEAR'."},
+            }, "required": ["summary", "action"], "additionalProperties": False},
+        }})
+
         async def invoke(name, arguments):
+            if name == "request_approval":
+                return {
+                    "status": "awaiting_approval",
+                    "summary": str(arguments.get("summary", ""))[:2000],
+                    "action": str(arguments.get("action", "Approve"))[:80] or "Approve",
+                }
             if name == "prepare_storage_export" and storage:
                 try:
                     proposal = await storage.prepare(owner_id, agent_id, session_id, **arguments, message_index=len(history or []) + 1)
@@ -926,7 +948,16 @@ class AIAgentService:
             "and ask for approval. Never say it is stored before a verified receipt. "
             "You cannot approve, upload, pay, or claim the user approved via a tool. "
             "Storage is Base Sepolia testnet only. No real-money payments. "
-            "Do not repeatedly call a failed tool or duplicate a creation request."
+            "Do not repeatedly call a failed tool or duplicate a creation request. "
+            "Whenever you need the user's go-ahead, call request_approval instead of asking in "
+            "text. A user message starting with 'Approved' is that go-ahead: proceed. "
+            "After an experiment completes, offer to publish it to NEAR testnet with "
+            "prepare_near_anchor. Show the returned near_cli_command verbatim on one line; "
+            "the registry publisher account signs it with the NEAR CLI. The Ethereum "
+            "owner_wallet is attribution inside the bundles, not the NEAR signer. When the user "
+            "pastes the transaction hash, call attach_near_anchor with the same job_ids in the "
+            "same order. Never claim an experiment is on-chain until attach_near_anchor "
+            "returns verified."
         )
         messages = [{"role": "system", "content": system}]
         messages.extend({"role": h["role"], "content": h["content"]}

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ import {
   BarChart2,
   Cpu,
 } from "lucide-react";
-import { useState } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { EnsAddress } from "./ens-address";
 
 // ── Typed rich-content payloads ──────────────────────────────────────────────
@@ -591,107 +591,163 @@ function ResearchResultCard({ data }: { data: ResearchResultPayload }) {
 
 // ── Markdown prose ───────────────────────────────────────────────────────────
 
+type HastNode = { type: string; value?: string; children?: HastNode[]; properties?: { className?: unknown } };
+
+function hastText(node: HastNode | undefined): string {
+  if (!node) return "";
+  return node.value ?? (node.children ?? []).map(hastText).join("");
+}
+
+// Lets `code` know it sits inside a fenced block, which react-markdown v10 no longer passes.
+const InCodeBlock = createContext(false);
+
+function CodeCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }, () => undefined);
+      }}
+      className="flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-white/50 transition-colors hover:bg-white/8 hover:text-white/85"
+      aria-label={copied ? "Copied" : "Copy code"}
+    >
+      {copied ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+function CodeBlock({ node, children }: { node?: HastNode; children?: ReactNode }) {
+  const code = node?.children?.find((child) => child.type === "element");
+  const classes = code?.properties?.className;
+  const language = (Array.isArray(classes) ? classes : [])
+    .map(String)
+    .find((name) => name.startsWith("language-"))
+    ?.slice("language-".length);
+  return (
+    <div className="my-3 overflow-hidden rounded-lg bg-black/40 ring-1 ring-white/8">
+      <div className="flex items-center justify-between border-b border-white/6 px-3 py-1">
+        <span className="font-mono text-[11px] text-white/40">{language ?? "text"}</span>
+        <CodeCopyButton text={hastText(code).replace(/\n$/, "")} />
+      </div>
+      <pre className="overflow-x-auto px-3 py-2.5 font-mono text-[12px] leading-relaxed text-white/85">
+        <InCodeBlock.Provider value>{children}</InCodeBlock.Provider>
+      </pre>
+    </div>
+  );
+}
+
+function InlineOrBlockCode({ className, children }: { className?: string; children?: ReactNode }) {
+  const inBlock = useContext(InCodeBlock);
+  return inBlock ? (
+    <code className={className}>{children}</code>
+  ) : (
+    <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[12px] text-amber-300/85 [overflow-wrap:anywhere]">
+      {children}
+    </code>
+  );
+}
+
+const MARKDOWN_COMPONENTS: Components = {
+  p: ({ children }) => (
+    <p className="mb-3 text-[13px] leading-relaxed text-white/85 last:mb-0">{children}</p>
+  ),
+  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+  em: ({ children }) => <em className="italic text-white/75">{children}</em>,
+  del: ({ children }) => <del className="text-white/45 line-through">{children}</del>,
+  // Omit `...props` — react-markdown's @types/react copy conflicts with the
+  // project's Ref types when `ref` is spread onto intrinsic elements.
+  pre: ({ node, children }) => <CodeBlock node={node as HastNode | undefined}>{children}</CodeBlock>,
+  code: ({ className, children }) => (
+    <InlineOrBlockCode className={className}>{children}</InlineOrBlockCode>
+  ),
+  ul: ({ children, className }) => (
+    <ul
+      className={`my-2 space-y-1 pl-5 text-[13px] text-white/80 marker:text-white/35 ${
+        className?.includes("contains-task-list") ? "list-none pl-1" : "list-disc"
+      }`}
+    >
+      {children}
+    </ul>
+  ),
+  ol: ({ children, start }) => (
+    <ol start={start} className="my-2 list-decimal space-y-1 pl-5 text-[13px] text-white/80 marker:text-white/45">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => (
+    <li className="pl-0.5 leading-relaxed [&>ol]:my-1 [&>p]:mb-1 [&>ul]:my-1">{children}</li>
+  ),
+  input: ({ checked }) => (
+    <input type="checkbox" checked={Boolean(checked)} readOnly disabled className="mr-1.5 align-middle accent-amber-400" />
+  ),
+  table: ({ children }) => (
+    <div className="my-3 overflow-x-auto rounded-lg ring-1 ring-white/8">
+      <table className="w-full border-collapse text-[12px]">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-white/5">{children}</thead>,
+  th: ({ children, style }) => (
+    <th style={style} className="px-3 py-2 text-left text-[11px] font-semibold text-white/60">
+      {children}
+    </th>
+  ),
+  td: ({ children, style }) => (
+    <td style={style} className="border-t border-white/5 px-3 py-2 align-top text-white/75">
+      {children}
+    </td>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="my-3 border-l-2 border-amber-400/40 pl-3 text-white/60 [&>p]:text-white/60">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-4 border-white/10" />,
+  h1: ({ children }) => <h1 className="mb-2 mt-4 text-base font-bold text-white first:mt-0">{children}</h1>,
+  h2: ({ children }) => (
+    <h2 className="mb-2 mt-4 text-[15px] font-semibold text-white/95 first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mb-1.5 mt-3 text-[14px] font-semibold text-white/90 first:mt-0">{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mb-1 mt-3 text-[13px] font-semibold text-white/85 first:mt-0">{children}</h4>
+  ),
+  h5: ({ children }) => <h5 className="mb-1 mt-2 text-[13px] font-medium text-white/80">{children}</h5>,
+  h6: ({ children }) => <h6 className="mb-1 mt-2 text-[12px] font-medium text-white/60">{children}</h6>,
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="text-amber-400/85 underline underline-offset-2 transition-colors [overflow-wrap:anywhere] hover:text-amber-300"
+    >
+      {children}
+    </a>
+  ),
+  img: ({ src, alt }) =>
+    typeof src === "string" ? (
+      // Agent-supplied URLs of unknown size; next/image needs known hosts and dimensions.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt={alt ?? ""} loading="lazy" className="my-2 max-h-96 max-w-full rounded-lg" />
+    ) : null,
+};
+
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
-      components={{
-        p: ({ children }) => (
-          <p className="mb-2 text-[13px] leading-relaxed text-white/85 last:mb-0">
-            {children}
-          </p>
-        ),
-        strong: ({ children }) => (
-          <strong className="font-semibold text-white">{children}</strong>
-        ),
-        em: ({ children }) => (
-          <em className="italic text-white/70">{children}</em>
-        ),
-        // Omit `...props` — react-markdown's @types/react copy conflicts with the
-        // project's Ref types when `ref` is spread onto intrinsic elements.
-        code: ({ className, children }) => {
-          const isBlock = className?.includes("language-");
-          return isBlock ? (
-            <code
-              className={`${className} block overflow-x-auto rounded-lg bg-black/40 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-amber-200/80 ring-1 ring-white/6`}
-            >
-              {children}
-            </code>
-          ) : (
-            <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[11px] text-amber-300/80">
-              {children}
-            </code>
-          );
-        },
-        pre: ({ children }) => (
-          <pre className="my-2 rounded-lg">{children}</pre>
-        ),
-        ul: ({ children }) => (
-          <ul className="my-1.5 space-y-0.5 pl-4 text-[13px] text-white/75">
-            {children}
-          </ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="my-1.5 list-decimal space-y-0.5 pl-4 text-[13px] text-white/75">
-            {children}
-          </ol>
-        ),
-        li: ({ children }) => (
-          <li className="flex gap-1.5 before:content-['•'] before:text-white/25">
-            {children}
-          </li>
-        ),
-        table: ({ children }) => (
-          <div className="my-2 overflow-x-auto rounded-lg ring-1 ring-white/8">
-            <table className="w-full text-[12px]">{children}</table>
-          </div>
-        ),
-        thead: ({ children }) => (
-          <thead className="bg-white/5">{children}</thead>
-        ),
-        th: ({ children }) => (
-          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-white/40">
-            {children}
-          </th>
-        ),
-        td: ({ children }) => (
-          <td className="border-t border-white/5 px-3 py-2 text-white/70">
-            {children}
-          </td>
-        ),
-        blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-2 border-amber-400/40 pl-3 text-[12px] italic text-white/50">
-            {children}
-          </blockquote>
-        ),
-        h1: ({ children }) => (
-          <h1 className="mb-1 text-base font-bold text-white">{children}</h1>
-        ),
-        h2: ({ children }) => (
-          <h2 className="mb-1 text-sm font-semibold text-white/90">
-            {children}
-          </h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="mb-1 text-[13px] font-semibold text-white/80">
-            {children}
-          </h3>
-        ),
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="text-amber-400/80 underline underline-offset-2 transition-colors hover:text-amber-300"
-          >
-            {children}
-          </a>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+    <div className="min-w-0 break-words">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={MARKDOWN_COMPONENTS}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
