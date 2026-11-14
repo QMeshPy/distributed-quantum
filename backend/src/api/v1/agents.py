@@ -761,6 +761,13 @@ class ApprovalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     summary: str = Field(max_length=2000, description="What the agent will do once approved")
     action: str = Field(max_length=80, description="Approve button label")
+    kind: Literal["near_publish"] | None = Field(
+        default=None,
+        description="near_publish: confirm via wallet signature and the NEAR publish API",
+    )
+    request_id: str | None = Field(default=None, max_length=64)
+    message: str | None = Field(default=None, max_length=2000, description="Text the wallet signs")
+    submitter: str | None = Field(default=None, description="Wallet expected to sign")
 
 
 class ChatResponse(BaseModel):

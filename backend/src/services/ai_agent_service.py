@@ -937,6 +937,15 @@ class AIAgentService:
                 except ValueError as exc:
                     return {"error": str(exc)}
             result = await mcp_server.call_tool(name, arguments)
+            blocks = result[0] if isinstance(result, tuple) else result
+            single = isinstance(blocks, list) and len(blocks) == 1
+            if single and getattr(blocks[0], "type", "") == "text":
+                # FastMCP wraps the tool's dict as one JSON text block; unwrap so the chat loop can
+                # see structured fields such as `approval`.
+                try:
+                    return json.loads(blocks[0].text)
+                except ValueError:
+                    return blocks[0].text
             return result.model_dump(mode="json") if hasattr(result, "model_dump") else result
 
         system = (
@@ -951,13 +960,15 @@ class AIAgentService:
             "Do not repeatedly call a failed tool or duplicate a creation request. "
             "Whenever you need the user's go-ahead, call request_approval instead of asking in "
             "text. A user message starting with 'Approved' is that go-ahead: proceed. "
+            "When you submit a job, always give the user its view_url as a markdown link, e.g. "
+            "[Open the run](/runs/job-123), so they can watch it in the Lab. "
             "After an experiment completes, offer to publish it to NEAR testnet with "
-            "prepare_near_anchor. Show the returned near_cli_command verbatim on one line; "
-            "the registry publisher account signs it with the NEAR CLI. The Ethereum "
-            "owner_wallet is attribution inside the bundles, not the NEAR signer. When the user "
-            "pastes the transaction hash, call attach_near_anchor with the same job_ids in the "
-            "same order. Never claim an experiment is on-chain until attach_near_anchor "
-            "returns verified."
+            "publish_near_anchor (no request_approval needed: it shows a card where the user "
+            "signs with their wallet and the app publishes and shows the explorer link). "
+            "Never ask the user to run a command or open a terminal. Only if it returns "
+            "awaiting_signature (server has no publisher key) say an operator must sign it. "
+            "If it returns published=true, share explorer_url. Never claim an experiment is "
+            "on-chain without an explorer_url."
         )
         messages = [{"role": "system", "content": system}]
         messages.extend({"role": h["role"], "content": h["content"]}

@@ -76,6 +76,7 @@ export const QUERY_KEYS = {
 
 
 export const QUERY_KEYS_AGENTKIT = {
+  nearPublication: (jobId: string) => ["agentkit", "near-publication", jobId] as const,
   wallet: () => ["agentkit", "wallet"] as const,
   ensResolve: (name: string, fresh: boolean) =>
     ["agentkit", "ens", "resolve", name, fresh] as const,

@@ -29,6 +29,10 @@ class NearManifest(BaseModel):
     contract_id: NearTestnetAccount
     publisher_id: NearTestnetAccount
     hash_profile: Literal["qmesh-provenance-sha256-v1"] = HASH_PROFILE
+    # Ethereum wallet shown beside the anchor call in the explorer; every bundle commits to it.
+    submitter: Annotated[str, Field(pattern=r"^0x[0-9a-fA-F]{40}$")] | None = None
+    # EIP-191 signature by ``submitter`` over ``anchor_intent``; proves the wallet approved it.
+    submitter_signature: Annotated[str, Field(pattern=r"^0x[0-9a-fA-F]{130}$")] | None = None
     bundles: Annotated[tuple[BundleCommitment, ...], Field(min_length=1, max_length=20_000)]
     merkle_root: Sha256Digest
     leaf_count: int = Field(ge=1, le=20_000, strict=True)
@@ -36,6 +40,8 @@ class NearManifest(BaseModel):
     @model_validator(mode="after")
     def validate_commitments(self) -> NearManifest:
         ids = [item.bundle_id for item in self.bundles]
+        if self.submitter_signature is not None and self.submitter is None:
+            raise ValueError("A wallet signature needs its submitter")
         if (
             len(set(ids)) != len(ids)
             or self.leaf_count != len(ids)
@@ -45,7 +51,12 @@ class NearManifest(BaseModel):
         return self
 
     def contract_arguments(self) -> dict[str, Any]:
-        return self.model_dump(include={"merkle_root", "leaf_count", "hash_profile"})
+        arguments = self.model_dump(include={"merkle_root", "leaf_count", "hash_profile"})
+        if self.submitter is not None:
+            arguments["submitter"] = self.submitter
+        if self.submitter_signature is not None:
+            arguments["submitter_signature"] = self.submitter_signature
+        return arguments
 
 
 async def _load(collection: Any, ids: list[str]) -> dict[str, dict[str, Any]]:
@@ -66,20 +77,42 @@ async def _load(collection: Any, ids: list[str]) -> dict[str, dict[str, Any]]:
     return found
 
 
+def _wallet(row: dict[str, Any]) -> str:
+    return str((row["payload"].get("summary") or {}).get("owner_wallet") or "")
+
+
+def _require_wallet(rows: dict[str, dict[str, Any]], submitter: str | None) -> None:
+    mismatch = submitter is not None and any(
+        _wallet(row).lower() != submitter.lower() for row in rows.values()
+    )
+    if mismatch:
+        raise ValueError("Every bundle must commit to the submitting wallet")
+
+
+async def common_wallet(collection: Any, bundle_ids: list[str]) -> str | None:
+    """The one wallet every bundle commits to, else None (nothing to show in the explorer)."""
+    rows = await _load(collection, bundle_ids)
+    wallets = {_wallet(row).lower() for row in rows.values()}
+    return _wallet(rows[bundle_ids[0]]) if len(wallets) == 1 and "" not in wallets else None
+
+
 async def prepare_manifest(
     collection: Any,
     bundle_ids: list[str],
     settings: NearRegistrySettings,
+    submitter: str | None = None,
 ) -> NearManifest:
     if not settings.configured:
         raise ValueError("NEAR registry is not configured")
     rows = await _load(collection, bundle_ids)
+    _require_wallet(rows, submitter)
     entries = tuple(
         BundleCommitment(bundle_id=key, digest=rows[key]["content_hash"]) for key in bundle_ids
     )
     return NearManifest(
         contract_id=settings.contract_id,
         publisher_id=settings.publisher_id,
+        submitter=submitter,
         bundles=entries,
         merkle_root=MerkleTree([e.digest for e in entries]).root,
         leaf_count=len(entries),
@@ -102,6 +135,7 @@ async def attach_manifest(
     rows = await _load(collection, [entry.bundle_id for entry in manifest.bundles])
     if any(rows[e.bundle_id]["content_hash"] != e.digest for e in manifest.bundles):
         raise ValueError("Manifest differs from the current provenance commitments")
+    _require_wallet(rows, manifest.submitter)
     tree = MerkleTree([entry.digest for entry in manifest.bundles])
     first = ChainAnchor(
         chain=CHAIN_ID,
@@ -111,7 +145,9 @@ async def attach_manifest(
         leaf_count=manifest.leaf_count,
         proof=tree.proof(0).siblings,
     )
-    if not await adapter.contains_root(first):
+    if not await adapter.contains_root(
+        first, submitter=manifest.submitter, signature=manifest.submitter_signature
+    ):
         raise ValueError("NEAR registry transaction does not match this manifest")
     for index, entry in enumerate(manifest.bundles):
         row = rows[entry.bundle_id]

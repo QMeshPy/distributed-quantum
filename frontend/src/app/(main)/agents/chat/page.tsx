@@ -28,6 +28,7 @@ import {
 } from "@/features/agentkit/hooks/use-chat-sessions";
 import { AttestationBadge } from "@/features/agent/components/conversation-panel";
 import { ApprovalActions } from "@/features/agentkit/components/approval-actions";
+import { publicationMessage, signAndPublish } from "@/features/agentkit";
 
 import { useStorageExports, type StorageExport } from "@/features/agentkit/hooks/use-storage-exports";
 import { StorageExports } from "@/features/agentkit/components/storage-exports";
@@ -201,6 +202,28 @@ function AgentsChatInner() {
       const result = await storage.decision.mutateAsync({ proposal, action });
       if (activeSessionId) pushMessage({ role: "agent", content: result.status === "stored" ? "Your export is stored on Toju. The testnet payment and retrieved content hash are verified below." : result.status === "cancelled" ? "Export cancelled. Nothing was uploaded or paid." : result.error ?? `Export status: ${result.status}.` }, activeSessionId);
     } catch { /* The approval card shows the mutation error. */ }
+  };
+
+  // The agent's NEAR card: sign with the connected wallet, publish, then post the explorer link.
+  const publishFromChat = async (approval: NonNullable<ChatMessage["approval"]>) => {
+    if (!activeSessionId || !approval.request_id || loading) return;
+    pushMessage({ role: "user", content: approval.action }, activeSessionId);
+    setLoading(true);
+    try {
+      const result = await signAndPublish({
+        request_id: approval.request_id,
+        message: approval.message,
+        submitter: approval.submitter,
+      });
+      pushMessage({ role: "agent", content: publicationMessage(result) }, activeSessionId);
+    } catch (err) {
+      pushMessage(
+        { role: "agent", content: `NEAR publishing did not complete: ${(err instanceof Error ? err.message : "unknown error").replace(/\.+$/, "")}. Nothing was published; you can ask me to try again.` },
+        activeSessionId,
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const send = async (text: string) => {
@@ -430,7 +453,9 @@ function AgentsChatInner() {
                           showSummary={msg.content.trim() !== msg.approval.summary.trim()}
                           disabled={loading}
                           onDecide={(approved) =>
-                            send(approved ? `Approved. Go ahead: ${msg.approval!.action}` : "Declined. Do not do that.")
+                            approved && msg.approval!.kind === "near_publish"
+                              ? publishFromChat(msg.approval!)
+                              : send(approved ? `Approved. Go ahead: ${msg.approval!.action}` : "Declined. Do not do that.")
                           }
                         />
                       )}

@@ -104,4 +104,9 @@ export const API_AGENTKIT = {
   AGENTS:          "/api/agentkit/agents",
   AGENT_ANALYZE:   (id: string) => `/api/agentkit/agents/${id}/analyze` as const,
   NOTIFICATIONS:   "/api/agentkit/notifications",
+  NEAR_PREPARE:    "/api/agentkit/near/prepare",
+  NEAR_PUBLISH:    (requestId: string) =>
+    `/api/agentkit/near/requests/${encodeURIComponent(requestId)}` as const,
+  NEAR_STATUS:     (jobId: string) =>
+    `/api/agentkit/near/jobs/${encodeURIComponent(jobId)}` as const,
 } as const;

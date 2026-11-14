@@ -40,6 +40,15 @@ logger = logging.getLogger(__name__)
 API = "http://localhost:8081"
 
 
+def _viewable(kind: str, data: Any) -> Any:
+    """Add the Lab page path so the agent can link the user to the running experiment."""
+    from services.near_publish import VIEW_PATHS
+
+    if isinstance(data, dict) and data.get("job_id"):
+        data["view_url"] = VIEW_PATHS[kind].format(data["job_id"])
+    return data
+
+
 def owner_headers(owner_id: str, email: str | None, wallet: str | None) -> dict[str, str]:
     """Same signed assertion the frontend sends, so agent-made jobs belong to the chat's owner."""
     secret = os.getenv("AGENT_AUTH_BRIDGE_SECRET", "")
@@ -58,16 +67,6 @@ def owner_headers(owner_id: str, email: str | None, wallet: str | None) -> dict[
     body = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
     signature = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
     return {"Authorization": f"Bearer qn1.{body}.{signature}"}
-
-
-# (experiment type, owner-scoped result path); probed in order to find a job by ID.
-_EXPERIMENT_PATHS = (
-    ("quantum-circuit", "/api/v1/jobs/{}"),
-    ("portfolio-optimization", "/api/v1/finance/{}?result_detail=full"),
-    ("drug-discovery", "/api/v1/pharma/jobs/{}"),
-    ("options-pricing", "/api/v1/options/{}"),
-    ("risk-analysis", "/api/v1/risk/{}"),
-)
 
 
 def create_platform_mcp(
@@ -355,7 +354,7 @@ def create_platform_mcp(
                     json={"circuit": circuit},
                     timeout=30.0,
                 )
-            return resp.json()
+            return _viewable("quantum-circuit", resp.json())
         except Exception as e:
             logger.error("submit_quantum_circuit failed: %s", e)
             return {"error": str(e)}
@@ -465,7 +464,7 @@ def create_platform_mcp(
                     json=body,
                     timeout=30.0,
                 )
-            return resp.json()
+            return _viewable("options-pricing", resp.json())
         except Exception as e:
             logger.error("price_option failed: %s", e)
             return {"error": str(e)}
@@ -541,7 +540,7 @@ def create_platform_mcp(
                     json=body,
                     timeout=30.0,
                 )
-            return resp.json()
+            return _viewable("risk-analysis", resp.json())
         except Exception as e:
             logger.error("analyze_portfolio_risk failed: %s", e)
             return {"error": str(e)}
@@ -692,7 +691,7 @@ def create_platform_mcp(
                     json=body,
                     timeout=30.0,
                 )
-            return resp.json()
+            return _viewable("drug-discovery", resp.json())
         except Exception as e:
             logger.error("submit_pharma_job failed: %s", e)
             return {"error": str(e)}
@@ -900,158 +899,88 @@ def create_platform_mcp(
                     files={"file": ("agent-portfolio.csv", csv.encode(), "text/csv")},
                     timeout=30.0,
                 )
-            return resp.json()
+            return _viewable("portfolio-optimization", resp.json())
         except Exception as e:
             logger.error("submit_portfolio_optimization failed: %s", e)
             return {"error": str(e)}
 
-    # ── NEAR testnet provenance (operator-signed) ─────────────────────────────
-
-    async def _experiment_bundle(client: httpx.AsyncClient, job_id: str):
-        """Commit an owned, completed job's result and the owner's SIWE wallet into one bundle."""
-        from quantum_backend_v2.provenance.hashing import hash_json
-        from quantum_backend_v2.provenance.models import ProvenanceBundle
-
-        for kind, path in _EXPERIMENT_PATHS:  # noqa: B007 - kind/path are used after the break
-            resp = await client.get(API + path.format(job_id), timeout=10.0)
-            if resp.status_code == 200:
-                break
-        else:
-            raise ValueError(f"No job {job_id} found in your account")
-        job = resp.json()
-        if str(job.get("status", "")).lower() != "completed":
-            raise ValueError(
-                f"Job {job_id} is {job.get('status')}; only completed experiments can be published"
-            )
-        result = job.get("result") if job.get("result") is not None else job
-        summary: dict[str, Any] = {
-            "experiment_type": kind,
-            "result_hash": hash_json(result),
-            "result_hash_scope": "job result as returned by result_url at publication",
-            "result_url": path.format(job_id),
-            "owner_wallet": owner_wallet,
-        }
-        if job.get("provenance_bundle_id"):
-            summary["source_bundle_id"] = job["provenance_bundle_id"]
-        embedded = result.get("provenance") if isinstance(result, dict) else None
-        if isinstance(embedded, dict) and embedded.get("bundle_hash"):
-            summary["source_bundle_hash"] = embedded["bundle_hash"]
-        return ProvenanceBundle(
-            bundle_id=f"near-{job_id}",
-            workflow_run_id=job_id,
-            workflow_definition_id=kind,
-            owner_user_id=owner_id,
-            summary=summary,
-            is_publishable=True,
-            created_at=datetime.now(timezone.utc),
-        )
-
-    def _near_settings():
-        from quantum_backend_v2.config import load_settings
-
-        settings = load_settings().near_registry
-        if not settings.configured:
-            raise ValueError(
-                "NEAR registry is not configured (QB2_NEAR_REGISTRY_CONTRACT/PUBLISHER)"
-            )
-        return settings
-
-    async def _owned_bundles(collection, bundle_ids: list[str]) -> None:
-        query = {"bundle_id": {"$in": bundle_ids}}
-        rows = await collection.find(query).to_list(length=len(bundle_ids))
-        if any(row["payload"].get("owner_user_id") != owner_id for row in rows):
-            raise ValueError("One or more provenance bundles belong to another account")
+    # ── NEAR testnet provenance ───────────────────────────────────────────────
 
     @mcp.tool()
-    async def prepare_near_anchor(job_ids: list[str]) -> dict:
-        """Prepare completed experiments for publication on the NEAR testnet provenance registry.
+    async def publish_near_anchor(job_ids: list[str]) -> dict:
+        """Publish completed experiments to the NEAR testnet provenance registry.
 
         Works for quantum circuit, portfolio optimisation, drug discovery, options and risk jobs.
         Each job gets a provenance bundle committing to its result hash and the user's signed-in
-        Ethereum wallet; the bundles form one SHA-256 Merkle root. Nothing is sent on-chain here:
-        show the user near_cli_command exactly as returned. After they run it and paste the
-        transaction hash, call attach_near_anchor with the SAME job_ids in the SAME order.
+        Ethereum wallet; the bundles form one SHA-256 Merkle root. Calling this does NOT publish
+        yet: the chat shows the user a "Sign with wallet & publish" card (MetaMask), and the
+        app publishes and shows the explorer link once they confirm. Do not call
+        request_approval for this; the card is the approval. Never ask the user to run a command.
 
         Args:
             job_ids: 1-50 completed job IDs owned by the user
 
         Returns:
-            merkle_root, bundle_ids, contract_arguments and near_cli_command for the
-            publisher to sign.
+            awaiting_user_confirmation (card shown), published=true with explorer_url if these
+            experiments are already on-chain, or awaiting_signature with near_cli_command when
+            the server has no publisher key (then an operator must sign; call
+            attach_near_anchor with the same job_ids after they paste the hash).
         """
-        from quantum_backend_v2.application.near_provenance import prepare_manifest
-        from quantum_backend_v2.persistence.mongodb import ProvenanceBundleDocument
-        from quantum_backend_v2.provenance.hashing import bundle_hash
+        from services.near_publish import prepare_publication
 
         try:
-            if not 1 <= len(job_ids) <= 50 or len(set(job_ids)) != len(job_ids):
-                raise ValueError("Provide 1-50 unique job IDs")
-            settings = _near_settings()
-            collection = db[ProvenanceBundleDocument.Settings.name]
-            bundle_ids = [f"near-{job_id}" for job_id in job_ids]
-            await _owned_bundles(collection, bundle_ids)
-            rows = await collection.find({"bundle_id": {"$in": bundle_ids}}).to_list(length=50)
-            existing = {row["bundle_id"] for row in rows}
             async with _api() as client:
-                for job_id, bundle_id in zip(job_ids, bundle_ids, strict=True):
-                    if bundle_id in existing:
-                        continue  # keep the original commitment so retries reuse the same root
-                    bundle = await _experiment_bundle(client, job_id)
-                    await collection.insert_one({
-                        "bundle_id": bundle_id,
-                        "workflow_run_id": job_id,
-                        "artifact_refs": [],
-                        "peer_log_refs": [],
-                        "payload": bundle.model_dump(mode="json"),
-                        "content_hash": bundle_hash(bundle),
-                        "created_at": bundle.created_at,
-                        "anchor_batch_id": None,
-                    })
-            manifest = await prepare_manifest(collection, bundle_ids, settings)
-            args = json.dumps(manifest.contract_arguments(), separators=(",", ":"))
-            return {
-                "status": "awaiting_signature",
-                "merkle_root": manifest.merkle_root,
-                "leaf_count": manifest.leaf_count,
-                "bundle_ids": bundle_ids,
-                "owner_wallet": owner_wallet,
-                "registry": settings.contract_id,
-                "contract_arguments": manifest.contract_arguments(),
-                "near_cli_command": (
-                    f"near contract call-function as-transaction {settings.contract_id} anchor "
-                    f"json-args '{args}' prepaid-gas '30 Tgas' attached-deposit '0.01 NEAR' "
-                    f"sign-as {settings.publisher_id} network-config testnet "
-                    "sign-with-keychain send"
-                ),
-            }
+                result = await prepare_publication(db, client, owner_id, owner_wallet, job_ids)
+        except OSError as e:
+            return {"error": f"{e}. Retry shortly."}
         except Exception as e:
-            logger.error("prepare_near_anchor failed: %s", type(e).__name__)
+            logger.error("publish_near_anchor failed: %s", type(e).__name__)
             return {"error": str(e)}
+        if result.get("status") == "awaiting_user_confirmation":
+            signs = bool(result.get("message"))
+            result["approval"] = {
+                "kind": "near_publish",
+                "request_id": result["request_id"],
+                "message": result.get("message"),
+                "submitter": result.get("submitter"),
+                "summary": (
+                    f"Publish {result['leaf_count']} experiment(s) to the NEAR testnet registry "
+                    f"{result['registry']} (Merkle root {result['merkle_root'][:12]}…)."
+                ),
+                "action": "Sign with wallet & publish" if signs else "Publish to NEAR",
+            }
+        return result
 
     @mcp.tool()
     async def attach_near_anchor(job_ids: list[str], tx_hash: str) -> dict:
-        """Verify a signed NEAR testnet anchor transaction and attach inclusion proofs.
+        """Verify an operator-signed NEAR testnet anchor transaction and attach inclusion proofs.
 
-        Call after the user pastes the transaction hash from the near_cli_command returned by
-        prepare_near_anchor. Use the same job_ids in the same order. Safe to retry.
+        Only for when publish_near_anchor returned awaiting_signature and an operator pasted
+        the transaction hash. Use the same job_ids in the same order. Safe to retry.
 
         Args:
-            job_ids: The job IDs passed to prepare_near_anchor, same order
+            job_ids: The job IDs passed to publish_near_anchor, same order
             tx_hash: NEAR testnet transaction hash (base58)
 
         Returns:
             verified flag, explorer_url (testnet.nearblocks.io) and merkle_root.
         """
-        from quantum_backend_v2.application.near_provenance import attach_manifest, prepare_manifest
+        from quantum_backend_v2.application.near_provenance import (
+            attach_manifest,
+            common_wallet,
+            prepare_manifest,
+        )
         from quantum_backend_v2.persistence.mongodb import ProvenanceBundleDocument
         from quantum_backend_v2.provenance.near_registry import NearRegistryAdapter
+        from services.near_publish import bundle_ids_for, near_settings, owned_rows
 
         try:
-            settings = _near_settings()
+            settings = near_settings()
             collection = db[ProvenanceBundleDocument.Settings.name]
-            bundle_ids = [f"near-{job_id}" for job_id in job_ids]
-            await _owned_bundles(collection, bundle_ids)
-            manifest = await prepare_manifest(collection, bundle_ids, settings)
+            bundle_ids = bundle_ids_for(job_ids)
+            await owned_rows(collection, bundle_ids, owner_id)
+            submitter = await common_wallet(collection, bundle_ids)
+            manifest = await prepare_manifest(collection, bundle_ids, settings, submitter)
             adapter = NearRegistryAdapter(settings)
             await attach_manifest(collection, manifest, tx_hash.strip(), adapter)
             return {
@@ -1060,7 +989,7 @@ def create_platform_mcp(
                 "registry": settings.contract_id,
                 "merkle_root": manifest.merkle_root,
                 "bundle_ids": bundle_ids,
-                "owner_wallet": owner_wallet,
+                "submitter": submitter,
             }
         except OSError as e:
             # Adapter OSErrors carry fixed, credential-free messages.

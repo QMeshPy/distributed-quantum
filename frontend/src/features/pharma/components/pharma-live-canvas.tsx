@@ -1,5 +1,6 @@
 "use client";
 
+import { PublishToNearButton } from "@/features/agentkit";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -326,6 +327,7 @@ export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
         <div className="ml-auto">
           <PharmaPeersDrawer job={job} liveData={liveData} isRunning={isRunning} />
         </div>
+        {isCompleted && <PublishToNearButton jobId={jobId} />}
         {isRunning && (
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] tabular-nums text-white/50">
