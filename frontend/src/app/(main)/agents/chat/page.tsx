@@ -27,6 +27,7 @@ import {
   type ChatSession,
 } from "@/features/agentkit/hooks/use-chat-sessions";
 import { AttestationBadge } from "@/features/agent/components/conversation-panel";
+import { ApprovalActions } from "@/features/agentkit/components/approval-actions";
 
 import { useStorageExports, type StorageExport } from "@/features/agentkit/hooks/use-storage-exports";
 import { StorageExports } from "@/features/agentkit/components/storage-exports";
@@ -267,6 +268,7 @@ function AgentsChatInner() {
           role: "agent",
           content: data.reply as string,
           attestation: (data.attestation as AttestationSummary | null | undefined) ?? null,
+          approval: (data.approval as ChatMessage["approval"]) ?? null,
         },
         sessionId
       );
@@ -422,6 +424,16 @@ function AgentsChatInner() {
                           </div>
                         )}
                       </div>
+                      {msg.approval && i === messages.length - 1 && (
+                        <ApprovalActions
+                          approval={msg.approval}
+                          showSummary={msg.content.trim() !== msg.approval.summary.trim()}
+                          disabled={loading}
+                          onDecide={(approved) =>
+                            send(approved ? `Approved. Go ahead: ${msg.approval!.action}` : "Declined. Do not do that.")
+                          }
+                        />
+                      )}
                       <StorageExports items={(storage.data ?? []).filter(item => item.message_index === i)} busy={storage.decision.isPending} decide={decideStorage} />
                     </motion.div>
                   )

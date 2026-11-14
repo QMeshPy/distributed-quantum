@@ -124,6 +124,7 @@ async def _resolve_user_claims(
                 email=data["email"], roles=frozenset({UserRole.DEVELOPER}), org_ids=frozenset(),
                 issued_at=datetime.fromtimestamp(data["iat"], timezone.utc),
                 expires_at=datetime.fromtimestamp(data["exp"], timezone.utc),
+                wallet_address=data.get("wallet"),
             )
         except (ValueError, KeyError, TypeError):
             raise PlatformException(status_code=401, error=ErrorCode.UNAUTHORIZED,

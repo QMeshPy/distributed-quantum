@@ -17,9 +17,18 @@ Tools exposed:
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
 import logging
+import os
+import time
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
+
+import httpx
 
 from mcp.server.fastmcp import FastMCP
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -28,8 +37,47 @@ from services.agentkit_service import AgentKitService
 
 logger = logging.getLogger(__name__)
 
+API = "http://localhost:8081"
 
-def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str | None = None) -> FastMCP:
+
+def owner_headers(owner_id: str, email: str | None, wallet: str | None) -> dict[str, str]:
+    """Same signed assertion the frontend sends, so agent-made jobs belong to the chat's owner."""
+    secret = os.getenv("AGENT_AUTH_BRIDGE_SECRET", "")
+    if len(secret) < 32 or not owner_id or not email:
+        return {}  # auth-disabled dev mode: the API falls back to its bypass user
+    now = int(time.time())
+    claims: dict[str, Any] = {
+        "sub": owner_id,
+        "email": email,
+        "iat": now,
+        "exp": now + 60,
+        "aud": "quantumnodes-agentkit",
+    }
+    if wallet:
+        claims["wallet"] = wallet
+    body = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
+    signature = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+    return {"Authorization": f"Bearer qn1.{body}.{signature}"}
+
+
+# (experiment type, owner-scoped result path); probed in order to find a job by ID.
+_EXPERIMENT_PATHS = (
+    ("quantum-circuit", "/api/v1/jobs/{}"),
+    ("portfolio-optimization", "/api/v1/finance/{}?result_detail=full"),
+    ("drug-discovery", "/api/v1/pharma/jobs/{}"),
+    ("options-pricing", "/api/v1/options/{}"),
+    ("risk-analysis", "/api/v1/risk/{}"),
+)
+
+
+def create_platform_mcp(
+    db: AsyncIOMotorDatabase,
+    owner_id: str,
+    agent_id: str | None = None,
+    *,
+    owner_email: str | None = None,
+    owner_wallet: str | None = None,
+) -> FastMCP:
     """
     Create a FastMCP instance scoped to a specific user/owner.
 
@@ -46,6 +94,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         FastMCP: Configured MCP server instance
     """
     mcp = FastMCP("quantumnodes-platform")
+
+    def _api() -> httpx.AsyncClient:
+        return httpx.AsyncClient(headers=owner_headers(owner_id, owner_email, owner_wallet))
 
     # ── Proposals ────────────────────────────────────────────────────────────
 
@@ -285,7 +336,10 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
             creg c[2];
             h q[0];
             cx q[0],q[1];
-            measure q -> c;
+            measure q[0] -> c[0];
+            measure q[1] -> c[1];
+
+        Measure each qubit separately; the executor rejects whole-register "measure q -> c;".
 
         Args:
             circuit: Full OpenQASM 2.0 circuit text (minimum 10 characters)
@@ -295,9 +349,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.post(
-                    "http://localhost:8081/api/v1/circuits/submit",
+                    f"{API}/api/v1/circuits/submit",
                     json={"circuit": circuit},
                     timeout=30.0,
                 )
@@ -321,9 +375,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    f"http://localhost:8081/api/v1/jobs/{job_id}",
+                    f"{API}/api/v1/jobs/{job_id}",
                     timeout=10.0,
                 )
             return resp.json()
@@ -340,9 +394,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    "http://localhost:8081/api/v1/jobs",
+                    f"{API}/api/v1/jobs",
                     timeout=10.0,
                 )
             return resp.json()
@@ -405,9 +459,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         if delay_time is not None:
             body["delay_time"] = delay_time
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.post(
-                    "http://localhost:8081/api/v1/options/submit",
+                    f"{API}/api/v1/options/submit",
                     json=body,
                     timeout=30.0,
                 )
@@ -431,9 +485,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    f"http://localhost:8081/api/v1/options/{job_id}",
+                    f"{API}/api/v1/options/{job_id}",
                     timeout=10.0,
                 )
             return resp.json()
@@ -481,9 +535,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         if assets is not None:
             body["assets"] = assets
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.post(
-                    "http://localhost:8081/api/v1/risk/submit",
+                    f"{API}/api/v1/risk/submit",
                     json=body,
                     timeout=30.0,
                 )
@@ -507,9 +561,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    f"http://localhost:8081/api/v1/risk/{job_id}",
+                    f"{API}/api/v1/risk/{job_id}",
                     timeout=10.0,
                 )
             return resp.json()
@@ -531,9 +585,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    "http://localhost:8081/api/v1/finance",
+                    f"{API}/api/v1/finance",
                     timeout=10.0,
                 )
             data = resp.json()
@@ -558,10 +612,10 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 # First get the job status
                 job_resp = await client.get(
-                    f"http://localhost:8081/api/v1/finance/{job_id}",
+                    f"{API}/api/v1/finance/{job_id}",
                     timeout=10.0,
                 )
                 job = job_resp.json()
@@ -569,7 +623,7 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
                     # Also fetch the quantum vs classical comparison report
                     try:
                         cmp_resp = await client.get(
-                            f"http://localhost:8081/api/v1/finance/{job_id}/comparison",
+                            f"{API}/api/v1/finance/{job_id}/comparison",
                             timeout=10.0,
                         )
                         job["comparison"] = cmp_resp.json()
@@ -632,9 +686,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         if initial_ligand_smiles:
             body["initial_ligand_smiles"] = initial_ligand_smiles
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.post(
-                    "http://localhost:8081/api/v1/pharma/submit",
+                    f"{API}/api/v1/pharma/submit",
                     json=body,
                     timeout=30.0,
                 )
@@ -662,9 +716,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    f"http://localhost:8081/api/v1/pharma/jobs/{job_id}",
+                    f"{API}/api/v1/pharma/jobs/{job_id}",
                     timeout=10.0,
                 )
             data = resp.json()
@@ -705,9 +759,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.get(
-                    "http://localhost:8081/api/v1/pharma/jobs",
+                    f"{API}/api/v1/pharma/jobs",
                     timeout=10.0,
                 )
             return resp.json()
@@ -790,9 +844,9 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
         """
         import httpx
         try:
-            async with httpx.AsyncClient() as client:
+            async with _api() as client:
                 resp = await client.post(
-                    f"http://localhost:8081/api/v1/proposals/{proposal_id}/fund",
+                    f"{API}/api/v1/proposals/{proposal_id}/fund",
                     json={"amount": str(amount_usdc)},
                     timeout=60.0,
                 )
@@ -801,5 +855,222 @@ def create_platform_mcp(db: AsyncIOMotorDatabase, owner_id: str, agent_id: str |
             logger.error("fund_proposal failed: %s", e)
             return {"error": str(e)}
 
+    # ── Portfolio optimisation (financial modelling) ──────────────────────────
+
+    @mcp.tool()
+    async def submit_portfolio_optimization(
+        csv: str,
+        budget: int | None = None,
+        risk_aversion: float = 0.5,
+        max_assets_considered: int = 6,
+        qaoa_reps: int = 1,
+    ) -> dict:
+        """Submit a QAOA portfolio optimisation job (quantum vs exact classical baseline).
+
+        Use for financial modelling, portfolio optimisation or asset selection requests.
+        csv is a price table. Wide layout: a date column then one price column per asset, e.g.
+            date,SYN_A,SYN_B,SYN_C,SYN_D
+            2026-01-01,100,50,80,30
+            2026-01-02,101,49.5,81,30.4
+            ... (at least ~10 rows so returns and covariance are meaningful)
+
+        Args:
+            csv: Full CSV text (wide layout as above, or long layout date,ticker,value)
+            budget: How many assets to choose (default: about half)
+            risk_aversion: 0-10, higher penalises variance more (default 0.5)
+            max_assets_considered: 2-8 assets fed to the quantum solver (default 6)
+            qaoa_reps: QAOA depth 1-4 (default 1)
+
+        Returns:
+            dict with job_id. Use get_financial_result(job_id) for the result.
+        """
+        data = {
+            "problem_type": "portfolio_optimization",
+            "risk_aversion": str(risk_aversion),
+            "max_assets_considered": str(max_assets_considered),
+            "qaoa_reps": str(qaoa_reps),
+        }
+        if budget is not None:
+            data["budget"] = str(budget)
+        try:
+            async with _api() as client:
+                resp = await client.post(
+                    f"{API}/api/v1/finance/submit",
+                    data=data,
+                    files={"file": ("agent-portfolio.csv", csv.encode(), "text/csv")},
+                    timeout=30.0,
+                )
+            return resp.json()
+        except Exception as e:
+            logger.error("submit_portfolio_optimization failed: %s", e)
+            return {"error": str(e)}
+
+    # ── NEAR testnet provenance (operator-signed) ─────────────────────────────
+
+    async def _experiment_bundle(client: httpx.AsyncClient, job_id: str):
+        """Commit an owned, completed job's result and the owner's SIWE wallet into one bundle."""
+        from quantum_backend_v2.provenance.hashing import hash_json
+        from quantum_backend_v2.provenance.models import ProvenanceBundle
+
+        for kind, path in _EXPERIMENT_PATHS:  # noqa: B007 - kind/path are used after the break
+            resp = await client.get(API + path.format(job_id), timeout=10.0)
+            if resp.status_code == 200:
+                break
+        else:
+            raise ValueError(f"No job {job_id} found in your account")
+        job = resp.json()
+        if str(job.get("status", "")).lower() != "completed":
+            raise ValueError(
+                f"Job {job_id} is {job.get('status')}; only completed experiments can be published"
+            )
+        result = job.get("result") if job.get("result") is not None else job
+        summary: dict[str, Any] = {
+            "experiment_type": kind,
+            "result_hash": hash_json(result),
+            "result_hash_scope": "job result as returned by result_url at publication",
+            "result_url": path.format(job_id),
+            "owner_wallet": owner_wallet,
+        }
+        if job.get("provenance_bundle_id"):
+            summary["source_bundle_id"] = job["provenance_bundle_id"]
+        embedded = result.get("provenance") if isinstance(result, dict) else None
+        if isinstance(embedded, dict) and embedded.get("bundle_hash"):
+            summary["source_bundle_hash"] = embedded["bundle_hash"]
+        return ProvenanceBundle(
+            bundle_id=f"near-{job_id}",
+            workflow_run_id=job_id,
+            workflow_definition_id=kind,
+            owner_user_id=owner_id,
+            summary=summary,
+            is_publishable=True,
+            created_at=datetime.now(timezone.utc),
+        )
+
+    def _near_settings():
+        from quantum_backend_v2.config import load_settings
+
+        settings = load_settings().near_registry
+        if not settings.configured:
+            raise ValueError(
+                "NEAR registry is not configured (QB2_NEAR_REGISTRY_CONTRACT/PUBLISHER)"
+            )
+        return settings
+
+    async def _owned_bundles(collection, bundle_ids: list[str]) -> None:
+        query = {"bundle_id": {"$in": bundle_ids}}
+        rows = await collection.find(query).to_list(length=len(bundle_ids))
+        if any(row["payload"].get("owner_user_id") != owner_id for row in rows):
+            raise ValueError("One or more provenance bundles belong to another account")
+
+    @mcp.tool()
+    async def prepare_near_anchor(job_ids: list[str]) -> dict:
+        """Prepare completed experiments for publication on the NEAR testnet provenance registry.
+
+        Works for quantum circuit, portfolio optimisation, drug discovery, options and risk jobs.
+        Each job gets a provenance bundle committing to its result hash and the user's signed-in
+        Ethereum wallet; the bundles form one SHA-256 Merkle root. Nothing is sent on-chain here:
+        show the user near_cli_command exactly as returned. After they run it and paste the
+        transaction hash, call attach_near_anchor with the SAME job_ids in the SAME order.
+
+        Args:
+            job_ids: 1-50 completed job IDs owned by the user
+
+        Returns:
+            merkle_root, bundle_ids, contract_arguments and near_cli_command for the
+            publisher to sign.
+        """
+        from quantum_backend_v2.application.near_provenance import prepare_manifest
+        from quantum_backend_v2.persistence.mongodb import ProvenanceBundleDocument
+        from quantum_backend_v2.provenance.hashing import bundle_hash
+
+        try:
+            if not 1 <= len(job_ids) <= 50 or len(set(job_ids)) != len(job_ids):
+                raise ValueError("Provide 1-50 unique job IDs")
+            settings = _near_settings()
+            collection = db[ProvenanceBundleDocument.Settings.name]
+            bundle_ids = [f"near-{job_id}" for job_id in job_ids]
+            await _owned_bundles(collection, bundle_ids)
+            rows = await collection.find({"bundle_id": {"$in": bundle_ids}}).to_list(length=50)
+            existing = {row["bundle_id"] for row in rows}
+            async with _api() as client:
+                for job_id, bundle_id in zip(job_ids, bundle_ids, strict=True):
+                    if bundle_id in existing:
+                        continue  # keep the original commitment so retries reuse the same root
+                    bundle = await _experiment_bundle(client, job_id)
+                    await collection.insert_one({
+                        "bundle_id": bundle_id,
+                        "workflow_run_id": job_id,
+                        "artifact_refs": [],
+                        "peer_log_refs": [],
+                        "payload": bundle.model_dump(mode="json"),
+                        "content_hash": bundle_hash(bundle),
+                        "created_at": bundle.created_at,
+                        "anchor_batch_id": None,
+                    })
+            manifest = await prepare_manifest(collection, bundle_ids, settings)
+            args = json.dumps(manifest.contract_arguments(), separators=(",", ":"))
+            return {
+                "status": "awaiting_signature",
+                "merkle_root": manifest.merkle_root,
+                "leaf_count": manifest.leaf_count,
+                "bundle_ids": bundle_ids,
+                "owner_wallet": owner_wallet,
+                "registry": settings.contract_id,
+                "contract_arguments": manifest.contract_arguments(),
+                "near_cli_command": (
+                    f"near contract call-function as-transaction {settings.contract_id} anchor "
+                    f"json-args '{args}' prepaid-gas '30 Tgas' attached-deposit '0.01 NEAR' "
+                    f"sign-as {settings.publisher_id} network-config testnet "
+                    "sign-with-keychain send"
+                ),
+            }
+        except Exception as e:
+            logger.error("prepare_near_anchor failed: %s", type(e).__name__)
+            return {"error": str(e)}
+
+    @mcp.tool()
+    async def attach_near_anchor(job_ids: list[str], tx_hash: str) -> dict:
+        """Verify a signed NEAR testnet anchor transaction and attach inclusion proofs.
+
+        Call after the user pastes the transaction hash from the near_cli_command returned by
+        prepare_near_anchor. Use the same job_ids in the same order. Safe to retry.
+
+        Args:
+            job_ids: The job IDs passed to prepare_near_anchor, same order
+            tx_hash: NEAR testnet transaction hash (base58)
+
+        Returns:
+            verified flag, explorer_url (testnet.nearblocks.io) and merkle_root.
+        """
+        from quantum_backend_v2.application.near_provenance import attach_manifest, prepare_manifest
+        from quantum_backend_v2.persistence.mongodb import ProvenanceBundleDocument
+        from quantum_backend_v2.provenance.near_registry import NearRegistryAdapter
+
+        try:
+            settings = _near_settings()
+            collection = db[ProvenanceBundleDocument.Settings.name]
+            bundle_ids = [f"near-{job_id}" for job_id in job_ids]
+            await _owned_bundles(collection, bundle_ids)
+            manifest = await prepare_manifest(collection, bundle_ids, settings)
+            adapter = NearRegistryAdapter(settings)
+            await attach_manifest(collection, manifest, tx_hash.strip(), adapter)
+            return {
+                "verified": True,
+                "explorer_url": adapter.explorer_url(tx_hash.strip()),
+                "registry": settings.contract_id,
+                "merkle_root": manifest.merkle_root,
+                "bundle_ids": bundle_ids,
+                "owner_wallet": owner_wallet,
+            }
+        except OSError as e:
+            # Adapter OSErrors carry fixed, credential-free messages.
+            return {
+                "verified": False,
+                "error": f"{e}. The transaction may not be final yet, or the RPC "
+                "(QB2_NEAR_RPC_URL) may not keep history that old; retry shortly "
+                "or use an archival RPC.",
+            }
+        except Exception as e:
+            return {"verified": False, "error": str(e)}
 
     return mcp

@@ -28,6 +28,7 @@ class SessionMessageIn(BaseModel):
     content: str = Field(description="Message text")
     rich_content: dict | None = Field(default=None, description="Optional rich content payload")
     attestation: dict | None = Field(default=None, description="Optional private inference attestation summary")
+    approval: dict | None = Field(default=None, description="Optional pending approval request")
 
 
 class SessionAppendRequest(BaseModel):
@@ -170,6 +171,8 @@ async def append_session_message(
         msg["richContent"] = body.message.rich_content
     if body.message.attestation:
         msg["attestation"] = body.message.attestation
+    if body.message.approval:
+        msg["approval"] = body.message.approval
     doc.messages.append(msg)
     doc.updated_at = datetime.now(timezone.utc)
     await doc.save()

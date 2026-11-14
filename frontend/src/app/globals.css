@@ -264,3 +264,12 @@
   70% { opacity: 1; }
   100% { transform: rotate(215deg) translateX(-500px); opacity: 0; }
 }
+
+/* Chat code blocks: highlight.js token colours from the chart palette (rehype-highlight). */
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-type { color: var(--chart-3); }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute { color: var(--chart-4); }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--chart-5); }
+.hljs-title, .hljs-section, .hljs-function .hljs-title, .hljs-name { color: var(--chart-2); }
+.hljs-attr, .hljs-variable, .hljs-template-variable, .hljs-params { color: var(--chart-1); }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--muted-foreground); font-style: italic; }
+.hljs-deletion { color: var(--destructive); }

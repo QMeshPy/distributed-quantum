@@ -50,6 +50,8 @@ class UserTokenClaims(BaseModel):
     org_ids: frozenset[str] = Field(default_factory=frozenset)
     issued_at: datetime
     expires_at: datetime
+    # Primary SIWE wallet, only from a signed frontend assertion.
+    wallet_address: str | None = Field(default=None, pattern=r"^0x[0-9a-fA-F]{40}$")
 
     def has_role(self, role: UserRole) -> bool:
         return role in self.roles
